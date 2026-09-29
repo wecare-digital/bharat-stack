@@ -39,7 +39,7 @@ if ( !fs.existsSync( OUT ) ) { console.error( 'out/ not found - run npm run buil
 
 const ROUTES = [
   '/', '/grahak-os/', '/vayulok/', '/contact/', '/terms/', '/privacy/',
-  '/my-order/', '/bharat-rx/', '/elsewhere/', '/expo-week/', '/dastavez/',
+  '/orders/', '/bharat-rx/', '/elsewhere/', '/expo-week/', '/dastavez/',
   '/clear-closure/', '/ritual-guru/', '/anew/', '/niji-setu/', '/blog/', '/get/',
   // The five Selfservice pages, added when the header's six labels stopped all resolving
   // to /contact/. Same shape as the product pages: rotating hero plus one content section.

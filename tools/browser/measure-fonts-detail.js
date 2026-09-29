@@ -11,7 +11,7 @@ const { target } = require( './lib/serve' );
 
 const ROUTES = [
   '/', '/grahak-os', '/vayulok', '/contact', '/terms', '/privacy',
-  '/my-order', '/bharat-rx', '/elsewhere', '/expo-week', '/dastavez',
+  '/orders', '/bharat-rx', '/elsewhere', '/expo-week', '/dastavez',
   '/clear-closure', '/ritual-guru', '/anew', '/niji-setu',
 ];
 

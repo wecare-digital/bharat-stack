@@ -44,17 +44,21 @@ export const WIX_CONFIG = {
 
 // S3 Buckets
 export const S3_BUCKETS = {
-  MEDIA: 'app.wecare.digital',
-  REPORTS: 'app.wecare.digital',
+  MEDIA: 'wecare-digital-get',
+  REPORTS: 'wecare-digital-get',
 };
 
 // S3 Prefixes
 // User/transactional data under stack/ (factory reset = wipe stack/ only)
 // Static internal assets under stream/ (never wiped)
+// Rooted under `o/` to match amplify/functions/shared/lambda_utils/media_paths.py,
+// which is the canonical definition. Before the 2026-09-26 bucket merge the whole
+// bucket was the public root, so these prefixes carried no root segment and the fleet
+// addressed one level above its own data.
 export const S3_PREFIXES = {
-  MEDIA_INBOUND: 'stack/whatsapp-media/incoming/',
-  MEDIA_OUTBOUND: 'stack/whatsapp-media/outgoing/',
-  REPORTS: 'stack/reports/',
+  MEDIA_INBOUND: 'o/stack/whatsapp-media/incoming/',
+  MEDIA_OUTBOUND: 'o/stack/whatsapp-media/outgoing/',
+  REPORTS: 'o/stack/reports/',
 };
 
 // WhatsApp Configuration

@@ -66,9 +66,10 @@ CORS_CORE_ORIGINS = [
     # The apex, not stack.wecare.digital: that subdomain was retired and only ever
     # 301'd here, and a redirecting host is useless as an allowed origin because the
     # browser matches the request origin literally.
+    # app.wecare.digital removed 2026-09-28 for the same reason as stack: the host is
+    # retired and NXDOMAIN, so the entry is a standing offer rather than an allowance.
     'https://wecare.digital',
     'https://www.wecare.digital',
-    'https://app.wecare.digital',
     'https://d22dm4b0jn71jw.amplifyapp.com',
     'capacitor://localhost',   # iOS native app
     'https://localhost',       # Android native app

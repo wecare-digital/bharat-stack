@@ -31,7 +31,7 @@ env:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       id-token: write
       contents: read
@@ -74,14 +74,62 @@ jobs:
           aws ecr get-login-password --region "$AWS_REGION" \
             | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
 
+      # --provenance=false --sbom=false IS LOAD-BEARING. Lambda cannot run an image
+      # published as an OCI image INDEX, and BuildKit produces one as soon as it has an
+      # attestation to attach - the index exists to point at the image and the
+      # attestation together.
+      #
+      # Measured in ECR, which is why this is stated rather than guessed:
+      #
+      #   08:24 on ubuntu-24.04  application/vnd.docker.distribution.manifest.v2+json
+      #   16:04 on ubuntu-26.04  application/vnd.oci.image.index.v1+json
+      #                          + a 1710-byte attestation manifest beside it
+      #
+      # The second one deployed as far as update-function-code and then failed with
+      #   The image manifest, config or layer media type for the source image ...
+      #   is not supported.
+      # which does not mention attestations, indexes or BuildKit, and so reads as a
+      # broken image rather than as a default that changed underneath us. Nothing in
+      # this repo changed; the newer BuildKit on the 26.04 runner attests by default.
+      #
+      # Turning both off restores a single-manifest image. Do not remove these flags to
+      # "get supply-chain attestation" without first checking that Lambda accepts an
+      # index - as of this change it does not, and the failure surfaces only at deploy
+      # time, after a gigabyte has already been pushed.
       - name: Build & push image
         run: |
           IMAGE="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${GITHUB_SHA::7}"
           IMAGE_LATEST="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:latest"
-          docker build -f "$FUNCTION_DIR/Dockerfile" -t "$IMAGE" -t "$IMAGE_LATEST" .
+          docker build --provenance=false --sbom=false \
+            -f "$FUNCTION_DIR/Dockerfile" -t "$IMAGE" -t "$IMAGE_LATEST" .
           docker push "$IMAGE"
           docker push "$IMAGE_LATEST"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      # FAIL HERE, NOT IN LAMBDA. The error Lambda returns for an index names media
+      # types and not the cause, and it arrives after the push. Asserting the manifest
+      # type against what ECR actually stored turns that into one line naming the
+      # exact problem, and it costs a single read.
+      - name: Assert the pushed manifest is one Lambda can run
+        run: |
+          MT=$(aws ecr describe-images --repository-name "$ECR_REPO" \
+                 --image-ids imageTag="${GITHUB_SHA::7}" --region "$AWS_REGION" \
+                 --query 'imageDetails[0].imageManifestMediaType' --output text)
+          echo "manifest media type: $MT"
+          case "$MT" in
+            *manifest.list.v1+json|*image.index.v1+json)
+              echo "::error::Pushed a manifest INDEX ($MT). Lambda cannot run it." \
+                   "BuildKit attached an attestation - check --provenance/--sbom above."
+              exit 1
+              ;;
+            *manifest.v2+json|*image.manifest.v1+json)
+              echo "ok - single manifest, supported by Lambda"
+              ;;
+            *)
+              echo "::error::Unrecognised manifest media type: $MT"
+              exit 1
+              ;;
+          esac
 
       - name: Create or update Lambda
         run: |

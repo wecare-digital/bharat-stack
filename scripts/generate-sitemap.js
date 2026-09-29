@@ -30,7 +30,7 @@ const PUBLIC_EXACT = new Set( [
   '/blog',
   '/contact',
   '/grahak-os',
-  '/my-order',
+  '/orders',
   '/privacy',
   '/terms',
   '/vayulok',

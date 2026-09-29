@@ -207,3 +207,21 @@ identifier. Nothing referenced the old id except the `CORS_API_IDS` default, and
 restoring it should also restore that entry. Note that recreating it reinstates
 both defects — a wildcard-CORS public surface and a `$LATEST` integration — so a
 rollback should be a deliberate, temporary step rather than the end state.
+
+## Orphaned API Gateway integrations removed 2026-09-28
+
+Integrations on `zllr9lrg7j` with **no route attached** whose target Lambda no
+longer exists. Unreachable before removal - an integration with no route cannot be
+invoked - so this is inventory hygiene rather than closing an exposure. Removed so
+a future audit grepping live AWS state for a retired provider stops finding them.
+
+Full export, sufficient to recreate any of them: `docs/execution/snapshots/apigw-orphan-integrations-20260928-154904.json`
+
+| Integration | Target function | Why the target is gone |
+|---|---|---|
+| `jbhm39h` | `wecare-elevenlabs-webhook` | ElevenLabs TTS retirement |
+| `7m29j4q` | `wecare-outbound-voice` | voice provider retirement |
+| `dpr74ld` | `wecare-outbound-voice` | voice provider retirement |
+| `8a8h7vq` | `wecare-sinch-dlr` | Sinch messaging - prohibited provider |
+| `wc82ldv` | `wecare-sms-in-airtel` | Airtel messaging - prohibited provider |
+| `wzt49q5` | `wecare-sms-in-airtel` | Airtel messaging - prohibited provider |

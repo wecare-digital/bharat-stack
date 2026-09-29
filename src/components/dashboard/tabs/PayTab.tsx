@@ -9,10 +9,25 @@ import Modal from '../../../components/ui/Modal';
 import { useToastContext } from '../../../contexts/ToastContext';
 import type { DashboardData } from '../../../types/dashboard';
 import { PAYMENT_CONFIG } from '../../../config/constants';
+import { publicUrl } from '../../../lib/media-paths';
 import type { GatewayCheckResult } from '../../../api/client';
 
 const PAYMENT_PHONE = PAYMENT_CONFIG.phoneDisplay;
 const PAYMENT_NAME = PAYMENT_CONFIG.phoneName;
+
+/**
+ * The viewable invoice link for a payment row, or '' when there is none.
+ *
+ * Both call sites below used to interpolate `https://app.wecare.digital/${key}`
+ * inline. That was broken twice over: the host was retired on 2026-09-28, and the key
+ * needs the `o/` root that stored `invoiceS3Key` values predate. `publicUrl` handles
+ * both, and returns '' for a gated key rather than a link that 302s.
+ */
+function invoiceLinkFor ( pa: { invoiceS3Key?: string; paymentReferenceId?: string } ): string {
+  if ( pa.invoiceS3Key ) return publicUrl( pa.invoiceS3Key );
+  if ( pa.paymentReferenceId ) return publicUrl( `invoices/${ pa.paymentReferenceId }.png` );
+  return '';
+}
 
 interface PayTabProps {
   data: DashboardData;
@@ -193,9 +208,7 @@ const PayTab: React.FC<PayTabProps> = ({ data, onRefresh }) => {
               {paymentMessages.map(p => {
                 const pa = p as any;
                 const total = pa.paymentTotal ? `₹${(pa.paymentTotal / 100).toFixed(2)}` : p.content;
-                const invoiceUrl = pa.invoiceS3Key
-                  ? `https://app.wecare.digital/${pa.invoiceS3Key}`
-                  : pa.paymentReferenceId ? `https://app.wecare.digital/invoices/${pa.paymentReferenceId}.png` : '';
+                const invoiceUrl = invoiceLinkFor( pa );
                 return (
                   <tr key={p.id} className={pa.paymentStatus || p.status}>
                     <td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{pa.paymentReferenceId || '-'}</td>
@@ -231,9 +244,7 @@ const PayTab: React.FC<PayTabProps> = ({ data, onRefresh }) => {
         {paymentMessages.map(p => {
           const pa = p as any;
           const total = pa.paymentTotal ? `₹${(pa.paymentTotal / 100).toFixed(2)}` : p.content;
-          const invoiceUrl = pa.invoiceS3Key
-            ? `https://app.wecare.digital/${pa.invoiceS3Key}`
-            : pa.paymentReferenceId ? `https://app.wecare.digital/invoices/${pa.paymentReferenceId}.png` : '';
+          const invoiceUrl = invoiceLinkFor( pa );
           return (
             <div key={p.id} className="pay-card">
               <div className="pay-card-header">

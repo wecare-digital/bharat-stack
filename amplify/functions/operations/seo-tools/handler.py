@@ -1,4 +1,5 @@
 """SEO API for AWS-native blog content plus authenticated Admin SEO tools."""
+import hashlib
 import json
 import logging
 import time
@@ -9,7 +10,9 @@ from lambda_utils.idempotency import (
     body_hash, claim_admin_action, make_admin_idempotency_key,
 )
 from lambda_utils.middleware import require_auth
-from lambda_utils.response import cors_response, extract_origin, options_response
+from lambda_utils.response import (
+    cors_headers, cors_response, extract_origin, options_response,
+)
 
 import ai
 import storage
@@ -43,6 +46,105 @@ def _actor(event: Dict[str, Any]) -> str:
 
 def _response(status: int, body: Dict[str, Any], origin: str):
     return cors_response(status, body, origin)
+
+
+# ── Public blog read surface: projection, validators, caching ───────────────────
+
+# The fields a caller may ask for. An allowlist rather than "any key present on the
+# record", so `?fields=` cannot be used to probe for internal fields that a future
+# _blog_view might add.
+_PUBLIC_POST_FIELDS = frozenset({
+    'slug', 'title', 'excerpt', 'category', 'publishedDate', 'modifiedDate',
+    'authorName', 'coverImage', 'url', 'tags', 'seoTitle', 'metaDescription',
+    'focusKeyword', 'keywords', 'hashtags', 'robots', 'jsonLd', 'id',
+})
+
+# Five minutes at the edge, matching the Lambda-side TTL in wix.py so the two layers
+# cannot disagree about how stale the corpus may be. stale-while-revalidate lets a CDN
+# serve the old copy while it refreshes, which is the correct trade for a blog index.
+_BLOG_CACHE_CONTROL = 'public, max-age=60, s-maxage=300, stale-while-revalidate=600'
+
+
+def _projection(event: Dict[str, Any]) -> Optional[set]:
+    """Parse `?fields=a,b,c` into a validated set, or None for "everything".
+
+    WHY THIS EXISTS. The list response is 924 kB for 889 posts, and roughly half of that
+    is `jsonLd`, `keywords`, `hashtags`, `robots`, `focusKeyword` and `metaDescription` -
+    fields no caller of the public surface renders. `generate-blog-search-index.js`
+    documents that it wants exactly four of them and then throws the rest away after
+    transferring it.
+
+    Unknown names are IGNORED rather than rejected. A caller asking for a field that was
+    removed should get the fields that still exist, not a 400 that breaks a build over a
+    rename. `slug` is always included because every consumer keys on it.
+    """
+    raw = _query(event, 'fields').strip()
+    if not raw:
+        return None
+    wanted = {part.strip() for part in raw.split(',') if part.strip()}
+    # THE FALLBACK TESTS THE REQUEST, NOT THE RESULT, and the difference is a real bug
+    # that `test_the_etag_tracks_the_projection` caught. Deciding on
+    # `keep - {'slug'}` being empty meant `?fields=slug` - a perfectly reasonable request,
+    # and exactly what getStaticPaths needs - was indistinguishable from `?fields=nonsense`
+    # and returned the entire 924 kB corpus. Fall back only when NOTHING the caller asked
+    # for is recognised, which is the case the fallback was actually for: a field rename
+    # should not break a build.
+    recognised = wanted & _PUBLIC_POST_FIELDS
+    if not recognised:
+        return None
+    return recognised | {'slug'}
+
+
+def _project(posts, fields: Optional[set]):
+    if not fields:
+        return posts
+    return [{k: v for k, v in post.items() if k in fields} for post in posts]
+
+
+def _cacheable(status: int, body: Dict[str, Any], origin: str, event: Dict[str, Any]):
+    """A public read response carrying an ETag and Cache-Control, honouring If-None-Match.
+
+    WHAT THIS DOES AND DOES NOT BUY, stated plainly so nobody over-credits it.
+
+    The ETag is a sha256 over the serialised body, so an unchanged corpus yields an
+    unchanged tag and a conditional request costs 0 bytes of payload instead of 924 kB.
+    That only helps a client that actually sends If-None-Match - and Node's global fetch,
+    which is what the build uses, does NOT by default. So this is groundwork plus a real
+    win for the CDN and for any caller that opts in, NOT the fix for the traffic volume.
+    The fix for the volume is the memo in src/lib/public-blog.ts and the per-sandbox
+    caches in wix.py; this is the third layer, not the first.
+
+    Deliberately NOT using cors_response for the 304: a 304 MUST NOT carry a body, and
+    cors_response always json.dumps one and sets Content-Type.
+    """
+    payload = json.dumps(body, default=str)
+    etag = '"' + hashlib.sha256(payload.encode('utf-8')).hexdigest()[:32] + '"'
+    headers = event.get('headers') or {}
+    inm = ''
+    for key, value in headers.items():
+        if str(key).lower() == 'if-none-match':
+            inm = str(value or '')
+            break
+    if status == 200 and inm and etag in inm:
+        return {
+            'statusCode': 304,
+            'headers': {
+                **cors_headers(origin),
+                'ETag': etag,
+                'Cache-Control': _BLOG_CACHE_CONTROL,
+                # A 304 must not declare a body type it is not sending.
+                'Content-Type': '',
+            },
+            'body': '',
+        }
+    response = cors_response(status, body, origin)
+    response['headers'] = {
+        **response['headers'],
+        'ETag': etag,
+        'Cache-Control': _BLOG_CACHE_CONTROL,
+        'Vary': 'Origin, Accept-Encoding',
+    }
+    return response
 
 
 def _query(event: Dict[str, Any], name: str, default: str = '') -> str:
@@ -336,6 +438,25 @@ def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
         return _page_clean(body, actor, origin)
     if path.endswith('/seo-approve'):
         return _review(body, actor, origin)
+    if path.endswith('/cache-purge'):
+        # A CACHE WITH NO PURGE IS AN OPERATIONAL TRAP, which is the whole reason this
+        # route exists rather than the TTL standing alone. Blog content is authored in
+        # Wix, OUTSIDE this system, so the person who just published a post has no other
+        # way to make it appear before the 5-minute TTL expires - and the first thing they
+        # would do is report the new post as missing.
+        #
+        # Admin-only and idempotent. It clears a per-sandbox dict, so the worst case is
+        # that the next request to each warm sandbox re-fetches; there is nothing to
+        # corrupt and nothing to roll back. No idempotency claim for the same reason -
+        # purging twice is purging once.
+        wix.clear_blog_cache()
+        logger.info(json.dumps({'event': 'seo_blog_cache_purged', 'actor': actor}))
+        return _response(200, {
+            'ok': True,
+            'purged': True,
+            'note': ('Cleared in this execution environment. Other warm sandboxes expire '
+                     'on their own TTL, so allow a few minutes for full consistency.'),
+        }, origin)
     return _response(404, {'ok': False, 'error': 'SEO route not found'}, origin)
 
 
@@ -348,14 +469,31 @@ def handler(event: Dict[str, Any], context: Optional[Any]):
     # Public read surface for the headless site. Wix Blog is the source of truth;
     # drafts, audits, logs and Admin mutation routes remain protected.
     if method == 'GET' and (path.endswith('/blog-public') or '/blog-public/' in path):
-        if '/blog-public/' in path:
-            slug = path.split('/blog-public/', 1)[1].strip('/')
-            post = wix.get_blog_post_by_slug(slug)
-            if not post:
-                return _response(404, {'ok': False, 'error': 'Blog post not found'}, origin)
-            return _response(200, {'ok': True, 'post': post}, origin)
-        posts = wix.list_blog_posts()
-        return _response(200, {'ok': True, 'posts': posts, 'total': len(posts)}, origin)
+        # A FAILED UPSTREAM IS A 503, NOT A 500, and it says so in a Retry-After-able
+        # shape. wix.py retries the retryable statuses once and serves a stale corpus
+        # when it has one, so reaching this branch means the upstream is genuinely down
+        # with nothing cached. generate-sitemap.js reads that distinction: it refuses to
+        # write a sitemap rather than publishing one with the blog missing.
+        try:
+            if '/blog-public/' in path:
+                slug = path.split('/blog-public/', 1)[1].strip('/')
+                post = wix.get_blog_post_by_slug(slug)
+                if not post:
+                    return _response(404, {'ok': False, 'error': 'Blog post not found'}, origin)
+                return _cacheable(200, {'ok': True, 'post': post}, origin, event)
+            posts = wix.list_blog_posts()
+            fields = _projection(event)
+            return _cacheable(200, {
+                'ok': True,
+                'posts': _project(posts, fields),
+                'total': len(posts),
+            }, origin, event)
+        except RuntimeError:
+            logger.exception('public blog read failed')
+            return _response(503, {
+                'ok': False,
+                'error': 'The blog index is temporarily unavailable',
+            }, origin)
 
     auth_result = require_auth(event, required_role='Admin')
     if auth_result is not None:

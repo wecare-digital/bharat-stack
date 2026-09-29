@@ -46,7 +46,25 @@ interface BrandLockupProps {
  */
 const BrandLockup: React.FC<BrandLockupProps> = ( { className = '', compact = false } ) => (
   <span className={ `brand-lockup full ${compact ? 'compact' : ''} ${className}`.trim() } data-wc-no-translate="true">
-    <img src={ LOGO_URL } alt="" aria-hidden="true" />
+    {/* width/height ARE THE INTRINSIC SIZE, NOT THE RENDERED SIZE, and that is the point.
+        This img shipped with neither, so until the stylesheet applied, the browser knew nothing
+        about the file's proportions and reserved a 0x0 box for it - on the header lockup, which
+        is the first element on every public page. The CSS below sets height:60px;width:auto, so
+        the RENDERED width is derived from the aspect ratio; with no ratio available there is
+        nothing to derive it from. Giving the real 1080x1080 lets the browser compute 60x60
+        before a single byte of the image arrives, and the CSS still owns the display size.
+        Not the rendered numbers: they are 60px, 54px, 44px and 40px across two variants and two
+        breakpoints, and an attribute can only hold one pair. The intrinsic size is the one value
+        that is true in every slot, which is what these attributes are specified to carry.
+        decoding="async" so a 1080px PNG being scaled down to 60 cannot hold up first paint. */}
+    <img
+      src={ LOGO_URL }
+      alt=""
+      aria-hidden="true"
+      width={ 1080 }
+      height={ 1080 }
+      decoding="async"
+    />
     {/* WECARE.DIGITAL, split across the same two lines the wordmark has always used.
         The owner asked for "WECARE.DIGITAL" to become WECARE.DIGITAL everywhere; this
         lockup was the one place where that is a shape decision rather than a string

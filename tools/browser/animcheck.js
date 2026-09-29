@@ -22,7 +22,7 @@
  * 2. ONE ANIMATION FAMILY. There are FOUR implementations of this hero, not three:
  *    three inline copies (home-, hero- on /grahak-os/, vl- on /vayulok/) plus the
  *    shared RotatingHero component (rh-, used by /contact/, /terms/, /privacy/,
- *    /bharat-rx/, /my-order/). They are meant to animate identically, so this compares
+ *    /bharat-rx/, /orders/). They are meant to animate identically, so this compares
  *    the COMPUTED transition of the pill, the word, the tint and the dot across all of
  *    them and fails on drift. Four copies of a constant cannot be kept in step by
  *    intention alone.

@@ -230,10 +230,34 @@ def _admin_mfa_required() -> bool:
     Read per call, not captured at import: this is a security posture switch and one
     that only takes effect after every warm sandbox recycles is not much of a switch.
 
-    Defaults to warn. Measured 2026-09-23: the pool has one user, that user is in NO
-    group, and all four groups are empty - so enforcing immediately would refuse the
-    first Admin ever created until they enrolled, and whoever hit that would turn the
-    check off rather than enrol. Warn first, with a findable alert, then flip.
+    Defaults to warn, but the reason it defaulted to warn HAS EXPIRED. Recorded here
+    because the original note is now misleading and would argue against a change that is
+    already safe.
+
+    Measured 2026-09-23: "the pool has one user, that user is in NO group, and all four
+    groups are empty - so enforcing immediately would refuse the first Admin ever created
+    until they enrolled, and whoever hit that would turn the check off rather than enrol."
+
+    Re-measured 2026-09-28 against the live pool `us-east-1_cSx0RHCIR`:
+
+        1 user, CONFIRMED and enabled
+        that user IS in the Admin group   (Admin: 1, Operator/Partner/Viewer: 0)
+        that user HAS two factors enrolled: SMS_MFA and EMAIL_OTP
+        AdminCreateUserConfig.AllowAdminCreateUserOnly: true  (no self-signup)
+        DeletionProtection: ACTIVE
+
+    So the lock-out risk the warn-first default was protecting against no longer exists,
+    and `ADMIN_MFA_REQUIRED=true` is already set on all 13 functions that gate anything on
+    an Admin role - including every one of the nine handlers that pass
+    `required_role='Admin'`. Enforcement is therefore live, not pending.
+
+    The remaining softness is at the Cognito layer rather than here: the pool's
+    `MfaConfiguration` is OPTIONAL, so Cognito itself will not force a challenge for a
+    user who has enrolled nothing. This function is what refuses that user, and line 199
+    treats `None` - a failed enrolment lookup - as not-enrolled, so it fails closed.
+    Raising the pool to `ON` is an account-level security change and
+    `00-current-owner-overrides.md` explicitly records admin MFA as "not MANDATORY", so it
+    is an owner decision rather than a default to flip here.
     """
     return str(os.environ.get('ADMIN_MFA_REQUIRED', '')).strip().lower() in (
         '1', 'true', 'yes', 'on')

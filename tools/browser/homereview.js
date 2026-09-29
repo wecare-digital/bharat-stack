@@ -803,7 +803,7 @@ return () =&gt; ro.disconnect();</code></pre>
       <tr><td><b>No dark-mode support and no <code>&lt;meta name="color-scheme"&gt;</code>.</b> Light-only is a fine decision; undeclared is not</td>
           <td>0 <code>prefers-color-scheme</code> rules</td></tr>
       <tr><td><b>A comment claims <code>20px/600</code> “exists nowhere on the site”.</b> It does</td>
-          <td><code>/my-order</code> <code>.mo-link</code></td></tr>
+          <td><code>/orders</code> <code>.mo-link</code></td></tr>
       <tr><td><b><code>15.5px</code> exists</b> — a half-pixel size is arithmetic, not intent</td>
           <td>×71, <code>/terms</code> and <code>/privacy</code></td></tr>
       <tr><td><b>Tracking drift:</b> the home page is on <code>-0.04em</code>; the other three hero copies are still on <code>-2.2px</code> with media overrides — the 2.75× optical swing</td>

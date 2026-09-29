@@ -165,10 +165,33 @@ describe( 'Blog design alignment', () => {
     expect( String( other.getAttribute( 'href' ) ).replace( /\/$/, '' ) ).toBe( '/blog/topic/guides' );
   } );
 
-  it( 'shows each category its own size, so a pill says what it selects', () => {
+  it( 'keeps the post count OFF the category pills, and on the line that reports it', () => {
+    /*
+     * REVERSED ON OWNER INSTRUCTION. This test used to assert the opposite - that each pill
+     * showed its own size, "Conversations 824" - so it is inverted rather than deleted: the
+     * count must now be absent from the pills, and the assertion is what stops it drifting back.
+     *
+     * It is asserted as "no digits in the nav" rather than "no <i> element", because the element
+     * is an implementation detail and a future pill could reintroduce the number some other way.
+     *
+     * The second half matters as much as the first: `categoryCounts` is still a live prop, feeding
+     * the search box's "N of M posts" denominator, so the count was moved off the pills rather
+     * than deleted from the page. Without that assertion this test would pass just as well if the
+     * counts had been ripped out altogether, which is not what was asked for. That line only
+     * renders while a query is active - BlogSearch omits it when there is nothing to count - so
+     * the search has to be driven to see it.
+     */
     render( <BlogIndex { ...propsFor( { categoryCounts: { Conversations: 824, Guides: 40 } } ) } /> );
-    expect( document.querySelector( '.category-switch .cat-here' )?.textContent ).toContain( '824' );
-    expect( screen.getByRole( 'link', { name: /Guides/ } ).textContent ).toContain( '40' );
+
+    const nav = document.querySelector( '.category-switch' );
+    expect( nav?.textContent ).toContain( 'Conversations' );
+    expect( nav?.textContent ).toContain( 'Guides' );
+    expect( nav?.textContent ).not.toMatch( /\d/ );
+    expect( nav?.querySelector( 'i' ) ).toBeNull();
+
+    // The denominator still comes from categoryCounts, on the line that is meant to report it.
+    fireEvent.change( screen.getByLabelText( 'Search the blog' ), { target: { value: 'a' } } );
+    expect( document.querySelector( '.bs-count' )?.textContent ).toContain( 'of 824 posts' );
   } );
 
   it( 'needs no fetch to render a category stream, because the page IS the category', () => {

@@ -51,7 +51,7 @@ concurrency:
 jobs:
   review:
     name: Review the diff
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
 
     # `secrets` is not a context available to a job-level or step-level `if`, so the

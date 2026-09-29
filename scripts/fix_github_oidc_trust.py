@@ -83,10 +83,19 @@ BRANCH = "stack"
 # so it was never broken - but it pinned that name with StringEquals, which is the
 # same latent bug one rename away from repeating this outage. It is included so all
 # three are rename-proof and auditable from one command.
+#
+# The fourth is the write role for public-surface-deploy.yml, added 2026-09-28 at the
+# same time as that workflow. It is listed here BEFORE it exists in AWS, deliberately:
+# --status reports an absent role as such and --apply skips it, whereas a role created
+# later and never added here is one that silently keeps whatever trust document the
+# person who created it happened to paste. That is the exact latent trap
+# test_fixer_covers_every_oidc_role holds down, and a role with WRITE permissions is
+# the worst one to leave out of it.
 ROLES = [
     "GitHubActions-bharat-stack-docs-scraper",
     "GitHubActions-bharat-stack-seo-tools",
     "GitHubActions-wecare-digital-route-auth",
+    "GitHubActions-wecare-digital-public-surface",
 ]
 
 

@@ -26,7 +26,7 @@ These are the ones a visitor and a search engine can reach. Review these first.
 | 3 | `/blog/` | [http://localhost:3000/blog/](http://localhost:3000/blog/) |
 | 4 | `/contact/` | [http://localhost:3000/contact/](http://localhost:3000/contact/) |
 | 5 | `/grahak-os/` | [http://localhost:3000/grahak-os/](http://localhost:3000/grahak-os/) |
-| 6 | `/my-order/` | [http://localhost:3000/my-order/](http://localhost:3000/my-order/) |
+| 6 | `/orders/` | [http://localhost:3000/orders/](http://localhost:3000/orders/) |
 | 7 | `/privacy/` | [http://localhost:3000/privacy/](http://localhost:3000/privacy/) |
 | 8 | `/terms/` | [http://localhost:3000/terms/](http://localhost:3000/terms/) |
 | 9 | `/vayulok/` | [http://localhost:3000/vayulok/](http://localhost:3000/vayulok/) |

@@ -38,7 +38,7 @@ const SITE = 'https://wecare.digital';
 /** Public marketing routes, in the same order typecheck.js uses. */
 const ROUTES = [
   '/', '/grahak-os/', '/vayulok/', '/contact/', '/terms/', '/privacy/',
-  '/my-order/', '/bharat-rx/',
+  '/orders/', '/bharat-rx/',
   '/elsewhere/', '/expo-week/', '/dastavez/', '/clear-closure/',
   '/ritual-guru/', '/anew/', '/niji-setu/',
   // The five Selfservice pages, added when the header's six labels stopped all resolving

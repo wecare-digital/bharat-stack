@@ -9,7 +9,10 @@ import boto3
 
 REGION = "us-east-1"
 ACCOUNT = "775261844268"
-BUCKET = "app.wecare.digital"
+# CodeBuild source-artifact bucket. Was `app.wecare.digital`, which was deleted on
+# 2026-09-28 — this was the last hard-coded S3 bucket literal in the tree naming it,
+# and the next run would have failed with NoSuchBucket.
+BUCKET = "wecare-digital-get"
 REPOSITORY = "wecare-docs-scraper"
 FUNCTION = "wecare-docs-scraper"
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,7 +71,19 @@ def main() -> None:
     project = f"task12-docs-{stamp}"
     role_name = f"task12-codebuild-{stamp}"
     role_arn = f"arn:aws:iam::{ACCOUNT}:role/{role_name}"
-    key = f"deploy/task12/docs-{stamp}.zip"
+    # Rooted under `secure/`, not at the bucket root, for two separate reasons.
+    #
+    # 1. `wecare-digital-get` has exactly two top-level prefixes, `o/` and `secure/`,
+    #    and scripts/verify_media_prefixes.py asserts that. A key at `deploy/...`
+    #    would have created a third root and failed that check.
+    # 2. `o/` would have been worse than wrong. Everything outside `secure/` is
+    #    PUBLIC — `o/` only controls dual-homing, not access — so a source zip
+    #    holding the Dockerfile and handler code would have been fetchable at
+    #    https://wecare.digital/get/o/deploy/... `secure/` is denied at the edge by
+    #    the wecare-get-miss-redirect Lambda@Edge.
+    #
+    # The object is deleted again once the build finishes (see the cleanup below).
+    key = f"secure/deploy/task12/docs-{stamp}.zip"
     tag = f"task12-{stamp}"
     repository_uri = f"{ACCOUNT}.dkr.ecr.{REGION}.amazonaws.com/{REPOSITORY}"
     image_uri = f"{repository_uri}:{tag}"

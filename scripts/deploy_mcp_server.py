@@ -102,6 +102,26 @@ STAGE = "prod"
 AMPLIFY_APP_ID = "d22dm4b0jn71jw"
 
 ROUTE_KEY = "ANY /mcp"
+
+# A PER-ROUTE THROTTLE, because the stage default is SHARED.
+#
+# Stage `prod` defaults to 100 rps / 200 burst, and that budget is shared across all 359
+# routes. This is not theoretical: on 2026-09-28 the build hammered
+# /seo-tools/blog-public hard enough that **117 requests came back 429**, so one route
+# exhausting the shared allowance already happens here.
+#
+# /mcp is unauthenticated and anyone on the internet can call it, so it is the route most
+# able to do that to everything else - and the blast radius of it doing so is the payment
+# webhook and the WhatsApp ingress, not the MCP client. 20 rps is generous for an agent
+# integration (a client makes a handful of calls per conversation) and is a fifth of the
+# stage, so a flood is contained rather than fatal.
+#
+# This is a CAP, NOT A SPEND LIMIT, and the distinction is the one core/site-language
+# already documents at length: a rate limit bounds requests per second, not dollars. It is
+# adequate while every tool is a cached read. If a tool that costs money per call is ever
+# added, this number needs revisiting BEFORE the flag goes on, not after.
+ROUTE_THROTTLE_RATE = 20.0
+ROUTE_THROTTLE_BURST = 40
 EXECUTE_API_TARGET = f"https://{API_ID}.execute-api.{REGION}.amazonaws.com/{STAGE}/mcp"
 HOSTING_RULES = [
     {"source": "/mcp", "target": EXECUTE_API_TARGET, "status": "200"},
@@ -320,6 +340,86 @@ def ensure_api_route(alias_arn: str) -> None:
     except lam.exceptions.ResourceConflictException:
         _log("api", "invoke permission apigw-mcp already present")
 
+    ensure_route_throttle(api)
+
+
+def ensure_route_throttle(api) -> None:
+    """Cap /mcp on its own so it cannot spend the stage's shared allowance.
+
+    UpdateStage MERGES RouteSettings, it does not replace them - measured here, and it is
+    the opposite of the `update-user-pool` behaviour `.kiro/steering/aws-agent-rules.md`
+    warns about. Worth writing down because the steering's rule of thumb is to treat every
+    AWS "update" as a replace until proven otherwise, and this is a proven exception.
+
+    The awkward consequence: because it merges, it also VALIDATES THE MERGED MAP, so a
+    stale key already on the stage blocks every future write and omitting it does not
+    remove it. Removal needs DeleteRouteSettings. Two attempts failed on exactly that
+    before this was understood:
+
+        NotFoundException: Unable to find Route by key POST /site-language/tts
+        within the provided RouteSettings
+
+    `POST /site-language/tts` and `GET /site-language/voices` were throttles left behind
+    when text-to-speech was retired. They were inert - no route, nothing to throttle - but
+    they meant NO per-route throttle could be added to this API by anyone until they went.
+    """
+    stage = api.get_stage(ApiId=API_ID, StageName=STAGE)
+    current = dict(stage.get("RouteSettings") or {})
+
+    # STALE KEYS HAVE TO BE DROPPED, and finding that out is why this reads back.
+    # UpdateStage VALIDATES every key in RouteSettings against a live route and rejects the
+    # whole call otherwise:
+    #
+    #     NotFoundException: Unable to find Route by key POST /site-language/tts
+    #     within the provided RouteSettings
+    #
+    # The stage carried throttles for `POST /site-language/tts` and
+    # `GET /site-language/voices`, two routes deleted when text-to-speech was retired. The
+    # settings were inert - there is no route to throttle - but they made the map
+    # unwritable, so no per-route throttle could be added to this API by anyone until they
+    # went. Dropping them is the fix and it is safe for the same reason they were harmless.
+    live_routes = set()
+    token = None
+    while True:
+        kwargs = {"ApiId": API_ID, "MaxResults": "500"}
+        if token:
+            kwargs["NextToken"] = token
+        page = api.get_routes(**kwargs)
+        live_routes |= {r["RouteKey"] for r in page.get("Items", [])}
+        token = page.get("NextToken")
+        if not token:
+            break
+
+    stale = sorted(k for k in current if k not in live_routes)
+    for key in stale:
+        # Safe by the same argument that made them harmless: the route does not exist, so
+        # the setting throttles nothing. Removing it is what makes the map writable again.
+        api.delete_route_settings(ApiId=API_ID, StageName=STAGE, RouteKey=key)
+        _log("api", f"removed stale route setting for a deleted route: {key}")
+
+    wanted = {
+        **current.get(ROUTE_KEY, {}),
+        "ThrottlingRateLimit": ROUTE_THROTTLE_RATE,
+        "ThrottlingBurstLimit": ROUTE_THROTTLE_BURST,
+    }
+    if not stale and current.get(ROUTE_KEY) == wanted:
+        _log("api", f"route throttle already set: {ROUTE_THROTTLE_RATE} rps / "
+                    f"{ROUTE_THROTTLE_BURST} burst")
+        return
+    # Only our key, because the call merges. Sending the rest would be a no-op at best.
+    api.update_stage(ApiId=API_ID, StageName=STAGE, RouteSettings={ROUTE_KEY: wanted})
+    after = dict(api.get_stage(ApiId=API_ID, StageName=STAGE).get("RouteSettings") or {})
+    applied = after.get(ROUTE_KEY, {})
+    if applied.get("ThrottlingRateLimit") != ROUTE_THROTTLE_RATE:
+        raise RuntimeError(f"route throttle did not apply: {applied}")
+    # Only a LIVE key going missing is a fault. The stale ones were removed on purpose.
+    lost = (set(current) - set(after)) & live_routes
+    if lost:
+        raise RuntimeError(f"update_stage dropped route settings for live routes: {sorted(lost)}")
+    _log("api", f"route throttle set on {ROUTE_KEY}: {ROUTE_THROTTLE_RATE} rps / "
+                f"{ROUTE_THROTTLE_BURST} burst  (stage default stays "
+                f"{stage.get('DefaultRouteSettings', {}).get('ThrottlingRateLimit')} rps)")
+
 
 # --------------------------------------------------------------------------- #
 # amplify hosting
@@ -411,11 +511,60 @@ def verify() -> int:
     except ClientError as exc:
         problems.append(f"lambda/live alias unreachable: {exc.response['Error']['Code']}")
 
+    # IS THE DEPLOYED CATALOGUE THE ONE IN THE REPO?
+    #
+    # This function is the only consumer of config/public-pages.json that carries a COPY
+    # rather than reading it live, so a catalogue change does not reach it until someone
+    # redeploys - and nothing makes them. It happened within hours of the function being
+    # created: another session renamed /my-order to /orders, updated the catalogue, the
+    # allowlists and the tests, committed, and CI deployed the frontend. wecare-mcp has no
+    # CI workflow, so it kept serving the old copy, and `search_pages` handed agents
+    # https://wecare.digital/my-order/ - a URL that now 404s. Nothing reported it.
+    #
+    # Caught here by comparing bytes, so a stale catalogue is a loud verify failure rather
+    # than a wrong answer to an agent. scripts/check_deployed_source.py finds the same thing
+    # across the whole fleet; this is the function-specific check for the command an operator
+    # of THIS function actually runs.
+    #
+    # The permanent fix is a CI workflow keyed on config/public-pages.json, like
+    # seo-tools-deploy.yml. That needs a new OIDC IAM role - the existing
+    # GitHubActions-bharat-stack-seo-tools role is scoped to its own function - and creating
+    # one is an owner decision under maintenance-reporting. Until then, this check plus
+    # `--verify` in the release routine is the guard.
+    try:
+        import hashlib
+        local = hashlib.sha256(CATALOG_FILE.read_bytes()).hexdigest()
+        artifact = lam.get_function(FunctionName=FUNCTION_NAME, Qualifier="live")
+        import urllib.request as _req
+        with _req.urlopen(artifact["Code"]["Location"], timeout=60) as resp:
+            blob = resp.read()
+        with zipfile.ZipFile(io.BytesIO(blob)) as archive:
+            deployed = hashlib.sha256(archive.read("public-pages.json")).hexdigest()
+        if deployed != local:
+            problems.append(
+                "the DEPLOYED catalogue differs from config/public-pages.json. The MCP "
+                "server is describing pages that may no longer exist, or missing ones that "
+                "do. Fix with: python scripts/deploy_mcp_server.py")
+        else:
+            _log("verify", "deployed catalogue matches config/public-pages.json")
+    except (ClientError, KeyError, OSError, zipfile.BadZipFile) as exc:
+        problems.append(f"could not compare the deployed catalogue: {type(exc)}")
+
     routes = {r["RouteKey"]: r for r in api.get_routes(ApiId=API_ID, MaxResults="1000").get("Items", [])}
     if ROUTE_KEY not in routes:
         problems.append(f"API route missing: {ROUTE_KEY}")
     else:
         _log("verify", f"api route present: {ROUTE_KEY} -> {routes[ROUTE_KEY].get('Target')}")
+
+    settings = (api.get_stage(ApiId=API_ID, StageName=STAGE).get("RouteSettings") or {})
+    throttle = settings.get(ROUTE_KEY) or {}
+    if throttle.get("ThrottlingRateLimit") != ROUTE_THROTTLE_RATE:
+        problems.append(f"route throttle missing or changed on {ROUTE_KEY}: {throttle or 'none'} "
+                        f"(expected {ROUTE_THROTTLE_RATE} rps). Without it this public route "
+                        f"shares the stage allowance with every other route.")
+    else:
+        _log("verify", f"route throttle: {throttle['ThrottlingRateLimit']} rps / "
+                       f"{throttle.get('ThrottlingBurstLimit')} burst")
 
     rules = _load_rules(amp)
     sources = [r.get("source") for r in rules]

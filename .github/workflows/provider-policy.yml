@@ -67,7 +67,7 @@ permissions:
 jobs:
   provider-policy:
     name: Provider policy gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
 

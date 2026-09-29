@@ -99,9 +99,19 @@ interface BlogIndexViewProps {
   defaultCategory?: string;
 }
 
-/** /blog/ for page 1, /blog/page/N/ after that. Page 1 must not also exist at page/1/. */
-export const blogPageHref = ( page: number ): string =>
-  page <= 1 ? '/blog/' : `/blog/page/${page}/`;
+/**
+ * Page 1 is the stream's own URL; page N hangs off it. Page 1 must not also exist at page/1/.
+ *
+ * `streamBase` EXISTS BECAUSE THE CATEGORY STREAMS ARE PAGINATED NOW TOO. It was hardcoded to
+ * /blog/, which was true while /blog/topic/<slug>/ listed a whole category on one page. That
+ * stopped being viable: Gastronomy has gone from 40 posts to 90, its props measured 30.2 kB
+ * against the 128 kB threshold blogcheck enforces, and the topic route's own comment said to
+ * paginate it past roughly 100. Passing the base in means one helper serves both shapes -
+ * /blog/page/2/ and /blog/topic/gastronomy/page/2/ - so the two cannot drift into two URL
+ * conventions for one idea.
+ */
+export const blogPageHref = ( page: number, streamBase = '/blog/' ): string =>
+  page <= 1 ? streamBase : `${streamBase}page/${page}/`;
 
 /**
  * Which page numbers to render. 35 pages of numbers is its own wall of links, so this shows
@@ -217,6 +227,13 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
 
   const windowed = pageWindow( page, totalPages );
 
+  /* WHICH STREAM THIS VIEW IS PAGING. Derived here rather than passed in, because the component
+   * already holds both halves of the answer and the pills two hundred lines below compute the
+   * same branch from the same two values - a prop would be a third place for it to disagree. */
+  const streamBase = !activeCategory || activeCategory === defaultCategory
+    ? '/blog/'
+    : `/blog/topic/${topicSlug( activeCategory )}/`;
+
   return (
     <RotatingHero
       frame="Notes on"
@@ -266,13 +283,16 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
                 { categories.map( category => {
                   const href = category === defaultCategory ? '/blog/' : `/blog/topic/${topicSlug( category )}/`;
                   const here = category === activeCategory;
+                  /* NO POST COUNT ON THE PILL, on owner instruction. Each pill carried
+                     <i>{ categoryCounts[ category ] }</i> - "Conversations 824" - so the label
+                     was a name followed by a number. The count is not gone from the page: the
+                     line beside the search box still reports it (see categoryTotal below), which
+                     is where a reader looks for "how many", and the pills go back to being what
+                     they are - a set of names you choose between. `categoryCounts` stays a prop
+                     because that line still needs it. */
                   return here
-                    ? <span key={ category } className="cat-here" aria-current="page">
-                      { category } <i>{ categoryCounts?.[ category ] ?? '' }</i>
-                    </span>
-                    : <Link key={ category } href={ href }>
-                      { category } <i>{ categoryCounts?.[ category ] ?? '' }</i>
-                    </Link>;
+                    ? <span key={ category } className="cat-here" aria-current="page">{ category }</span>
+                    : <Link key={ category } href={ href }>{ category }</Link>;
                 } ) }
               </nav>
             ) }
@@ -313,9 +333,23 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
                 {/* rel=prev/next as well as the visible label: Google retired them as an
                     indexing signal, they are still the semantic relationship, and some
                     readers' browsers and extensions use them to move between pages. */}
+                {/* THE ARROW IS DRAWN, NOT TYPED, and that is a measured fix rather than a
+                    preference. These read "← Newer" and "Older →" with literal U+2190 / U+2192,
+                    and in a browser with the webfont unavailable both rendered as TOFU - a hollow
+                    box - beside perfectly legible text. Measured with a canvas advance-width
+                    comparison: the arrows came back identical to a private-use codepoint that has
+                    no glyph anywhere, i.e. no font in the fallback chain covered them.
+                    A rotated border box cannot fall back to a missing glyph. It is the same
+                    technique Breadcrumbs.tsx uses for its chevron and WorkflowTerminal.tsx for its
+                    play and pause marks, both for this exact reason, and it has the same bonus:
+                    aria-hidden furniture that a screen reader never announces as a character. */}
                 { page > 1
-                  ? <Link className="pager-step" rel="prev" href={ blogPageHref( page - 1 ) }>← Newer</Link>
-                  : <span className="pager-step is-off" aria-hidden="true">← Newer</span> }
+                  ? <Link className="pager-step is-prev" rel="prev" href={ blogPageHref( page - 1, streamBase ) }>
+                    <i className="pager-mark" aria-hidden="true" />Newer
+                  </Link>
+                  : <span className="pager-step is-prev is-off" aria-hidden="true">
+                    <i className="pager-mark" />Newer
+                  </span> }
 
                 <ol className="pager-list">
                   { windowed.map( ( n, i ) => (
@@ -329,7 +363,7 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
                           // to sighted readers only, and a link to the page you are on is a
                           // control that does nothing.
                           ? <span className="pager-num is-here" aria-current="page">{ n }</span>
-                          : <Link className="pager-num" href={ blogPageHref( n ) }>
+                          : <Link className="pager-num" href={ blogPageHref( n, streamBase ) }>
                             <span className="pager-sr">Page </span>{ n }
                           </Link> }
                     </li>
@@ -337,8 +371,12 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
                 </ol>
 
                 { page < totalPages
-                  ? <Link className="pager-step" rel="next" href={ blogPageHref( page + 1 ) }>Older →</Link>
-                  : <span className="pager-step is-off" aria-hidden="true">Older →</span> }
+                  ? <Link className="pager-step is-next" rel="next" href={ blogPageHref( page + 1, streamBase ) }>
+                    Older<i className="pager-mark" aria-hidden="true" />
+                  </Link>
+                  : <span className="pager-step is-next is-off" aria-hidden="true">
+                    Older<i className="pager-mark" />
+                  </span> }
               </nav>
             ) }
           </>
@@ -376,8 +414,8 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
         /* The current category: filled, and not a link, so there is nothing to click. */
         .category-switch .cat-here{background:#d1f470;border-color:#d1f470}
         /* The count. Tabular so the pills do not jiggle, and quiet so the name leads. */
-        .category-switch i{font-style:normal;font-weight:400;font-variant-numeric:tabular-nums;color:rgba(26,58,42,.62)}
-        .category-switch .cat-here i{color:rgba(26,58,42,.72)}
+        /* The .category-switch i rules that styled the per-pill post count went with the count
+           itself - see the note in the markup. Nothing else in this nav renders an <i>. */
         .post-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
         .post-card{border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff;transition:border-color .18s ease,transform .18s ease}
         .post-card:hover{border-color:#d1f470;transform:translateY(-1px)}
@@ -406,26 +444,55 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
            floor and a row of page numbers is exactly the case it exists for. Sizes reuse
            existing rungs: 12px radius from the search field, the lime-on-dark-green pairing
            from the closing band's button for the current page. */
+        /* EVERY CHILD SELECTOR HERE GOES THROUGH :global(), AND WITHOUT IT NONE OF THIS APPLIED.
+           styled-jsx adds its scoping class only to lowercase DOM tags it can see in this file,
+           never to a capitalised component - it cannot know whether the component forwards
+           className to a DOM node. The steps and the page numbers are next/link, so they rendered
+           class="pager-step" with no jsx- hash and the compiled .jsx-xxx.pager-step rule matched
+           nothing. The current page and the dead direction are <span>, so THOSE were styled.
+           Measured on the built page before this fix, at /blog/page/2/:
+             a.pager-step   69x32   radius 0   border 0   transparent
+             a.pager-num     7x20   radius 0   border 0   transparent
+             span.pager-num.is-here  44x44  radius 12px  border 2px  lime
+           So the row read as one lime chip beside bare 7px-wide text, the 44px touch targets the
+           comment above claims did not exist, and 2.5.8 failed on the only navigation control on
+           the page. It is the identical trap .home-close-cta documents on the home page.
+           :global() INSIDE A SCOPED PARENT rather than a bare :global - .pager itself is a <nav>
+           in this file and does carry the hash, so these compile to .jsx-xxx.pager .pager-step and
+           cannot leak out of this component. Same idiom the post page already uses for the rich
+           content it does not author (.content :global(p)).
+           Do not "simplify" these back to plain selectors, and do not swap next/link for <a> to
+           avoid the wrapper: the link keeps client-side navigation, and an inner <span> carrying
+           the class would move the class off the focusable element and break the focus ring. */
         .pager{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:48px 0 0;padding:24px 0 0;border-top:1px solid #e5e7eb}
         .pager-list{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:0;padding:0;list-style:none}
-        .pager-num,.pager-step,.pager-gap{
-          display:inline-flex;align-items:center;justify-content:center;
+        .pager :global(.pager-num),.pager :global(.pager-step),.pager :global(.pager-gap){
+          display:inline-flex;align-items:center;justify-content:center;gap:8px;
           min-width:44px;min-height:44px;padding:0 12px;
           border-radius:12px;font-size:16px;font-weight:600;
           color:#1a3a2a;text-decoration:none;
         }
-        .pager-num:hover,.pager-step:hover{background:rgba(209,244,112,.28)}
-        .pager-num:focus-visible,.pager-step:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
+        /* The direction mark: two borders of a square, rotated. currentColor so it dims with the
+           text in the is-off state without a second rule. 2px to match the step's own border
+           weight - a 1px mark beside a 2px edge reads as a different object. */
+        .pager :global(.pager-mark){
+          width:7px;height:7px;flex:0 0 auto;
+          border-top:2px solid currentColor;border-right:2px solid currentColor;
+        }
+        .pager :global(.is-prev .pager-mark){transform:rotate(-135deg)}
+        .pager :global(.is-next .pager-mark){transform:rotate(45deg)}
+        .pager :global(.pager-num:hover),.pager :global(.pager-step:hover){background:rgba(209,244,112,.28)}
+        .pager :global(.pager-num:focus-visible),.pager :global(.pager-step:focus-visible){outline:3px solid #1a3a2a;outline-offset:2px}
         /* The current page: filled, and it is a <span>, so there is nothing to hover. */
-        .pager-num.is-here{background:#d1f470;border:2px solid #1a3a2a;cursor:default}
-        .pager-gap{color:rgba(0,0,0,.42);font-weight:400;min-width:24px;padding:0}
-        .pager-step{border:2px solid rgba(26,58,42,.22)}
+        .pager :global(.pager-num.is-here){background:#d1f470;border:2px solid #1a3a2a;cursor:default}
+        .pager :global(.pager-gap){color:rgba(0,0,0,.42);font-weight:400;min-width:24px;padding:0}
+        .pager :global(.pager-step){border:2px solid rgba(26,58,42,.22)}
         /* The end of the run. Rendered rather than omitted so the row does not reflow as a
            reader pages through, and aria-hidden so it is not announced as a dead control. */
-        .pager-step.is-off{color:rgba(0,0,0,.32);border-color:#e5e7eb;cursor:default}
+        .pager :global(.pager-step.is-off){color:rgba(0,0,0,.32);border-color:#e5e7eb;cursor:default}
         /* "Page 7" to a screen reader, "7" on screen: a bare number read out of the list
            context is ambiguous. Same clip technique as .bs-label. */
-        .pager-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+        .pager :global(.pager-sr){position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
         @media(max-width:1050px){.post-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media(max-width:680px){
@@ -438,7 +505,8 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
              squeezing: 35 pages cannot share a 390px line with two labelled steps. */
           .pager{gap:8px}
           .pager-list{order:3;width:100%;justify-content:center}
-          .pager-step{flex:1}
+          /* :global for the same reason as the block above - these are next/link. */
+          .pager :global(.pager-step){flex:1}
         }
         @media(prefers-reduced-motion:reduce){
           .post-card,.category-switch button{transition:none}

@@ -134,7 +134,27 @@ def test_fixer_covers_every_oidc_role(fixer):
         "GitHubActions-bharat-stack-docs-scraper",
         "GitHubActions-bharat-stack-seo-tools",
         "GitHubActions-wecare-digital-route-auth",
+        # The write role for public-surface-deploy.yml. Listed here before it exists in
+        # AWS on purpose - a role created later and never registered is one that keeps
+        # whatever trust document its creator pasted, and this is the only one of the
+        # four that can WRITE to production.
+        "GitHubActions-wecare-digital-public-surface",
     }
+
+
+def test_committed_trust_document_matches_the_fixer(fixer):
+    """The JSON handed to `aws iam create-role` must be the document the fixer enforces.
+
+    The role is created from a committed file - scripts/iam-public-surface-trust.json -
+    because a trust policy pasted into a terminal is not reviewable and not diffable.
+    That file is therefore a second copy of the same document, and a second copy is a
+    thing that drifts: if it kept a name-pinned subject while the fixer wildcarded it,
+    `create-role` would install the bug and `fix_github_oidc_trust.py --apply` would
+    quietly undo it later, so whichever ran last would decide whether the next rename
+    is an outage. Byte equality is asserted rather than eyeballed.
+    """
+    committed = json.loads((ROOT / "scripts" / "iam-public-surface-trust.json").read_text())
+    assert _canonical(committed) == _canonical(fixer.target_policy())
 
 
 def test_route_auth_live_gate_does_not_run_on_pull_requests():

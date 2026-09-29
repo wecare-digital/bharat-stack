@@ -56,7 +56,12 @@ permissions:
 jobs:
   source-gate:
     name: Handler auth enforcement (source)
-    runs-on: ubuntu-latest
+    # PINNED, not `ubuntu-latest` - see the note on build-test.yml for the reasoning.
+    # This is the blocking gate, so it is the one job where an unannounced runner-image
+    # change is least welcome: a red source-gate blocks every pull request. Both steps
+    # below pin their own Python and install every dependency from requirements-dev.txt,
+    # so nothing here reads software off the image.
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
 
@@ -109,7 +114,7 @@ jobs:
 
   live-gate:
     name: Route auth drift (live AWS)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # Only meaningful with a read-only role. Skipped rather than failed when the
     # repository variable is absent, so a fork or a fresh clone is not red for a
     # reason the contributor cannot fix.

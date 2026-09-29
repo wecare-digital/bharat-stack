@@ -147,7 +147,9 @@ class TestOriginValidation:
     @pytest.mark.parametrize("origin", [
         "https://wecare.digital",
         "https://www.wecare.digital",
-        "https://app.wecare.digital",
+        # https://app.wecare.digital removed 2026-09-28: that host was retired
+        # (NXDOMAIN) and dropped from the handler's allow-list, so asserting it is
+        # allowed would pin an origin we deliberately no longer accept.
     ])
     def test_known_origins_are_allowed(self, origin):
         response, _ = rpc("ping", origin=origin)

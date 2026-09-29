@@ -5,7 +5,7 @@
  * a <title>, a <meta name="description">, and a keyed canonical. None of them declared
  * og: or twitter: tags, and only /grahak-os/ does. Everything else therefore inherited the
  * SITEWIDE share preview from _app.tsx, which means /contact/, /terms/, /privacy/,
- * /my-order/, /bharat-rx/, /vayulok/ and all seven product pages shared ONE og:title and
+ * /orders/, /bharat-rx/, /vayulok/ and all seven product pages shared ONE og:title and
  * ONE og:description between them - measured on the built export, fourteen routes previewed
  * as "Everyday AI, built for Bharat | WECARE.DIGITAL" with the company description.
  *

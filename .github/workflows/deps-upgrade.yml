@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   upgrade:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout stack
         uses: actions/checkout@v7

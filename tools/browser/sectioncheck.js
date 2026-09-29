@@ -39,7 +39,7 @@ const { launch, gotoStable } = require( './lib/browser' );
  */
 const ROUTES = [
   '/', '/grahak-os/', '/vayulok/', '/contact/', '/terms/', '/privacy/',
-  '/my-order/', '/bharat-rx/',
+  '/orders/', '/bharat-rx/',
   '/elsewhere/', '/expo-week/', '/dastavez/', '/clear-closure/',
   '/ritual-guru/', '/anew/', '/niji-setu/',
   // '/store/' was in this list and has moved to /workspace/commerce/catalog - it was a

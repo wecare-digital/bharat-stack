@@ -164,15 +164,25 @@ const CONTRAST_FN = `
   // passed while proving nothing. Re-pinning only happened when a NEW STEP ARRIVED, so the
   // window has to be one where steps are still arriving and there is already something to
   // scroll back from.
+  // "MID-STREAM" IS NOW A FRONTIER, NOT A ROW COUNT. This used to wait for
+  // `.wt-step` length < 8, which was how you caught the panel part-way through its
+  // first pass. All eight rows now ship in the static HTML - the panel is never
+  // partly built - so that condition can never be true and this probe hung for its
+  // full 30s timeout. The state it actually wants is "a pass is in progress", which
+  // is what an is-running row means: the settle frontier is somewhere in the list
+  // rather than off the end during the complete hold.
   console.log( '\nRECOVERING AN EARLIER STEP' );
   await page.waitForFunction( () => {
     const b = document.querySelector( '.wt-space' );
     return b && b.scrollHeight - b.clientHeight > 200
-      && document.querySelectorAll( '.wt-step' ).length < 8;
+      && document.querySelectorAll( '.wt-step.is-running' ).length > 0
+      && document.querySelectorAll( '.wt-step.is-done' ).length > 0;
   }, null, { timeout: 30000 } );
   const recover = await page.evaluate( () => new Promise( resolve => {
     const box = document.querySelector( '.wt-space' );
-    const stepsBefore = document.querySelectorAll( '.wt-step' ).length;
+    // The frontier, for the same reason: what advances during the window is which row is
+    // done, not how many rows exist.
+    const stepsBefore = document.querySelectorAll( '.wt-step.is-done' ).length;
     const overflow = box.scrollHeight - box.clientHeight;
     box.scrollTop = 0;                       // the reader scrolls back to step 1
     // Longer than the longest dwell (1650ms) plus its 250ms gap, so at least one more step
@@ -180,13 +190,13 @@ const CONTRAST_FN = `
     setTimeout( () => resolve( {
       overflow,
       stepsBefore,
-      stepsAfter: document.querySelectorAll( '.wt-step' ).length,
+      stepsAfter: document.querySelectorAll( '.wt-step.is-done' ).length,
       afterScrollUp: Math.round( box.scrollTop ),
     } ), 2400 );
   } ) );
   ok( recover.stepsAfter > recover.stepsBefore,
-    'the window actually contained a new step arriving',
-    `${recover.stepsBefore} -> ${recover.stepsAfter} steps in 2.4s, with ${recover.overflow}px of overflow` );
+    'the window actually contained the frontier advancing',
+    `${recover.stepsBefore} -> ${recover.stepsAfter} settled rows in 2.4s, with ${recover.overflow}px of overflow` );
   ok( recover.afterScrollUp < 40,
     'scrolling back to an earlier step survives the next arrival',
     `scrolled to 0, still at ${recover.afterScrollUp}px after ${recover.stepsAfter - recover.stepsBefore} more step(s) ` +

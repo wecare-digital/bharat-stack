@@ -21,7 +21,7 @@ Four things are checked, and each one corresponds to a defect that actually ship
 4. **The host topology matches whichever state we are actually in.** This check used to
    assert that `app.wecare.digital` still served this bucket through origin path `/o`,
    on the reasoning that the dual-homing was the only thing making `o/` load-bearing.
-   That host was retired on 2026-09-28 — distribution `E1DP37QIS4G0T4` deleted, DNS
+   That host was retired on 2026-09-28 — distribution `ERCXSFDL0VM8X` deleted, DNS
    record removed — so the old assertion could never pass again, and a check that can
    only fail gets ignored rather than fixed.
 
@@ -59,8 +59,16 @@ SECURE_ROOT = "secure/"
 # so both are expected to be absent. Kept named here because the retirement itself is the
 # thing under test: if either ever comes back, the topology claim in media_paths.py needs
 # rewriting rather than silently diverging from reality.
+#
+# The distribution id is `ERCXSFDL0VM8X`, settled from
+# docs/execution/snapshots/cloudfront-ERCXSFDL0VM8X-before-alias-removal.json, whose
+# captured `Aliases` are exactly ["app.wecare.digital", "selfservice.wecare.digital",
+# "selfcare.wecare.digital"]. Two places in the repo said `E1DP37QIS4G0T4` instead - that
+# id resolves to nothing and never appears in any snapshot, so it was a transcription
+# error. It happened to be harmless here only because BOTH ids return NoSuchDistribution,
+# which is precisely the kind of coincidence that keeps a wrong constant alive.
 LEGACY_HOST = "app.wecare.digital"
-LEGACY_HOST_DISTRIBUTION = "E1DP37QIS4G0T4"
+LEGACY_HOST_DISTRIBUTION = "ERCXSFDL0VM8X"
 LEGACY_HOST_ORIGIN_PATH = "/o"
 
 # An S3 key: a string constant beginning with a known top-level folder name.

@@ -539,7 +539,7 @@ const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description
   '/contact': { name: 'Contact', type: 'ContactPage', description: 'Submit, amend or track a request, drop documents, or leave a review.' },
   '/terms': { name: 'Terms', type: 'WebPage', description: 'Terms of service.' },
   '/privacy': { name: 'Privacy', type: 'WebPage', description: 'How WECARE.DIGITAL handles your data.' },
-  '/my-order': { name: 'My Order', type: 'WebPage', description: 'Check the status of an order, delivery, request or booking.' },
+  '/orders': { name: 'Orders', type: 'WebPage', description: 'Check the status of an order, delivery, request or booking.' },
   // Bharat Rx does NOT do medicine retail - the owner confirmed that, and the description
   // said "Medicines, consults, reminders and records" until then. Structured data that
   // promises a product the page does not offer is worse than none.
@@ -828,6 +828,10 @@ export default function App ( { Component, pageProps }: AppProps ) {
   const isContentPublic = router.pathname === '/blog'
     || router.pathname === '/blog/page/[page]'
     || router.pathname === '/blog/topic/[topic]'
+    // The category streams paginate now - see src/pages/blog/topic/[topic]/page/[page].tsx.
+    // Without this line every page but the first of every stream renders an empty body at
+    // HTTP 200, which is the "404 that does not look like one" the note below describes.
+    || router.pathname === '/blog/topic/[topic]/page/[page]'
     || router.pathname === '/post/[slug]';
   // /faq and /partners are deliberately ABSENT. stack still lists them because this
   // branch's removal has not landed there yet; both pages were deleted on owner
@@ -1165,7 +1169,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
               softwareSchema gate just above. It declares serviceType "WhatsApp Business
               API Platform" and a hasOfferCatalog of WhatsApp / Bulk SMS / Email Marketing
               / Voice Calls - one product's offering - and it was being emitted on all 15
-              public routes, so /terms, /privacy, /contact, /my-order and the company home
+              public routes, so /terms, /privacy, /contact, /orders and the company home
               page each told Google they offer a WhatsApp messaging catalog.
               That is the same leak already fixed on description, keywords, title and the
               og block, and here it is also a guidelines problem rather than just wasted

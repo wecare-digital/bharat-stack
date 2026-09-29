@@ -98,7 +98,7 @@ def preflight() -> int:
         payload = {
             "requestContext": {"http": {"method": "GET", "path": "/wa-business/calling-settings"}},
             "httpMethod": "GET", "path": "/wa-business/calling-settings",
-            "headers": {"origin": "https://app.wecare.digital"},
+            "headers": {"origin": "https://wecare.digital"},
             "queryStringParameters": {"phoneId": PHONE_ID},
         }
         raw = lam.invoke(FunctionName="wecare-whatsapp-business-api:live",

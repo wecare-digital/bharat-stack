@@ -2,7 +2,19 @@
  * URL Shortener AWS Resources - WECARE.DIGITAL
  *
  * Canonical base for new links: wecare.digital/r  (since 2026-09-26)
- * Also honoured, permanently:   r.wecare.digital
+ * Retired:                      r.wecare.digital  (2026-09-28)
+ *
+ * The subdomain is GONE, not deprecated. Its Route 53 record was deleted by the owner
+ * on 2026-09-28 under `YES R53-DELETE-001` (before-state in
+ * docs/execution/snapshots/route53-r-subdomain-before-delete-20260928.json) and the
+ * host no longer resolves. The certificate, the API Gateway custom domain, the Route 53
+ * alias and the stack output that this file used to declare for it have all been
+ * removed, because re-deploying them would reverse a confirmed destructive decision.
+ * Short links already delivered to customers on that host are dead and cannot be
+ * recalled; that is a consequence of the retirement, not a reason to undo it.
+ *
+ * Short links resolve on the apex path instead: Amplify proxies `/r/<*>` to the shared
+ * API, and the handler accepts both `/r/{code}` and a bare `/{code}`.
  *
  * NOT DEPLOYED - verified 2026-09-26. There is no CloudFormation stack for this
  * file, and the `stack-wecare-short-links` HTTP API it declares below does not
@@ -22,12 +34,10 @@
  * Creates:
  * 1. DynamoDB: ShortLinksTable (shortCode PK)
  * 2. DynamoDB: LinkClicksTable (shortCode PK, clickedAt SK)
- * 3. ACM Certificate for r.wecare.digital
- * 4. API Gateway HTTP API with custom domain r.wecare.digital
- * 5. Route53 CNAME record: r.wecare.digital -> API Gateway
- * 6. Google Workspace domain verification TXT + CNAME records
- * 7. Lambda integration for url-shortener
- * 8. IAM Policy for Lambda
+ * 3. API Gateway HTTP API (no custom domain — reached via the apex `/r/<*>` proxy)
+ * 4. Google Workspace domain verification TXT + CNAME records
+ * 5. Lambda integration for url-shortener
+ * 6. IAM Policy for Lambda
  *
  * API Gateway Routes:
  * - GET  /{code}        -> url-shortener Lambda (redirect)
@@ -40,9 +50,9 @@
 import { Stack, RemovalPolicy, Duration, CfnOutput } from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+// `aws-certificatemanager` and `aws-route53-targets` are no longer imported: both were
+// used only by the retired r.wecare.digital certificate and alias record.
 import * as route53 from 'aws-cdk-lib/aws-route53';
-import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
 import * as apigatewayv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigatewayv2Integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
@@ -50,19 +60,14 @@ import * as apigatewayv2Integrations from 'aws-cdk-lib/aws-apigatewayv2-integrat
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 const ROOT_DOMAIN = 'wecare.digital';
 
-// The DNS name. Used for the ACM certificate subject and the API Gateway custom
-// domain, both of which require a bare hostname. This stays as it is: short links
-// already delivered to customers name this host, and they cannot be recalled.
-const SHORT_DOMAIN = 'r.wecare.digital';
-
-// The base that NEW short links are published under, canonical since 2026-09-26.
-// Carries a path, so it is NOT interchangeable with SHORT_DOMAIN above — one
-// constant previously served both purposes, which is exactly what makes moving the
-// shortener onto a path look like it requires giving up the subdomain.
+// The base that short links are published under. Carries a path, so it was never
+// interchangeable with the bare `r.wecare.digital` hostname this file used to also
+// declare — one constant served both purposes at one point, which is what made moving
+// the shortener onto a path look like it required giving up the subdomain.
 //
-// Resolution is unaffected either way: the handler already accepts both `/r/{code}`
-// and a bare `/{code}`, and Amplify proxies `/r/<*>` to the API. This value only
-// decides what we MINT.
+// The subdomain has since been retired outright (see the header), so there is no second
+// host left to be interchangeable with. The handler accepts both `/r/{code}` and a bare
+// `/{code}`, and Amplify proxies `/r/<*>` to the API.
 const SHORT_LINK_BASE = `${ROOT_DOMAIN}/r`;
 
 export function addLinkResources(stack: Stack) {
@@ -94,19 +99,13 @@ export function addLinkResources(stack: Stack) {
     domainName: ROOT_DOMAIN,
   });
 
-  // ═══════════════════════════════════════════
-  // 3. ACM Certificate for r.wecare.digital
-  //    DNS validation via Route53 (auto-creates CNAME validation records)
-  // ═══════════════════════════════════════════
-
-  const certificate = new acm.Certificate(stack, 'ShortLinkCert', {
-    domainName: SHORT_DOMAIN,
-    certificateName: 'r-wecare-digital-cert',
-    validation: acm.CertificateValidation.fromDns(hostedZone),
-  });
+  // No ACM certificate and no API Gateway custom domain here any more. Both existed
+  // solely to serve `r.wecare.digital`, which was retired on 2026-09-28 — see the
+  // header. The apex `/r/<*>` proxy runs on the Amplify domain's own certificate, so
+  // the shortener needs neither.
 
   // ═══════════════════════════════════════════
-  // 4. Lambda Function for URL Shortener
+  // 3. Lambda Function for URL Shortener
   // ═══════════════════════════════════════════
 
   const urlShortenerFn = new lambda.Function(stack, 'UrlShortenerFn', {
@@ -129,19 +128,12 @@ export function addLinkResources(stack: Stack) {
   linkClicksTable.grantReadWriteData(urlShortenerFn);
 
   // ═══════════════════════════════════════════
-  // 5. API Gateway HTTP API with Custom Domain
+  // 4. API Gateway HTTP API
   // ═══════════════════════════════════════════
 
-  // Custom domain name for API Gateway
-  const domainName = new apigatewayv2.DomainName(stack, 'ShortLinkDomain', {
-    domainName: SHORT_DOMAIN,
-    certificate: certificate,
-  });
-
-  // HTTP API
   const httpApi = new apigatewayv2.HttpApi(stack, 'ShortLinkApi', {
     apiName: 'stack-wecare-short-links',
-    description: 'URL Shortener API for r.wecare.digital',
+    description: 'URL Shortener API, reached via the apex /r/<*> proxy',
     corsPreflight: {
       // stack.wecare.digital removed with that hostname's retirement; it only 301'd
       // to the apex, and a redirecting host is never a usable allowed origin.
@@ -158,9 +150,7 @@ export function addLinkResources(stack: Stack) {
       ],
       allowHeaders: ['Content-Type', 'Authorization'],
     },
-    defaultDomainMapping: {
-      domainName: domainName,
-    },
+    // No defaultDomainMapping: the retired custom domain was the only thing it mapped.
   });
 
   // Lambda integration
@@ -216,17 +206,10 @@ export function addLinkResources(stack: Stack) {
   // 6. Route53 records
   // ═══════════════════════════════════════════
 
-  new route53.ARecord(stack, 'ShortLinkAliasRecord', {
-    zone: hostedZone,
-    recordName: 'r',
-    target: route53.RecordTarget.fromAlias(
-      new route53targets.ApiGatewayv2DomainProperties(
-        domainName.regionalDomainName,
-        domainName.regionalHostedZoneId,
-      ),
-    ),
-    comment: 'URL Shortener - r.wecare.digital -> API Gateway',
-  });
+  // The `r` alias record is deliberately NOT declared. It was deleted by the owner on
+  // 2026-09-28 under `YES R53-DELETE-001`; re-creating it from IaC would silently
+  // reverse that decision on the next deploy, which is the single most likely way a
+  // retired host comes back to life by accident.
 
   // Google Workspace domain verification (primary TXT method)
   new route53.TxtRecord(stack, 'GoogleWorkspaceVerificationTxt', {
@@ -249,22 +232,23 @@ export function addLinkResources(stack: Stack) {
   });
 
   // ═══════════════════════════════════════════
-  // 7. Outputs
+  // 6. Outputs
   // ═══════════════════════════════════════════
 
-  new CfnOutput(stack, 'ShortLinkDomainOutput', {
-    value: `https://${SHORT_DOMAIN}`,
-    description: 'URL Shortener domain',
-  });
+  // `ShortLinkDomainOutput` and `ShortLinkCertArn` are gone with the retired subdomain.
+  // The first published `https://r.wecare.digital` as the shortener's address, which is
+  // now a URL that does not resolve — a stack output naming a dead host is worse than
+  // no output, because it reads as the authoritative answer to "where do short links
+  // live?". They live under SHORT_LINK_BASE, below.
 
   new CfnOutput(stack, 'ShortLinkApiUrl', {
     value: httpApi.apiEndpoint,
-    description: 'API Gateway endpoint (before custom domain)',
+    description: 'API Gateway endpoint (reached via the apex /r/<*> proxy)',
   });
 
-  new CfnOutput(stack, 'ShortLinkCertArn', {
-    value: certificate.certificateArn,
-    description: 'ACM Certificate ARN for r.wecare.digital',
+  new CfnOutput(stack, 'ShortLinkBase', {
+    value: SHORT_LINK_BASE,
+    description: 'The base that short links are minted under',
   });
 
   // IAM Policy (for external Lambda references if needed)
@@ -288,9 +272,7 @@ export function addLinkResources(stack: Stack) {
   return {
     shortLinksTable,
     linkClicksTable,
-    certificate,
     httpApi,
-    domainName,
     urlShortenerFn,
     linkLambdaPolicy,
   };

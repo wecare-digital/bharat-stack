@@ -19,7 +19,7 @@ import BrandBadge from './BrandBadge';
  * the mega menu, where a renderLink() helper left the rules behind and every row fell
  * through to a global - so it is worth being exact about.
  *
- * Contact, Terms, Privacy, Bharat Rx and My Order all use this. Home, VayuLok and
+ * Contact, Terms, Privacy, Bharat Rx and Orders all use this. Home, VayuLok and
  * Grahak OS still carry their own inline copies, because their tests pin their class
  * names and CSS strings - so there are FOUR implementations of this hero in the repo
  * (rh-, home-, vl-, hero-), not two. The animation constants here are identical to

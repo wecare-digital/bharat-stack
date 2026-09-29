@@ -75,12 +75,85 @@ def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+class DelegatedSpec:
+    """A stand-in Spec for a function `deploy_all_lambdas.py` does not own.
+
+    THE BLIND SPOT THIS CLOSES. This script derives its fleet from `dal.SPECS`, so the two
+    functions in `dal.DELEGATED` were invisible to it: `check_deployed_source.py` reported
+    "functions checked=62" against a fleet of 66 and nobody noticed the four missing, because
+    62 of 62 passing reads exactly like complete coverage.
+
+    Those two are the ones least covered by anything else. `wecare-seo-tools` is the hottest
+    function in the account and has NO `live` alias, so `$LATEST` reaches production the
+    instant it is uploaded - there is no alias step in which to catch a bad deploy.
+    `wecare-mcp` is a public unauthenticated endpoint.
+
+    Each carries a non-standard in-zip layout, which is precisely why it is delegated, so the
+    mapping from archive path back to the working tree has to be stated per function rather
+    than derived. `arcname_map` is an ordered list of (archive prefix, local base) tried
+    longest-prefix-first by `local_bytes`.
+    """
+
+    def __init__(self, name: str, source, arcname_map, owner: str):
+        self.name = name
+        self.source = source
+        self.arcname_map = arcname_map
+        self.owner = owner
+        self.standalone = True
+        self.extra_dirs: list[str] = []
+        self.extra_files: list[str] = []
+        self.provisioned_by = ""
+
+
+def delegated_specs(dal) -> dict:
+    functions = dal.FUNCTIONS
+    return {
+        # Shim at the zip root importing operations/seo-tools, with lambda_utils under
+        # shared/ rather than at the top level. deploy_seo_tools.py owns the packaging.
+        "wecare-seo-tools": DelegatedSpec(
+            "wecare-seo-tools",
+            functions / "operations" / "seo-tools",
+            [
+                ("shared/lambda_utils/", dal.LAMBDA_UTILS),
+                ("shared/", dal.SHARED),
+                ("operations/seo-tools/", functions / "operations" / "seo-tools"),
+                ("seo_tools_handler.py", functions),
+            ],
+            "scripts/deploy_seo_tools.py",
+        ),
+        # handler.py plus config/public-pages.json copied in beside it. The catalogue is
+        # the reason this cannot be a normal Spec: extra_files resolves relative to the
+        # function directory and is skipped entirely for a standalone spec.
+        "wecare-mcp": DelegatedSpec(
+            "wecare-mcp",
+            functions / "ai" / "mcp",
+            [
+                ("public-pages.json", ROOT / "config"),
+                ("handler.py", functions / "ai" / "mcp"),
+            ],
+            "scripts/deploy_mcp_server.py",
+        ),
+    }
+
+
 def load_specs():
-    """Reuse deploy_all_lambdas' own map so the two can never disagree."""
+    """Reuse deploy_all_lambdas' own map so the two can never disagree.
+
+    Then add the delegated functions, so "checked=N" describes the whole fleet rather than
+    only the part one script happens to own.
+    """
     sys.path.insert(0, str(ROOT / "scripts"))
     import deploy_all_lambdas as dal  # noqa: PLC0415
 
-    return dal, {s.name: s for s in dal.SPECS}
+    specs = {s.name: s for s in dal.SPECS}
+    for name, spec in delegated_specs(dal).items():
+        if name in specs:
+            # Already a real Spec, so deploy_all_lambdas took ownership back. Prefer it and
+            # say so, rather than silently shadowing it with the stand-in.
+            print(f"note: {name} is now a real Spec; ignoring the delegated stand-in")
+            continue
+        specs[name] = spec
+    return dal, specs
 
 
 def artifact_entries(zip_bytes: bytes) -> dict[str, bytes]:
@@ -105,6 +178,17 @@ def download(url: str) -> bytes:
 
 def local_bytes(dal, spec, arcname: str) -> bytes | None:
     """Map an in-archive path back to the working tree."""
+    # A delegated function states its own mapping, because its zip layout is the reason it
+    # is delegated. Longest prefix first, so `shared/lambda_utils/` wins over `shared/`.
+    for prefix, base in sorted(getattr(spec, "arcname_map", []),
+                               key=lambda pair: -len(pair[0])):
+        if arcname == prefix:
+            cand = pathlib.Path(base) / pathlib.PurePosixPath(arcname).name
+            return cand.read_bytes() if cand.is_file() else None
+        if arcname.startswith(prefix):
+            cand = pathlib.Path(base) / arcname[len(prefix):]
+            return cand.read_bytes() if cand.is_file() else None
+
     p = pathlib.PurePosixPath(arcname)
     if p.parts[0] == "lambda_utils":
         cand = dal.LAMBDA_UTILS.joinpath(*p.parts[1:])
