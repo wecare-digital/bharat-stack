@@ -19,6 +19,7 @@ import { WHATSAPP_PHONES } from '../../../../config/constants';
 import { inferMimeFromName, validateWaMediaSize, formatBytes } from '../../../../lib/wa-media';
 import { describeWaError } from '../../../../lib/wa-errors';
 import InfoTooltip from '../../../../components/ui/InfoTooltip';
+import { scrollToEnd } from '../../../../lib/scroll-to-end';
 
 interface PageProps {
   signOut?: () => void;
@@ -283,14 +284,14 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
     const area = messagesAreaRef.current;
     if ( !area )
     {
-      messagesEndRef.current?.scrollIntoView( { behavior: 'smooth' } );
+      scrollToEnd( messagesEndRef.current );
       return;
     }
     // Only auto-scroll if user is near the bottom (within 150px) or forced
     const isNearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 150;
     if ( force || isNearBottom )
     {
-      messagesEndRef.current?.scrollIntoView( { behavior: 'smooth' } );
+      scrollToEnd( messagesEndRef.current );
     }
   };
 
