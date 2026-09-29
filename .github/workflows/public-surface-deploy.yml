@@ -188,6 +188,22 @@ jobs:
       - name: Deploy the MCP Lambda
         if: inputs.target == 'both' || inputs.target == 'mcp'
         run: python scripts/deploy_mcp_server.py
+      # WITHOUT THIS THE WRITE HAS NO WAY BACK. Both scripts snapshot the live rule list before
+      # touching it, into the runner's own filesystem, which is deleted when the job ends. So a
+      # production routing change was leaving its only record inside a container that no longer
+      # exists. `if: always()` because a failed apply is precisely when the previous state is
+      # wanted. Do NOT substitute the committed
+      # docs/execution/snapshots/amplify-custom-rules-before-8.4.json for this: that file is
+      # written once and kept, so it holds the THREE rules this app had on 2026-09-24, and
+      # restoring it would delete every rule added since.
+      - name: Keep the pre-change rules off the runner
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: amplify-custom-rules-before-${{ github.run_id }}
+          path: .scratch/amplify-custom*.json
+          if-no-files-found: warn
+          retention-days: 90
 
   confirm:
     name: confirm (read-only)
@@ -275,6 +291,10 @@ jobs:
             echo '- `confirm` re-checks on a credential that cannot write, so the evidence does'
             echo '  not come from the principal that produced the result.'
             echo ''
-            echo 'The snapshot written before any rule change is at'
-            echo '`docs/execution/snapshots/amplify-custom-rules-before-8.4.json`.'
+            echo 'Rollback: an `apply` run attaches the rule list that was live immediately'
+            echo 'before it wrote, as the run artifact `amplify-custom-rules-before-<run id>`.'
+            echo 'That is the file to restore from. The committed'
+            echo '`docs/execution/snapshots/amplify-custom-rules-before-8.4.json` is NOT a'
+            echo 'rollback target — it holds the three rules this app had on 2026-09-24, and'
+            echo 'restoring it would delete every rule added since.'
           } >> "$GITHUB_STEP_SUMMARY"
