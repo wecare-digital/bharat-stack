@@ -2,7 +2,7 @@ import React from 'react';
 import Head from 'next/head';
 import { blogPageHref } from './BlogIndexView';
 import {
-  SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SOCIAL_CARD_TYPE, SOCIAL_CARD_ALT,
+  SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SOCIAL_CARD_TYPE, SOCIAL_CARD_ALT, SHARE_CARD_TYPE,
 } from '../config/share';
 
 /**
@@ -147,7 +147,7 @@ const BlogIndexHead: React.FC<BlogIndexHeadProps> = ( { page, totalPages, topic,
         <meta property="og:locale" content="en_IN" />
         {/* summary_large_image, because the card is 16:9. The small "summary" card crops a wide
             image to a square thumbnail, which is how a wordmark loses its ends. */}
-        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:card" content={ SHARE_CARD_TYPE } />
         <meta name="twitter:title" content={ title } />
         <meta name="twitter:description" content={ description } />
         <meta name="twitter:image" content={ SOCIAL_CARD_URL } />
@@ -237,7 +237,7 @@ const BlogIndexHead: React.FC<BlogIndexHeadProps> = ( { page, totalPages, topic,
       <meta property="og:image:alt" content={ SOCIAL_CARD_ALT } />
       <meta property="og:site_name" content="WECARE.DIGITAL" />
       <meta property="og:locale" content="en_IN" />
-      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:card" content={ SHARE_CARD_TYPE } />
       <meta name="twitter:title" content={ title } />
       <meta name="twitter:description" content={ description } />
       <meta name="twitter:image" content={ SOCIAL_CARD_URL } />

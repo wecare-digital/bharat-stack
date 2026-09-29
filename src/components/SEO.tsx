@@ -24,7 +24,12 @@ const BASE_URL = 'https://wecare.digital';
  * colour-type 2 (RGB) with no alpha channel to flatten, and at 1440x810 it is the shape
  * `twitter:card=summary_large_image` actually wants rather than a square that gets cropped.
  */
-const DEFAULT_IMAGE = 'https://wecare.digital/get/o/stream/media/m/wd-brand-16x9.png';
+/* THE OPAQUE SQUARE ICON, matching every other public surface - see src/config/share.ts for the
+   full reasoning. Briefly: the wide wd-brand-16x9 card is 801,077 bytes against the 600 KB Meta
+   allows for a WhatsApp preview, so it was not being rendered there at all, and this asset is
+   already live at 86,123 bytes and inside every limit. twitter:card below is already "summary",
+   which is the correct frame for a 1:1 image - so this file needed only the URL changed. */
+const DEFAULT_IMAGE = 'https://wecare.digital/get/o/stream/media/m/wecare-digital.png';
 const SITE_NAME = 'WECARE.DIGITAL';
 
 // Default keywords for all pages

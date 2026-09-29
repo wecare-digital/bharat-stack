@@ -131,15 +131,25 @@ Amplify.configure( {
  * black squares. Nothing in the page could reveal that, because the asset is correct in
  * isolation and only wrong once something else flattens it.
  *
- * SOCIAL_CARD_URL is also the right SHAPE, which the old value never was. twitter:card is
- * `summary_large_image` and og had no width/height that matched anything: the tags declared
- * 512x512 while the file was 1080x1080, so the hint was wrong even about the wrong asset. A
- * 1:1 image in a large-card slot is centre-cropped, which cut the top and bottom off the mark.
- * wd-brand-16x9 is a designed card — mark, wordmark and the "Building digital railroads for
- * Everyday Bharat" line — at 1.78:1, inside the 2:1..1:1 band the platforms accept.
+ * THE SHARE IMAGE IS THE OPAQUE SQUARE, AND THE CARD TYPE IS "summary" TO MATCH IT.
+ * This reverses an earlier decision in this file, so the reasoning is worth keeping whole. The
+ * wide wd-brand-16x9 card is the better-looking preview - mark, wordmark and the "Building
+ * digital railroads for Everyday Bharat" line at 1.78:1 - and it was chosen here for exactly
+ * that. What it is not is small: 801,077 bytes against the 600 KB that Meta's WhatsApp
+ * link-preview documentation allows, with the practical limit nearer 300 KB because WhatsApp
+ * discards an oversized image silently. So the good-looking card was not being rendered at all
+ * on the platform that matters most here, and the repair is an S3 upload rather than a code
+ * change. The icon is already live at 86,123 bytes and inside every stated limit.
  *
- * LOGO_URL now points at the OPAQUE square, and is used only where a square logo on a known
- * ground is wanted: apple-touch-icon and the schema.org Organization logo.
+ * The pairing is the part to not break. A 1:1 image in a `summary_large_image` slot is
+ * centre-cropped, which is what once cut the top and bottom off this mark; the tags also
+ * declared 512x512 against a 1080x1080 file, so the size hint was wrong about the wrong asset.
+ * Square image, `summary` card, width and height that match the object. Change any one of those
+ * three and the other two stop being correct - which is why SHARE_CARD_TYPE lives beside the URL
+ * in src/config/share.ts rather than being written into each head.
+ *
+ * LOGO_URL is the OPAQUE square, and now serves three slots rather than two: apple-touch-icon,
+ * the schema.org Organization logo, and the link preview via SOCIAL_CARD_URL below.
  *
  * LOGO_SVG_URL IS LOAD-BEARING OUTSIDE THIS REPO — DO NOT REPOINT IT. The DNS record
  * `default._bimi.wecare.digital` carries `l=https://wecare.digital/get/o/stream/media/m/
@@ -148,22 +158,32 @@ Amplify.configure( {
  * failure anywhere to notice. Change the DNS record first, verify, then this.
  */
 const MEDIA_BASE = 'https://wecare.digital/get/o/stream/media/m';
-/** 1200x675, 16:9, palette PNG with no alpha. og:image and twitter:image. */
-/* WAS 1440x810, AND THE CHANGE IS ABOUT WEIGHT, NOT SHAPE. That export was 801,077 bytes against
-   the 600 KB ceiling Meta documents for a WhatsApp link preview, so WhatsApp was dropping the
-   card on every page of a site whose whole business is WhatsApp. Same artwork, downscaled to 1200
-   wide with a 128-colour palette: 279,367 bytes, no crop, aspect ratio untouched.
-   These two values must equal the real pixels of the object at the URL above - the pair once read
-   512x512 against a 1080x1080 file. src/config/share.ts holds the same numbers for the content
-   pages and ShareMeta.test.tsx holds the two copies equal AND checks them against the committed
-   asset's PNG header. See docs/brand/README.md. */
-const SOCIAL_CARD_URL = `${MEDIA_BASE}/wd-brand-16x9.png`;
-const SOCIAL_CARD_W = '1200';
-const SOCIAL_CARD_H = '675';
-/** 1080x1080, opaque white ground. Icons and structured data only. */
+/** 1080x1080, opaque white ground. Icons, structured data, AND the link preview. */
 const LOGO_URL = `${MEDIA_BASE}/wecare-digital.png`;
 const LOGO_SVG_URL = `${MEDIA_BASE}/wecare-digital.svg`;
 const FAVICON_URL = `${MEDIA_BASE}/wecare-digital.ico`;
+/* THE LINK PREVIEW IS THE ICON NOW, NOT THE WIDE CARD - on owner instruction, and the numbers back
+   it up. wd-brand-16x9.png is 801,077 bytes against the 600 KB ceiling Meta documents for a
+   WhatsApp preview, so WhatsApp was dropping the image on every page of a site whose business is
+   WhatsApp, and repairing it needed an upload to S3 that this repo cannot perform. The icon is
+   already live, already opaque, 86,123 bytes, 1080px wide against a 300px minimum and 1:1 against
+   a 4:1 ceiling. Previews start working with nothing uploaded.
+   THE COST IS STATED RATHER THAN HIDDEN: a square cannot be a full-width hero, so the preview is
+   the compact thumbnail form and loses the "Building digital railroads for Everyday Bharat" line
+   the designed card carried. A 273 KB re-export of that card sits at
+   docs/brand/wd-brand-16x9.png if the wide preview is ever wanted back - one line here, plus the
+   upload.
+   THE CARD TYPE MOVED WITH THE SHAPE. twitter:card is "summary" below, because
+   summary_large_image centre-crops anything that is not roughly 1.91:1 and would cut the top and
+   bottom off this mark - the defect the link-preview test in BrandAssets.test.ts exists to catch.
+   DECLARED AFTER LOGO_URL, not before it. These used to sit above it, and aliasing a const to one
+   that is declared later is a temporal-dead-zone error at module evaluation, not a lint warning.
+   These two values must equal the real pixels of the object at the URL; the pair once read
+   512x512 against a 1080x1080 file. src/config/share.ts holds the same values for the content
+   pages and ShareMeta.test.tsx holds the two copies equal. */
+const SOCIAL_CARD_URL = LOGO_URL;
+const SOCIAL_CARD_W = '1080';
+const SOCIAL_CARD_H = '1080';
 // Read but deliberately NOT used to inject a tag. GA4 is fired by the GTM container
 // (see _document.tsx); a direct gtag.js snippet here double-counts. Kept so the env
 // var stays documented and so anything that needs the id for a dataLayer push has it.
@@ -1151,7 +1171,9 @@ export default function App ( { Component, pageProps }: AppProps ) {
               the og: block above was doubling. twitter:url was hardcoded to the site root
               on every page, the same defect already fixed on canonical and og:url; it is
               computed now so a shared link resolves to the page that was shared. */ }
-          <meta name="twitter:card" content="summary_large_image" />
+          {/* "summary", not summary_large_image: the image is the 1:1 icon and a large card
+              centre-crops anything that is not roughly 1.91:1. See the docblock at the top. */}
+          <meta name="twitter:card" content="summary" />
           <meta name="twitter:url" content={ canonicalUrl } />
           <meta name="twitter:title" content="Everyday AI, built for Bharat | WECARE.DIGITAL" />
           <meta name="twitter:description" content={ COMPANY_DESCRIPTION } />

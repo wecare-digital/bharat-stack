@@ -1,14 +1,14 @@
 /**
- * THE LINK-PREVIEW CARD, AND THE WHATSAPP SHARE TARGET.
+ * THE LINK-PREVIEW IMAGE, AND THE WHATSAPP SHARE TARGET.
  *
  * WHY THIS FILE EXISTS
  * --------------------
- * /blog/ and /post/<slug>/ shipped NO og:image, NO twitter:image and - on the post page - a
- * twitter:card of "summary" rather than "summary_large_image". Measured on the live site:
+ * /blog/ and /post/<slug>/ shipped NO og:image and NO twitter:image at all. Measured on the live
+ * site:
  *
- *   /                      og:image present, twitter:card summary_large_image
+ *   /                      og:image present
  *   /blog/                 og:image MISSING, twitter:card MISSING
- *   /post/<slug>/          og:image MISSING, twitter:image MISSING, twitter:card summary
+ *   /post/<slug>/          og:image MISSING, twitter:image MISSING
  *
  * The cause is the same `!isContentPublic` gate in pages/_app.tsx that used to swallow the
  * favicon: the sitewide Head carrying og:image is suppressed for the five content routes
@@ -23,71 +23,73 @@
  * two cannot drift apart silently. Content pages read this file; the marketing branch reads its
  * own; a test holds them equal.
  *
- * WHICH ASSET, AND WHY NOT THE OTHER TWO
- * --------------------------------------
- * wd-brand-16x9.png only. BrandAssets.test.ts explains the rule at length: an asset handed to a
- * renderer we do not control must be OPAQUE, because Apple and the link-preview services
- * flatten alpha to black and the mark is black. wecaredigital.png is 68% transparent and is
- * banned from exactly this slot. wecare-digital.png is opaque but square, and a 1:1 image in a
- * summary_large_image card is centre-cropped top and bottom.
+ * THE IMAGE IS THE EXISTING ICON, ON OWNER INSTRUCTION
+ * ---------------------------------------------------
+ * wecare-digital.png - the 1080x1080 bag-and-heart mark on a white ground, the same asset that
+ * already serves apple-touch-icon, the schema.org Organization logo and the PWA manifest. Chosen
+ * over the wide wd-brand-16x9.png card for one decisive reason: the icon is 86,123 bytes and the
+ * card is 801,077.
  *
- * KNOWN DEFECT, NOT INTRODUCED HERE, AND IT AFFECTS THE WHOLE SITE
- * ---------------------------------------------------------------
- * The first version of this file recorded the card as a known defect: wd-brand-16x9.png was
- * 801,077 bytes - 782 KB - against the 600 KB ceiling Meta's own WhatsApp link-preview
- * documentation states, with field guidance putting the working limit nearer 300 KB because
- * WhatsApp discards an oversized image silently rather than reporting it. WhatsApp previews were
- * therefore image-less on EVERY page including the home page, which already pointed here.
+ * Meta's own WhatsApp link-preview documentation caps og:image at 600 KB, with field guidance
+ * putting the working limit nearer 300 KB because WhatsApp discards an oversized image silently
+ * rather than reporting it. The wide card failed that by a wide margin, so WhatsApp previews were
+ * image-less on every page of a site whose business is WhatsApp - and fixing it meant re-exporting
+ * the asset and uploading it to S3, which is a step this repo cannot take on its own. The icon is
+ * already live, already opaque, and already inside every limit: 1080px wide against a 300px
+ * minimum, 1:1 against a 4:1 ceiling, 84 KB against 600. Nothing has to be uploaded for previews
+ * to start working.
  *
- * THAT IS NOW FIXED, and the replacement is committed at docs/brand/wd-brand-16x9.png: the same
- * artwork downscaled to 1200x675 with a 128-colour palette, 279,367 bytes, no crop, still fully
- * opaque. It goes to the SAME canonical S3 key, so no URL changes anywhere and every existing
- * share improves as the scraper caches expire.
+ * WHY NOT THE OTHER TWO ASSETS. wecaredigital.png is 68% transparent and is banned from this slot
+ * outright - Apple and the preview services flatten alpha to black and the mark is black, so it
+ * would unfurl as a black square. wd-brand-16x9.png is the designed card with the wordmark and the
+ * tagline, and it is the better-looking preview; a re-export at 1200x675 / 273 KB is committed at
+ * docs/brand/wd-brand-16x9.png if the wide card is ever wanted back. That is a one-line change
+ * here plus the upload.
  *
- * WHAT WAS REJECTED. 1200x630 is the 1.91:1 ratio the platforms document as ideal, and reaching it
- * from 16:9 needs a 27px crop off each edge - which would also have made the 16x9 in the filename
- * describe the wrong shape. 16:9 is well inside WhatsApp's 4:1 ceiling and is what this asset has
- * always been, so the only thing worth changing was the weight. A second, lighter copy under
- * public/ was rejected too: two social cards on one site is a question about which is current,
- * which is the class of problem BrandAssets.test.ts exists to prevent.
+ * WHAT THIS COSTS, STATED PLAINLY. A square image cannot be a full-width hero card. The preview is
+ * now the compact form - a small square thumbnail beside the title and description - rather than a
+ * wide branded banner, and it no longer carries the "Building digital railroads for Everyday
+ * Bharat" line. In exchange it works today, everywhere, with no upload.
  *
- * ORDERING: the upload should land before this code does, because SOCIAL_CARD_W/H below now
- * declare 1200x675. See docs/brand/README.md, which also explains why getting it the wrong way
- * round is cosmetic rather than an outage.
+ * WHICH IS WHY THE CARD TYPE CHANGED TOO. See SHARE_CARD_TYPE below - a 1:1 image in a
+ * summary_large_image slot is centre-cropped, which is the defect BrandAssets.test.ts was written
+ * to prevent. Square image, small card. The two go together and must not be separated.
  */
 
 /** Canonical media folder. Must stay byte-identical to MEDIA_BASE in pages/_app.tsx. */
 export const MEDIA_BASE = 'https://wecare.digital/get/o/stream/media/m';
 
-/** 1200x675, 16:9, palette PNG with no alpha. The link-preview card for every public surface. */
-export const SOCIAL_CARD_URL = `${MEDIA_BASE}/wd-brand-16x9.png`;
+/** 1080x1080, opaque white ground, 86,123 bytes. The link-preview image for every public surface. */
+export const SOCIAL_CARD_URL = `${MEDIA_BASE}/wecare-digital.png`;
 
 /**
  * Declared at the asset's REAL pixel size. These were once 512x512 against a 1080x1080 file;
  * crawlers use the hint to reserve layout before fetching, so a wrong value is worse than none.
- *
- * 1200x675, DOWN FROM 1440x810, and the reason is bytes rather than shape. The old export was
- * 801,077 bytes against the 600 KB ceiling Meta documents for a WhatsApp preview, so the card was
- * being dropped on the one platform this company is built around. A straight downscale to 1200
- * wide plus a 128-colour palette brings the same artwork to 279,367 bytes with no crop and no
- * visible loss; recompressing at 1440x810 could not get under 300 KB at acceptable quality, so the
- * resolution reduction is what makes it fit. The aspect ratio is unchanged, which is why the 16x9
- * in the filename is still true.
- *
- * ShareMeta.test.tsx reads the committed replacement in docs/brand/ and asserts its real IHDR
- * dimensions equal these two strings, so the pair cannot drift from the asset again.
- * See docs/brand/README.md for the upload, and for why it should land before this does.
+ * ShareMeta.test.tsx fetches nothing, but it does hold these equal to the copies in _app.tsx, and
+ * the pair is 1080x1080 because that is what the object at the URL above measures.
  */
-export const SOCIAL_CARD_W = '1200';
-export const SOCIAL_CARD_H = '675';
+export const SOCIAL_CARD_W = '1080';
+export const SOCIAL_CARD_H = '1080';
 export const SOCIAL_CARD_TYPE = 'image/png';
+
+/**
+ * THE CARD TYPE IS TIED TO THE IMAGE'S SHAPE, and that is the whole point of naming it here rather
+ * than writing the string into three heads.
+ *
+ * "summary" renders a small square thumbnail beside the text, which is the correct frame for a 1:1
+ * image. "summary_large_image" renders a wide banner and CENTRE-CROPS anything that is not roughly
+ * 1.91:1 - so pairing it with this square icon would cut the top and bottom off the mark. That
+ * exact mistake is what BrandAssets.test.ts was written to catch, and it is easy to reintroduce by
+ * changing the image in one place and leaving the card type in another. Both now come from here.
+ */
+export const SHARE_CARD_TYPE = 'summary';
 
 /**
  * og:image:alt is read out by screen readers on the platforms that render the card, so it
  * describes the image rather than repeating the page title - the title is already the next line
  * of the same card.
  */
-export const SOCIAL_CARD_ALT = 'The WECARE.DIGITAL wordmark on a white field';
+export const SOCIAL_CARD_ALT = 'The WECARE.DIGITAL bag-and-heart mark';
 
 export const SITE_ORIGIN = 'https://wecare.digital';
 
