@@ -968,7 +968,7 @@ python scripts/blog_quality_v2.py validate --manifest content/conversations/batc
               { ledgerUpdatedAt ? ` Ledger updated ${ ledgerUpdatedAt }.` : '' }
               { ' ' }Because the site is a static export, this reflects the last build — run
               the ingestion script and rebuild to refresh it. Sources sent from the{ ' ' }
-              <strong>Uploads</strong> tab live in DynamoDB instead and appear there
+              <strong>Uploads</strong> tab are stored server-side instead and appear there
               immediately.
             </p>
             { !ledgerPresent ? (
