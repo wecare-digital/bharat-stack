@@ -690,7 +690,7 @@ const SupportWidget: React.FC = () => {
            Two changes make it robust rather than dependent on that resolution: the fill is
            gone, so the worst case is a legible focus ring instead of a state that reads as
            "selected", and focus is only returned when the panel was closed by keyboard. */
-        .wc-chip:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+        .wc-chip:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
         /* margin-inline-start, so the chevron sits after the label in either direction. The
            two borders are NOT logical on purpose: rotated 45deg they form a chevron pointing
            DOWN, which is an orientation rather than a side, and mirroring it would point it
@@ -762,7 +762,7 @@ const SupportWidget: React.FC = () => {
            as the header menu, where active==hover was itself a defect that had to be fixed. */
         .wc-row.is-active{background:rgba(209,244,112,.38)}
         .wc-row.is-on{background:#d1f470}
-        .wc-row:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:-3px}
+        .wc-row:focus-visible{outline:3px solid #1a3a2a;outline-offset:-3px}
         .wc-row-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .wc-row-code{flex:0 0 auto;font-size:10px;font-weight:700;letter-spacing:.05em;color:rgba(0,0,0,.34)}
         .wc-row.is-on .wc-row-code{color:rgba(26,58,42,.55)}

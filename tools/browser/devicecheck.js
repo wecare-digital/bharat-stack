@@ -22,6 +22,7 @@
 
 const { target } = require( './lib/serve' );
 const { launch, gotoStable } = require( './lib/browser' );
+const { installVisible } = require( './lib/visible' );
 
 /**
  * ENGINE SELECTION. Chromium is the default; `--firefox` and `--webkit` run the same matrix on
@@ -84,8 +85,10 @@ const PROBE = () => {
   const r = el => el.getBoundingClientRect();
   const targets = Array.from( document.querySelectorAll( 'header a[href], header button' ) )
     .map( el => ( { el, b: r( el ) } ) )
-    .filter( x => x.b.width > 0 && x.b.height > 0 )
-    .filter( x => { const cs = getComputedStyle( x.el ); return cs.visibility !== 'hidden' && +cs.opacity !== 0; } );
+    // Shared predicate - lib/visible.js. This checked visibility and opacity but not
+    // display, nor an ancestor at opacity:0, nor offsetParent - so a header control inside
+    // a closed menu counted as a touch target and was measured for its 44px floor.
+    .filter( x => window.__visible( x.el ) );
   const small = targets.filter( x => x.b.height < 44 ).map( x => {
     const cls = ( x.el.className || '' ).toString().split( /\s+/ ).filter( c => c && !c.startsWith( 'jsx-' ) )[ 0 ] || x.el.tagName;
     return `${cls}:${Math.round( x.b.height )}px`;
@@ -116,6 +119,7 @@ const PROBE = () => {
     for ( const d of DEVICES ) {
       const ctx = await browser.newContext( { viewport: { width: d.w, height: d.h } } );
       const page = await ctx.newPage();
+      await installVisible( page );
       const bad = [];
       for ( const route of routes ) {
         try {

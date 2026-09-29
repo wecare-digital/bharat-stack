@@ -105,8 +105,21 @@ const BlogSearch: React.FC<BlogSearchProps> = ( { value, onChange, resultCount, 
         /* The focus treatment is a lime ring OUTSIDE a darkened border, not a removed outline:
            the border alone moving from .22 to solid is too quiet to serve as a focus
            indicator, and WCAG 1.4.11 wants 3:1 for one. #1a3a2a on white is 11.85:1. */
+        /* AN OUTLINE, NOT A REMOVED ONE. This rule read outline:none plus a darkened border
+           and a lime halo, and measured in a browser it produced NO detectable focus
+           indicator at all: with :focus-visible matching, border-top-color stayed
+           rgba(26,58,42,.22) - its resting value - and box-shadow computed to
+           rgba(0,0,0,0) 0px 0px 0px 0px. Only the outline:none half was taking effect, so
+           the one part that reached the element was the part that removes the browser
+           default. Net result on /blog/: the search field was the only focusable control on
+           the page a keyboard user could not locate.
+           Rather than diagnose which declaration lost, this states the indicator the way the
+           rest of the site now does - an opaque #1a3a2a outline, 12.48:1 on white - and keeps
+           the lime halo as decoration. An outline also cannot be cancelled by a border or
+           background rule elsewhere, which is what makes it the safer choice on a bare
+           element selector that global stylesheets also target. */
         .bs-form input:focus-visible{
-          outline:none;border-color:#1a3a2a;
+          outline:3px solid #1a3a2a;outline-offset:2px;border-color:#1a3a2a;
           box-shadow:0 0 0 3px rgba(209,244,112,.55);
         }
         /* Lime fill with the dark edge, matching the closing band's button after its border
@@ -119,7 +132,7 @@ const BlogSearch: React.FC<BlogSearchProps> = ( { value, onChange, resultCount, 
           transition:background-color .2s;
         }
         .bs-form button:hover{background:#fff}
-        .bs-form button:focus-visible{outline:3px solid rgba(26,58,42,.28);outline-offset:3px}
+        .bs-form button:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
         /* The body rung, muted - it is a status line, not content. */
         .bs-count{
           margin:12px 0 0;font-size:17px;line-height:1.4;

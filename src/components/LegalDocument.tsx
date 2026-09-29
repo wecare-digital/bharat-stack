@@ -245,7 +245,20 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, notice 
         }
         .lgd-toc-list li{break-inside:avoid;margin:0 0 2px}
         .lgd-toc-link{display:flex;gap:10px;padding:6px 8px;margin:0 -8px;border-radius:7px;font-size:15px;line-height:1.45;color:#1a3a2a;text-decoration:none}
-        .lgd-toc-link:hover,.lgd-toc-link:focus-visible{background:rgba(209,244,112,.22);outline:none}
+        /* HOVER AND FOCUS ARE SPLIT, because one rule cannot serve both here.
+           This was a single declaration: hover and focus-visible shared the lime tint AND
+           outline:none. So a keyboard user's only focus indicator was that tint, which
+           composites to rgb(245,253,224) over white - the design contract's own words for
+           this value are "a wash that reads as barely-not-white". Measured across the two
+           legal pages: 71 contents links (47 on /terms/, 24 on /privacy/) with NO detectable
+           focus indicator, because outline:none had removed the browser default too.
+           The tint stays on hover, where it is a pointer affordance and does not need to
+           carry 3:1. Focus gets an opaque #1a3a2a ring at 12.48:1 on white. Keeping the tint
+           on focus as well is deliberate - the two states then look related rather than
+           unrelated - but the ring is what makes focus perceivable.
+           Do not re-merge these selectors. */
+        .lgd-toc-link:hover{background:rgba(209,244,112,.22)}
+        .lgd-toc-link:focus-visible{background:rgba(209,244,112,.22);outline:3px solid #1a3a2a;outline-offset:1px}
         .lgd-toc-num{flex:0 0 auto;min-width:22px;font-weight:600;color:rgba(0,0,0,.42)}
 
         /* scroll-margin-top clears the fixed 108px header. Without it, following a

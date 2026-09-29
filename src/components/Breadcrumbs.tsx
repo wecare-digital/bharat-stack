@@ -87,7 +87,7 @@ const Breadcrumbs: React.FC<{ items: Crumb[] }> = ( { items } ) => (
         border-bottom:2px solid transparent;transition:border-color .2s;
       }
       .bc a:hover{border-bottom-color:#d1f470}
-      .bc a:focus-visible{outline:3px solid rgba(26,58,42,.28);outline-offset:3px;border-radius:2px}
+      .bc a:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px;border-radius:2px}
       /* The current page, dimmed so the trail reads as a path with an end, and clipped
          because this corpus has long titles.
          THE CAP IS THE CONTAINER, NOT A CHARACTER COUNT, and that is a measured correction.

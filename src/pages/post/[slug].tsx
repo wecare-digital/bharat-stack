@@ -429,7 +429,7 @@ export default function BlogPostPage ( {
         .content :global(blockquote p){font:inherit;color:inherit;letter-spacing:inherit}
         .content :global(a){color:#1a3a2a;text-underline-offset:3px}
         .content :global(a:hover){text-decoration-thickness:2px}
-        .content :global(a:focus-visible){outline:3px solid rgba(26,58,42,.25);outline-offset:3px;border-radius:2px}
+        .content :global(a:focus-visible){outline:3px solid #1a3a2a;outline-offset:3px;border-radius:2px}
         .content :global(strong){font-weight:700}
         .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:52px;padding-top:24px;border-top:1px solid #e5e7eb}
         .tags span{font-size:11px;background:#f3f4f6;border-radius:999px;padding:6px 10px;color:rgba(0,0,0,.54)}

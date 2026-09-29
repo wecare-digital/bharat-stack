@@ -151,7 +151,7 @@ const SettingsGear: React.FC<SettingsGearProps> = ( { collapsed = false } ) => {
           cursor:pointer;transition:all .2s ease;
         }
         .sg-btn:hover{border-color:#d1f470;background:#fafafa}
-        .sg-btn:focus-visible{outline:none;border-color:#d1f470;box-shadow:0 0 0 3px rgba(26,58,42,.3)}
+        .sg-btn:focus-visible{outline:none;border-color:#d1f470;box-shadow:0 0 0 3px #1a3a2a}
         /* Open is one of our own states, so it takes the lime fill with dark-green
            type — contract treatment 1, the same pair as an active tab. */
         .sg-btn-open{background:#d1f470;border-color:#d1f470;color:#1a3a2a}
@@ -196,7 +196,11 @@ const SettingsGear: React.FC<SettingsGearProps> = ( { collapsed = false } ) => {
         /* The .22 lime tint: the palette's TRANSIENT-state value, which is right
            for a hover. Full-strength lime here would read as identity. */
         .sg-link:hover{background:rgba(209,244,112,.22)}
-        .sg-link:focus-visible{outline:none;background:rgba(209,244,112,.22);box-shadow:0 0 0 2px #d1f470}
+        /* The ring was lime on a white panel, which is about 1.4:1 - lime is a LIGHT colour
+           and cannot serve as a ring against white, the same finding BrandLockup records for
+           the brand dot. Dark green instead, which is the pair this design language already
+           uses for type on lime. The tint stays as the state fill. */
+        .sg-link:focus-visible{outline:none;background:rgba(209,244,112,.22);box-shadow:0 0 0 3px #1a3a2a}
         .sg-empty{font-size:15px;color:rgba(0,0,0,.54);margin:14px 0}
 
         @media(prefers-reduced-motion:reduce){
