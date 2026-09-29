@@ -56,6 +56,32 @@ def put_record(record: Dict[str, Any]) -> Dict[str, Any]:
     return record
 
 
+def get_typed(record_id: Any, record_type: str) -> Optional[Dict[str, Any]]:
+    """One record of an expected type, or None. Safe on an empty id.
+
+    THE EMPTY ID IS THE POINT. Every blog module had its own three-line `get`, and all of them
+    passed the id straight to `get_item` - so an absent reference read as `Key={'id': ''}`, which
+    DynamoDB rejects with a ValidationException rather than returning nothing. That surfaced as a
+    500 from a verification run whose article had no recorded sign-off id, where the correct answer
+    was simply "there is no sign-off".
+
+    An absent reference is an ordinary state in this pipeline: an article can legitimately have no
+    template, no analysis, no sign-off yet. Treating it as a lookup miss rather than an error is
+    the behaviour every caller already assumed it had.
+
+    The type check is not decoration either. Ids are prefixed by kind, but a caller passing a
+    source id where a QA run id belongs would otherwise get a source record back and read fields
+    off it that happen to be absent.
+    """
+    key = str(record_id or "").strip()
+    if not key:
+        return None
+    item = table().get_item(Key={'id': key}).get('Item')
+    if not item or item.get('recordType') != record_type:
+        return None
+    return _json_safe(item)
+
+
 def get_audit(audit_id: str) -> Optional[Dict[str, Any]]:
     item = table().get_item(Key={'id': audit_id}).get('Item')
     if not item or item.get('recordType') != 'audit':

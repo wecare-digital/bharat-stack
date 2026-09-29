@@ -207,6 +207,49 @@ def test_the_worker_refreshes_the_batch_it_touched(env):
     assert env["bb"].get(batch_id)["status"] == env["bb"].READY
 
 
+def test_the_displayed_status_is_derived_not_read(env):
+    """A live 13-source fan-out reported every source EXTRACTED with the batch on INGESTING.
+
+    `refresh_status` reads the rollup through a global secondary index, which is eventually
+    consistent and cannot be read consistently - so the refresh firing immediately after the last
+    source's write can still see it as unfinished, store INGESTING, and never run again. Anything
+    that shows a rollup derives the status from that rollup instead, which cannot be stale because
+    it is the number the caller just read.
+    """
+    batch_id = _batch(env)
+    _register(env, batch_id, sample_pdf("ONE"))
+    env["bs"].run_worker({})
+    # Simulate the refresh having observed a lagging index.
+    env["table"].items[batch_id]["status"] = env["bb"].INGESTING
+
+    assert env["bb"].detail(batch_id)["status"] == env["bb"].READY
+    assert env["bb"].detail(batch_id)["storedStatus"] == env["bb"].INGESTING
+    listed = env["bb"].list_batches()[0]
+    assert listed["status"] == env["bb"].READY
+    assert listed["storedStatus"] == env["bb"].INGESTING
+
+
+def test_the_cheap_listing_keeps_the_stored_status(env):
+    """`?rollup=none` skips the index query, so there is nothing to derive from and the cached
+    value is the only answer available. Reporting it as such is honest."""
+    batch_id = _batch(env)
+    _register(env, batch_id, sample_pdf("ONE"))
+    env["bs"].run_worker({})
+    env["table"].items[batch_id]["status"] = env["bb"].INGESTING
+    listed = env["bb"].list_batches(with_rollup=False)[0]
+    assert listed["status"] == env["bb"].INGESTING
+    assert "rollup" not in listed
+
+
+def test_a_closed_batch_is_never_derived_open_again(env):
+    batch_id = _batch(env)
+    _register(env, batch_id, sample_pdf("ONE"))
+    env["bb"].close(batch_id, "admin")
+    assert env["bb"].detail(batch_id)["status"] == env["bb"].CLOSED
+    assert env["bb"].derive_status(env["bb"].get(batch_id),
+                                  env["bb"].rollup(batch_id)) == env["bb"].CLOSED
+
+
 def test_closing_is_not_overwritten_by_a_refresh(env):
     """CLOSED is an operator decision; a late source must not silently reopen it."""
     batch_id = _batch(env)
