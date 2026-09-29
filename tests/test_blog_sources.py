@@ -57,6 +57,26 @@ def _conditional_check_failed():
                        "UpdateItem")
 
 
+def _condition_target(condition) -> tuple:
+    """`Key('batchId').eq(value)` -> `('batchId', value)`.
+
+    boto3 hands the resource layer a condition OBJECT, not a rendered string plus
+    `ExpressionAttributeValues` - those only appear after the serializer runs, which is
+    inside the real client. So a fake that reads `ExpressionAttributeValues` on a query sees
+    `None` and silently matches everything.
+    """
+    if condition is None:
+        return None, None
+    try:
+        values = condition.get_expression().get("values", ())
+    except AttributeError:
+        return None, None
+    if len(values) != 2:
+        return None, None
+    key, wanted = values
+    return getattr(key, "name", None), wanted
+
+
 class FakeTable:
     """Supports get_item, put_item, update_item and scan, plus the one condition we use."""
 
@@ -104,17 +124,42 @@ class FakeTable:
     def scan(self, **kwargs):
         return {"Items": [dict(v) for v in self.items.values()]}
 
+    # A page smaller than any test's dataset, on purpose. Three of this table's four
+    # readers loop on `LastEvaluatedKey`, and a fake that returned everything in one page
+    # would let a single-page reader pass every test and then truncate in production at
+    # DynamoDB's real 1 MB boundary. 100 is small enough that the 600-record scale tests
+    # cross it six times.
+    PAGE = 100
+
     def query(self, **kwargs):
-        # storage.list_records queries the recordType GSI.
-        wanted = None
-        for value in (kwargs.get("ExpressionAttributeValues") or {}).values():
-            if isinstance(value, str):
-                wanted = value
-                break
-        items = [dict(v) for v in self.items.values()
-                 if wanted is None or v.get("recordType") == wanted]
-        items.sort(key=lambda row: str(row.get("createdAt") or ""), reverse=True)
-        return {"Items": items}
+        """Honours IndexName's partition key, the sort order, and pagination.
+
+        The earlier version ignored `KeyConditionExpression` and filtered on `recordType`
+        unconditionally, which was invisible while `recordType-createdAt-index` was the only
+        index in use. It stops being invisible the moment a second index exists: a query for
+        one batch's sources returned every item in the table, so a rollup counted the batch
+        record itself among its own sources.
+        """
+        attribute, wanted = _condition_target(kwargs.get("KeyConditionExpression"))
+        if attribute is None:
+            raise AssertionError("query() needs a KeyConditionExpression")
+
+        items = [dict(row) for row in self.items.values()
+                 if str(row.get(attribute, "")) == str(wanted)]
+        items.sort(key=lambda row: (str(row.get("createdAt") or ""), str(row.get("id"))),
+                   reverse=not kwargs.get("ScanIndexForward", True))
+
+        start = kwargs.get("ExclusiveStartKey")
+        if start:
+            ids = [row["id"] for row in items]
+            offset = ids.index(start["id"]) + 1 if start["id"] in ids else len(ids)
+        else:
+            offset = 0
+        page = items[offset:offset + self.PAGE]
+        response: Dict[str, Any] = {"Items": page}
+        if offset + self.PAGE < len(items) and page:
+            response["LastEvaluatedKey"] = {"id": page[-1]["id"]}
+        return response
 
 
 class FakeS3:
@@ -537,9 +582,14 @@ def test_the_list_view_never_carries_the_extract(env):
     report = env["bs"].status_report()
     assert report["total"] == 1
     assert report["extracted"] == 1
-    assert "sourceExtract" not in report["sources"][0]
-    # A bounded preview is fine and useful; the whole text is not.
-    assert len(report["sources"][0]["extractPreview"]) <= env["bs"].EXTRACT_PREVIEW_CHARS
+    row = report["sources"][0]
+    assert "sourceExtract" not in row
+    # Nor the 1,500-character preview. That was tolerable at 200 rows and is not at the
+    # thousands-per-batch the batch entity exists to carry: 2,500 rows would be 3.75 MB of
+    # prose behind a table that renders a status column. The preview lives on the detail
+    # view, one row at a time, where something actually reads it.
+    assert "extractPreview" not in row
+    assert env["bs"].source_detail(row["sourceId"])["extractPreview"]
 
 
 def test_the_detail_view_does_carry_the_extract(env):

@@ -15,6 +15,7 @@ from lambda_utils.response import (
 )
 
 import ai
+import blog_batches
 import blog_draft
 import blog_sources
 import storage
@@ -419,6 +420,25 @@ def _route_get(path: str, event: Dict[str, Any], origin: str):
         records = storage.list_records(record_type, scope)
         key = 'logs' if record_type == 'log' else 'audits'
         return _response(200, {'ok': True, key: records}, origin)
+    if '/blog-batches/' in path:
+        # One batch with its rollup and its sources. `?limit=` bounds the source list for a
+        # UI page; absent, it returns all of them, which is the point of the batch index.
+        batch_id = path.split('/blog-batches/', 1)[1].strip('/')
+        limit = int(_query(event, 'limit', '0') or 0)
+        return _response(200, {
+            'ok': True, 'batch': blog_batches.detail(batch_id, source_limit=limit),
+        }, origin)
+    if path.endswith('/blog-batches'):
+        # `?rollup=none` skips the per-batch source count, which is a real cost switch: each
+        # rollup pages that batch's sources, so 50 batches with rollups is 50 index queries.
+        with_rollup = _query(event, 'rollup', 'full') != 'none'
+        batches = blog_batches.list_batches(with_rollup=with_rollup)
+        return _response(200, {
+            'ok': True, 'batches': batches, 'total': len(batches),
+            'categories': list(BLOG_CATEGORIES),
+            'articleClasses': list(_quality.ARTICLE_CLASSES) if _quality else [],
+            'batchStatuses': list(blog_batches.BATCH_STATUSES),
+        }, origin)
     if '/blog-sources/' in path:
         # One source with its extract and draft. Split out from the list route because the
         # extract is hundreds of kB and returning it for 200 sources would make the list
@@ -428,6 +448,8 @@ def _route_get(path: str, event: Dict[str, Any], origin: str):
             'source': blog_sources.source_detail(path.split('/blog-sources/', 1)[1].strip('/')),
         }, origin)
     if path.endswith('/blog-sources'):
+        # `?batchId=` scopes the listing through the batch index rather than reading every
+        # source in the system, which is what makes a thousand-source batch viewable.
         return _response(200, {
             'ok': True,
             'categories': list(BLOG_CATEGORIES),
@@ -435,7 +457,9 @@ def _route_get(path: str, event: Dict[str, Any], origin: str):
             'humanGates': list(_quality.HUMAN_GATES) if _quality else [],
             'aiDraftEnabled': blog_draft.enabled(),
             'maxSourceBytes': blog_sources.MAX_SOURCE_BYTES,
-            **blog_sources.status_report(),
+            **blog_sources.status_report(
+                limit=int(_query(event, 'limit', '0') or 0),
+                batch_id=_query(event, 'batchId')),
         }, origin)
     if path.endswith('/site-pages'):
         pages = wix.list_site_pages()
@@ -454,6 +478,22 @@ def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
     # carries `ANY /seo-tools/{proxy+}`, so these add no new API Gateway route key and
     # `audit_route_auth.py` continues to classify the whole surface as
     # handler-authenticated on the strength of that one require_auth.
+    if path.endswith('/blog-batches/close'):
+        batch_id = str(body.get('batchId') or '').strip()
+        if not batch_id:
+            raise ValueError('batchId is required')
+        return _response(200, {'ok': True, **blog_batches.close(batch_id, actor)}, origin)
+    if path.endswith('/blog-batches'):
+        # Claimed: a double-submitted form would otherwise create two batches with the same
+        # name and split one wave's sources across both.
+        duplicate = _claim(body, actor, 'seo.blogbatch.create', origin)
+        if duplicate:
+            return duplicate
+        return _response(200, {'ok': True, **blog_batches.create(
+            body, actor, tuple(BLOG_CATEGORIES),
+            tuple(_quality.ARTICLE_CLASSES) if _quality else ('ARCHIVE_DERIVED',),
+        )}, origin)
+
     if path.endswith('/blog-sources/confirm'):
         # NO idempotency claim, deliberately. Confirm is naturally idempotent - it
         # head_objects each key and moves PENDING_UPLOAD to UPLOADED - and a claim would

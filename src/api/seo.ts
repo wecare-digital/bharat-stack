@@ -145,12 +145,20 @@ export function seoToolsFetch ( path: string, init: RequestInit = {} ): Promise<
  * call site rather than anything routed through `seoToolsFetch`.
  * ------------------------------------------------------------------------- */
 
-/** One source as the list route projects it. Never carries the extracted text. */
+/**
+ * One source as the list route projects it. Never carries the extracted text.
+ *
+ * Deliberately narrower than the stored record. The batch index that makes a batch-scoped
+ * listing possible can project at most 20 non-key attributes, so `sourceSha256`,
+ * `contentSha256`, `sourceDate`, `sourcePages`, `sourceBytes` and `extractedChars` are
+ * reachable through `fetchBlogSourceDetail` and not here. None of them were rendered in a
+ * list; the ledger table's `sourceSha256` is a different type and is unaffected.
+ */
 export interface BlogSourceView {
   sourceId: string;
+  batchId: string;
   sourceType: string;
   sourceRef: string;
-  sourceSha256: string;
   /**
    * The apex URL of an uploaded PDF, or `''`.
    *
@@ -163,12 +171,7 @@ export interface BlogSourceView {
   category: string;
   articleClass: string;
   sourceTitle: string;
-  sourceDate: string;
-  sourcePages: number;
-  sourceBytes: number;
-  extractedChars: number;
   extractedWords: number;
-  contentSha256: string;
   slug: string;
   title: string;
   articleStatus: string;

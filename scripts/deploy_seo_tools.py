@@ -90,11 +90,83 @@ ENV_VARS = {
 }
 
 
+#: Blog Production needs one source's batch without reading every source in the system.
+#:
+#: WHY `INCLUDE` AND NOT `ALL`, unlike the two older indexes. A source item carries
+#: `extractPreview` (1,500 characters) and `draftRecord`, and an ALL projection would copy
+#: both into the index for data that no listing renders - roughly doubling the storage for the
+#: hottest record type. The projected list is exactly what `blog_sources._view` returns plus
+#: what `blog_batches.rollup` counts.
+#:
+#: KEEP THE TWO IN STEP. A field added to `_view` but not projected here reads as EMPTY for
+#: batch-scoped queries while working fine for every other query - which is a defect that
+#: only shows up on the batches page.
+#:
+#: AND KEEP IT UNDER 20. DynamoDB refuses an index with more than 20 `NonKeyAttributes`:
+#:
+#:     ValidationException: Value '[...]' at
+#:     'globalSecondaryIndexUpdates.1.member.create.projection.nonKeyAttributes'
+#:     failed to satisfy constraint: Member must have length less than or equal to 20
+#:
+#: The first attempt asked for 24 and was refused at deploy time rather than at test time,
+#: which is why `test_the_batch_index_respects_the_twenty_attribute_cap` now asserts it. Both
+#: `_view` and this list were trimmed to fit; the six fields that went are on `source_detail`,
+#: which reads the whole item and has no projection limit.
+MAX_INDEX_NON_KEY_ATTRIBUTES = 20
+BATCH_INDEX_NAME = "batchId-createdAt-index"
+BATCH_INDEX_DEFINITION = {
+    "IndexName": BATCH_INDEX_NAME,
+    "KeySchema": [
+        {"AttributeName": "batchId", "KeyType": "HASH"},
+        {"AttributeName": "createdAt", "KeyType": "RANGE"},
+    ],
+    "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+            "recordType", "slug", "status", "sourceType", "sourceRef", "s3Key",
+            "category", "articleClass", "sourceTitle", "extractedWords", "title",
+            "articleStatus", "aiDraftStatus", "gateBlocking", "gateReview", "error",
+            "updatedAt",
+        ],
+    },
+}
+
+
+def ensure_batch_index(ddb) -> None:
+    """Add the batch index to an existing table. Additive, and safe to re-run.
+
+    A GSI is created online: the table stays readable and writable while it backfills, and a
+    query against an index still building returns partial results rather than failing. So the
+    only ordering requirement is that this runs before anything depends on batch-scoped
+    queries returning complete answers, which is why it happens in the deploy rather than
+    lazily on first use.
+    """
+    existing = {
+        index["IndexName"]
+        for index in ddb.describe_table(TableName=TABLE_NAME)["Table"].get(
+            "GlobalSecondaryIndexes") or []
+    }
+    if BATCH_INDEX_NAME in existing:
+        print(f"[table] GSI {BATCH_INDEX_NAME} already present")
+        return
+    print(f"[table] adding GSI {BATCH_INDEX_NAME} (online, backfills in the background)")
+    ddb.update_table(
+        TableName=TABLE_NAME,
+        AttributeDefinitions=[
+            {"AttributeName": "batchId", "AttributeType": "S"},
+            {"AttributeName": "createdAt", "AttributeType": "S"},
+        ],
+        GlobalSecondaryIndexUpdates=[{"Create": BATCH_INDEX_DEFINITION}],
+    )
+    print(f"[table] GSI {BATCH_INDEX_NAME} creation requested")
+
+
 def ensure_table() -> None:
     ddb = boto3.client("dynamodb", region_name=REGION)
     try:
         ddb.describe_table(TableName=TABLE_NAME)
         print(f"[table] {TABLE_NAME} already exists — skipping create")
+        ensure_batch_index(ddb)
         return
     except ddb.exceptions.ResourceNotFoundException:
         pass
@@ -127,6 +199,7 @@ def ensure_table() -> None:
                 ],
                 "Projection": {"ProjectionType": "ALL"},
             },
+            BATCH_INDEX_DEFINITION,
         ],
     )
     ddb.get_waiter("table_exists").wait(TableName=TABLE_NAME)
