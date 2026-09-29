@@ -151,9 +151,33 @@ def test_legacy_manifest_can_still_validate_but_cannot_publish():
     assert any('quality_version' in e for e in m.validate_batch_document(legacy, require_v2=True))
 
 
-def test_progress_is_variable_size_up_to_150():
+def test_unreconciled_live_baseline_is_valid_but_cannot_advance():
     m = load_module()
-    progress = {'completed_through': 454, 'next_id': 455, 'max_manifest_posts': 150}
+    progress = {
+        'completed_through': 340,
+        'next_id': None,
+        'max_manifest_posts': 150,
+        'live_verified_posts': 454,
+        'sequence_reconciled': False,
+    }
+    assert m.validate_progress(progress) == []
+    try:
+        m.advance_progress(progress, 341, 454)
+    except ValueError as exc:
+        assert 'reconciliation' in str(exc)
+    else:
+        raise AssertionError('expected unreconciled progress to block sequence advance')
+
+
+def test_progress_is_variable_size_up_to_150_after_reconciliation():
+    m = load_module()
+    progress = {
+        'completed_through': 454,
+        'next_id': 455,
+        'max_manifest_posts': 150,
+        'live_verified_posts': 454,
+        'sequence_reconciled': True,
+    }
     assert m.validate_progress(progress) == []
     advanced = m.advance_progress(progress, 455, 604)
     assert advanced['completed_through'] == 604
@@ -163,7 +187,13 @@ def test_progress_is_variable_size_up_to_150():
 
 def test_progress_rejects_skip_and_over_150():
     m = load_module()
-    progress = {'completed_through': 454, 'next_id': 455, 'max_manifest_posts': 150}
+    progress = {
+        'completed_through': 454,
+        'next_id': 455,
+        'max_manifest_posts': 150,
+        'live_verified_posts': 454,
+        'sequence_reconciled': True,
+    }
     try:
         m.advance_progress(progress, 456, 500)
     except ValueError as exc:
