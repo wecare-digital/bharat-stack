@@ -7,7 +7,7 @@ import BlogIndex from '../pages/blog/index';
 import BlogPostPage from '../pages/post/[slug]';
 import ShareLinks from '../components/ShareLinks';
 import {
-  MEDIA_BASE, SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, whatsappShareHref,
+  MEDIA_BASE, SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SHARE_CARD_TYPE, whatsappShareHref,
 } from '../config/share';
 import { toBlogCard, type PublicBlogPost } from '../lib/public-blog';
 
@@ -77,9 +77,9 @@ const expectShareCard = ( container: HTMLElement ) => {
   expect( metaOf( container, 'og:image:type' ) ).toBe( 'image/png' );
   expect( metaOf( container, 'og:image:alt' ) ).toBeTruthy();
   expect( metaOf( container, 'og:site_name' ) ).toBe( 'WECARE.DIGITAL' );
-  // summary_large_image, not summary: the asset is 16:9 and the small card centre-crops a wide
-  // image to a square, which takes the ends off a wordmark.
-  expect( metaOf( container, 'twitter:card' ) ).toBe( 'summary_large_image' );
+  // The card type comes from the same module as the image, because the two have to agree about
+  // shape: "summary" frames a 1:1 image, summary_large_image centre-crops it.
+  expect( metaOf( container, 'twitter:card' ) ).toBe( SHARE_CARD_TYPE );
   expect( metaOf( container, 'twitter:image' ) ).toBe( SOCIAL_CARD_URL );
 };
 
@@ -117,33 +117,61 @@ describe( 'Share previews', () => {
       path.join( __dirname, '..', 'pages', '_app.tsx' ), 'utf8'
     );
     expect( app ).toContain( `const MEDIA_BASE = '${MEDIA_BASE}'` );
-    expect( app ).toContain( 'const SOCIAL_CARD_URL = `${MEDIA_BASE}/wd-brand-16x9.png`' );
+    // _app.tsx aliases its share image to LOGO_URL rather than restating the filename, so there is
+    // one place in that file where the asset is named.
+    expect( app ).toContain( 'const SOCIAL_CARD_URL = LOGO_URL;' );
+    expect( app ).toContain( 'const LOGO_URL = `${MEDIA_BASE}/wecare-digital.png`' );
     expect( app ).toContain( `const SOCIAL_CARD_W = '${SOCIAL_CARD_W}'` );
     expect( app ).toContain( `const SOCIAL_CARD_H = '${SOCIAL_CARD_H}'` );
     // And the shared module resolves to the same absolute URL the marketing branch emits.
-    expect( SOCIAL_CARD_URL ).toBe( 'https://wecare.digital/get/o/stream/media/m/wd-brand-16x9.png' );
+    expect( SOCIAL_CARD_URL ).toBe( 'https://wecare.digital/get/o/stream/media/m/wecare-digital.png' );
   } );
 
   /**
-   * THE DECLARED SIZE IS CHECKED AGAINST THE ACTUAL FILE, not just against the other declaration.
+   * THE PAIRING INVARIANT, which is the thing that actually prevents a broken preview.
    *
-   * og:image:width and og:image:height once read 512x512 against a 1080x1080 object, and nothing
-   * caught it because every check compared one written-down number to another written-down number.
-   * This reads the PNG header of the committed replacement in docs/brand/ and fails if the pixels
-   * and the declaration disagree, which is the only version of this assertion that could have
-   * caught the original bug.
+   * The share image and the Twitter card type have to agree about shape. A 1:1 image in a
+   * summary_large_image slot is centre-cropped top and bottom - that is what once cut the ends off
+   * this mark - and a 1.91:1 image in a "summary" slot is squeezed into a small square instead of
+   * getting the wide frame it was designed for. Either mistake is one careless edit away, because
+   * the two values look unrelated.
    *
-   * It also holds the WEIGHT, which is why the asset was re-exported at all. The live card was
-   * 801,077 bytes against the 600 KB ceiling Meta documents for a WhatsApp link preview, so the
-   * preview was being dropped on the platform this company is built around. 300 KB is the working
-   * limit rather than 600 KB because WhatsApp discards an oversized image silently and the
-   * reported ceiling has no margin in it.
-   *
-   * The file is parsed by hand rather than with an image library: a PNG's IHDR is the first chunk
-   * after the 8-byte signature, width and height are big-endian uint32s at offsets 16 and 20, and
-   * that is the whole of what this needs. No dependency for four bytes.
+   * So this asserts the RELATIONSHIP rather than the values: if the declared image is square the
+   * card must be "summary", and if it is not square the card must be the large one. Swapping the
+   * asset later is then a change this test either accepts or explains.
    */
-  it( 'keeps the committed card within WhatsApp limits and true to its declared size', () => {
+  it( 'keeps the card type agreeing with the share image shape', () => {
+    const square = SOCIAL_CARD_W === SOCIAL_CARD_H;
+    expect( SHARE_CARD_TYPE ).toBe( square ? 'summary' : 'summary_large_image' );
+
+    // And whatever the shape, it stays inside WhatsApp's stated limits: at least 300px wide, and
+    // an aspect ratio no wider than 4:1.
+    const w = Number( SOCIAL_CARD_W );
+    const h = Number( SOCIAL_CARD_H );
+    expect( w ).toBeGreaterThanOrEqual( 300 );
+    expect( w / h ).toBeLessThanOrEqual( 4 );
+  } );
+
+  /**
+   * THE STAGED WIDE CARD STAYS FIT FOR PURPOSE, even though nothing currently points at it.
+   *
+   * docs/brand/wd-brand-16x9.png is the 1200x675 / 273 KB re-export of the designed card - mark,
+   * wordmark and tagline - kept as the documented way back to a wide preview if the S3 upload is
+   * ever done. It is a fallback, not the live asset: the share image is the square icon, which
+   * needs no upload.
+   *
+   * This used to assert the file's pixels equalled SOCIAL_CARD_W/H. That coupling is now wrong and
+   * was removed - tying the live declaration to an asset the site does not use would fail the
+   * moment the icon was adopted, which is exactly what happened. What is still worth holding is
+   * that the staged file remains VALID, so whoever picks it up later is not inheriting a broken
+   * one: a real PNG, inside both weight ceilings, past the minimum width, under the aspect limit,
+   * and opaque.
+   *
+   * Parsed by hand rather than with an image library: a PNG's IHDR is the first chunk after the
+   * 8-byte signature and width and height are big-endian uint32s at offsets 16 and 20. No
+   * dependency for four bytes.
+   */
+  it( 'keeps the staged wide-card fallback valid, opaque and inside WhatsApp limits', () => {
     const file = path.join( __dirname, '..', '..', 'docs', 'brand', 'wd-brand-16x9.png' );
     const bytes = fs.readFileSync( file );
 
@@ -152,21 +180,19 @@ describe( 'Share previews', () => {
     const width = bytes.readUInt32BE( 16 );
     const height = bytes.readUInt32BE( 20 );
 
-    // The pixels ARE what the meta tags claim.
-    expect( String( width ) ).toBe( SOCIAL_CARD_W );
-    expect( String( height ) ).toBe( SOCIAL_CARD_H );
-
     // Meta's documented ceiling, and the working one that accounts for a silent drop.
     expect( bytes.length ).toBeLessThan( 600 * 1024 );
     expect( bytes.length ).toBeLessThan( 300 * 1024 );
     // Their stated minimum width, and the 4:1 aspect ceiling.
     expect( width ).toBeGreaterThanOrEqual( 300 );
     expect( width / height ).toBeLessThanOrEqual( 4 );
+    // It is the WIDE one - if this ever became square it would no longer be the thing the README
+    // describes, and adopting it would need the card type changed as well.
+    expect( width ).toBeGreaterThan( height );
 
-    // STILL OPAQUE. The binding rule for anything handed to a renderer we do not control is that
-    // it must not rely on alpha - Apple and the preview services flatten it to black and this
-    // mark is light. A palette PNG carries transparency in a tRNS chunk, so its absence is the
-    // check. BrandAssets.test.ts argues the rule; this enforces it on the bytes.
+    // OPAQUE. The binding rule for anything handed to a renderer we do not control is that it must
+    // not rely on alpha - Apple and the preview services flatten it to black and the mark is
+    // light. A palette PNG carries transparency in a tRNS chunk, so its absence is the check.
     expect( bytes.includes( Buffer.from( 'tRNS', 'ascii' ) ) ).toBe( false );
   } );
 } );

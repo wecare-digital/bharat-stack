@@ -1,8 +1,20 @@
 # The link-preview card, re-exported for WhatsApp
 
-`wd-brand-16x9.png` in this folder is **not served from here**. It is the replacement for the
-live object and exists in the repo so it can be reviewed in a diff and uploaded by someone with
-write access to the bucket.
+> ## STATUS: OPTIONAL. Nothing is waiting on this upload.
+>
+> The site's `og:image` is now **`wecare-digital.png`**, the 1080x1080 icon that was already live
+> at 86,123 bytes — chosen on owner instruction precisely because it needs no upload and is inside
+> every limit described below. Link previews work today on every surface.
+>
+> This folder keeps the re-exported **wide** card as the documented way back to a bigger, more
+> branded preview. It carries the mark, the wordmark and the tagline, which the icon does not, and
+> it renders as a full-width banner rather than a compact thumbnail. If you want that, upload it
+> and make the three-line change in *Adopting the wide card* at the bottom.
+>
+> The rest of this file is the record of why the original card could not be used as it was.
+
+`wd-brand-16x9.png` in this folder is **not served from here**. It exists in the repo so it can be
+reviewed in a diff and uploaded by someone with write access to the bucket.
 
 ## Why it was re-exported
 
@@ -81,15 +93,32 @@ curl -sI https://wecare.digital/get/o/stream/media/m/wd-brand-16x9.png \
 
 `content-length` should read about 279367, not 801077.
 
-## ORDERING — this matters
+## Adopting the wide card
 
-`og:image:width` and `og:image:height` are declared in code, in `src/config/share.ts` and
-`src/pages/_app.tsx`, and the PR that added this folder changes them from 1440x810 to 1200x675.
-The repo already had a bug where these declared 512x512 against a 1080x1080 file, and
-`BrandAssets.test.ts` exists partly to stop it recurring — so the declaration and the object need
-to agree.
+Three values move together, and they must move in one commit. The shape of the image and the
+Twitter card type are a pair: a 1.91:1 image in a `summary` slot is squeezed into a small square,
+and a 1:1 image in a `summary_large_image` slot is centre-cropped top and bottom — which is the
+defect that took the ends off this mark once already.
 
-**Upload first, then merge**, and the two never disagree. If the code merges first the only
-consequence is cosmetic and temporary: crawlers reserve layout from a size hint that is 240px too
-tall until the upload lands. The image itself keeps working throughout, because the URL does not
-change. It is worth getting the order right, but it is not an outage either way.
+In `src/config/share.ts`:
+
+```ts
+export const SOCIAL_CARD_URL = `${MEDIA_BASE}/wd-brand-16x9.png`;
+export const SOCIAL_CARD_W = '1200';
+export const SOCIAL_CARD_H = '675';
+export const SHARE_CARD_TYPE = 'summary_large_image';
+```
+
+And the matching three in `src/pages/_app.tsx`, which keeps its own copies — `SOCIAL_CARD_URL`
+there is currently aliased to `LOGO_URL`, so it becomes the literal again, plus its inline
+`twitter:card` string.
+
+`src/test/ShareMeta.test.tsx` asserts the pairing rather than the values: if the declared image is
+square the card must be `summary`, otherwise it must be the large one. So it will accept this
+change and reject a half-finished one. `BrandAssets.test.ts` names the current asset explicitly and
+will need its link-preview case updated with it.
+
+**Upload before merging.** The declaration and the object should never disagree — the repo already
+had a bug where these read 512x512 against a 1080x1080 file. Getting the order wrong is cosmetic
+rather than an outage: crawlers reserve layout from a wrong size hint until the upload lands, and
+the image keeps working throughout because the URL does not change.

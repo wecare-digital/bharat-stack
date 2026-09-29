@@ -5,7 +5,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import ShareLinks from '../../components/ShareLinks';
 import {
-  SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SOCIAL_CARD_TYPE, SOCIAL_CARD_ALT,
+  SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SOCIAL_CARD_TYPE, SOCIAL_CARD_ALT, SHARE_CARD_TYPE,
 } from '../../config/share';
 import { getPublicBlogPost, listPublicBlogPosts, PublicBlogPost } from '../../lib/public-blog';
 import { postContext, type PostLink } from '../../lib/post-neighbours';
@@ -230,7 +230,7 @@ export default function BlogPostPage ( {
         <meta property="og:image:alt" content={ SOCIAL_CARD_ALT } />
         {/* WAS "summary", WHICH WAS THE WRONG CARD EVEN ONCE AN IMAGE EXISTED. The small card
             crops to a square thumbnail, and the asset is 16:9 - a wordmark loses both ends. */}
-        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:card" content={ SHARE_CARD_TYPE } />
         <meta name="twitter:title" content={ title } />
         <meta name="twitter:description" content={ description } />
         <meta name="twitter:image" content={ SOCIAL_CARD_URL } />
