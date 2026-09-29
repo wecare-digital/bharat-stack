@@ -139,6 +139,27 @@ Measured on this machine before the edit (Node 24.21.0, **npm 11.19.0** — note
 `--legacy-peer-deps` was dropped rather than carried over, matching `build-test.yml`: the committed
 lockfile is generated with plain `npm install`, so the flag has nothing to resolve.
 
+### And then exercised for real, which is the part that counts
+
+Amplify job **1064** on commit `7926e13f`: BUILD, DEPLOY and VERIFY all `SUCCEED`. From its build
+log, so this is the deploy path rather than a local proxy for it:
+
+```
+# Executing command: npm ci --no-audit --no-fund
+added 680 packages in 17s
+PASS: the export publishes no server-side credential
+Public sitemap: 1156 URLs (1089 blog posts)
+```
+
+`https://wecare.digital/` then answered 200 with `Permissions-Policy`,
+`X-Content-Type-Options` and `Referrer-Policy` intact
+(`scripts/verify_deployed_headers.py --no-assets`, PASS).
+
+The version worry above turned out to be moot in the direction that matters: the build image
+reported `node v24.21.0 (npm v11.19.0)` — the same pair the pre-edit measurements were taken on,
+and **not** the 11.6.2 `packageManager` pins. Still not pinned, so `nvm install 24` can move it
+under us; it is simply known-good today rather than assumed.
+
 Rollback is `git revert` of that commit. Nothing in AWS changed — but see the shadow spec below,
 because the rollback target is not the only build spec in play.
 
