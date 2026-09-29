@@ -3,9 +3,13 @@ name: deps-upgrade-and-lock
 # One-shot, manually triggered upgrade that runs on a networked GitHub runner
 # (the agent sandbox cannot download npm packages). It regenerates a CLEAN, fully
 # consistent lockfile (deletes the stale lock first), optionally bumps all direct
-# deps to @latest, verifies with both `npm run build` AND a strict `npm ci`, then
-# commits the result back to `stack` (which triggers the Amplify deploy).
-# Both gates must pass before anything is committed.
+# deps to @latest, verifies with both `npm run build` AND `npm ci` via
+# scripts/npm_ci_gate.py, then commits the result back to `stack` (which triggers
+# the Amplify deploy). Both gates must pass before anything is committed.
+#
+# The npm ci gate is blocking but tolerates four known-upstream bundled-dependency
+# findings that no change to this repo can fix; any other lockfile-sync finding
+# fails the job. See the comment on that step, and scripts/npm_ci_gate.py.
 
 on:
   workflow_dispatch:
@@ -39,6 +43,15 @@ jobs:
         with:
           node-version: 24
 
+      # For scripts/npm_ci_gate.py. Pinned rather than relying on `python` happening to
+      # be on the runner's PATH: the image ships a python3, but an implicit alias is
+      # precisely how a gate turns into a silent no-op. Same version and action as
+      # build-test.yml and route-auth.yml. The script uses only the standard library, so
+      # nothing is installed.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
       - name: Bump all direct deps to @latest (full-latest only)
         if: ${{ inputs.mode == 'full-latest' }}
         run: |
@@ -65,36 +78,43 @@ jobs:
       - name: Gate - build
         run: npm run build
 
-      # `npm ci` IS supported, and it is a blocking gate.
+      # BLOCKING, and it tolerates one known-upstream defect (four identical findings)
+      # and nothing else.
       #
-      # This step used to be non-blocking, on the stated grounds that aws-cdk and
-      # @aws-amplify backend packages ship bundledDependencies which strict
-      # `npm ci` rejects. That is no longer true, and treating it as true is what
-      # let the lockfile rot: because nothing failed when `npm ci` failed, the
-      # committed lockfile drifted until it was missing five entries the tree
-      # needs (@aws-cdk/cli-plugin-contract, webpack, @webassemblyjs/ast,
-      # @webassemblyjs/wasm-edit, json-schema-traverse) and `npm ci` could not
-      # install the repo at all.
+      # This step used to be non-blocking, and that is what let the lockfile rot:
+      # because nothing failed when `npm ci` failed, the committed lockfile drifted
+      # until it was missing five entries the tree needs
+      # (@aws-cdk/cli-plugin-contract, webpack, @webassemblyjs/ast,
+      # @webassemblyjs/wasm-edit, json-schema-traverse). So it must stay blocking.
       #
-      # Verified on Node 24.19.0 / npm 11.4.2 against a resynced lockfile: both
-      # `npm ci` and `npm ci --legacy-peer-deps` complete with exit 0 from an
-      # empty node_modules, and the lockfile is unchanged afterwards. So this is
-      # now the step that catches drift instead of hiding it - if it fails, the
-      # lockfile below is not fit to commit and the job must stop here.
-      # Note the hash comparison rather than `git diff`: at this point in the job
-      # the lockfile has deliberately just been regenerated and is expected to
-      # differ from HEAD, so diffing against git would always fail here. What
-      # matters is that `npm ci` itself does not rewrite it.
+      # It then went the other way and ran a bare `npm ci --legacy-peer-deps`,
+      # asserting in a comment that both spellings were "verified ... exit 0"
+      # against a resynced lockfile. That claim was false. Re-measured on `stack`
+      # 2026-09-29 (Node 24.21.0 / npm 11.19.0): both fail with four
+      # `Missing: @opentelemetry/core@2.0.0 from lock file` errors, because
+      # @aws-amplify/data-construct and @aws-amplify/graphql-api-construct bundle
+      # OpenTelemetry copies whose pinned @opentelemetry/core@2.0.0 does not match
+      # the 2.8.0 bundled beside them. It is inside published tarballs, not here: a
+      # clean regen reproduces it and an `overrides` entry crashes npm (exit 134).
+      # So a bare `npm ci` gate can never pass, which made this job unable to
+      # commit the lockfile it had just regenerated - a brick, not a tripwire.
+      #
+      # npm_ci_gate.py separates the two failure classes in that one output: the
+      # four known upstream edges are tolerated by exact string, and ANY other sync
+      # finding still fails the job. Drift detection is kept for the class we cause;
+      # the class we cannot fix stops blocking. When upstream is fixed the gate
+      # exits 0 and prints a ::notice:: telling us to drop the allowlist, so the
+      # workaround cannot outlive its cause. tests/test_npm_ci_gate.py pins that
+      # line, including the mixed case where real drift arrives alongside the known
+      # finding.
+      #
+      # The gate compares the lockfile by hash rather than `git diff` because it has
+      # deliberately just been regenerated and is expected to differ from HEAD. What
+      # must not happen is `npm ci` itself rewriting it.
       - name: Gate - npm ci from clean (catches lockfile drift)
         run: |
-          before=$(sha256sum package-lock.json | cut -d' ' -f1)
           rm -rf node_modules
-          npm ci --legacy-peer-deps
-          after=$(sha256sum package-lock.json | cut -d' ' -f1)
-          if [ "$before" != "$after" ]; then
-            echo "::error::npm ci rewrote package-lock.json - the regenerated lockfile is not self-consistent"
-            exit 1
-          fi
+          python scripts/npm_ci_gate.py -- --legacy-peer-deps
 
       - name: Commit consistent lockfile + manifest and push (triggers Amplify deploy)
         run: |

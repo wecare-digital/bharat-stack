@@ -130,13 +130,34 @@ misled every reader so far. Re-verify with the harness, not with this table.
    abort with a V8 stack trace and exit **134**, and the follow-up `npm ci` then hung
    until it was killed. The override was removed; do not re-add it.
 
-   Consequences: use `npm install`, never `npm ci`. `.github/workflows/build-test.yml`
-   already does, and carries a non-blocking probe that will announce the day `npm ci`
-   starts working. `deps-upgrade.yml` is `workflow_dispatch`-only, so nothing fails
-   per-push. The realistic resolutions are upstream: Amplify fixing the bundled
-   dependency edge in `data-construct` / `graphql-api-construct`, or `patch-package`
-   rewriting those two bundled manifests locally, which is heavy for a lint-level
-   annoyance that blocks no build.
+   Consequences: to install, use `npm install`, never `npm ci`.
+   `.github/workflows/build-test.yml` already does, and carries a non-blocking probe that
+   will announce the day `npm ci` starts working. The realistic resolutions are upstream:
+   Amplify fixing the bundled dependency edge in `data-construct` /
+   `graphql-api-construct`, or `patch-package` rewriting those two bundled manifests
+   locally, which is heavy for a lint-level annoyance that blocks no build.
+
+   **Resolved 2026-09-29 for `deps-upgrade.yml`, which this used to brick.** That
+   workflow regenerates the lockfile and then gated on a bare `npm ci`, under a comment
+   asserting both spellings were "verified ... exit 0" — measurably false, re-checked on
+   Node 24.21.0 / npm 11.19.0, where `npm ci` and `npm ci --legacy-peer-deps` each fail
+   with the same four findings. So the gate could never pass and the job could never
+   commit what it had just regenerated. Reverting it to `continue-on-error` was rejected:
+   that is exactly what let the lockfile rot into missing five real entries.
+
+   Both framings assumed one verdict for the whole command, and there are two failure
+   classes in that one output. `scripts/npm_ci_gate.py` splits them — the four known
+   upstream edges are tolerated **by exact whole-finding string**, and any other
+   `Missing:`/`Invalid:`/`Extraneous:`/`Conflicting peer dependency:` line still fails the
+   job, as does a failure carrying no sync findings at all (that means network or engine,
+   not drift). So drift detection survives for the class we cause while the class we
+   cannot fix stops blocking. Verified against live npm on `stack`: allowlist-active exits
+   0 reporting the 4 tolerated findings, `--strict` exits 1, and `package-lock.json` is
+   unmodified either way. When upstream is fixed the gate exits 0 and prints a `::notice::`
+   naming the three things to undo, so the workaround cannot quietly outlive its cause.
+   `tests/test_npm_ci_gate.py` (24 cases) pins the boundary, including real drift arriving
+   alongside the known finding and a different `@opentelemetry/core` version counting as
+   new drift.
 4. **`amplify.yml` still deploys with `npm install`.** Switching to `npm ci` would make
    deploys reproducible, but it is blocked outright by the item above — and `npm install`
    is currently the only command that works, so the status quo is load-bearing rather
