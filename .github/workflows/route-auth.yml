@@ -82,8 +82,20 @@ jobs:
         # allowlist rather than installing the whole file, because
         # requirements-dev.txt also pins packages that come from Lambda layers at
         # runtime and are slow or unnecessary to build here.
+        #
+        # pypdf is here because the blog PDF pipeline landed tests that need it, and
+        # the paragraph above is exactly the step that was missed. It does not fail at
+        # collection the way cryptography did - blog_pipeline degrades to
+        # Extract(ok=False, error='pypdf is not available in this runtime') - so instead
+        # of one loud import error it produced 29 assertion failures across
+        # test_blog_ingest.py, test_blog_pipeline.py and test_blog_sources.py, and this
+        # blocking gate went red on every pull request for work unrelated to blogs.
+        # A graceful runtime fallback is the right behaviour in a Lambda; it just means
+        # a missing test dependency here reads as a broken feature rather than as a
+        # missing package. Measured: 4062 passed / 29 failed without it, 4091 passed
+        # with it, same commit.
         run: |
-          grep -E '^(pytest|boto3|botocore|requests|PyYAML|cryptography)==' requirements-dev.txt \
+          grep -E '^(pytest|boto3|botocore|requests|PyYAML|cryptography|pypdf)==' requirements-dev.txt \
             > ci-test-requirements.txt
           python -m pip install -r ci-test-requirements.txt
 
