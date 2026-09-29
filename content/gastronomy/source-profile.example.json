@@ -1,0 +1,21 @@
+{
+  "quality_version": 2,
+  "source_profile": {
+    "label": "Internal source label only",
+    "blocked_public_terms": [
+      "Publisher Name",
+      "Author Name",
+      "Book or PDF Title",
+      "Institution or Organisation Name",
+      "Private Person Name",
+      "Personal Place or Provenance Term"
+    ],
+    "required_public_attribution_terms": []
+  },
+  "notes": [
+    "Replace these placeholders for every new PDF, website, publisher archive, or source collection.",
+    "Do not hard-code one publisher such as Isha into the permanent gate.",
+    "Put a term in required_public_attribution_terms only when public attribution is genuinely necessary.",
+    "Culinary geography such as Persian, South Indian, Mexican, Mediterranean, or East African may remain when it is materially part of the food tradition."
+  ]
+}
