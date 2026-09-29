@@ -85,6 +85,73 @@ def list_records(record_type: str, scope: str = '', limit: int = 200) -> List[Di
     return [_json_safe(item) for item in items[:limit]]
 
 
+def query_index(index_name: str, key_name: str, key_value: str, limit: int = 0,
+                newest_first: bool = False) -> List[Dict[str, Any]]:
+    """Every item on a GSI partition, paginated, with NO 500-item ceiling.
+
+    WHY THIS EXISTS ALONGSIDE `list_records`.
+
+    `list_records` clamps to `min(max(limit, 1), 500)`, which is right for the audit and log
+    surfaces it was written for - nobody reads past 500 audits. It is wrong for Blog
+    Production, where a single batch is specified to hold thousands of independently tracked
+    records. With the clamp, a 2,500-source batch reported rollups for 500 of them and the
+    worker stopped finding work at 500 - both silently, and both while looking healthy.
+
+    `limit=0` means "all of it". Ascending by default, because a work queue should drain
+    oldest-first; `list_records` sorts newest-first for a different reason, which is that a
+    human reading a log wants the last thing that happened.
+    """
+    kwargs: Dict[str, Any] = {
+        'IndexName': index_name,
+        'KeyConditionExpression': Key(key_name).eq(key_value),
+        'ScanIndexForward': not newest_first,
+    }
+    items: List[Dict[str, Any]] = []
+    while True:
+        response = table().query(**kwargs)
+        items.extend(response.get('Items', []))
+        if limit and len(items) >= limit:
+            break
+        last = response.get('LastEvaluatedKey')
+        if not last:
+            break
+        kwargs['ExclusiveStartKey'] = last
+    result = items[:limit] if limit else items
+    return [_json_safe(item) for item in result]
+
+
+def scan_by_record_type(record_type: str, attribute: str = '', values: Iterable[str] = (),
+                        limit: int = 0) -> List[Dict[str, Any]]:
+    """A record type's whole partition, optionally filtered, with no ceiling.
+
+    The filter is applied by DynamoDB AFTER the read is paid for, so this is not cheap and is
+    not meant to be the steady-state work-queue query - `blog_batches` uses the batch index
+    for that. It exists for the cross-batch sweep the worker does, and for operator tooling
+    that legitimately wants everything.
+    """
+    kwargs: Dict[str, Any] = {
+        'IndexName': 'recordType-createdAt-index',
+        'KeyConditionExpression': Key('recordType').eq(record_type),
+        'ScanIndexForward': True,
+    }
+    wanted = {str(value) for value in values}
+    items: List[Dict[str, Any]] = []
+    while True:
+        response = table().query(**kwargs)
+        page = response.get('Items', [])
+        if attribute and wanted:
+            page = [item for item in page if str(item.get(attribute, '')) in wanted]
+        items.extend(page)
+        if limit and len(items) >= limit:
+            break
+        last = response.get('LastEvaluatedKey')
+        if not last:
+            break
+        kwargs['ExclusiveStartKey'] = last
+    result = items[:limit] if limit else items
+    return [_json_safe(item) for item in result]
+
+
 def list_slug_records(slug: str) -> List[Dict[str, Any]]:
     kwargs: Dict[str, Any] = {
         'IndexName': 'slug-createdAt-index',

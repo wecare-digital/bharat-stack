@@ -110,6 +110,13 @@ MAX_REGISTER_BATCH = 200
 
 RECORD_TYPE = "blogSource"
 
+#: The batch a source belongs to when it was submitted without one - the interactive
+#: single-document path. NOT an empty string: DynamoDB omits an item from a GSI entirely when
+#: its partition key attribute is absent or empty, so an unbatched source would be invisible
+#: to every batch-index query, including the worker's. A sentinel keeps it indexed and
+#: greppable.
+NO_BATCH = "unbatched"
+
 #: The statuses a source moves through. Deliberately NOT the article statuses from the
 #: quality standard - those describe an article, these describe a source file.
 PENDING_UPLOAD = "PENDING_UPLOAD"
@@ -202,6 +209,11 @@ def _safe_extension(name: str) -> str:
     return ""
 
 
+def view(item: Dict[str, Any]) -> Dict[str, Any]:
+    """The public name for the listing projection, so `blog_batches` need not reach for `_view`."""
+    return _view(item)
+
+
 def get_source(record_id: str) -> Optional[Dict[str, Any]]:
     item = storage.table().get_item(Key={"id": record_id}).get("Item")
     if not item or item.get("recordType") != RECORD_TYPE:
@@ -235,16 +247,35 @@ def source_url(key: str) -> str:
 
 
 def _view(item: Dict[str, Any]) -> Dict[str, Any]:
-    """The projection the admin page renders. Never includes the extracted text.
+    """The projection a listing renders. Compact, deliberately.
 
-    The extract can be hundreds of kB per source; returning it in a list of 200 would make
-    the response megabytes and the page unusable. One source's text is fetched on demand.
+    NEITHER THE EXTRACT NOR ITS PREVIEW BELONGS HERE, and the preview was briefly included
+    with a comment claiming it was fine for the list. It is not: a batch is specified to hold
+    thousands of sources, and 2,500 rows at a 1,500-character preview is a 3.75 MB response
+    for a table that shows a status column. Both come from `source_detail`, one at a time.
+
+    This projection is also the contract for the `batchId-createdAt-index` INCLUDE list. A
+    field added here that the index does not project reads as EMPTY for batch-scoped queries
+    while working everywhere else - a nasty class of bug, so
+    `test_the_batch_index_projects_everything_the_view_needs` asserts the two agree.
+
+    WHICH IS WHY SIX FIELDS LEFT. DynamoDB caps an index's `NonKeyAttributes` at **20**, and
+    the first attempt at the batch index asked for 24 and was refused by `UpdateTable`. That
+    cap is the reason this list is short, and the cut was made where a listing does not
+    render the field anyway: `sourceSha256`, `contentSha256`, `sourceDate`, `sourcePages`,
+    `sourceBytes` and `extractedChars` are all on `source_detail`, which reads the full item
+    from the table and has no projection limit at all. Nothing in `blog-studio.tsx` read any
+    of them from this view.
+
+    The remaining headroom is deliberate. Tasks 6 onward add `articleId`, a QA run reference
+    and a publish state to the source record, and each of those has to fit here to be
+    visible on a batch page.
     """
     return {
         "sourceId": item.get("id", ""),
+        "batchId": item.get("batchId", ""),
         "sourceType": item.get("sourceType", ""),
         "sourceRef": item.get("sourceRef", ""),
-        "sourceSha256": item.get("sourceSha256", ""),
         #: Present only for an uploaded PDF on the public root. A URL source already has its
         #: own address in `sourceRef`.
         "sourceUrl": source_url(str(item.get("s3Key") or "")),
@@ -252,15 +283,7 @@ def _view(item: Dict[str, Any]) -> Dict[str, Any]:
         "category": item.get("category", ""),
         "articleClass": item.get("articleClass", ""),
         "sourceTitle": item.get("sourceTitle", ""),
-        "sourceDate": item.get("sourceDate", ""),
-        "sourcePages": item.get("sourcePages", 0),
-        "sourceBytes": item.get("sourceBytes", 0),
-        "extractedChars": item.get("extractedChars", 0),
         "extractedWords": item.get("extractedWords", 0),
-        #: A bounded preview so the list view can show what was extracted without the list
-        #: response becoming megabytes. `source_detail` returns the full text.
-        "extractPreview": item.get("extractPreview", ""),
-        "contentSha256": item.get("contentSha256", ""),
         "slug": item.get("slug", ""),
         "title": item.get("title", ""),
         "articleStatus": item.get("articleStatus", ""),
@@ -283,8 +306,18 @@ def register(body: Dict[str, Any], actor: str, categories: Tuple[str, ...]) -> D
     if len(entries) > MAX_REGISTER_BATCH:
         raise ValueError(f"at most {MAX_REGISTER_BATCH} sources per request")
 
-    default_category = str(body.get("category") or "").strip()
-    default_class = str(body.get("articleClass") or "ARCHIVE_DERIVED").strip().upper()
+    #: A batch is optional, so the interactive single-source path still works without one.
+    #: When given it must exist and be open: adding sources to a closed batch would make its
+    #: rollup change after an operator deliberately finished with it.
+    batch_id = str(body.get("batchId") or "").strip()
+    batch: Dict[str, Any] = {}
+    if batch_id:
+        import blog_batches
+        batch = blog_batches.assert_accepting(batch_id)
+
+    default_category = str(body.get("category") or batch.get("defaultCategory") or "").strip()
+    default_class = str(body.get("articleClass") or batch.get("articleClass")
+                        or "ARCHIVE_DERIVED").strip().upper()
 
     registered: List[Dict[str, Any]] = []
     for index, entry in enumerate(entries):
@@ -339,6 +372,11 @@ def register(body: Dict[str, Any], actor: str, categories: Tuple[str, ...]) -> D
             # `slug` is a required field on every record in this table because the GSI keys
             # on it. A source has no article yet, so it carries its own id there.
             "slug": (existing or {}).get("slug") or record_id,
+            #: The partition key of `batchId-createdAt-index`. Sources with no batch keep
+            #: the sentinel below rather than an empty string, because DynamoDB will not
+            #: index an item whose GSI partition key is absent - and a source invisible to
+            #: every batch query is a source the worker cannot find.
+            "batchId": batch_id or (existing or {}).get("batchId") or NO_BATCH,
             "sourceType": kind,
             "sourceRef": ref,
             "sourceSha256": sha256,
@@ -473,7 +511,20 @@ def _claim_for_extraction(record_id: str) -> bool:
 
 
 def pending_sources(limit: int = 0) -> List[Dict[str, Any]]:
-    rows = [row for row in list_sources() if row.get("status") == UPLOADED]
+    """Sources waiting for extraction, oldest first, with NO 500-item ceiling.
+
+    This used to be `list_sources()` filtered in Python, and `list_sources` goes through
+    `storage.list_records`, which clamps to 500. A batch is specified to hold thousands, so
+    past 500 the worker simply stopped finding work - silently, and while reporting
+    `remaining: 0`, which is the worst possible way for a queue to fail.
+
+    DynamoDB applies the status filter AFTER the read is paid for, so this is not a cheap
+    steady-state query. It is correct, which is what matters until the SQS fan-off replaces
+    the sweep entirely; at that point the worker consumes messages and stops asking the table
+    what is outstanding.
+    """
+    rows = storage.scan_by_record_type(
+        RECORD_TYPE, attribute="status", values=(UPLOADED,), limit=limit)
     rows.sort(key=lambda row: str(row.get("createdAt") or ""))
     return rows[:limit] if limit else rows
 
@@ -484,10 +535,12 @@ def run_worker(event: Dict[str, Any]) -> Dict[str, Any]:
 
     batch = int(event.get("limit") or WORKER_BATCH)
     processed, failed = 0, 0
+    touched_batches: set = set()
     for record in pending_sources(limit=batch):
         record_id = record["id"]
         if not _claim_for_extraction(record_id):
             continue
+        touched_batches.add(str(record.get("batchId") or NO_BATCH))
         try:
             extract = _extract_one(record, bp)
         except Exception as exc:  # noqa: BLE001 - one bad source must not stop the batch
@@ -502,11 +555,25 @@ def run_worker(event: Dict[str, Any]) -> Dict[str, Any]:
         _store_extract(record, extract, bp)
         processed += 1
 
+    # Batch status is DERIVED, so it is recomputed after the batch changed rather than
+    # incremented during it. Only the batches this invocation actually touched, because
+    # refreshing every batch would page every source in the system on each worker run.
+    if touched_batches:
+        import blog_batches
+        for batch_id in sorted(touched_batches):
+            if batch_id == NO_BATCH:
+                continue
+            try:
+                blog_batches.refresh_status(batch_id)
+            except Exception:  # noqa: BLE001 - a rollup failure must not lose extraction work
+                logger.exception("batch status refresh failed")
+
     remaining = len(pending_sources())
     chained = start_worker(reason="chain") if remaining else False
     logger.info(json.dumps({
         "event": "blog_worker_batch", "processed": processed, "failed": failed,
         "remaining": remaining, "chained": chained,
+        "batches": sorted(touched_batches),
     }))
     return {"processed": processed, "failed": failed, "remaining": remaining,
             "chained": chained}
@@ -667,8 +734,19 @@ def _draft_record(record: Dict[str, Any], extract: Any, q, bp) -> Dict[str, Any]
 
 # ── Reporting ───────────────────────────────────────────────────────────────────
 
-def status_report(limit: int = 500) -> Dict[str, Any]:
-    rows = list_sources(limit=limit)
+def status_report(limit: int = 0, batch_id: str = "") -> Dict[str, Any]:
+    """Counts across every source, or one batch's.
+
+    `limit=0` means all of them, and it goes through the paginating helper rather than
+    `list_sources`, which clamps at 500. The old default silently reported on the most recent
+    500 sources in a system specified to hold thousands - the number looked plausible, which
+    is what made it dangerous.
+    """
+    if batch_id:
+        import blog_batches
+        rows = blog_batches.batch_sources(batch_id, limit=limit)
+    else:
+        rows = storage.scan_by_record_type(RECORD_TYPE, limit=limit)
     by_status: Dict[str, int] = {}
     by_category: Dict[str, int] = {}
     for row in rows:
@@ -695,6 +773,7 @@ def source_detail(record_id: str) -> Dict[str, Any]:
     # Fetched from S3 rather than read off the item, because the item does not hold it.
     view["sourceExtract"] = read_extract(record)
     view["extractKey"] = str(record.get("extractKey") or "")
+    view["extractPreview"] = str(record.get("extractPreview") or "")
     view["draftRecord"] = record.get("draftRecord", {})
     view["aiDraft"] = record.get("aiDraft", {})
     return view
