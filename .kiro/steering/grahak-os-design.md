@@ -236,6 +236,24 @@ at `right:96px; bottom:16px` with its width capped against `calc(100vw - 108px)`
   no `h2` at all, which is why its body text is a fifth of the other two. That is the
   page's actual content, not a partial render.
 
+  **THERE WAS A SECOND GATE, AND THIS TABLE COULD NOT SEE IT.** The `return null` above was
+  only half the no-JS problem. `.anim` declared `opacity:0` as its **base** state, with
+  `.show` added by an `IntersectionObserver` in a `useEffect` — so with JavaScript off all
+  six sections of `/grahak-os/` rendered at `opacity:0` and the page was blank. Measured
+  against the export with `javaScriptEnabled:false`.
+
+  The reason it outlived the fix above is worth keeping: **opacity does not remove text from
+  the DOM**, so the body-text counts in this very table stayed correct while nothing was
+  visible. A text measurement cannot detect a paint bug, and every harness suite passed too —
+  all five measure one settled state, with JS running.
+
+  Fixed by inverting the default: CSS now ships the finished state (`.anim{opacity:1}`) and
+  `.anim.is-armed` is what hides a section. The page arms itself only after confirming it can
+  animate, and seeds whatever already intersects the viewport in the same React batch so the
+  hero never blinks. **Do not move `opacity:0` back onto `.anim`.** Pinned by
+  `GrahakOsPage.test.tsx`, and the honest check is a browser with scripting disabled, not a
+  character count.
+
 ## Verifying a change
 
 A dev server exiting without error proves nothing. Render it and measure:

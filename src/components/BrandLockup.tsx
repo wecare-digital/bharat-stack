@@ -57,6 +57,23 @@ const BrandLockup: React.FC<BrandLockupProps> = ( { className = '', compact = fa
         breakpoints, and an attribute can only hold one pair. The intrinsic size is the one value
         that is true in every slot, which is what these attributes are specified to carry.
         decoding="async" so a 1080px PNG being scaled down to 60 cannot hold up first paint. */}
+    {/* loading IS TIED TO `compact`, because compact is the footer and the footer is below
+        the fold on every page that uses it. The header and the dashboard rail both render
+        the default variant and are the first paint, so those stay eager; lazy-loading the
+        header lockup would delay the one copy that is immediately visible.
+        Footer.tsx is the only consumer of compact - Header.tsx and Layout.tsx both use the
+        default - so this is a precise split rather than a guess about placement.
+        WHAT THIS DOES NOT FIX: the object itself is 1080x1080 and 30,226 bytes, and it is
+        painted into a 60px box (44px compact, 40px on a compact phone). That is roughly an
+        18x linear oversample, and no amount of markup changes it - the CDN serves no
+        derivatives (?w= is ignored and an Accept:image/webp request still returns the same
+        30,226-byte PNG, both measured). Fixing the weight means uploading a resized object
+        to s3://wecare-digital-get/o/stream/media/m/, which this repo cannot perform - the
+        same constraint already recorded for wd-brand-16x9.png in _app.tsx. Repointing this
+        to a repo-local copy is NOT the workaround: BrandAssets.test.ts documents
+        wecaredigital.png as the correct transparent asset for an <img> on our own white
+        page, and moving brand media out of the canonical bucket to save 27 kB would trade a
+        measured problem for an architectural one. */}
     <img
       src={ LOGO_URL }
       alt=""
@@ -64,6 +81,7 @@ const BrandLockup: React.FC<BrandLockupProps> = ( { className = '', compact = fa
       width={ 1080 }
       height={ 1080 }
       decoding="async"
+      loading={ compact ? 'lazy' : 'eager' }
     />
     {/* WECARE.DIGITAL, split across the same two lines the wordmark has always used.
         The owner asked for "WECARE.DIGITAL" to become WECARE.DIGITAL everywhere; this

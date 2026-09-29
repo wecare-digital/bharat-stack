@@ -117,8 +117,10 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).not.toContain( 'tv-label' );
     expect( source ).not.toContain( 'tv-code' );
     expect( source ).not.toContain( 'TEMP DESIGN REVIEW' );
-    // scroll-reveal animation restored on the section
-    expect( source ).toContain( "className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`}" );
+    // scroll-reveal animation restored on the section. `is-armed` joined the template when
+    // the reveal stopped depending on JavaScript to be visible at all - see the dedicated
+    // test below for why the base state must stay the finished one.
+    expect( source ).toContain( "className={`trust-strip anim ${armed ? 'is-armed' : ''} ${show('trust-strip') ? 'show' : ''}`}" );
   } );
 
   it( 'uses the agreed Trusted by Meta wording', () => {
@@ -142,5 +144,95 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).toContain( 'Customer engagement across WhatsApp, SMS, Email &amp; Voice — powered by Grahak OS.' );
     expect( source ).toContain( '<span className="pill">WhatsApp</span>' );
     expect( source ).toContain( '<span className="pill">Voice</span>' );
+  } );
+} );
+
+/**
+ * The accessibility and head defects found by measuring the built export, not the source.
+ *
+ * Every assertion here exists because the page passed all five browser harness suites
+ * (typecheck 3/3, animcheck 18/18, rtlcheck 6523/6523, uicheck 96/96, seocheck 11/11)
+ * while carrying the defect. Each suite measures one settled state - JS running, motion
+ * allowed, viewport fixed - so none of them entered the state that was broken.
+ */
+describe( 'Grahak OS: states the harness suites do not enter', () => {
+  const pagePath = resolve( process.cwd(), 'src/pages/grahak-os/index.tsx' );
+  const source = readFileSync( pagePath, 'utf8' );
+
+  /**
+   * Comments stripped for the negative assertions, for the reason BrandAssets.test.ts
+   * already records: the fixes below are each documented AT the rule they changed, and
+   * those comments necessarily quote the defective value they replaced. A substring
+   * search cannot tell an explanation from a usage, and the first version of this block
+   * failed on exactly that - `.anim{opacity:0}` and `img.icons8.com` both appear in the
+   * notes explaining why they are gone.
+   *
+   * Stripping is the honest fix. The alternative is deleting the explanation to make the
+   * suite green, which loses the reason the rule exists.
+   */
+  const code = source
+    .replace( /\/\*[\s\S]*?\*\//g, '' )
+    .replace( /^\s*\/\/.*$/gm, '' )
+    .replace( /\{\s*\/\*[\s\S]*?\*\/\s*\}/g, '' );
+
+  it( 'ships the finished state in CSS, so the page is visible without JavaScript', () => {
+    // THE DEFECT: .anim{opacity:0} was the base state and .show was added by an
+    // IntersectionObserver in a useEffect. Measured against out/ with
+    // javaScriptEnabled:false, all six sections reported op=0 - the entire page was
+    // blank. It survived review because opacity does not remove text from the DOM, so
+    // the no-JS body-text count stayed at ~2,086 chars and read as healthy.
+    //
+    // The base rule must show the section. This is the assertion to keep: a revert to
+    // opacity:0 on .anim reopens the blank page.
+    expect( source ).toContain( '.anim{opacity:1;transform:none}' );
+    expect( code ).not.toContain( '.anim{opacity:0' );
+    // Hiding is opt-in, and only the armed state hides.
+    expect( source ).toContain( '.anim.is-armed{opacity:0;transform:translateY(30px)' );
+    expect( source ).toContain( '.anim.is-armed.show{opacity:1;transform:translateY(0)}' );
+    // Reduced motion has to match BOTH selectors now that the transition moved onto
+    // .is-armed; matching .anim alone would leave armed sections transitioning.
+    expect( source ).toContain( '.anim,.anim.is-armed{transition:none}' );
+  } );
+
+  it( 'arms the reveal only after confirming it can animate, and seeds the fold', () => {
+    // Capability detection, not user-agent sniffing: if IntersectionObserver is absent
+    // the effect returns before arming and the finished state stands.
+    expect( source ).toContain( "if (typeof IntersectionObserver === 'undefined') return;" );
+    expect( source ).toContain( 'setArmed(true);' );
+    // And the anti-flash half, which is the reason this is not simply "add a class on
+    // mount". Arming hides everything; without seeding what is already on screen in the
+    // SAME batch, the hero paints visible -> hidden -> animated-in on every load.
+    expect( source ).toContain( 'const onScreenNow = sections' );
+    expect( source ).toContain( 'setVisible((p) => new Set([...p, ...onScreenNow]));' );
+  } );
+
+  it( 'gives the six capability cards real heading semantics', () => {
+    // THE DEFECT: these were spans, so the page's entire heading outline was
+    // h1 + four h2s and the six capabilities were absent from it. Counted in the built
+    // export: zero h3 elements, six span.pp-strip-title.
+    // h3 rather than h2 is deliberate - #capabilities follows the .api h2, so h2 -> h3
+    // skips no level.
+    expect( source ).toContain( '<h3 className="pp-strip-title">{ cap.title }</h3>' );
+    expect( code ).not.toContain( '<span className="pp-strip-title">' );
+    // margin:0 is what keeps the tag change invisible on screen. Without it the UA h3
+    // margin opens ~22px above and below every card title.
+    expect( source ).toContain( 'letter-spacing:-.25px;color:#000;margin:0}' );
+  } );
+
+  it( 'clears the 44px touch-target floor on the only controls inside main', () => {
+    // THE DEFECT: the three code-language tabs measured 91.6x43.3, 117.5x43.3 and
+    // 78x43.3 - short of the WCAG 2.5.8 minimum by 0.7px. They are the only interactive
+    // elements inside this page's <main>, which has zero links.
+    // min-height, not extra padding: the tab is already an inline-flex with centred
+    // content, so the box grows without moving the label.
+    expect( source ).toContain( 'padding:10px 20px;min-height:44px' );
+  } );
+
+  it( 'carries no connection hint for an origin it never calls', () => {
+    // THE DEFECT: a preconnect AND a dns-prefetch to img.icons8.com, against zero
+    // icons8 requests on the route. Every glyph here is drawn - six inline
+    // data:image/svg+xml URIs plus meta-icon.svg from our own media host - so the
+    // handshakes were opened for nothing and competed with real requests.
+    expect( code ).not.toContain( 'img.icons8.com' );
   } );
 } );

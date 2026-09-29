@@ -1073,9 +1073,18 @@ export default function App ( { Component, pageProps }: AppProps ) {
               was titled as a WhatsApp CRM. Kept short enough to survive truncation and
               worded to match the og/twitter/description copy below. */}
           <title>Everyday AI, built for Bharat | WECARE.DIGITAL</title>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+          {/* THE INTER LINKS LIVE IN _document.tsx ONLY. They were declared here as well,
+              and _document.tsx renders on every route, so the built head carried the Inter
+              stylesheet TWICE - two render-blocking requests for one font - plus duplicate
+              preconnects to fonts.googleapis.com and fonts.gstatic.com. Counted in
+              out/grahak-os/index.html before this change: rel=stylesheet x2, preconnect
+              googleapis x2, preconnect gstatic x2.
+              next/head de-duplicates by `key`, not by href, and these had no key, so
+              nothing was going to collapse them. _document.tsx is the right owner because
+              the font is sitewide and unconditional, whereas this block is one branch of a
+              route test - keeping a copy per branch is how the duplication happened.
+              seocheck.js did not catch it: its "exactly one of each head tag" assertion
+              covers the nine og/twitter/canonical/title/description tags, not <link>. */}
           {/* SITEWIDE FALLBACK, AND IT MUST STAY PRODUCT-NEUTRAL.
               This block is inherited by every public route that does not declare its own, so
               whatever it says becomes the identity of 15 pages. It used to read "Enterprise
@@ -1295,9 +1304,9 @@ export default function App ( { Component, pageProps }: AppProps ) {
     <ErrorBoundary>
       <Head>
         <title>WECARE.DIGITAL</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+        {/* Inter comes from _document.tsx, which renders on every route. See the note on the
+            public branch above: declaring it here too put the stylesheet in the built head
+            twice, render-blocking both times. */}
         <meta name="description" content="Stack CRM Dashboard - Multi-channel messaging platform" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href={ FAVICON_URL } />
