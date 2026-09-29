@@ -59,6 +59,37 @@ name: Kiro PR review
 #      sensitive data into public build logs. Do not turn it on to chase a failure on a
 #      repo whose logs are visible.
 #
+# WHY .kiro/agents/code-reviewer.json IS COMMITTED, AND WHY DELETING IT BREAKS THIS JOB.
+# This step failed on every pull request with:
+#
+#   ENOENT: no such file or directory, copyfile
+#     'agents/code-reviewer.json' -> '.kiro/agents/code-reviewer.json'
+#
+# That is an upstream bug, not a missing setting here. src/main.ts does:
+#
+#   const actionPath = process.env.GITHUB_ACTION_PATH || '.';
+#   ...
+#   copyFileSync(join(actionPath, 'agents', 'code-reviewer.json'), dest);
+#
+# and action.yml declares `using: node24`. GITHUB_ACTION_PATH is only set for COMPOSITE
+# actions, so for a JavaScript action it is unset, actionPath falls back to '.', and the
+# action looks for ./agents/code-reviewer.json in OUR checkout rather than in its own
+# directory. The file it wants does ship inside the action (agents/code-reviewer.json,
+# 553 bytes at the pinned SHA) - it just cannot find its own copy.
+#
+# The fix uses the action's own guard rather than working around it. That copy sits behind
+# `else if (!existsSync(dest))`, so when .kiro/agents/code-reviewer.json is already
+# present the broken line never executes and the agent starts from our file. Note the
+# branch above it: if a `model` input were ever passed here, a DIFFERENT path runs that
+# reads the same missing file, with a try/catch that also falls back to it - so adding
+# `model:` to this step would reintroduce the failure. Leave it unset.
+#
+# Our copy is upstream's schema with two deliberate differences: `resources` points at
+# steering docs that exist in this repo instead of a CONTRIBUTING.md that does not, and it
+# carries a repo-specific prompt. The read-only posture is upstream's and is kept - no
+# fs_write or execute_bash in `tools`, plus preToolUse hooks that block both - which
+# matters because this job holds a token with `pull-requests: write`.
+#
 # Permissions are the minimum the job needs: read the code, write PR comments. It gets
 # no `contents: write`, so a review cannot push.
 
