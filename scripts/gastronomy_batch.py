@@ -486,15 +486,22 @@ def audit_document(document: dict):
 
 def validate_progress(progress: dict):
     errors = []
-    completed = progress.get('completed_through')
-    next_id = progress.get('next_id')
     max_posts = progress.get('max_manifest_posts')
     if max_posts != MAX_MANIFEST_POSTS:
         errors.append(f'max_manifest_posts must be {MAX_MANIFEST_POSTS}')
-    if not isinstance(completed, int) or completed < 0:
-        errors.append('completed_through must be a non-negative integer')
-    if not isinstance(next_id, int) or not isinstance(completed, int) or next_id != completed + 1:
-        errors.append('next_id must equal completed_through + 1')
+    live_verified = progress.get('live_verified_posts')
+    if not isinstance(live_verified, int) or live_verified < 0:
+        errors.append('live_verified_posts must be a non-negative integer')
+    reconciled = progress.get('sequence_reconciled') is True
+    next_id = progress.get('next_id')
+    completed = progress.get('completed_through')
+    if reconciled:
+        if not isinstance(completed, int) or completed < 0:
+            errors.append('completed_through must be a non-negative integer after sequence reconciliation')
+        if not isinstance(next_id, int) or not isinstance(completed, int) or next_id != completed + 1:
+            errors.append('next_id must equal completed_through + 1 after sequence reconciliation')
+    elif next_id is not None:
+        errors.append('next_id must be null until sequence reconciliation is complete')
     return errors
 
 
@@ -502,6 +509,8 @@ def advance_progress(progress: dict, batch_start: int, batch_end: int):
     errors = validate_progress(progress)
     if errors:
         raise ValueError('invalid progress: ' + '; '.join(errors))
+    if progress.get('sequence_reconciled') is not True:
+        raise ValueError('cannot advance sequence until live/source reconciliation is complete')
     count = batch_end - batch_start + 1
     if not 1 <= count <= MAX_MANIFEST_POSTS:
         raise ValueError(f'progress update must cover 1-{MAX_MANIFEST_POSTS} posts')
