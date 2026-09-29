@@ -49,7 +49,7 @@ fixed the 500-item ceiling in `storage.list_records` that made the worker report
 `remaining: 0` with work outstanding. GSI `NonKeyAttributes` capped at 20 by DynamoDB, so
 `_view` and the projection were trimmed together to 17.
 
-### 6. SourceAnalysis as a first-class record
+### 6. SourceAnalysis as a first-class record — DONE (`0c20d3a6`)
 **Acceptance:** a source analysis is its own addressable artifact, not a field on the source
 row; stored at `o/blog-production/source-analysis/<sourceId>.json` with a DynamoDB pointer;
 records what the source says, the candidate distinction, the wrapper to remove, claims
@@ -57,53 +57,53 @@ needing a fact check and attribution obligations; is versioned so a re-analysis 
 destroy the one a reviewer read; is never handed out as a public URL even though the prefix
 is public; and carries no field that can move an article forward.
 
-### 7. Versioned content templates
+### 7. Versioned content templates — DONE (`0c20d3a6`)
 **Acceptance:** a template is addressed by `templateId` + integer `version`; editing a
 template that any article has been published against creates a new version rather than
 mutating it; an article records the exact template version it was written to; a batch's
 default template flows onto its sources; the template constrains section order, required
 sections and word band, and the gate reads it.
 
-### 8. Generation / QA split with human gate sign-off
+### 8. Generation / QA split with human gate sign-off — DONE (`7dc787a0`)
 **Acceptance:** generation and QA are separate recorded operations with separate records; a
 QA run is immutable once written, stored at `qa/<articleId>/<qaRunId>.json`; a human gate
 sign-off is its own signed record naming the actor, the gates answered and the QA run it
 relies on; `READY_TO_PUBLISH` is reachable only with a sign-off present; no model-writable
 field can produce one; a sign-off is invalidated when the article body changes after it.
 
-### 9. Collection-level AI repetition detection
+### 9. Collection-level AI repetition detection — DONE (`74f96859`)
 **Acceptance:** repetition is detected across a whole batch, not only against the published
 corpus; every pair above threshold is reported with both slugs and the score; the sweep is
 not O(n²) in sketch comparisons — pairs are prefiltered by shared sketch hashes; the batch
 rollup reports how many articles are implicated; and the result is advisory to a reviewer
 rather than a mechanical publish block.
 
-### 10. SQS fan-out for bulk ingestion
+### 10. SQS fan-out for bulk ingestion — DONE (`19a1cced`)
 **Acceptance:** confirming N sources enqueues N messages rather than starting a self-chaining
 sweep; a message that fails repeatedly lands in a DLQ instead of blocking the queue; the
 event source mapping is concurrency-capped so a flood cannot starve the API the same function
 serves; the sweep survives as an explicit reconciliation route for records with no message;
 and the queue is created by the deploy script, idempotently.
 
-### 11. Publish queue with no auto-publish
+### 11. Publish queue with no auto-publish — DONE (`9db93b4b`)
 **Acceptance:** an article enters the queue only on an explicit operator release; a release
 is refused without a valid gate sign-off; the queue records intent durably and the Wix write
 remains behind `wix_guard`, so with writes off a release is recorded and the publish is
 refused with a reason; nothing in the batch or worker path can release; and a second release
 of the same article is a no-op rather than a second post.
 
-### 12. Thirteen-assertion Wix publish verification
+### 12. Thirteen-assertion Wix publish verification — DONE (`4dac67f1`)
 **Acceptance:** thirteen named assertions run against the post read back from Wix after a
 publish; the result is recorded at `verification/<articleId>/<runId>.json`; a failure is
 recorded and surfaced, never silently retried; and the assertion list is enumerated in a test
 so it cannot quietly shrink.
 
-### 13. Dashboard routes
+### 13. Dashboard routes — DONE (`f067033a`)
 **Acceptance:** five pages under the SEO workspace — batches, batch detail, source review, QA
 review, publish queue — each reading the routes above, each keyboard reachable and labelled,
 and none of them offering a control that could publish without a sign-off.
 
-### 14. Monitoring
+### 14. Monitoring — DONE (`e89449fe`)
 **Acceptance:** alarms for extraction failure rate, DLQ depth, and verification failure, each
 routable to a human via the existing SNS topic; created idempotently by the deploy script;
 and a test asserting each alarm names an action rather than being created actionless.
