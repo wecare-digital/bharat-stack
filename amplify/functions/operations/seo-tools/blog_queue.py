@@ -1,0 +1,295 @@
+"""SQS fan-out for bulk ingestion, and the three things that made a self-chaining sweep wrong.
+
+WHAT THE SWEEP DID, AND WHY IT DOES NOT SCALE.
+
+`blog_sources.run_worker` asks the table for UPLOADED sources, extracts five, and re-invokes
+itself if any remain. For fifty documents that is fine. For the stated requirement - thousands in
+one go - it has three problems, and only the first is about speed:
+
+1. **It is strictly serial.** One invocation at a time, five documents each, so 2,500 sources is
+   500 sequential invocations. The work is embarrassingly parallel and none of it was.
+2. **A poison document stops nothing and retries forever.** A PDF that makes pypdf raise is
+   marked EXTRACTION_FAILED and skipped, which is correct - but a source that fails for a
+   TRANSIENT reason gets no retry at all unless somebody clicks Retry, and a source that fails
+   deterministically inside the chain has nowhere to be recorded except its own status field.
+3. **Every invocation pays a full sweep.** `pending_sources` filters the whole `blogSource`
+   partition server-side AFTER reading it, so the cost of finding the next five documents grows
+   with the total number of sources - fastest at the start of a run and slowest at the end.
+
+A queue fixes all three: messages are consumed concurrently, a message that keeps failing lands
+in a dead-letter queue instead of disappearing, and a consumer is handed its work rather than
+searching for it.
+
+## Why the queue cannot starve the API it shares a function with
+
+`wecare-seo-tools` serves the admin HTTP API AND consumes this queue. Left alone, SQS scales a
+consumer up to 1,000 concurrent executions, which would consume the account's concurrency and
+make every admin request queue behind document extraction.
+
+`ScalingConfig.MaximumConcurrency` on the event source mapping is the control, set to
+`MAX_CONCURRENCY` below. Five concurrent extractions is still five times the old serial rate, and
+it leaves the function's concurrency overwhelmingly available to the API. The alternative -
+reserving concurrency for the API - would cap the API instead, which is the wrong end.
+
+## At-least-once delivery is safe here, and it is not luck
+
+A standard queue can deliver the same message twice. `blog_sources.process_source` claims a
+source with a conditional write on `status = UPLOADED`, so the second delivery loses the race and
+returns SKIPPED. That is the same mechanism that made the self-chaining sweep safe when a chained
+invocation overlapped its predecessor, and it is why a FIFO queue is not needed - FIFO would add
+ordering nobody wants and a 300 messages/second cap for no benefit.
+
+## Partial batch failure, reported per message
+
+With `ReportBatchItemFailures` the consumer returns the identifiers of just the messages that
+failed, and only those are retried. Without it, one bad document in a batch of ten redelivers all
+ten, so nine already-extracted sources are re-read, lose the claim race, and the batch makes no
+progress while looking busy.
+"""
+from __future__ import annotations
+
+import json
+import logging
+import os
+from typing import Any, Dict, Iterable, List, Optional, Sequence
+
+import boto3
+
+logger = logging.getLogger(__name__)
+
+REGION = os.environ.get("AWS_REGION", "us-east-1")
+
+#: Set by the deploy script. ABSENT IS A SUPPORTED STATE, not an error: unit tests and a
+#: not-yet-provisioned environment fall back to the sweep, and `enqueue` reports
+#: `configured: False` so the caller can tell the difference between "queued nothing" and "there
+#: is no queue".
+QUEUE_URL = os.environ.get("BLOG_INGEST_QUEUE_URL", "")
+QUEUE_NAME = os.environ.get("BLOG_INGEST_QUEUE_NAME", "wecare-blog-ingest")
+DLQ_NAME = QUEUE_NAME + "-dlq"
+
+#: SQS's own hard limit on `SendMessageBatch`. Not a tuning choice.
+SEND_BATCH = 10
+
+#: The event source mapping's batch size and concurrency cap. Small batches on purpose: a
+#: 40 MB PDF can take seconds, and a batch of ten of them risks the visibility timeout, at which
+#: point the messages redeliver and the work is done twice.
+CONSUME_BATCH = 5
+MAX_CONCURRENCY = 5
+
+#: Deliveries before a message is dead-lettered. Three is enough to ride out a transient S3 read
+#: or a cold pypdf import, and few enough that a deterministically poisonous document reaches the
+#: DLQ within a minute rather than cycling for an hour.
+MAX_RECEIVES = 3
+
+_sqs = None
+
+
+def sqs_client():
+    global _sqs
+    if _sqs is None:
+        _sqs = boto3.client("sqs", region_name=REGION)
+    return _sqs
+
+
+def configured() -> bool:
+    return bool(QUEUE_URL)
+
+
+def enqueue(source_ids: Sequence[str], reason: str = "") -> Dict[str, Any]:
+    """One message per source. Never raises.
+
+    The records are already durable in DynamoDB before this is called, so a failed send costs a
+    delay rather than the work - the reconciliation sweep will find anything that never got a
+    message. Raising here would fail an HTTP request whose real work had already succeeded.
+
+    Failures are counted and logged rather than swallowed silently, because "the queue is
+    rejecting sends" and "there was nothing to send" must not look the same in a log.
+    """
+    ids = [str(value) for value in source_ids if str(value or "").strip()]
+    if not ids:
+        return {"queued": 0, "failed": 0, "configured": configured()}
+    if not configured():
+        return {"queued": 0, "failed": 0, "configured": False}
+
+    queued = failed = 0
+    client = sqs_client()
+    for start in range(0, len(ids), SEND_BATCH):
+        chunk = ids[start:start + SEND_BATCH]
+        entries = [{
+            "Id": str(index),
+            "MessageBody": json.dumps({"sourceId": source_id, "reason": reason}),
+        } for index, source_id in enumerate(chunk)]
+        try:
+            response = client.send_message_batch(QueueUrl=QUEUE_URL, Entries=entries)
+        except Exception as exc:  # noqa: BLE001
+            failed += len(chunk)
+            logger.warning(json.dumps({
+                "event": "blog_ingest_enqueue_failed", "count": len(chunk),
+                "error": type(exc).__name__}))
+            continue
+        queued += len(response.get("Successful") or [])
+        #: A PARTIAL failure is the case that quietly loses work: SendMessageBatch returns 200
+        #: with a `Failed` list, so a caller checking only for an exception counts ten sends when
+        #: three did not happen.
+        for item in response.get("Failed") or []:
+            failed += 1
+            logger.warning(json.dumps({
+                "event": "blog_ingest_enqueue_rejected",
+                "code": str(item.get("Code") or ""),
+                "senderFault": bool(item.get("SenderFault")),
+            }))
+    logger.info(json.dumps({
+        "event": "blog_ingest_enqueued", "queued": queued, "failed": failed,
+        "reason": reason}))
+    return {"queued": queued, "failed": failed, "configured": True}
+
+
+def is_queue_event(event: Dict[str, Any]) -> bool:
+    """True only for a genuine SQS batch.
+
+    Checked on `eventSource` rather than merely on the presence of `Records`, because S3 and
+    DynamoDB Streams events also carry `Records` and would otherwise be mistaken for ingestion
+    work. An API Gateway request cannot produce a top-level `Records` key at all - an HTTP
+    payload arrives under `body` as a JSON string - so this branch is reachable only through the
+    event source mapping, which is IAM-gated.
+    """
+    records = event.get("Records")
+    if not isinstance(records, list) or not records:
+        return False
+    return all(isinstance(record, dict) and record.get("eventSource") == "aws:sqs"
+               for record in records)
+
+
+def _source_id_of(record: Dict[str, Any]) -> str:
+    try:
+        body = json.loads(record.get("body") or "{}")
+    except (TypeError, ValueError):
+        return ""
+    return str(body.get("sourceId") or "").strip() if isinstance(body, dict) else ""
+
+
+def consume(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract every source named in the batch, reporting failures per message.
+
+    Returns the `batchItemFailures` shape Lambda expects. A message is reported as failed ONLY
+    when the work should be retried:
+
+      DONE, FAILED  the source reached a terminal state and the outcome is recorded on the
+                    record. Retrying would re-read a document to reach the same conclusion.
+      SKIPPED       another delivery or the sweep already holds the claim. Not a failure.
+      RAISED        an exception during extraction, which may be transient - a slow S3 read, a
+                    cold import. Retried, and dead-lettered after `MAX_RECEIVES`.
+
+      an unparseable or empty body is NOT retried. It cannot succeed on a second attempt, and
+      redelivering it three times before the DLQ only delays the visibility.
+    """
+    import blog_sources
+
+    records = event.get("Records") or []
+    failures: List[Dict[str, str]] = []
+    outcomes: Dict[str, int] = {}
+    touched: set = set()
+
+    for record in records:
+        message_id = str(record.get("messageId") or "")
+        source_id = _source_id_of(record)
+        if not source_id:
+            outcomes["MALFORMED"] = outcomes.get("MALFORMED", 0) + 1
+            logger.warning(json.dumps({
+                "event": "blog_ingest_message_malformed", "messageId": message_id}))
+            continue
+        stored = blog_sources.get_source(source_id)
+        if stored:
+            touched.add(str(stored.get("batchId") or blog_sources.NO_BATCH))
+        try:
+            outcome = blog_sources.process_source(source_id)
+        except Exception as exc:  # noqa: BLE001 - one message must not fail the batch
+            logger.exception("blog ingest message failed")
+            outcome = blog_sources.RAISED
+            logger.warning(json.dumps({
+                "event": "blog_ingest_message_raised", "sourceId": source_id,
+                "error": type(exc).__name__}))
+        outcomes[outcome] = outcomes.get(outcome, 0) + 1
+        if outcome == blog_sources.RAISED and message_id:
+            failures.append({"itemIdentifier": message_id})
+
+    blog_sources.refresh_batches(touched)
+    logger.info(json.dumps({
+        "event": "blog_ingest_batch", "messages": len(records),
+        "outcomes": dict(sorted(outcomes.items())), "retried": len(failures),
+        "batches": sorted(touched),
+    }))
+    return {"batchItemFailures": failures}
+
+
+def depth() -> Dict[str, Any]:
+    """Queue and DLQ depth, for the dashboard and the alarms.
+
+    A DLQ with anything in it is the signal that matters: it means a document failed three
+    deliveries, and nothing else in this system will mention it again.
+    """
+    if not configured():
+        return {"configured": False, "visible": 0, "inFlight": 0, "dlq": 0,
+                "note": "no ingest queue is configured; extraction uses the sweep"}
+    client = sqs_client()
+    out: Dict[str, Any] = {"configured": True, "visible": 0, "inFlight": 0, "dlq": 0,
+                           "note": ""}
+    try:
+        attributes = client.get_queue_attributes(
+            QueueUrl=QUEUE_URL,
+            AttributeNames=["ApproximateNumberOfMessages",
+                            "ApproximateNumberOfMessagesNotVisible"])["Attributes"]
+        out["visible"] = int(attributes.get("ApproximateNumberOfMessages") or 0)
+        out["inFlight"] = int(attributes.get("ApproximateNumberOfMessagesNotVisible") or 0)
+    except Exception as exc:  # noqa: BLE001
+        out["note"] = f"queue depth unavailable ({type(exc).__name__})"
+    try:
+        dlq_url = client.get_queue_url(QueueName=DLQ_NAME)["QueueUrl"]
+        attributes = client.get_queue_attributes(
+            QueueUrl=dlq_url, AttributeNames=["ApproximateNumberOfMessages"])["Attributes"]
+        out["dlq"] = int(attributes.get("ApproximateNumberOfMessages") or 0)
+    except Exception as exc:  # noqa: BLE001
+        out["note"] = (out["note"] + "; " if out["note"] else "") + \
+            f"dlq depth unavailable ({type(exc).__name__})"
+    return out
+
+
+def redrive(limit: int = 0) -> Dict[str, Any]:
+    """Move dead-lettered messages back onto the ingest queue.
+
+    Deliberately explicit rather than automatic. A message reaches the DLQ after three failures,
+    so the reason is usually not transient - re-driving without looking is how a genuinely
+    unreadable PDF cycles forever. An operator reads the source's `error` field first, fixes the
+    cause, and then re-drives.
+
+    Implemented by receive-and-resend rather than `StartMessageMoveTask` so the count is exact
+    and reported synchronously; the move task is asynchronous and reports progress separately,
+    which is the wrong shape for a route that has to tell an operator what happened.
+    """
+    if not configured():
+        return {"moved": 0, "remaining": 0, "configured": False}
+    client = sqs_client()
+    try:
+        dlq_url = client.get_queue_url(QueueName=DLQ_NAME)["QueueUrl"]
+    except Exception as exc:  # noqa: BLE001
+        return {"moved": 0, "remaining": 0, "configured": True,
+                "error": f"no dead-letter queue ({type(exc).__name__})"}
+
+    moved = 0
+    ceiling = limit or 500
+    while moved < ceiling:
+        received = client.receive_message(
+            QueueUrl=dlq_url, MaxNumberOfMessages=min(10, ceiling - moved),
+            WaitTimeSeconds=0)
+        messages = received.get("Messages") or []
+        if not messages:
+            break
+        for message in messages:
+            client.send_message(QueueUrl=QUEUE_URL, MessageBody=message["Body"])
+            client.delete_message(QueueUrl=dlq_url,
+                                  ReceiptHandle=message["ReceiptHandle"])
+            moved += 1
+    state = depth()
+    logger.info(json.dumps({"event": "blog_ingest_redrive", "moved": moved,
+                            "dlqRemaining": state["dlq"]}))
+    return {"moved": moved, "remaining": state["dlq"], "configured": True}

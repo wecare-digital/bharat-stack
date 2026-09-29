@@ -515,14 +515,32 @@ def confirm(body: Dict[str, Any], actor: str) -> Dict[str, Any]:
         )
         confirmed.append(record_id)
 
-    started = start_worker(reason="confirm") if confirmed else False
+    #: FAN OUT TO THE QUEUE, one message per source, and fall back to the sweep when no queue
+    #: is configured.
+    #:
+    #: The fallback is not defensive padding. It is what keeps the unit tests and a
+    #: not-yet-provisioned environment working, and it is the same code path the reconciliation
+    #: route uses - so it stays exercised rather than rotting into a branch nobody has run.
+    #:
+    #: Neither is allowed to fail the request. The source records are already durable at this
+    #: point, so the worst case of a failed hand-off is that extraction waits for the next
+    #: confirm or a manual drain. Failing the HTTP call instead would tell an operator their
+    #: upload failed when it did not.
+    import blog_queue
+    queued = blog_queue.enqueue(confirmed, reason="confirm") if confirmed else {
+        "queued": 0, "failed": 0, "configured": False}
+    started = False
+    if confirmed and not queued["configured"]:
+        started = start_worker(reason="confirm")
     logger.info(json.dumps({
         "event": "blog_sources_confirmed", "actor": actor, "confirmed": len(confirmed),
         "missing": len(missing), "unknown": len(unknown), "workerStarted": started,
+        "queued": queued["queued"], "queueConfigured": queued["configured"],
     }))
     return {
         "confirmed": confirmed, "missingUpload": missing, "unknownSourceId": unknown,
-        "workerStarted": started,
+        "workerStarted": started, "queued": queued["queued"],
+        "queueFailed": queued["failed"], "queueConfigured": queued["configured"],
     }
 
 
@@ -591,45 +609,84 @@ def pending_sources(limit: int = 0) -> List[Dict[str, Any]]:
     return rows[:limit] if limit else rows
 
 
-def run_worker(event: Dict[str, Any]) -> Dict[str, Any]:
-    """Extract a bounded batch, then chain if more remain."""
+#: What `process_source` reports. Distinguished rather than collapsed to a boolean because the
+#: SQS consumer has to act differently on each: EXTRACTED and FAILED are both done, SKIPPED means
+#: another worker holds the claim, and only RAISED should make a message retry.
+DONE = "DONE"
+SKIPPED = "SKIPPED"
+FAILED = "FAILED"
+RAISED = "RAISED"
+
+
+def process_source(record_id: str) -> str:
+    """Claim one source, extract it, store the result. The unit of work, for both paths.
+
+    Pulled out of `run_worker` when the SQS fan-out arrived, so the sweep and the queue consumer
+    cannot drift. They differ only in how they choose the next source.
+
+    The conditional claim is what makes at-least-once delivery safe: a standard SQS queue can
+    deliver the same message twice, and the second delivery loses the UPLOADED -> EXTRACTING
+    race and returns SKIPPED rather than extracting the document again. With the Bedrock step
+    attached, a duplicate extraction is a duplicate model call.
+    """
     import blog_pipeline as bp
 
+    record = get_source(record_id)
+    if not record:
+        return SKIPPED
+    if not _claim_for_extraction(record_id):
+        return SKIPPED
+    try:
+        extract = _extract_one(record, bp)
+    except Exception as exc:  # noqa: BLE001 - one bad source must not stop a batch
+        logger.exception("blog source extraction raised")
+        _fail(record_id, f"{type(exc).__name__} during extraction")
+        return RAISED
+    if not extract.ok:
+        _fail(record_id, extract.error)
+        return FAILED
+    _store_extract(record, extract, bp)
+    return DONE
+
+
+def refresh_batches(batch_ids: Iterable[str]) -> None:
+    """Recompute the status of the batches a unit of work touched.
+
+    Batch status is DERIVED, so it is recomputed after the fact rather than incremented during
+    it - and only for the batches actually touched, because refreshing every batch would page
+    every source in the system on each worker run.
+    """
+    import blog_batches
+    for batch_id in sorted({str(value) for value in batch_ids if value}):
+        if batch_id == NO_BATCH:
+            continue
+        try:
+            blog_batches.refresh_status(batch_id)
+        except Exception:  # noqa: BLE001 - a rollup failure must not lose extraction work
+            logger.exception("batch status refresh failed")
+
+
+def run_worker(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract a bounded batch, then chain if more remain.
+
+    STILL HERE AFTER THE SQS FAN-OUT, and deliberately. A queue is the steady-state path, and
+    a queue cannot find a source whose message was never sent or was lost - a record written
+    before the queue existed, a `SendMessageBatch` that partially failed, a message that aged
+    out. This sweep asks the table what is outstanding, which is the only reconciliation that
+    does not depend on the queue being correct. `POST /blog-sources/drain` is its route.
+    """
     batch = int(event.get("limit") or WORKER_BATCH)
     processed, failed = 0, 0
     touched_batches: set = set()
     for record in pending_sources(limit=batch):
-        record_id = record["id"]
-        if not _claim_for_extraction(record_id):
-            continue
         touched_batches.add(str(record.get("batchId") or NO_BATCH))
-        try:
-            extract = _extract_one(record, bp)
-        except Exception as exc:  # noqa: BLE001 - one bad source must not stop the batch
-            logger.exception("blog source extraction raised")
-            _fail(record_id, f"{type(exc).__name__} during extraction")
+        outcome = process_source(record["id"])
+        if outcome == DONE:
+            processed += 1
+        elif outcome in (FAILED, RAISED):
             failed += 1
-            continue
-        if not extract.ok:
-            _fail(record_id, extract.error)
-            failed += 1
-            continue
-        _store_extract(record, extract, bp)
-        processed += 1
 
-    # Batch status is DERIVED, so it is recomputed after the batch changed rather than
-    # incremented during it. Only the batches this invocation actually touched, because
-    # refreshing every batch would page every source in the system on each worker run.
-    if touched_batches:
-        import blog_batches
-        for batch_id in sorted(touched_batches):
-            if batch_id == NO_BATCH:
-                continue
-            try:
-                blog_batches.refresh_status(batch_id)
-            except Exception:  # noqa: BLE001 - a rollup failure must not lose extraction work
-                logger.exception("batch status refresh failed")
-
+    refresh_batches(touched_batches)
     remaining = len(pending_sources())
     chained = start_worker(reason="chain") if remaining else False
     logger.info(json.dumps({

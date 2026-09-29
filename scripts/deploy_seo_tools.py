@@ -20,6 +20,7 @@ import json
 import time
 import zipfile
 from pathlib import Path
+from typing import Dict
 
 import boto3
 from botocore.exceptions import ClientError
@@ -378,6 +379,127 @@ def ensure_blog_source_perms() -> None:
     print(f"[iam] ensured inline policy seo-blog-source-intake on {ROLE_NAME}")
 
 
+#: The ingest queue. Names, and the numbers that matter, all in one place so the deploy and the
+#: Lambda cannot disagree - `blog_queue` reads the same constants for its consume batch and
+#: concurrency cap.
+QUEUE_NAME = "wecare-blog-ingest"
+DLQ_NAME = QUEUE_NAME + "-dlq"
+#: The function's own timeout, named rather than repeated as a literal, because the queue's
+#: visibility timeout has to be DERIVED from it - see `VISIBILITY_TIMEOUT`. It was a bare `120`
+#: in two places, which is exactly how the two drift apart.
+FUNCTION_TIMEOUT = 120
+CONSUME_BATCH = 5
+#: DERIVED from the function timeout, not a coincidentally larger number. A visibility timeout
+#: shorter than the handler's worst case is the classic SQS mistake: the message reappears while
+#: the first consumer is still working, a second consumer picks it up, and the work happens
+#: twice. The worst case is a full batch of documents each taking the whole function timeout,
+#: plus headroom for the cold start and the batch refresh at the end.
+VISIBILITY_TIMEOUT = FUNCTION_TIMEOUT * CONSUME_BATCH + FUNCTION_TIMEOUT
+#: Four days. Long enough that a weekend outage does not silently discard a wave.
+MESSAGE_RETENTION = 345_600
+DLQ_RETENTION = 1_209_600  # 14 days, the maximum: a dead-lettered document is evidence.
+MAX_RECEIVES = 3
+#: Why this is capped at all: this function ALSO serves the admin HTTP API. Left alone, SQS
+#: scales a consumer to 1,000 concurrent executions, which would consume the account's
+#: concurrency and put every admin request behind document extraction. Five is still five times
+#: the old serial rate.
+MAX_CONCURRENCY = 5
+
+
+def ensure_queues() -> Dict[str, str]:
+    """Create the ingest queue and its dead-letter queue. Idempotent.
+
+    The DLQ is created FIRST, because the main queue's redrive policy names its ARN. Creating a
+    queue with attributes it already has is a no-op that returns the existing URL, so re-running
+    is safe - `create_queue` only errors when the attributes CONFLICT with an existing queue, and
+    then `set_queue_attributes` is the fix rather than a delete and recreate.
+    """
+    sqs = boto3.client("sqs", region_name=REGION)
+
+    dlq_url = sqs.create_queue(QueueName=DLQ_NAME, Attributes={
+        "MessageRetentionPeriod": str(DLQ_RETENTION),
+    })["QueueUrl"]
+    dlq_arn = sqs.get_queue_attributes(
+        QueueUrl=dlq_url, AttributeNames=["QueueArn"])["Attributes"]["QueueArn"]
+
+    attributes = {
+        "VisibilityTimeout": str(VISIBILITY_TIMEOUT),
+        "MessageRetentionPeriod": str(MESSAGE_RETENTION),
+        #: Long polling. Without it a consumer with an empty queue returns immediately and is
+        #: re-invoked in a tight loop, which is billed.
+        "ReceiveMessageWaitTimeSeconds": "20",
+        "RedrivePolicy": json.dumps({
+            "deadLetterTargetArn": dlq_arn, "maxReceiveCount": MAX_RECEIVES}),
+    }
+    queue_url = sqs.create_queue(QueueName=QUEUE_NAME, Attributes=attributes)["QueueUrl"]
+    #: Applied again after create, because `create_queue` on an EXISTING queue ignores
+    #: attributes rather than updating them - so a changed visibility timeout would otherwise
+    #: never take effect and the deploy would report success.
+    sqs.set_queue_attributes(QueueUrl=queue_url, Attributes=attributes)
+    queue_arn = sqs.get_queue_attributes(
+        QueueUrl=queue_url, AttributeNames=["QueueArn"])["Attributes"]["QueueArn"]
+    print(f"[sqs] {QUEUE_NAME} ready (visibility={VISIBILITY_TIMEOUT}s, "
+          f"maxReceive={MAX_RECEIVES}, dlq={DLQ_NAME})")
+    return {"url": queue_url, "arn": queue_arn, "dlqUrl": dlq_url, "dlqArn": dlq_arn}
+
+
+def ensure_queue_perms(queue_arn: str, dlq_arn: str) -> None:
+    """Send on the ingest queue, consume from it, and read the DLQ.
+
+    `ReceiveMessage`/`DeleteMessage`/`GetQueueAttributes` are what the event source mapping
+    itself needs - Lambda polls using THIS role, so a missing permission shows up as a mapping
+    stuck in `Disabled` with a `PROBLEM: Insufficient permissions` cause rather than as a runtime
+    error.
+
+    Scoped to two queue ARNs, not `sqs:*`, because this role is shared by the whole fleet.
+    """
+    iam = boto3.client("iam")
+    policy = {
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Sid": "BlogIngestQueue",
+            "Effect": "Allow",
+            "Action": ["sqs:SendMessage", "sqs:SendMessageBatch", "sqs:ReceiveMessage",
+                       "sqs:DeleteMessage", "sqs:GetQueueAttributes", "sqs:GetQueueUrl"],
+            "Resource": [queue_arn, dlq_arn],
+        }],
+    }
+    iam.put_role_policy(RoleName=ROLE_NAME, PolicyName="seo-blog-ingest-queue",
+                        PolicyDocument=json.dumps(policy))
+    print(f"[iam] ensured inline policy seo-blog-ingest-queue on {ROLE_NAME}")
+
+
+def ensure_event_source(queue_arn: str) -> None:
+    """Wire the queue to this function, concurrency-capped and reporting per-message failures.
+
+    `FunctionResponseTypes=['ReportBatchItemFailures']` is the setting that makes partial failure
+    work. Without it, one bad document in a batch of five redelivers all five: four
+    already-extracted sources are re-read, lose the conditional claim, and the batch makes no
+    progress while looking busy.
+    """
+    client = boto3.client("lambda", region_name=REGION)
+    existing = None
+    for mapping in client.list_event_source_mappings(
+            EventSourceArn=queue_arn, FunctionName=FUNCTION_NAME).get(
+                "EventSourceMappings") or []:
+        existing = mapping
+        break
+    wanted = {
+        "BatchSize": CONSUME_BATCH,
+        "FunctionResponseTypes": ["ReportBatchItemFailures"],
+        "ScalingConfig": {"MaximumConcurrency": MAX_CONCURRENCY},
+    }
+    if existing:
+        client.update_event_source_mapping(UUID=existing["UUID"], Enabled=True, **wanted)
+        print(f"[lambda] event source mapping updated "
+              f"(batch={CONSUME_BATCH}, maxConcurrency={MAX_CONCURRENCY})")
+        return
+    client.create_event_source_mapping(
+        EventSourceArn=queue_arn, FunctionName=FUNCTION_NAME, Enabled=True, **wanted)
+    print(f"[lambda] event source mapping created "
+          f"(batch={CONSUME_BATCH}, maxConcurrency={MAX_CONCURRENCY})")
+
+
 def package() -> bytes:
     """Zip: shim + operations/seo-tools + shared/lambda_utils + blog pipeline + pypdf."""
     shim = FUNCTIONS_DIR / "seo_tools_handler.py"
@@ -435,7 +557,7 @@ def deploy_lambda(zip_bytes: bytes) -> None:
         Runtime="python3.12",
         Role=ROLE_ARN,
         Handler="seo_tools_handler.handler",
-        Timeout=120,
+        Timeout=FUNCTION_TIMEOUT,
         MemorySize=512,
         Environment={"Variables": ENV_VARS},
     )
@@ -527,8 +649,17 @@ def main() -> None:
     ensure_table()
     ensure_bedrock_inference_profile_perms()
     ensure_blog_source_perms()
+    #: ORDER MATTERS. The queue has to exist before its URL can go into the function's
+    #: environment, the IAM policy has to be in place before the event source mapping is
+    #: created or Lambda parks it in `Disabled` with an insufficient-permissions cause, and the
+    #: mapping must come last so the first message arrives at code that can handle it.
+    queues = ensure_queues()
+    ensure_queue_perms(queues["arn"], queues["dlqArn"])
+    ENV_VARS["BLOG_INGEST_QUEUE_URL"] = queues["url"]
+    ENV_VARS["BLOG_INGEST_QUEUE_NAME"] = QUEUE_NAME
     zip_bytes = package()
     deploy_lambda(zip_bytes)
+    ensure_event_source(queues["arn"])
     ensure_api_route()
     print("=== done ===")
     print(f"Endpoint: https://wecare.digital/api/seo-tools/  (stage prod, auto-deploy)")

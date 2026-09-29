@@ -20,6 +20,7 @@ import blog_batches
 import blog_draft
 import blog_gate
 import blog_qa
+import blog_queue
 import blog_repetition
 import blog_sources
 import blog_templates
@@ -561,6 +562,9 @@ def _route_get(path: str, event: Dict[str, Any], origin: str):
             'humanGates': list(_quality.HUMAN_GATES) if _quality else [],
             'aiDraftEnabled': blog_draft.enabled(),
             'maxSourceBytes': blog_sources.MAX_SOURCE_BYTES,
+            # Queue and DLQ depth beside the source list, because "nothing is progressing" and
+            # "three documents are dead-lettered" look identical from the statuses alone.
+            'queue': blog_queue.depth(),
             **blog_sources.status_report(
                 limit=int(_query(event, 'limit', '0') or 0),
                 batch_id=_query(event, 'batchId')),
@@ -670,6 +674,29 @@ def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
         # make a legitimate retry after a dropped response return 409 with the sources
         # still unconfirmed.
         return _response(200, {'ok': True, **blog_sources.confirm(body, actor)}, origin)
+    if path.endswith('/blog-sources/drain'):
+        # RECONCILIATION, not the steady-state path. The queue cannot find a source whose
+        # message was never sent or was lost - a record written before the queue existed, a
+        # SendMessageBatch that partially failed, a message that aged out. This asks the table
+        # what is outstanding, which is the only check that does not assume the queue is right.
+        requeue = str(body.get('requeue') or '').lower() not in ('0', 'false', 'no')
+        outstanding = [str(row['id']) for row in blog_sources.pending_sources()]
+        if requeue and outstanding:
+            result = blog_queue.enqueue(outstanding, reason='drain')
+            if not result['configured']:
+                result = {'queued': 0, 'failed': 0, 'configured': False,
+                          'workerStarted': blog_sources.start_worker('drain')}
+            return _response(200, {'ok': True, 'outstanding': len(outstanding),
+                                   'sourceIds': outstanding[:200], **result}, origin)
+        return _response(200, {'ok': True, 'outstanding': len(outstanding),
+                               'sourceIds': outstanding[:200], 'queued': 0,
+                               'requeued': False}, origin)
+    if path.endswith('/blog-sources/redrive'):
+        # Explicit on purpose. A message reaches the DLQ after three failures, so the cause is
+        # usually not transient - re-driving without reading the source's `error` first is how
+        # an unreadable PDF cycles forever.
+        return _response(200, {'ok': True, **blog_queue.redrive(
+            int(body.get('limit') or 0))}, origin)
     if path.endswith('/blog-sources/retry'):
         source_id = str(body.get('sourceId') or '').strip()
         if not source_id:
@@ -744,6 +771,33 @@ def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
 
 
 def handler(event: Dict[str, Any], context: Optional[Any]):
+    # ── The SQS ingest consumer ──────────────────────────────────────────────────
+    #
+    # Checked FIRST, before HTTP handling and before the legacy sweep branch, because an SQS
+    # batch is not an HTTP request and carries no requestContext at all.
+    #
+    # NOT AN UNAUTHENTICATED HOLE, for the same reason the worker branch below is not. An API
+    # Gateway request cannot produce a top-level `Records` key - its payload arrives under
+    # `body` as a JSON string - and `blog_queue.is_queue_event` additionally requires every
+    # record to name `eventSource: aws:sqs`, which only the event source mapping can do. That
+    # mapping is IAM-gated.
+    #
+    # The return value is the `batchItemFailures` shape, so ReportBatchItemFailures retries
+    # only the messages that actually need it. Exceptions are caught inside `consume`: letting
+    # one escape here would redeliver the whole batch, including the documents that succeeded.
+    if blog_queue.is_queue_event(event):
+        try:
+            return blog_queue.consume(event)
+        except Exception:
+            logger.exception('blog ingest batch failed')
+            # Report EVERY message as failed rather than swallowing the batch. A failure this
+            # far out is infrastructural, so the messages should redeliver and eventually
+            # dead-letter rather than vanish.
+            return {'batchItemFailures': [
+                {'itemIdentifier': str(record.get('messageId') or '')}
+                for record in (event.get('Records') or [])
+                if record.get('messageId')]}
+
     # ── The async extraction worker ──────────────────────────────────────────────
     #
     # Checked FIRST, before any HTTP handling, because this is not an HTTP request: it
