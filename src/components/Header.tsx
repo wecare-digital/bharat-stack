@@ -323,6 +323,11 @@ const Header: React.FC = () => {
     <header className="hdr">
       <div className="hdr-in">
         <div className="logo-nav">
+          {/* Plain <a>, not next/link, for the same styled-jsx reason as Footer's lockup:
+              styled-jsx does not scope capitalised components, so `<Link className="logo">`
+              renders with no styles at all. Recorded in
+              `.kiro/steering/grahak-os-design.md`. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/" className="logo" aria-label="WECARE.DIGITAL home">
             <BrandLockup />
           </a>

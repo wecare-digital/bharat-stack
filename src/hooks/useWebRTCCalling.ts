@@ -131,6 +131,23 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
 
   // ─── WebRTC Lifecycle ───────────────────────────────────────────
 
+  /** Cleanup all WebRTC resources */
+  const cleanup = useCallback(() => {
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
+    }
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+    }
+    stopDurationTimer();
+    setIsMuted(false);
+  }, [stopDurationTimer]);
+
   /** Create a new RTCPeerConnection with event handlers */
   const createPeerConnection = useCallback((): RTCPeerConnection => {
     const pc = new RTCPeerConnection({ iceServers });
@@ -176,7 +193,7 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
 
     pcRef.current = pc;
     return pc;
-  }, [iceServers, currentCall, onRemoteAudioStart, updateStatus, startDurationTimer]);
+  }, [iceServers, currentCall, onRemoteAudioStart, updateStatus, startDurationTimer, cleanup]);
 
   /**
    * Get microphone stream and add tracks to peer connection.
@@ -221,23 +238,6 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
       };
     });
   }, []);
-
-  /** Cleanup all WebRTC resources */
-  const cleanup = useCallback(() => {
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
-    }
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(t => t.stop());
-      localStreamRef.current = null;
-    }
-    if (remoteAudioRef.current) {
-      remoteAudioRef.current.srcObject = null;
-    }
-    stopDurationTimer();
-    setIsMuted(false);
-  }, [stopDurationTimer]);
 
   // ─── Inbound Call: Answer with WebRTC ─────────────────────────
 

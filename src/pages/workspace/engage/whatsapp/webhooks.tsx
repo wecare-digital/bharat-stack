@@ -160,7 +160,7 @@ const WebhooksPage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
             </div>
           </div>
           { loading ? <p>Loading...</p> : subscriptions.length === 0 ? (
-            <p style={ { color: '#666', fontSize: 13 } }>No subscriptions found. Click "Subscribe App" to subscribe.</p>
+            <p style={ { color: '#666', fontSize: 13 } }>No subscriptions found. Click &quot;Subscribe App&quot; to subscribe.</p>
           ) : (
             <div style={ { display: 'grid', gap: 8 } }>
               { subscriptions.map( ( sub: any, i: number ) => (

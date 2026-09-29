@@ -91,7 +91,6 @@ describe( 'isRtlLanguage', () => {
      * function does not know about - which is the only way the divergence above becomes a
      * defect.
      */
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const catalogue = require( '../../../docs/execution/language-catalogue.json' );
     const LIGHTNINGCSS_RTL = new Set( [ 'ae', 'ar', 'arc', 'bcc', 'bqi', 'ckb', 'dv', 'fa',
       'glk', 'he', 'ku', 'mzn', 'nqo', 'pnb', 'ps', 'sd', 'ug', 'ur', 'yi' ] );

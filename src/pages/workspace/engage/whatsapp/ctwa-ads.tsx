@@ -145,7 +145,7 @@ const CtwaAdsPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
                 <p style={ { fontSize: 13, color: '#92400e', margin: '4px 0 0' } }>
                     The Facebook Page used for the ad must have a WhatsApp Business number connected
                     (Meta Business Suite → Page → Settings → WhatsApp). Without it, Meta rejects the ad set
-                    with "Page with WhatsApp Business account required".
+                    with &quot;Page with WhatsApp Business account required&quot;.
                 </p>
             </div>
 

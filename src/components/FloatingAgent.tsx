@@ -32,6 +32,13 @@ const API_ENDPOINT = `${API_BASE}/ai/generate`;
 
 const MAX_MESSAGES = 80;
 
+// Ids were `Date.now().toString()`, so two messages created in the same millisecond
+// collided, and the loading placeholder's `Date.now() + 1` could collide with the next
+// real message. A module-scope counter is monotonic and is not render scope, so it is
+// also pure from the component's point of view.
+let messageSeq = 0;
+const nextMessageId = (): string => `m${++messageSeq}-${randomToken(4)}`;
+
 const FloatingAgent: React.FC = () => {
   const confirm = useConfirm();
   const toast = useToastContext();
@@ -91,52 +98,6 @@ const FloatingAgent: React.FC = () => {
     return () => document.removeEventListener('keydown', handleGlobalKey);
   }, []);
 
-  // Initialize Web Speech API
-  useEffect(() => {
-    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'en-US';
-
-      recognitionRef.current.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognitionRef.current.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(transcript);
-        setIsListening(false);
-        // Auto-send voice input
-        setTimeout(() => {
-          if (transcript.trim()) {
-            handleSendVoice(transcript.trim());
-          }
-        }, 100);
-      };
-
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {
-          // Ignore errors on cleanup
-        }
-      }
-    };
-  }, []);
-
   const toggleVoiceInput = () => {
     if (!recognitionRef.current) {
       toast.warning('Voice input is not supported in your browser. Please use Chrome, Edge, or Safari.');
@@ -161,40 +122,38 @@ const FloatingAgent: React.FC = () => {
     }
   };
 
-  const handleSendVoice = async (text: string) => {
-    if (!text || isLoading) return;
-
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: text,
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => {
-      const updated = [...prev, userMessage];
-      return updated.length > MAX_MESSAGES ? updated.slice(-MAX_MESSAGES) : updated;
-    });
-    setInput('');
-    setIsLoading(true);
-
-    const loadingId = (Date.now() + 1).toString();
-    setMessages(prev => [...prev, {
-      id: loadingId,
-      role: 'assistant',
-      content: '...',
-      timestamp: new Date(),
-      status: 'sending',
-    }]);
-
-    const response = await processCommand(userMessage.content);
-
-    setMessages(prev => prev.map(m => 
-      m.id === loadingId ? { ...m, content: response, status: response.startsWith('Something went wrong') || response.startsWith('Unable to reach') ? 'error' : 'sent' } : m
-    ));
-    setIsLoading(false);
+  /** Strip <thinking>...</thinking> tags from AI responses */
+  const cleanResponse = (text: string): string => {
+    return text.replace(/<thinking>[\s\S]*?<\/thinking>\s*/gi, '').trim();
   };
 
+  /** Extract the AI response text from any response shape */
+  const extractResponse = (data: any): string | null => {
+    if (!data) return null;
+
+    let raw: string | null = null;
+
+    // Direct normalized format from proxy
+    if (data.suggestedResponse) raw = data.suggestedResponse;
+    else if (data.suggestion) raw = data.suggestion;
+
+    // API Gateway wrapped format (fallback if proxy didn't unwrap)
+    if (!raw && data.body) {
+      try {
+        const parsed = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
+        if (parsed.suggestedResponse) raw = parsed.suggestedResponse;
+        else if (parsed.suggestion) raw = parsed.suggestion;
+        else if (parsed.error) {
+          console.error('Backend error in body:', parsed.error);
+          return 'Something went wrong on the server. Please try again.';
+        }
+      } catch {
+        // body wasn't parseable
+      }
+    }
+
+    return raw ? cleanResponse(raw) : null;
+  };
 
   const processCommand = async (text: string): Promise<string> => {
     const lowerText = text.toLowerCase();
@@ -296,44 +255,92 @@ const FloatingAgent: React.FC = () => {
     }
   };
 
-  /** Strip <thinking>...</thinking> tags from AI responses */
-  const cleanResponse = (text: string): string => {
-    return text.replace(/<thinking>[\s\S]*?<\/thinking>\s*/gi, '').trim();
+  // Declared above the Web Speech API effect below, which calls it on a transcript.
+  const handleSendVoice = async (text: string) => {
+    if (!text || isLoading) return;
+
+    const userMessage: ChatMessage = {
+      id: nextMessageId(),
+      role: 'user',
+      content: text,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => {
+      const updated = [...prev, userMessage];
+      return updated.length > MAX_MESSAGES ? updated.slice(-MAX_MESSAGES) : updated;
+    });
+    setInput('');
+    setIsLoading(true);
+
+    const loadingId = nextMessageId();
+    setMessages(prev => [...prev, {
+      id: loadingId,
+      role: 'assistant',
+      content: '...',
+      timestamp: new Date(),
+      status: 'sending',
+    }]);
+
+    const response = await processCommand(userMessage.content);
+
+    setMessages(prev => prev.map(m => 
+      m.id === loadingId ? { ...m, content: response, status: response.startsWith('Something went wrong') || response.startsWith('Unable to reach') ? 'error' : 'sent' } : m
+    ));
+    setIsLoading(false);
   };
 
-  /** Extract the AI response text from any response shape */
-  const extractResponse = (data: any): string | null => {
-    if (!data) return null;
+  // Initialize Web Speech API
+  useEffect(() => {
+    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
 
-    let raw: string | null = null;
+      recognitionRef.current.onstart = () => {
+        setIsListening(true);
+      };
 
-    // Direct normalized format from proxy
-    if (data.suggestedResponse) raw = data.suggestedResponse;
-    else if (data.suggestion) raw = data.suggestion;
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+        setIsListening(false);
+        // Auto-send voice input
+        setTimeout(() => {
+          if (transcript.trim()) {
+            handleSendVoice(transcript.trim());
+          }
+        }, 100);
+      };
 
-    // API Gateway wrapped format (fallback if proxy didn't unwrap)
-    if (!raw && data.body) {
-      try {
-        const parsed = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
-        if (parsed.suggestedResponse) raw = parsed.suggestedResponse;
-        else if (parsed.suggestion) raw = parsed.suggestion;
-        else if (parsed.error) {
-          console.error('Backend error in body:', parsed.error);
-          return 'Something went wrong on the server. Please try again.';
-        }
-      } catch {
-        // body wasn't parseable
-      }
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
     }
 
-    return raw ? cleanResponse(raw) : null;
-  };
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // Ignore errors on cleanup
+        }
+      }
+    };
+  }, []);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: nextMessageId(),
       role: 'user',
       content: input.trim(),
       timestamp: new Date(),
@@ -346,7 +353,7 @@ const FloatingAgent: React.FC = () => {
     setInput('');
     setIsLoading(true);
 
-    const loadingId = (Date.now() + 1).toString();
+    const loadingId = nextMessageId();
     setMessages(prev => [...prev, {
       id: loadingId,
       role: 'assistant',

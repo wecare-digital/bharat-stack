@@ -1,7 +1,7 @@
 /**
  * Template + WhatsApp chat preview cards (Part 5).
  */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const bubble: React.CSSProperties = {
     background: '#fff', borderRadius: 8, padding: '8px 10px', maxWidth: 320,
@@ -58,8 +58,20 @@ export const TemplatePreviewCard: React.FC<{ template?: { components?: TemplateC
 export const FlowPreviewCard: React.FC<{ flow?: { id?: string; name?: string; status?: string; previewUrl?: string; previewExpiresAt?: number } }> = (
     { flow }
 ) => {
+    // The clock is read in an effect, not during render: this component is prerendered by the
+    // static export, so a render-time Date.now() would bake the build timestamp into the HTML and
+    // then mismatch on hydration — and a preview that expired after the build would still render
+    // as valid. Hooks sit above the `!flow` early return because they cannot be called
+    // conditionally. First tick via requestAnimationFrame rather than a direct call, matching
+    // ContactLocation.tsx: setNow( ... ) in the effect body is a synchronous setState in an
+    // effect, which is its own lint error.
+    const [ now, setNow ] = useState( 0 );
+    useEffect( () => {
+        const raf = requestAnimationFrame( () => setNow( Date.now() ) );
+        return () => cancelAnimationFrame( raf );
+    }, [] );
     if ( !flow ) return null;
-    const expired = flow.previewExpiresAt ? flow.previewExpiresAt * 1000 < Date.now() : false;
+    const expired = flow.previewExpiresAt ? flow.previewExpiresAt * 1000 < now : false;
     return (
         <div style={ { border: '1px solid #e5e5e5', borderRadius: 8, padding: 12 } }>
             <div style={ { fontWeight: 700, fontSize: 14 } }>{ flow.name || flow.id }</div>

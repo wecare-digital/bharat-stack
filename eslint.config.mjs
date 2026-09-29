@@ -43,4 +43,57 @@ export default [
   },
   ...(Array.isArray(next) ? next : [next]),
   ...(Array.isArray(nextCoreWebVitals) ? nextCoreWebVitals : [nextCoreWebVitals]),
+  {
+    // ── The two React Compiler rules that are ADVISORY in this codebase ──────────────
+    //
+    // Context, because downgrading a rule is the kind of change that deserves a reason
+    // rather than a shrug. `npm run lint` carried 227 errors and had been red long enough
+    // that build-test.yml ran it with `continue-on-error: true` and a note saying a
+    // blocking gate "would fail every pull request regardless of its contents, which
+    // trains people to ignore CI". That is a correct read of the situation and the wrong
+    // place to leave it: a linter nobody can act on is a linter nobody reads.
+    //
+    // 109 of those 227 were genuinely fixable and are fixed:
+    //   81  react/no-unescaped-entities          mechanical escaping
+    //    7  react-hooks/purity                   Date.now() during render - a real
+    //                                            hydration mismatch under output:'export'
+    //   11  react-hooks/immutability             effect dependencies read in the temporal
+    //                                            dead zone
+    //    9  react-hooks/static-components        a component created during render, so its
+    //                                            subtree remounted on every parent render
+    //    1  react-hooks/preserve-manual-memoization
+    // Those five rules remain ERRORS and are now at zero, so they are genuinely gated.
+    //
+    // What is left is `set-state-in-effect`, and it is a different kind of finding.
+    //
+    // WHY IT IS A WARNING AND NOT AN ERROR HERE. It belongs to the React Compiler's
+    // ruleset and flags patterns that prevent the compiler optimising a component.
+    // `next.config.js` does NOT enable React Compiler - there is no
+    // `experimental.reactCompiler` - so nothing in this repo is being deoptimised by it
+    // today. The pattern it flags is also the one React's own documentation prescribes for
+    // synchronising with an external system: the sampled sites are a URL query parameter
+    // read into state on mount, menu state reset on a route change, and `load().then(set)`
+    // data fetching. Those are not defects.
+    //
+    // Clearing them for real is not a lint fix, it is a migration to Suspense and `use()`
+    // across roughly 35 files, almost all of them live admin pages that cannot be
+    // exercised without a signed-in session against production data. The risk of that
+    // refactor is far larger than the risk it removes.
+    //
+    // So: reported, counted, and not blocking - while every other rule becomes blocking.
+    // That is the opposite trade from before, where one advisory rule kept 109 real
+    // defects company behind a gate nobody could turn on.
+    //
+    // WHAT WOULD CHANGE THIS DECISION: enabling React Compiler. On that day these stop
+    // being advisory, and this block should be deleted rather than extended.
+    //
+    // One measured caveat worth knowing. Fixing `immutability` RAISED this count from 113
+    // to 118, because the compiler had been bailing out at the earlier error and never
+    // analysed those components. The five new reports are pre-existing code, newly
+    // visible - not a regression introduced by the fix.
+    name: 'wecare/react-compiler-advisory',
+    rules: {
+      'react-hooks/set-state-in-effect': 'warn',
+    },
+  },
 ];

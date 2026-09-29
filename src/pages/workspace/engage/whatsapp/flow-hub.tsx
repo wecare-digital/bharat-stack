@@ -318,7 +318,7 @@ function FlowHubPageBody ( { embedded }: FlowHubProps ) {
 
           { !registryLoading && registry.length === 0 && (
             <div style={ { textAlign: 'center', padding: '3rem', color: '#9ca3af' } }>
-              No flows registered yet. Click "Register Flow" to add your first flow.
+              No flows registered yet. Click &quot;Register Flow&quot; to add your first flow.
             </div>
           ) }
         </div>
@@ -611,7 +611,7 @@ function FlowHubPageBody ( { embedded }: FlowHubProps ) {
             </div>
           ) }
           { !journey && !journeyLoading && (
-            <div style={ { textAlign: 'center', padding: '3rem', color: '#9ca3af' } }>Enter a phone number to view the customer's complete flow journey.</div>
+            <div style={ { textAlign: 'center', padding: '3rem', color: '#9ca3af' } }>Enter a phone number to view the customer&apos;s complete flow journey.</div>
           ) }
         </div>
       ) }
@@ -656,7 +656,7 @@ function FlowHubPageBody ( { embedded }: FlowHubProps ) {
             </div>
           ) }
           { !healthLoading && versionHealth.length === 0 && (
-            <div style={ { textAlign: 'center', padding: '3rem', color: '#9ca3af' } }>Click "Check Health" to scan all registered flows.</div>
+            <div style={ { textAlign: 'center', padding: '3rem', color: '#9ca3af' } }>Click &quot;Check Health&quot; to scan all registered flows.</div>
           ) }
         </div>
       ) }

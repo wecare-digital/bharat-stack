@@ -121,13 +121,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Load templates from API
-  useEffect(() => {
-    if (channel === 'whatsapp') {
-      loadTemplates();
-    }
-  }, [channel]);
-
   const loadTemplates = async () => {
     setTemplatesLoading(true);
     try {
@@ -139,6 +132,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       setTemplatesLoading(false);
     }
   };
+
+  // Load templates from API
+  useEffect(() => {
+    if (channel === 'whatsapp') {
+      loadTemplates();
+    }
+  }, [channel]);
 
   // Close dropdowns on outside click
   useEffect(() => {

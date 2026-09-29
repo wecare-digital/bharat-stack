@@ -652,13 +652,13 @@ const DesignReferencePage: React.FC<PageProps> = ( { signOut, user } ) => {
                             <div className="inner-card">
                                 <h3 style={ { fontSize: 15, fontWeight: 600, marginBottom: 12, color: C.danger } }>⚠️ Improvements Needed</h3>
                                 <ul style={ { margin: 0, padding: '0 0 0 18px', fontSize: 13, lineHeight: 2.2, color: '#374151' } }>
-                                    <li>Change lang="en" → lang="en-IN"</li>
+                                    <li>Change lang=&quot;en&quot; → lang=&quot;en-IN&quot;</li>
                                     <li>Add skip-to-content link</li>
-                                    <li>Add aria-live="polite" on toast container</li>
-                                    <li>Add role="alert" on error messages</li>
+                                    <li>Add aria-live=&quot;polite&quot; on toast container</li>
+                                    <li>Add role=&quot;alert&quot; on error messages</li>
                                     <li>Complete modal focus trap</li>
                                     <li>Add aria-expanded on sidebar items</li>
-                                    <li>Add aria-current="page" on active nav</li>
+                                    <li>Add aria-current=&quot;page&quot; on active nav</li>
                                     <li>Add aria-describedby on form errors</li>
                                     <li>Test with NVDA + VoiceOver</li>
                                     <li>Add high-contrast mode support</li>
@@ -920,7 +920,7 @@ const DesignReferencePage: React.FC<PageProps> = ( { signOut, user } ) => {
                                     <a href="#" style={ { fontSize: 18, color: '#1a1a1a', textDecoration: 'none', fontWeight: 500 } }>Contact us</a>
                                 </div>
                                 <div style={ { marginTop: 12, fontSize: 12, color: C.text2, lineHeight: 2 } }>
-                                    Simple footer. Safe-area-inset-bottom for mobile. Font: 21px desktop → 24px tablet → 22px mobile. Single "Contact us" link.
+                                    Simple footer. Safe-area-inset-bottom for mobile. Font: 21px desktop → 24px tablet → 22px mobile. Single &quot;Contact us&quot; link.
                                 </div>
                             </div>
                         </div>

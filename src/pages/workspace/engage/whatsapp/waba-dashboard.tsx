@@ -65,6 +65,23 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
   const [customTopicArn, setCustomTopicArn] = useState('');
   const [customRoleArn, setCustomRoleArn] = useState('');
 
+  const loadSnsStatus = async (wabaId?: string) => {
+    const id = wabaId || selectedWaba?.id;
+    if (!id) return;
+    setSnsLoading(true);
+    try {
+      const status = await api.getWABASNSSubscriptionStatus(id);
+      setSnsStatus(status);
+      if (status?.defaultTopicArn && !customTopicArn) {
+        setCustomTopicArn(status.defaultTopicArn);
+      }
+    } catch (err) {
+      console.error('Failed to load SNS status:', err);
+    } finally {
+      setSnsLoading(false);
+    }
+  };
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -113,23 +130,6 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
       }
     } catch (err) {
       toast.error('Failed to load WABA details');
-    }
-  };
-
-  const loadSnsStatus = async (wabaId?: string) => {
-    const id = wabaId || selectedWaba?.id;
-    if (!id) return;
-    setSnsLoading(true);
-    try {
-      const status = await api.getWABASNSSubscriptionStatus(id);
-      setSnsStatus(status);
-      if (status?.defaultTopicArn && !customTopicArn) {
-        setCustomTopicArn(status.defaultTopicArn);
-      }
-    } catch (err) {
-      console.error('Failed to load SNS status:', err);
-    } finally {
-      setSnsLoading(false);
     }
   };
 

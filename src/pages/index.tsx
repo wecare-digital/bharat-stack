@@ -576,8 +576,10 @@ const HomePage: React.FC = () => {
                   and :global() would leak this rule out of the component. Every other CTA on
                   the public pages - ProductPage, ContactLocation, the header logo - is a plain
                   <a> for the same reason, and on a static export a full page load is the right
-                  behaviour anyway. The cost is one known eslint error, which is accepted here
-                  rather than traded for a broken control. */}
+                  behaviour anyway. The cost used to be "one known eslint error, accepted here
+                  rather than traded for a broken control" - it is now a recorded exemption at
+                  the site, which says the same thing without leaving the lint gate red. */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a className="home-close-cta" href="/contact/">Tell us what you need</a>
             </div>
           </section>

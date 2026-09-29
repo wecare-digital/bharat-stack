@@ -859,7 +859,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
       {/* Selfservice Sub-Menu */ }
       <div style={ card() }>
         <h3 style={ sectionTitle }>🚀 Selfservice Menu (WhatsApp Interactive List)</h3>
-        <p style={ { fontSize: 13, color: C.textMuted, margin: '0 0 12px' } }>9 self-service options — triggered when user taps "🚀 Selfservice" from the bot menu. Each row opens a WhatsApp Flow.</p>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: '0 0 12px' } }>9 self-service options — triggered when user taps &quot;🚀 Selfservice&quot; from the bot menu. Each row opens a WhatsApp Flow.</p>
         <div style={ { overflowX: 'auto' } }>
           <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>
             <thead>
@@ -1347,7 +1347,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
         />
       </div>
       { searchQuery && (
-        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>{ searchResults.length } result{ searchResults.length !== 1 ? 's' : '' } for "{ searchQuery }"</p>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>{ searchResults.length } result{ searchResults.length !== 1 ? 's' : '' } for &quot;{ searchQuery }&quot;</p>
       ) }
       { searchResults.length > 0 && (
         <div style={ { display: 'flex', flexDirection: 'column', gap: 8 } }>
