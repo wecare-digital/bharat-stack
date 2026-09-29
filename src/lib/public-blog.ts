@@ -41,6 +41,18 @@ export interface PublicBlogPost {
  * prints it and search matches on it. coverImage is kept although the card does not use
  * it today - it is 1.7 kB across all 834 posts, which is the cost of one small image, and
  * leaving it out would make adding card art a data change rather than a markup one.
+ *
+ * `tags` CAME BACK, and it is the one field here that is carried for SEARCH rather than for
+ * rendering. It was dropped as part of the 357 kB because no card prints it, which was true and
+ * is still true - nothing renders it. What that reasoning missed is that search matches on more
+ * than what is visible: every post in the corpus carries tags, and they hold the words a reader
+ * actually types. "Beverages", "Herbal Tea", "Chai", "Lemongrass" are tags on posts whose titles
+ * and excerpts contain none of those strings, so searching any of them returned nothing at all.
+ *
+ * The cost is small and it is paid by the right people. Measured against the live endpoint over
+ * 1064 posts, adding tags takes the search index from 350.0 kB to 391.4 kB - and that index is
+ * fetched lazily, only once a reader types, so a visitor who never searches downloads none of it.
+ * In a page's own props it is roughly 1 kB across 24 cards.
  */
 export interface BlogCard {
   slug: string;
@@ -50,6 +62,8 @@ export interface BlogCard {
   publishedDate?: string;
   authorName?: string;
   coverImage?: string;
+  /** Matched by search, never rendered. See the note above. */
+  tags?: string[];
 }
 
 /** Narrow a full post to the card fields. One place, so a page cannot widen it by accident. */
@@ -65,6 +79,9 @@ export function toBlogCard ( post: PublicBlogPost ): BlogCard {
     ...( post.publishedDate ? { publishedDate: post.publishedDate } : {} ),
     ...( post.authorName ? { authorName: post.authorName } : {} ),
     ...( post.coverImage ? { coverImage: post.coverImage } : {} ),
+    // Guarded on length as well as existence: an empty array would serialise as [] on every card
+    // and search would gain nothing for the bytes.
+    ...( post.tags && post.tags.length ? { tags: post.tags } : {} ),
   };
 }
 
