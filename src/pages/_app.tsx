@@ -1009,6 +1009,33 @@ export default function App ( { Component, pageProps }: AppProps ) {
   {
     return (
       <ErrorBoundary>
+        {/* THE ICON IS OUTSIDE THE `!isContentPublic` GATE BELOW, DELIBERATELY.
+            These two tags used to sit inside that gate, and the gate itself is correct: /blog,
+            its three paginated variants and /post/[slug] declare their own title, description,
+            canonical and structured data - components/BlogIndexHead.tsx and the <Head> in
+            pages/post/[slug].tsx - so inheriting the block below would give them two of each.
+            The favicon was never part of that argument. It was collateral, and the cost was that
+            all five content routes shipped NO icon at all.
+            NOTHING DOWNSTREAM PUT IT BACK, which is why this went unnoticed: neither replacement
+            head declares an icon, _document.tsx declares none either, and the implicit
+            /favicon.ico fallback could not cover it, because Amplify's `/<*>` -> `/index.html`
+            404-200 rule answers that request with 33KB of home-page HTML instead of an image.
+            Measured on the live site before this change: / carried the icon tag, /blog/ and
+            /post/<slug>/ carried none, and /favicon.ico returned 404 text/html.
+            RENDERED HERE RATHER THAN IN _document.tsx - the obvious sitewide home - because
+            MEDIA_BASE and the URLs derived from it are module-private to this file, and
+            src/test/BrandAssets.test.ts pins those declarations to this file by source string.
+            Reaching them from the document would mean importing this module into _document or
+            restating MEDIA_BASE there, and a second source of truth for the brand asset base is
+            the exact thing that test exists to prevent. Every public route passes through this
+            branch, so the coverage is the same; the authenticated branch keeps its own pair.
+            The keys are placed after href so the attribute order BrandAssets.test.ts matches on
+            is preserved. next/head dedupes by key, so a page that wants a different icon
+            overrides this one instead of appending a second. */}
+        <Head>
+          <link rel="icon" href={ FAVICON_URL } key="icon" />
+          <link rel="apple-touch-icon" href={ LOGO_URL } key="apple-touch-icon" />
+        </Head>
         { !isContentPublic && (
           <Head>
           {/* PRODUCT-NEUTRAL SITEWIDE TITLE. This read "WECARE.DIGITAL - WhatsApp Business
@@ -1038,8 +1065,8 @@ export default function App ( { Component, pageProps }: AppProps ) {
           <meta name="description" content={ COMPANY_DESCRIPTION } />
           <meta name="keywords" content="WECARE.DIGITAL, everyday AI, AI services India, transparent pricing, consumer services, enterprise services, climate tech, frontier tech" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <link rel="icon" href={ FAVICON_URL } />
-          <link rel="apple-touch-icon" href={ LOGO_URL } />
+          {/* THE ICON PAIR THAT USED TO BE HERE IS NOW ABOVE, OUTSIDE THE GATE. Moving it is
+              the whole of the blog/post favicon fix - see the note at the top of this branch. */}
           {/* CANONICAL AND og:url ARE COMPUTED, and carry a key.
               Both were hardcoded to the site root, on every page. The result was that
               /contact/, /terms/, /privacy/, /grahak-os/ and /vayulok/ each shipped TWO
