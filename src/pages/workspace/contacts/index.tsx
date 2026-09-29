@@ -406,6 +406,20 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
 
   useEffect(() => { loadContacts(); }, [loadContacts]);
 
+  const resetForm = () => {
+    setFormName(''); setFormPhone(''); setFormEmail('');
+    setFormBsuid(''); setFormUsername(''); setFormContactBookName('');
+    setFormShippingAddress(''); setFormBillingAddress(''); setFormCountryCode('+91');
+    setFormAddressLine1(''); setFormAddressLine2(''); setFormCity(''); setFormState('');
+    setFormPostalCode(''); setFormLandmark(''); setFormHouseNumber(''); setFormBuildingName('');
+    setFormTowerNumber(''); setFormFloorNumber('');
+    setFormCountry('India');
+    setFormGstin('');
+    setFormCompanyName(''); setFormDesignation('');
+    setFormOptInWA(true); setFormOptInSms(true); setFormOptInEmail(true);
+    setFormAllowlistWA(true); setFormAllowlistSms(true); setFormAllowlistEmail(true);
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -455,20 +469,6 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('asc'); }
-  };
-
-  const resetForm = () => {
-    setFormName(''); setFormPhone(''); setFormEmail('');
-    setFormBsuid(''); setFormUsername(''); setFormContactBookName('');
-    setFormShippingAddress(''); setFormBillingAddress(''); setFormCountryCode('+91');
-    setFormAddressLine1(''); setFormAddressLine2(''); setFormCity(''); setFormState('');
-    setFormPostalCode(''); setFormLandmark(''); setFormHouseNumber(''); setFormBuildingName('');
-    setFormTowerNumber(''); setFormFloorNumber('');
-    setFormCountry('India');
-    setFormGstin('');
-    setFormCompanyName(''); setFormDesignation('');
-    setFormOptInWA(true); setFormOptInSms(true); setFormOptInEmail(true);
-    setFormAllowlistWA(true); setFormAllowlistSms(true); setFormAllowlistEmail(true);
   };
 
   // Duplicate detection

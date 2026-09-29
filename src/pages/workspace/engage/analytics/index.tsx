@@ -26,6 +26,19 @@ const AnalyticsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const toast = useToastContext();
     const [ messages, setMessages ] = useState<api.Message[]>( [] );
     const [ loading, setLoading ] = useState( true );
+    // The clock is read in an effect rather than during render: this page is prerendered by the
+    // static export, so a render-time Date.now() bakes the build timestamp into the HTML and then
+    // mismatches on hydration. The 0 default is not a bug and is not user-visible — `messages`
+    // starts as [] and is only populated by the effect below, so every stat is zero on the first
+    // render regardless of what the time value is. First tick via requestAnimationFrame rather
+    // than a direct call, matching ContactLocation.tsx: setNow( ... ) in the effect body is a
+    // synchronous setState in an effect, which is its own lint error.
+    const [ now, setNow ] = useState( 0 );
+
+    useEffect( () => {
+        const raf = requestAnimationFrame( () => setNow( Date.now() ) );
+        return () => cancelAnimationFrame( raf );
+    }, [] );
 
     useEffect( () => {
         api.listMessages( undefined, 'ALL', 5000 ).then( setMessages )
@@ -33,7 +46,6 @@ const AnalyticsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     }, [ toast ] );
 
     const stats = useMemo( () => {
-        const now = Date.now();
         const wk = now - 7 * 86400000;
         const per: Record<string, { total: number; inbound: number; outbound: number; delivered: number; failed: number; week: number }> = {};
         CH.forEach( c => per[ c ] = { total: 0, inbound: 0, outbound: 0, delivered: 0, failed: 0, week: 0 } );
@@ -52,11 +64,11 @@ const AnalyticsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
             if ( ( new Date( m.timestamp ).getTime() || 0 ) >= wk ) s.week++;
         }
         return { per, total };
-    }, [ messages ] );
+    }, [ messages, now ] );
 
     // ── Call analytics — computed from channel=voice breadcrumbs (AWS / Airtel / WhatsApp) ──
     const callStats = useMemo( () => {
-        const wk = Date.now() - 7 * 86400000;
+        const wk = now - 7 * 86400000;
         const calls = messages.filter( m => ( m.channel || '' ).toLowerCase() === 'voice' );
         const isAnswered = ( m: api.Message ) => {
             const st = ( m.status || '' ).toLowerCase();
@@ -82,7 +94,7 @@ const AnalyticsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
             avgDuration: answered > 0 ? Math.round( durSum / answered ) : 0,
             byProv,
         };
-    }, [ messages ] );
+    }, [ messages, now ] );
 
     const fmtDur = ( s: number ) => {
         if ( !s ) return '0:00';

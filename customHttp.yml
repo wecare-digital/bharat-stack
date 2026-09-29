@@ -125,24 +125,43 @@ customHeaders:
       # review pass across the public pages, the checkout and the softphone, and it
       # avoids standing up a collector for a policy that is not enforcing yet. Add
       # `report-to` and a Reporting-Endpoints header when the tightening pass starts.
+      #
+      # ⚠ EVERY LINE BELOW MUST BE INDENTED EXACTLY THE SAME AMOUNT. ⚠
+      #
+      # This is a YAML folded block scalar (`>-`), and folding has a rule that is easy
+      # to miss: lines indented MORE than the first content line are NOT folded. YAML
+      # keeps them as literal newlines. An HTTP header value cannot contain a newline,
+      # so Amplify silently drops the whole header - no build error, no warning, just an
+      # absent header.
+      #
+      # That is not hypothetical. This value was originally written with the origin
+      # lists indented one level deeper for readability, which parsed to a value
+      # carrying 13 embedded newlines, and Amplify dropped it while serving the other
+      # six headers. It was inherited that way from the old amplify.yml block, so this
+      # header could never have shipped from there either, independently of the
+      # amplify.yml/customHttp.yml problem.
+      #
+      # `python scripts/verify_deployed_headers.py --local` now refuses this shape, so
+      # the mistake fails before a deploy rather than after one.
       - key: Content-Security-Policy-Report-Only
         value: >-
           default-src 'self';
           script-src 'self' 'unsafe-inline' 'unsafe-eval'
-            https://checkout.razorpay.com https://api.razorpay.com
-            https://*.plivo.com https://www.googletagmanager.com
-            https://connect.facebook.net;
+          https://checkout.razorpay.com https://api.razorpay.com
+          https://*.plivo.com https://www.googletagmanager.com
+          https://connect.facebook.net;
           style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
           font-src 'self' data: https://fonts.gstatic.com;
           img-src 'self' data: blob: https://static.wixstatic.com
-            https://img.icons8.com https://*.cloudfront.net
-            https://www.googletagmanager.com https://www.facebook.com;
-          connect-src 'self' https://wecare.digital https://*.execute-api.us-east-1.amazonaws.com
-            https://cognito-idp.us-east-1.amazonaws.com
-            https://cognito-identity.us-east-1.amazonaws.com
-            https://api.razorpay.com https://lumberjack.razorpay.com
-            https://*.plivo.com wss://*.plivo.com
-            https://*.cloudfront.net https://www.googletagmanager.com;
+          https://img.icons8.com https://*.cloudfront.net
+          https://www.googletagmanager.com https://www.facebook.com;
+          connect-src 'self' https://wecare.digital
+          https://*.execute-api.us-east-1.amazonaws.com
+          https://cognito-idp.us-east-1.amazonaws.com
+          https://cognito-identity.us-east-1.amazonaws.com
+          https://api.razorpay.com https://lumberjack.razorpay.com
+          https://*.plivo.com wss://*.plivo.com
+          https://*.cloudfront.net https://www.googletagmanager.com;
           media-src 'self' blob: https://*.cloudfront.net;
           frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com;
           worker-src 'self' blob:;

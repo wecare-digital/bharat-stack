@@ -402,7 +402,7 @@ function ProductPagesTab({ products, audits, auditingSlug, bulkRunning, onAudit,
       <p style={{ fontSize: 12, color: '#6b7280', margin: 0, lineHeight: 1.8 }}>
         Each product needs: Product JSON-LD (name, price, availability, image, brand, review).<br />
         Also: BreadcrumbList, AggregateRating (if reviews), Offer schema.<br />
-        Meta title: "Product Name — Price | WECARE.DIGITAL" (max 60ch)<br />
+        Meta title: &quot;Product Name — Price | WECARE.DIGITAL&quot; (max 60ch)<br />
         Meta description: 150-160ch with product benefit + CTA.
       </p>
     </div>

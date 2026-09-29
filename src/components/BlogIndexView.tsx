@@ -286,7 +286,14 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
         { indexState === 'failed' && filtering && (
           <p className="blog-degraded" role="status">
             The full post list could not be loaded, so this is searching the { posts.length } posts
-            on this page only. <a href="/blog/">Reload the blog</a> to try again.
+            on this page only.{ ' ' }
+            {/* A FULL PAGE LOAD IS THE FEATURE HERE, so this must not become next/link.
+                This link is the recovery path after the search index failed to fetch;
+                client-side navigation would re-render the same failed state from memory and
+                retry nothing. `<Link>` would make the button look like it works and quietly
+                do nothing. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a href="/blog/">Reload the blog</a> to try again.
           </p>
         ) }
 

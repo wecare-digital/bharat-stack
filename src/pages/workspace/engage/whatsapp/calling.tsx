@@ -1447,7 +1447,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                     <div>
                       <div style={ { fontWeight: 600, fontSize: '14px', color: '#0f2a1d' } }>Permission request sent to { outboundPhone }</div>
                       <div style={ { fontSize: '12px', color: '#6b7280', marginTop: '2px' } }>
-                        Waiting for user to tap "Allow" in WhatsApp. Once granted, click "Call Now" to initiate.
+                        Waiting for user to tap &quot;Allow&quot; in WhatsApp. Once granted, click &quot;Call Now&quot; to initiate.
                       </div>
                     </div>
                   </div>
@@ -1702,7 +1702,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                   ) ) }
                 </div>
                 <p style={ { margin: '8px 0 0', fontSize: '12px', color: '#9ca3af' } }>
-                  The business phone number's country code must be in the supported list. Consumer phone can be from any Cloud API country.
+                  The business phone number&apos;s country code must be in the supported list. Consumer phone can be from any Cloud API country.
                   Our numbers (+91) are eligible for both user-initiated and business-initiated calling.
                 </p>
               </div>
@@ -1849,11 +1849,11 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
               <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#1a1a1a' } }>How to Configure Webhook in Meta Dashboard</h4>
               <ol style={ { margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#374151', lineHeight: 1.8 } }>
                 <li>Go to <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a' } }>developers.facebook.com → Your App → WhatsApp → Configuration</a></li>
-                <li>Under "Webhook", click "Edit" (or "Configure" if first time)</li>
+                <li>Under &quot;Webhook&quot;, click &quot;Edit&quot; (or &quot;Configure&quot; if first time)</li>
                 <li>Paste the Callback URL above</li>
                 <li>Paste the Verify Token above</li>
-                <li>Click "Verify and Save" — Meta will send a GET request with hub.challenge, our Lambda responds correctly</li>
-                <li>After verification, click "Manage" next to Webhook fields</li>
+                <li>Click &quot;Verify and Save&quot; — Meta will send a GET request with hub.challenge, our Lambda responds correctly</li>
+                <li>After verification, click &quot;Manage&quot; next to Webhook fields</li>
                 <li>Subscribe to: <strong>calls</strong> (required), optionally messages, account_update</li>
                 <li>Important: If app is unpublished, only test webhooks from dashboard will work. Publish the app for production data.</li>
               </ol>
@@ -2116,7 +2116,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                   <div style={ { marginTop: 10 } }>
                     <div style={ { display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, marginBottom: 10 } }>
                       <span style={ { fontSize: 11, color: '#92400e', lineHeight: 1.5 } }>
-                        Voicemail is not part of Meta's published Calling API reference (as of Nov 2025).
+                        Voicemail is not part of Meta&apos;s published Calling API reference (as of Nov 2025).
                         This editor passes a raw JSON <code>voicemail</code> object straight through to
                         <code> POST /{ '{phone-number-id}' }/settings</code>. Use only with a schema confirmed by your Meta contact.
                       </span>
@@ -2172,10 +2172,10 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
               <h4 style={ { margin: '0 0 8px', fontSize: 14 } }>API Reference</h4>
               <div style={ { fontSize: 13, color: '#666', lineHeight: 1.8 } }>
                 <div>Enable calling: <code style={ { fontSize: 12, background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 } }>POST /{ '{phone-number-id}' }/settings</code> with <code>calling</code> object</div>
-                <div>call_icon_visibility: <code style={ { fontSize: 12 } }>"default"</code> (show) or <code style={ { fontSize: 12 } }>"disable_all"</code> (hide)</div>
-                <div>restrict_to_user_countries: Array of ISO country codes (e.g. ["IN", "AE"])</div>
-                <div>callback_permission_status: <code style={ { fontSize: 12 } }>"ENABLED"</code> / <code style={ { fontSize: 12 } }>"DISABLED"</code></div>
-                <div>audio.additional_codecs: <code style={ { fontSize: 12 } }>["PCMA","PCMU"]</code> (G.711; Opus is always default)</div>
+                <div>call_icon_visibility: <code style={ { fontSize: 12 } }>&quot;default&quot;</code> (show) or <code style={ { fontSize: 12 } }>&quot;disable_all&quot;</code> (hide)</div>
+                <div>restrict_to_user_countries: Array of ISO country codes (e.g. [&quot;IN&quot;, &quot;AE&quot;])</div>
+                <div>callback_permission_status: <code style={ { fontSize: 12 } }>&quot;ENABLED&quot;</code> / <code style={ { fontSize: 12 } }>&quot;DISABLED&quot;</code></div>
+                <div>audio.additional_codecs: <code style={ { fontSize: 12 } }>[&quot;PCMA&quot;,&quot;PCMU&quot;]</code> (G.711; Opus is always default)</div>
                 <div>call_hours: status + timezone_id + weekly_operating_hours (max 2/day, no overlap) + holiday_schedule</div>
                 <div>Docs: <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/calling/call-control" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a' } }>Call Control Settings ↗</a></div>
               </div>

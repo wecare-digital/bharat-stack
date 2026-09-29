@@ -86,11 +86,6 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
   const [ placeSearching, setPlaceSearching ] = useState( false );
   const [ placeSession, setPlaceSession ] = useState( '' );
 
-  // Load templates on mount / when the target phone (WABA) changes
-  useEffect( () => {
-    loadTemplates();
-  }, [ phoneNumberId ] );
-
   const loadTemplates = async () => {
     setLoading( true );
     try
@@ -113,6 +108,11 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
       setLoading( false );
     }
   };
+
+  // Load templates on mount / when the target phone (WABA) changes
+  useEffect( () => {
+    loadTemplates();
+  }, [ phoneNumberId ] );
 
   // Extract variables from template when selected
   useEffect( () => {

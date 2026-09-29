@@ -58,6 +58,11 @@ const NotFoundRedirect: React.FC = () => {
       <main className="nf-shell">
         <div className="nf-in">
           <p className="nf-sub">Taking you to the home page.</p>
+          {/* A full document load, deliberately. This is the escape hatch from a route that
+              does not exist, so the router's own state is the thing least worth trusting;
+              and on a static export the anchor works with no JavaScript at all, which is
+              the one property a 404 page should never give up. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a className="nf-cta" href="/">Go to WECARE.DIGITAL</a>
         </div>
 

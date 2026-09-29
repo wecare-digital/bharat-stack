@@ -121,7 +121,7 @@ const RcsTemplatesPageBody: React.FC<PageProps> = ( { embedded } ) => {
                     ) ) }
                     { templates.length === 0 && (
                         <div style={ { padding: 40, textAlign: 'center', color: '#6b7280', background: '#f9fafb', borderRadius: 8 } }>
-                            No templates found. Click "Create Template" to add one.
+                            No templates found. Click &quot;Create Template&quot; to add one.
                         </div>
                     ) }
                 </div>

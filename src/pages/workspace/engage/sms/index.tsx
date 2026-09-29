@@ -416,7 +416,7 @@ const SmsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                 <div className="table-area">{ templatesLoading ? <div className="loading-state">Loading...</div> : (
                   <table><thead><tr><th>Template ID</th><th>Name</th><th>Content</th><th>Type</th><th>Sender</th><th>Actions</th></tr></thead><tbody>
                     { dltTemplates.map( tpl => ( <tr key={ tpl.templateId }><td className="phone-cell">{ tpl.templateId }</td><td className="name-cell">{ tpl.name }</td><td className="content-cell" title={ tpl.content }>{ tpl.content?.substring( 0, 60 ) }{ tpl.content?.length > 60 ? '...' : '' }</td><td><span className="st-badge">{ tpl.messageType }</span></td><td>{ tpl.senderId }</td><td><button className="pick-btn" onClick={ () => handleEditTemplate( tpl ) }>Edit</button> <button className="pick-btn" onClick={ () => handleDeleteTemplate( tpl.templateId ) }>Delete</button></td></tr> ) ) }
-                    { dltTemplates.length === 0 && <tr><td colSpan={ 6 } className="empty-row">No DLT templates. Click "Add Template" to register one, or "Seed Defaults" to add WA-Alert + ivr-default.</td></tr> }
+                    { dltTemplates.length === 0 && <tr><td colSpan={ 6 } className="empty-row">No DLT templates. Click &quot;Add Template&quot; to register one, or &quot;Seed Defaults&quot; to add WA-Alert + ivr-default.</td></tr> }
                   </tbody></table>
                 ) }</div>
                 <div style={ { padding: '12px', background: '#f9fafb', borderTop: '1px solid #f3f4f6', fontSize: '12px', color: '#6b7280' } }>

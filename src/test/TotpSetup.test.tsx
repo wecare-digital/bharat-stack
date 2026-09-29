@@ -32,7 +32,6 @@ vi.mock( 'aws-amplify/auth', () => ( {
   getCurrentUser: ( ...a: any[] ) => getCurrentUser( ...a ),
 } ) );
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 import TotpSetup, { groupSecret, hasTotp, isTotpPreferred, normaliseCode }
   from '../components/security/TotpSetup';
 

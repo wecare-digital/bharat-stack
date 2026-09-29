@@ -44,8 +44,6 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
   const config = configs[activePhone];
   const setConfig = (c: WelcomeConfig) => setConfigs({ ...configs, [activePhone]: c });
 
-  useEffect(() => { loadConfig(); }, []);
-
   const loadConfig = async () => {
     setLoading(true);
     try {
@@ -64,6 +62,8 @@ const WelcomeConfigPage: React.FC<PageProps> = ({ signOut, user, embedded = fals
       setLoading(false);
     }
   };
+
+  useEffect(() => { loadConfig(); }, []);
 
   const saveConfig = async () => {
     setSaving(true);

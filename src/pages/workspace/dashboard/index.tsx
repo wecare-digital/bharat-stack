@@ -1191,17 +1191,6 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
     }
   };
 
-  // Load AI config and webhooks when switching to those tabs
-  useEffect( () => {
-    if ( activeTab === 'ai' ) loadAiConfig();
-    if ( activeTab === 'webhook' ) loadWebhooks();
-    if ( activeTab === 'botflow' )
-    {
-      loadBotFlowConfigs();
-      loadFlowJson();
-    }
-  }, [ activeTab ] );
-
   const loadBotFlowConfigs = async () => {
     setBotFlowLoading( true );
     try
@@ -1218,6 +1207,30 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
     }
     setBotFlowLoading( false );
   };
+
+  const loadFlowJson = async () => {
+    setFlowJsonLoading( true );
+    try
+    {
+      const cfg = await api.getSystemConfig( 'whatsapp_flow_json' );
+      if ( cfg ) setFlowJson( cfg );
+    } catch ( error )
+    {
+      // Failed to load flow JSON
+    }
+    setFlowJsonLoading( false );
+  };
+
+  // Load AI config and webhooks when switching to those tabs
+  useEffect( () => {
+    if ( activeTab === 'ai' ) loadAiConfig();
+    if ( activeTab === 'webhook' ) loadWebhooks();
+    if ( activeTab === 'botflow' )
+    {
+      loadBotFlowConfigs();
+      loadFlowJson();
+    }
+  }, [ activeTab ] );
 
   const handleSaveBotFlowConfig = async ( configKey: string, configValue: any ) => {
     setBotFlowSaving( true );
@@ -1239,19 +1252,6 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
       console.error( 'Failed to save bot flow config' );
     }
     setBotFlowSaving( false );
-  };
-
-  const loadFlowJson = async () => {
-    setFlowJsonLoading( true );
-    try
-    {
-      const cfg = await api.getSystemConfig( 'whatsapp_flow_json' );
-      if ( cfg ) setFlowJson( cfg );
-    } catch ( error )
-    {
-      // Failed to load flow JSON
-    }
-    setFlowJsonLoading( false );
   };
 
   const handleSaveFlowJson = async () => {
@@ -2059,7 +2059,7 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
                     <div style={ { padding: '1.5rem', color: '#666', fontSize: '0.85rem', textAlign: 'center', background: '#f9fafb', borderRadius: '0.5rem', border: '1px dashed #1a3a2a' } }>
                       <div style={ { fontSize: '1.5rem', marginBottom: '0.5rem' } }>—</div>
                       <div style={ { fontWeight: 600, marginBottom: '0.25rem', color: '#0f2a1d' } }>No Flow JSON stored yet</div>
-                      <div>Click "Initialize" above, then paste the full WhatsApp Flow JSON from <code>submit-request-flow-v3.json</code> to enable screen-level control.</div>
+                      <div>Click &quot;Initialize&quot; above, then paste the full WhatsApp Flow JSON from <code>submit-request-flow-v3.json</code> to enable screen-level control.</div>
                     </div>
                   ) }
 
@@ -2838,7 +2838,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                     ).length === 0 && filteredMessages.length === 0 && (
                         <div className="empty-state">
                           <span className="icon"><SearchIcon size={ 32 } /></span>
-                          <p>No results for "{ searchQuery }"</p>
+                          <p>No results for &quot;{ searchQuery }&quot;</p>
                         </div>
                       ) }
                   </>

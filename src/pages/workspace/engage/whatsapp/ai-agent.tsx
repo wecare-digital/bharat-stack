@@ -38,6 +38,14 @@ const Pill = ( { ok, okText, badText }: { ok: boolean; okText: string; badText: 
     <span style={ { ...pillBase, background: ok ? '#ecfdf5' : '#fef2f2', color: ok ? '#047857' : '#b91c1c' } }>{ ok ? okText : badText }</span>
 );
 
+type TabBtnProps = { id: Tab; active: boolean; onSelect: ( id: Tab ) => void; children: React.ReactNode };
+const TabBtn = ( { id, active, onSelect, children }: TabBtnProps ) => (
+    <button onClick={ () => onSelect( id ) } style={ {
+        padding: '8px 14px', border: 'none', borderBottom: active ? '2px solid #059669' : '2px solid transparent',
+        background: 'none', color: active ? '#059669' : '#6b7280', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+    } }>{ children }</button>
+);
+
 function AiAgentPageBody ( { }: PageProps ) {
     const toast = useToastContext();
     const [ waba, setWaba ] = useState<WabaKey>( 'WABA1' );
@@ -228,14 +236,6 @@ function AiAgentPageBody ( { }: PageProps ) {
     const enabled = !!settings?.rollout?.enabled;
     const audience = settings?.ai_audience ?? 'EVERYONE';
 
-    // ── render helpers ──
-    const TabBtn = ( { id, children }: { id: Tab; children: React.ReactNode } ) => (
-        <button onClick={ () => setTab( id ) } style={ {
-            padding: '8px 14px', border: 'none', borderBottom: tab === id ? '2px solid #059669' : '2px solid transparent',
-            background: 'none', color: tab === id ? '#059669' : '#6b7280', fontWeight: 600, fontSize: 14, cursor: 'pointer',
-        } }>{ children }</button>
-    );
-
     return (
         <div style={ { padding: '4px 4px 40px' } }>
             {/* WABA selector + eligibility */ }
@@ -256,15 +256,15 @@ function AiAgentPageBody ( { }: PageProps ) {
             </div>
 
             <div style={ { borderBottom: '1px solid #e5e7eb', marginBottom: 20, display: 'flex', gap: 4, flexWrap: 'wrap' } }>
-                <TabBtn id="settings">Status & Settings</TabBtn>
-                <TabBtn id="business">Business Info</TabBtn>
-                <TabBtn id="faqs">FAQs</TabBtn>
-                <TabBtn id="skills">Skills</TabBtn>
-                <TabBtn id="websites">Websites</TabBtn>
-                <TabBtn id="routing">Routing (Bot vs AI)</TabBtn>
-                <TabBtn id="connectors">Connectors</TabBtn>
-                <TabBtn id="techprovider">Tech Provider</TabBtn>
-                <TabBtn id="allowlist">Allowlist</TabBtn>
+                <TabBtn id="settings" active={ tab === 'settings' } onSelect={ setTab }>Status & Settings</TabBtn>
+                <TabBtn id="business" active={ tab === 'business' } onSelect={ setTab }>Business Info</TabBtn>
+                <TabBtn id="faqs" active={ tab === 'faqs' } onSelect={ setTab }>FAQs</TabBtn>
+                <TabBtn id="skills" active={ tab === 'skills' } onSelect={ setTab }>Skills</TabBtn>
+                <TabBtn id="websites" active={ tab === 'websites' } onSelect={ setTab }>Websites</TabBtn>
+                <TabBtn id="routing" active={ tab === 'routing' } onSelect={ setTab }>Routing (Bot vs AI)</TabBtn>
+                <TabBtn id="connectors" active={ tab === 'connectors' } onSelect={ setTab }>Connectors</TabBtn>
+                <TabBtn id="techprovider" active={ tab === 'techprovider' } onSelect={ setTab }>Tech Provider</TabBtn>
+                <TabBtn id="allowlist" active={ tab === 'allowlist' } onSelect={ setTab }>Allowlist</TabBtn>
             </div>
 
             {/* ── SETTINGS ── */ }
@@ -334,7 +334,7 @@ function AiAgentPageBody ( { }: PageProps ) {
             { tab === 'faqs' && (
                 <div>
                     <div style={ card }>
-                        <h3 style={ { margin: '0 0 12px', fontSize: 16, color: '#1a1a1a' } }>Add an FAQ (this becomes the AI's answer)</h3>
+                        <h3 style={ { margin: '0 0 12px', fontSize: 16, color: '#1a1a1a' } }>Add an FAQ (this becomes the AI&apos;s answer)</h3>
                         <label style={ label }>Question (as a customer would ask)</label>
                         <input style={ input } value={ newQ } onChange={ e => setNewQ( e.target.value ) } placeholder="What is your return policy?" />
                         <label style={ label }>Answer (complete & self-contained)</label>
@@ -540,10 +540,10 @@ function AiAgentPageBody ( { }: PageProps ) {
                         <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#1a1a1a' } }>Tech Provider — both WABAs</h3>
                         <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 8px' } }>
                             Per-WABA workspace, eligibility and connector state. Reading connectors works on both WABAs.
-                            Connector <b>create</b> on Meta may return a cosmetic <code>500 "Membrane: Authorization failed"</code>
+                            Connector <b>create</b> on Meta may return a cosmetic <code>500 &quot;Membrane: Authorization failed&quot;</code>
                             while the connector is actually provisioned (backend re-lists and reports the real result).
-                            A WABA showing <b>"Workspace not confirmed"</b> means Meta hasn't finished provisioning its
-                            connector workspace yet — create returns <code>400 "No workspace found"</code> until it does.
+                            A WABA showing <b>&quot;Workspace not confirmed&quot;</b> means Meta hasn&apos;t finished provisioning its
+                            connector workspace yet — create returns <code>400 &quot;No workspace found&quot;</code> until it does.
                         </p>
                         <button onClick={ loadProviders } style={ { ...btn( '#059669' ), padding: '6px 12px', fontSize: 13 } }>Refresh</button>
                     </div>
@@ -619,7 +619,7 @@ function AiAgentPageBody ( { }: PageProps ) {
                 <div>
                     <div style={ card }>
                         <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#1a1a1a' } }>Allowlist</h3>
-                        <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 12px' } }>Only used when Audience = "Allowlisted only". Add consumer numbers in E.164 (e.g. +918100640044).</p>
+                        <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 12px' } }>Only used when Audience = &quot;Allowlisted only&quot;. Add consumer numbers in E.164 (e.g. +918100640044).</p>
                         <div style={ { display: 'flex', gap: 8 } }>
                             <input style={ { ...input, marginBottom: 0 } } value={ newPhone } onChange={ e => setNewPhone( e.target.value ) } placeholder="+918100640044" />
                             <button disabled={ saving || !newPhone.trim() } onClick={ async () => {

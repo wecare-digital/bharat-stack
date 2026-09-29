@@ -225,7 +225,11 @@ const Footer: React.FC = () => {
               page's primary brand; `compact` steps it to 44px/18px, same shape, clear
               hierarchy.
               A plain <a> rather than next/link: styled-jsx does not scope capitalised
-              components, and on a trailingSlash export '/' resolves the same either way. */}
+              components, and on a trailingSlash export '/' resolves the same either way.
+              `.kiro/steering/grahak-os-design.md` records this as a known styled-jsx trap
+              rather than an oversight, so the rule is disabled at the site with the reason
+              instead of being left as a standing error. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a className="ft-home" href="/" aria-label="WECARE.DIGITAL home">
             <BrandLockup compact />
           </a>

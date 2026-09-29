@@ -186,6 +186,72 @@ def test_a_matched_quote_pair_is_stripped_but_an_inner_quote_survives():
     assert vdh.declared_headers()["content-security-policy"].endswith("'self'")
 
 
+def test_no_declared_header_value_contains_a_newline():
+    """The defect that kept the report-only CSP off the site for its entire life.
+
+    `>-` is a FOLDED scalar, but YAML does not fold a line indented deeper than the
+    first line of the value - it keeps a literal newline. An HTTP header value cannot
+    contain one, so Amplify drops the whole header: no build error, no warning, six
+    headers served and the seventh simply absent.
+
+    Asserted against PyYAML rather than the script's own parser, because that parser
+    joins continuation lines with spaces and would therefore hide exactly this bug.
+    """
+    yaml = pytest.importorskip("yaml")
+    spec = yaml.safe_load((ROOT / "customHttp.yml").read_text())
+    for block in spec["customHeaders"]:
+        for header in block["headers"]:
+            assert "\n" not in header["value"], (
+                f"{header['key']} spans multiple lines as YAML parses it. "
+                "Indent every line of the folded scalar identically."
+            )
+
+
+def test_the_parser_agrees_with_pyyaml_exactly():
+    """The hand-rolled parser exists so the gate needs no third-party dependency. It
+    is only worth having if it reads the file the same way YAML does."""
+    yaml = pytest.importorskip("yaml")
+    spec = yaml.safe_load((ROOT / "customHttp.yml").read_text())
+    reference = {h["key"].lower(): h["value"]
+                 for b in spec["customHeaders"] for h in b["headers"]}
+    assert vdh.declared_headers() == reference
+
+
+def test_a_more_indented_folded_line_is_reported_as_a_defect(tmp_path, monkeypatch):
+    """The detector that makes this fail locally instead of after a deploy."""
+    (tmp_path / "customHttp.yml").write_text(
+        'customHeaders:\n'
+        '  - pattern: "**/*"\n'
+        '    headers:\n'
+        '      - key: Content-Security-Policy-Report-Only\n'
+        '        value: >-\n'
+        "          default-src 'self';\n"
+        "            img-src 'self' https://example.com;\n"   # deeper -> literal newline
+    )
+    monkeypatch.setattr(vdh, "ROOT", tmp_path)
+    vdh.declared_headers()
+    assert vdh.FOLD_DEFECTS, "a more-indented folded line must be reported"
+    assert vdh.FOLD_DEFECTS[0][0] == "Content-Security-Policy-Report-Only"
+
+
+def test_uniformly_indented_folded_lines_are_not_a_defect(tmp_path, monkeypatch):
+    (tmp_path / "customHttp.yml").write_text(
+        'customHeaders:\n'
+        '  - pattern: "**/*"\n'
+        '    headers:\n'
+        '      - key: Content-Security-Policy-Report-Only\n'
+        '        value: >-\n'
+        "          default-src 'self';\n"
+        "          img-src 'self' https://example.com;\n"
+    )
+    monkeypatch.setattr(vdh, "ROOT", tmp_path)
+    parsed = vdh.declared_headers()
+    assert not vdh.FOLD_DEFECTS
+    assert parsed["content-security-policy-report-only"] == (
+        "default-src 'self'; img-src 'self' https://example.com;"
+    )
+
+
 def test_a_header_declared_but_absent_from_the_response_fails(monkeypatch):
     """THE BUG THIS CHANGE FIXES, pinned.
 

@@ -86,10 +86,6 @@ export default function InternalAgentSettings ( { signOut, user }: PageProps ) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    loadConfig();
-  }, []);
-
   // apiCallResult, not a bare fetch: it attaches the Cognito bearer token and retries a 401
   // once with a refreshed one. The previous bare fetch sent no token, so this screen 401'd
   // on every load even for a signed-in operator - it could never have shown real config.
@@ -108,6 +104,10 @@ export default function InternalAgentSettings ( { signOut, user }: PageProps ) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadConfig();
+  }, []);
 
   const saveConfig = async () => {
     setSaving(true);
