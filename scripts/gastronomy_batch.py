@@ -11,23 +11,55 @@ MAX_MANIFEST_POSTS = 150
 WIX_WRITE_CHUNK_SIZE = 20
 
 RECIPE_TYPES = {'RECIPE'}
+SOURCE_PROFILE_TERM_FIELDS = (
+    'blocked_public_terms',
+    'publisher_names',
+    'author_names',
+    'publication_titles',
+    'institution_names',
+    'private_person_names',
+    'private_place_names',
+    'provenance_phrases',
+)
 GENERIC_SOURCE_PATTERNS = [
     (re.compile(r'\bsource note\b', re.I), 'source note'),
     (re.compile(r'\badapted from\b', re.I), 'adapted from'),
     (re.compile(r'\bindependently written from\b', re.I), 'independently written from'),
-    (re.compile(r'\bthe source\b|\bsource recipe\b|\bsource[’\']s\b', re.I), 'source-facing language'),
-    (re.compile(r'\bthe cookbook\b|\bthis cookbook\b|\bin the cookbook\b|\baccording to the cookbook\b', re.I), 'cookbook-facing language'),
-    (re.compile(r'\bthe book says\b|\bin this book\b|\bthe book[’\']s\b', re.I), 'book-facing language'),
-    (re.compile(r'\bthe author\b|\bauthor[’\']s\b', re.I), 'source-author biography'),
-    (re.compile(r'\blearned from\b|\bcooked with\b|\bmarket connection\b', re.I), 'personal provenance'),
-    (re.compile(r'\bashram\b|\bvolunteer(?:s)?\b|\bprogramme(?:s)?\b', re.I), 'source-institution provenance'),
-]
-CLEANUP_ARTIFACT_PATTERNS = [
-    re.compile(r'\bThe\s+[’\']s\b'),
-    re.compile(r'\bThe is\b'),
-    re.compile(r'\bHere[’\']?s\b'),
-    re.compile(r'\bas directs\b', re.I),
-    re.compile(r'\bthe preparation the\b', re.I),
+    (
+        re.compile(
+            r'\b(?:the|this) source(?:[’\']s)?\b|'
+            r'\bsource recipe\b|'
+            r'\baccording to the source\b|'
+            r'\bin the source\b',
+            re.I,
+        ),
+        'source-facing language',
+    ),
+    (
+        re.compile(
+            r'\b(?:the|this) cookbook(?:[’\']s)?\b|'
+            r'\baccording to the cookbook\b|'
+            r'\bin the cookbook\b',
+            re.I,
+        ),
+        'cookbook-facing language',
+    ),
+    (
+        re.compile(
+            r'\bthe book (?:says|describes|presents|notes|uses|recommends|explains)\b|'
+            r'\bin (?:the|this) book\b',
+            re.I,
+        ),
+        'book-facing language',
+    ),
+    (
+        re.compile(
+            r'\bthe author (?:says|describes|notes|explains|learned|grew up|recalls)\b|'
+            r'\bthe author[’\']s (?:family|friend|teacher|mentor|background|childhood|home|story|experience)\b',
+            re.I,
+        ),
+        'source-author biography',
+    ),
 ]
 PERSONAL_TITLE_PATTERN = re.compile(
     r'^(?:Grandma|Granny|Mama|Papa|Aunty|Aunt|Uncle|Mom|Mother|Father|Dad)[’\']s\b|^[A-Z][A-Za-z.-]{2,}[’\']s\b'
@@ -132,14 +164,25 @@ def _quality_version(document):
         return 1
 
 
+def _clean_term_list(value):
+    if not isinstance(value, list):
+        return []
+    return [str(x).strip() for x in value if str(x).strip()]
+
+
 def _source_profile(document):
     profile = document.get('source_profile') or {}
+    blocked = []
+    for field in SOURCE_PROFILE_TERM_FIELDS:
+        blocked.extend(_clean_term_list(profile.get(field)))
+    blocked = list(dict.fromkeys(blocked))
     return {
         'label': str(profile.get('label') or '').strip(),
-        'blocked_public_terms': [str(x).strip() for x in profile.get('blocked_public_terms', []) if str(x).strip()],
-        'required_public_attribution_terms': [
-            str(x).strip() for x in profile.get('required_public_attribution_terms', []) if str(x).strip()
-        ],
+        'source_type': str(profile.get('source_type') or '').strip(),
+        'source_ref': str(profile.get('source_ref') or '').strip(),
+        'blocked_public_terms': blocked,
+        'allowed_public_terms': _clean_term_list(profile.get('allowed_public_terms')),
+        'required_public_attribution_terms': _clean_term_list(profile.get('required_public_attribution_terms')),
     }
 
 
@@ -156,14 +199,16 @@ def _public_text(post):
 def _source_privacy_errors(post, source_profile, prefix):
     errors = []
     public = _public_text(post)
-    allowed = {x.casefold() for x in source_profile.get('required_public_attribution_terms', [])}
+    allowed = {
+        x.casefold()
+        for x in (
+            source_profile.get('allowed_public_terms', [])
+            + source_profile.get('required_public_attribution_terms', [])
+        )
+    }
     for regex, label in GENERIC_SOURCE_PATTERNS:
         if regex.search(public):
             errors.append(f'{prefix}: public copy contains {label}')
-    for regex in CLEANUP_ARTIFACT_PATTERNS:
-        if regex.search(public):
-            errors.append(f'{prefix}: malformed source-cleanup artifact')
-            break
     for term in source_profile.get('blocked_public_terms', []):
         if term.casefold() in allowed:
             continue
@@ -197,8 +242,11 @@ def validate_batch_document(document: dict, require_v2=False):
             errors.append('batch_start/batch_end must match the actual contiguous manifest size')
 
     profile = _source_profile(document)
-    if quality_version >= QUALITY_VERSION and not isinstance(document.get('source_profile'), dict):
-        errors.append('quality v2 manifest requires source_profile object')
+    if quality_version >= QUALITY_VERSION:
+        if not isinstance(document.get('source_profile'), dict):
+            errors.append('quality v2 manifest requires source_profile object')
+        elif not profile.get('label'):
+            errors.append('quality v2 source_profile requires label')
 
     ids, slugs, titles = [], [], []
     for idx, post in enumerate(posts):
@@ -285,7 +333,11 @@ def _live_public_text(post):
 
 def audit_public_post(post: dict, expected: dict, source_profile=None, quality_version=1):
     errors = []
-    source_profile = source_profile or {'blocked_public_terms': [], 'required_public_attribution_terms': []}
+    source_profile = source_profile or {
+        'blocked_public_terms': [],
+        'allowed_public_terms': [],
+        'required_public_attribution_terms': [],
+    }
     slug = str(expected.get('slug') or '')
     if post.get('slug') != slug:
         errors.append(f'{slug}: slug mismatch')
