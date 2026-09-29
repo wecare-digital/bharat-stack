@@ -61,9 +61,32 @@ def test_url_identity_ignores_tracking_parameters(ledger):
     ("https://Example.com/Post/", "https://example.com/Post"),
     ("https://example.com/post#section", "https://example.com/post"),
     ("example.com/post", "https://example.com/post"),
+    # The slash sits BEFORE the query, so an rstrip on the assembled URL cannot reach it.
+    # These two registered as separate sources and would have converted one article twice.
+    ("https://example.com/post/?id=7", "https://example.com/post?id=7"),
+    ("https://example.com/post/?id=7&utm_source=x", "https://example.com/post?id=7"),
+    ("https://Example.com/Post/?a=1#frag", "https://example.com/Post?a=1"),
 ])
 def test_url_normalisation_collapses_equivalent_forms(left, right):
     assert bl.normalize_url(left) == bl.normalize_url(right)
+
+
+def test_the_ledger_and_the_lambda_normalise_urls_identically():
+    """Two implementations of source identity would give one URL two rows."""
+    import sys
+    sys.path.insert(0, str(ROOT / "amplify" / "functions" / "operations" / "seo-tools"))
+    import blog_sources as bs
+
+    for url in ("https://example.com/post/?id=7&utm_source=x",
+                "Example.com/Post/",
+                "https://example.com/a/b/c#frag",
+                "https://example.com/?only=query"):
+        assert bl.normalize_url(url) == bs.normalize_url(url), url
+
+
+def test_a_bare_host_does_not_lose_itself_to_the_slash_strip():
+    assert bl.normalize_url("https://example.com/") == "https://example.com"
+    assert bl.normalize_url("example.com") == "https://example.com"
 
 
 def test_url_path_case_is_preserved():

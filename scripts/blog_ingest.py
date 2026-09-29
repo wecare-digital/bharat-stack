@@ -55,7 +55,12 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+#: The extraction logic is shared with the `wecare-seo-tools` Lambda, so it lives under
+#: amplify/functions/shared/ where the deploy packager can reach it. `tests/conftest.py`
+#: already puts that directory on sys.path for the Python suite.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "amplify" / "functions" / "shared"))
 
+import blog_pipeline as bp  # noqa: E402
 from blog_ledger import (  # noqa: E402
     Ledger,
     LedgerRow,
@@ -69,399 +74,31 @@ import blog_quality_v2 as q  # noqa: E402
 
 DEFAULT_LEDGER = Path("content/conversations/ledger.json")
 DEFAULT_EXTRACT_DIR = Path("content/conversations/extracts")
-USER_AGENT = "WECARE.DIGITAL-blog-ingest/1.0 (+https://wecare.digital)"
-FETCH_TIMEOUT = 20
-MAX_FETCH_BYTES = 8 * 1024 * 1024
-
-#: Below this, a PDF almost certainly has no text layer (a scan). Producing an article
-#: from 40 characters is worse than refusing: the refusal is visible, the stub is not.
-MIN_EXTRACT_CHARS = 400
-
-
-# ── Extraction result ───────────────────────────────────────────────────────────
-
-@dataclass
-class Extract:
-    ok: bool
-    text: str = ""
-    title: str = ""
-    date: str = ""
-    pages: int = 0
-    content_sha256: str = ""
-    error: str = ""
-
-
-# ── Text reflow: the part that decides whether the output is readable ───────────
-
-_SENTENCE_END = re.compile(r"[.!?:;\"\u201d\u2019)]$")
-_BULLET = re.compile(r"^\s*(?:[-*\u2022\u25cf\u00b7\u2013]|\d{1,2}[.)])\s+")
-_PAGE_NUMBER = re.compile(r"^\s*(?:page\s*)?[-\u2014\s]*\d{1,4}[-\u2014\s]*$", re.IGNORECASE)
-_ROMAN_PAGE = re.compile(r"^\s*[ivxlcdm]{1,7}\s*$", re.IGNORECASE)
-
-
-def _running_lines(pages: Sequence[str], threshold: float = 0.4) -> set:
-    """Lines that repeat across pages are the header and footer, not the text.
-
-    A book PDF puts the title on every verso and the chapter on every recto. Left in,
-    they land mid-paragraph in the extract and read as the author's own words, which is
-    both wrong and the kind of wrong a reviewer skims past.
-
-    Two pages is enough to act on, and the guard used to require three. A two-page
-    extract with the same line at the top of both is the commonest single case in this
-    corpus - a journal article, a chapter reprint - and skipping detection there left the
-    header in the body as a spurious `## heading`, which is what the smoke test caught.
-    At two pages the threshold below demands the line appear on BOTH, so a real heading
-    that happens to repeat once is not at risk.
-    """
-    if len(pages) < 2:
-        return set()
-    counts: Counter = Counter()
-    for page in pages:
-        lines = [line.strip() for line in page.splitlines() if line.strip()]
-        for line in set(lines[:3] + lines[-3:]):
-            if 3 <= len(line) <= 90:
-                counts[line] += 1
-    limit = max(2, int(len(pages) * threshold))
-    return {line for line, count in counts.items() if count >= limit}
-
-
-def _looks_like_heading(line: str, next_line: str = "") -> bool:
-    """Heading-shaped, once the font information is gone.
-
-    `next_line` is consulted only for the single-word case. "Workability" on its own line
-    is a section heading in a print source and a wrapped fragment in a broken extract, and
-    the two are indistinguishable from the line alone - so a single word only counts as a
-    heading when the following line opens a fresh sentence with a capital.
-    """
-    stripped = line.strip()
-    if not 3 <= len(stripped) <= 80:
-        return False
-    if _SENTENCE_END.search(stripped) and not stripped.endswith(":"):
-        return False
-    if _BULLET.match(stripped):
-        return False
-    words = stripped.split()
-    if len(words) > 12:
-        return False
-    letters = [c for c in stripped if c.isalpha()]
-    if not letters:
-        return False
-    #: ALL CAPS is unambiguous.
-    if sum(1 for c in letters if c.isupper()) / len(letters) > 0.8:
-        return True
-    capitalised = sum(1 for w in words if w[:1].isupper())
-    if len(words) >= 2:
-        return capitalised / len(words) >= 0.75
-    if not capitalised or len(stripped) < 4:
-        return False
-    following = str(next_line or "").strip()
-    return bool(following) and following[:1].isupper()
-
-
-def _normalise_token(value: str) -> str:
-    return re.sub(r"[^a-z0-9-]", "", str(value).lower())
-
-
-def _join_across_hyphen(line: str, continuation: str, vocabulary: set) -> str:
-    """Rejoin a word split by a line-final hyphen, deciding whether the hyphen survives.
-
-    THIS IS NOT A COSMETIC CHOICE. Dropping the hyphen unconditionally turned
-    "load-\\nbearing" into "loadbearing" - a word that does not exist, sitting in a body
-    that reads as finished prose. A reviewer scanning for quality will not catch that,
-    because nothing looks broken. Keeping it unconditionally gives "exam-ple", which is
-    ugly but obvious, and obvious is the safer failure.
-
-    So the document decides, and the default leans to keeping. If the merged form appears
-    elsewhere in the same source, the hyphen was typesetting and it goes. If the
-    hyphenated form appears elsewhere, it is a real compound and it stays. With no
-    evidence either way the hyphen stays, because a preserved hyphen is recoverable
-    information and a silently merged word is not.
-
-    Note the split on WORDS rather than on the whole line. An earlier version passed the
-    entire buffered line as the stem, so every lookup was against a key like
-    "hereisasecondexample" and no evidence could ever match - the vocabulary test looked
-    like it worked and in fact never fired once.
-    """
-    head, _, last_word = line[:-1].rpartition(" ")
-    first_word, separator, tail = continuation.partition(" ")
-    prefix = head + " " if head else ""
-
-    merged_word = last_word + first_word
-    if _normalise_token(merged_word) in vocabulary:
-        joined = merged_word
-    elif _normalise_token(last_word + "-" + first_word) in vocabulary:
-        joined = last_word + "-" + first_word
-    elif len(last_word) <= 3:
-        #: A one-to-three character stem is a split syllable far more often than it is a
-        #: compound element, and prefixes like "un-", "re-" and "pre-" read correctly
-        #: merged in either case.
-        joined = merged_word
-    else:
-        joined = last_word + "-" + first_word
-
-    return prefix + joined + (separator + tail if tail else "")
-
-
-def reflow(raw: str, drop_lines: Optional[Iterable[str]] = None) -> str:
-    """Extracted text to clean markdown.
-
-    PDF text extraction returns hard-wrapped lines: a paragraph arrives as eight lines
-    broken at the column width, and words are split across them with a hyphen. Left
-    alone, every one of those line breaks becomes a separate Ricos paragraph - which is
-    precisely the "wall of single lines" the Gastronomy gate added a paragraph-spacing
-    assertion to catch. Reflowing here is cheaper than catching it there.
-    """
-    drop = {line.strip() for line in (drop_lines or ())}
-    out_blocks: List[str] = []
-    buffer: List[str] = []
-    text = str(raw or "").replace("\r\n", "\n")
-    lines = text.split("\n")
-    #: Every token in the source, used by `_join_across_hyphen` to tell a typeset break
-    #: from a real compound. Built once; the documents here are a few hundred kB at most.
-    vocabulary = {re.sub(r"[^a-z0-9-]", "", token)
-                  for token in re.findall(r"[A-Za-z0-9-]+", text.lower())}
-    vocabulary.discard("")
-
-    def flush() -> None:
-        if not buffer:
-            return
-        text = " ".join(buffer)
-        text = re.sub(r"\s+", " ", text).strip()
-        if text:
-            out_blocks.append(text)
-        buffer.clear()
-
-    for position, raw_line in enumerate(lines):
-        line = raw_line.rstrip()
-        stripped = line.strip()
-        following = next((lines[i].strip() for i in range(position + 1, len(lines))
-                          if lines[i].strip()), "")
-
-        if not stripped:
-            flush()
-            continue
-        if stripped in drop or _PAGE_NUMBER.match(stripped) or _ROMAN_PAGE.match(stripped):
-            continue
-
-        if _BULLET.match(stripped):
-            flush()
-            out_blocks.append("- " + _BULLET.sub("", stripped).strip())
-            continue
-
-        #: A heading is recognised even mid-buffer when the buffered text has closed a
-        #: sentence. PDF extraction routinely loses the blank line before a heading, and
-        #: requiring an empty buffer meant the heading was absorbed into the paragraph
-        #: above it - it published as "...the structure moved. Workability This is a..."
-        if _looks_like_heading(stripped, following) and (
-                not buffer or _SENTENCE_END.search(buffer[-1])):
-            flush()
-            out_blocks.append("## " + stripped.rstrip(":").strip())
-            continue
-
-        #: Rejoin a word split across the line break. Whether the hyphen survives is
-        #: decided per word against the document's own vocabulary - see the helper.
-        if buffer and buffer[-1].endswith("-") and not buffer[-1].endswith("--"):
-            buffer[-1] = _join_across_hyphen(buffer[-1], stripped, vocabulary)
-            continue
-
-        buffer.append(stripped)
-
-        #: A line that ends a sentence AND is short is the end of a paragraph, not a
-        #: wrap. A full-width line ending in a period is usually mid-paragraph.
-        if _SENTENCE_END.search(stripped) and len(stripped) < 55:
-            flush()
-
-    flush()
-
-    #: Collapse the runs of one-line blocks a bad extraction still produces, so the
-    #: result has real paragraphs rather than 200 one-sentence ones.
-    merged: List[str] = []
-    for block in out_blocks:
-        if (merged
-                and not block.startswith(("##", "- "))
-                and not merged[-1].startswith(("##", "- "))
-                and len(merged[-1]) < 220
-                and not _SENTENCE_END.search(merged[-1])):
-            merged[-1] = (merged[-1] + " " + block).strip()
-            continue
-        merged.append(block)
-
-    return "\n\n".join(merged).strip()
-
-
-# ── PDF ─────────────────────────────────────────────────────────────────────────
-
-def extract_pdf(payload: bytes, ref: str = "") -> Extract:
-    try:
-        from pypdf import PdfReader
-    except ImportError:
-        return Extract(False, error="pypdf is not installed (pip install -r requirements-dev.txt)")
-
-    import io
-    try:
-        reader = PdfReader(io.BytesIO(payload))
-    except Exception as exc:  # noqa: BLE001 - any malformed PDF lands here
-        return Extract(False, error=f"unreadable PDF: {type(exc).__name__}")
-
-    if getattr(reader, "is_encrypted", False):
-        try:
-            #: An empty user password is common on "protected" exports and is not a
-            #: bypass: it is the password the file actually carries.
-            if reader.decrypt("") == 0:
-                return Extract(False, error="PDF is password protected")
-        except Exception as exc:  # noqa: BLE001
-            return Extract(False, error=f"PDF is encrypted: {type(exc).__name__}")
-
-    pages: List[str] = []
-    for page in reader.pages:
-        try:
-            pages.append(page.extract_text() or "")
-        except Exception:  # noqa: BLE001 - one bad page must not lose the document
-            pages.append("")
-
-    text = reflow("\n".join(pages), drop_lines=_running_lines(pages))
-    if len(text) < MIN_EXTRACT_CHARS:
-        return Extract(
-            False, pages=len(pages), text=text,
-            error=f"only {len(text)} characters of text recovered from {len(pages)} page(s); "
-                  "this is almost certainly a scan with no text layer, and OCR is a separate "
-                  "decision rather than something to do silently")
-
-    info = {}
-    try:
-        info = reader.metadata or {}
-    except Exception:  # noqa: BLE001
-        info = {}
-    title = str(info.get("/Title") or "").strip()
-    if not title or len(title) < 3 or title.lower().endswith((".pdf", ".docx", ".indd")):
-        title = _first_heading(text) or Path(ref).stem.replace("_", " ").replace("-", " ").strip()
-    date = str(info.get("/CreationDate") or "").strip()
-    if date.startswith("D:") and len(date) >= 10:
-        date = f"{date[2:6]}-{date[6:8]}-{date[8:10]}"
-    else:
-        date = ""
-
-    return Extract(True, text=text, title=title[:200], date=date, pages=len(pages),
-                   content_sha256=sha256_text(text))
-
-
-def _first_heading(text: str) -> str:
-    for line in text.splitlines():
-        if line.startswith("## "):
-            return line[3:].strip()
-    for line in text.splitlines():
-        if line.strip():
-            return line.strip()[:120]
-    return ""
-
-
-# ── URL ─────────────────────────────────────────────────────────────────────────
-
-#: Everything that is page furniture rather than the article.
-_STRIP_TAGS = ("script", "style", "nav", "header", "footer", "aside", "form", "noscript",
-               "iframe", "svg", "button", "figure", "figcaption")
-
-
-def extract_url(url: str) -> Extract:
-    try:
-        import requests
-    except ImportError:
-        return Extract(False, error="requests is not installed")
-    try:
-        from lxml import html as lxml_html
-    except ImportError:
-        return Extract(False, error="lxml is not installed")
-
-    target = normalize_url(url)
-    if not target.startswith(("http://", "https://")):
-        return Extract(False, error=f"not an http(s) URL: {url!r}")
-    try:
-        response = requests.get(
-            target, timeout=FETCH_TIMEOUT,
-            headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml"},
-            stream=True, allow_redirects=True)
-    except Exception as exc:  # noqa: BLE001
-        return Extract(False, error=f"fetch failed: {type(exc).__name__}")
-    if response.status_code != 200:
-        return Extract(False, error=f"HTTP {response.status_code}")
-
-    content_type = str(response.headers.get("Content-Type") or "").lower()
-    body = response.raw.read(MAX_FETCH_BYTES, decode_content=True) or b""
-    response.close()
-
-    if "pdf" in content_type or body[:5] == b"%PDF-":
-        #: A URL that serves a PDF is a PDF source. Treating it as HTML would extract
-        #: nothing and report an empty page instead of a readable document.
-        extract = extract_pdf(body, ref=target)
-        extract.content_sha256 = sha256_bytes(body)
-        return extract
-    if "html" not in content_type and "xml" not in content_type and content_type:
-        return Extract(False, error=f"unsupported content type {content_type!r}")
-
-    try:
-        tree = lxml_html.fromstring(body)
-    except Exception as exc:  # noqa: BLE001
-        return Extract(False, error=f"unparseable HTML: {type(exc).__name__}")
-
-    title = ""
-    for path in ("//meta[@property='og:title']/@content", "//h1//text()", "//title/text()"):
-        values = tree.xpath(path)
-        if values:
-            title = re.sub(r"\s+", " ", str(values[0])).strip()
-            if title:
-                break
-
-    date = ""
-    for path in ("//meta[@property='article:published_time']/@content",
-                 "//meta[@name='date']/@content", "//time/@datetime"):
-        values = tree.xpath(path)
-        if values:
-            date = str(values[0]).strip()[:25]
-            break
-
-    for element in tree.xpath("|".join(f"//{tag}" for tag in _STRIP_TAGS)):
-        parent = element.getparent()
-        if parent is not None:
-            parent.remove(element)
-
-    #: Prefer a semantic container. Falling straight to <body> pulls in sidebars and
-    #: cookie banners, which then read as the article's own prose.
-    root = None
-    for path in ("//article", "//main", "//*[@role='main']",
-                 "//*[contains(@class,'post-content')]", "//*[contains(@class,'entry-content')]"):
-        found = tree.xpath(path)
-        if found:
-            root = found[0]
-            break
-    if root is None:
-        root = tree
-
-    parts: List[str] = []
-    for element in root.iter():
-        tag = str(getattr(element, "tag", "") or "").lower()
-        if tag in ("h1", "h2", "h3", "h4"):
-            text = re.sub(r"\s+", " ", element.text_content()).strip()
-            if text:
-                parts.append("## " + text)
-        elif tag in ("p", "blockquote"):
-            text = re.sub(r"\s+", " ", element.text_content()).strip()
-            if text:
-                parts.append(text)
-        elif tag == "li":
-            text = re.sub(r"\s+", " ", element.text_content()).strip()
-            if text:
-                parts.append("- " + text)
-
-    if not parts:
-        parts = [re.sub(r"[ \t]+", " ", line).strip()
-                 for line in root.text_content().splitlines() if line.strip()]
-
-    text = reflow("\n\n".join(parts))
-    if len(text) < MIN_EXTRACT_CHARS:
-        return Extract(False, text=text,
-                       error=f"only {len(text)} characters of article text found at {target}")
-    return Extract(True, text=text, title=(title or _first_heading(text))[:200], date=date,
-                   pages=0, content_sha256=sha256_text(text))
+# ── Extraction comes from the shared module, not from here ──────────────────────
+#
+# This block used to hold ~390 lines of PDF and URL extraction, and it had to move. The
+# same extraction now runs in `wecare-seo-tools` for the upload-from-the-browser path, and
+# two copies would drift - the same PDF would produce different article text depending on
+# which door it came through, which is the kind of difference nobody notices until a
+# reviewer compares two extracts of one document.
+#
+# The shared module is stdlib + pypdf only, because Lambda is the harder of the two
+# runtimes: lxml and requests cannot be zipped from a Mac into a Linux Lambda without
+# building them there. Using lxml locally and html.parser in Lambda would BE the drift.
+#
+# Re-exported under the old names so this module's public surface and its tests are
+# unchanged.
+Extract = bp.Extract
+reflow = bp.reflow
+extract_pdf = bp.extract_pdf
+extract_url = bp.extract_url
+extract_html = bp.extract_html
+MIN_EXTRACT_CHARS = bp.MIN_EXTRACT_CHARS
+USER_AGENT = bp.USER_AGENT
+_running_lines = bp.running_lines
+_looks_like_heading = bp.looks_like_heading
+_join_across_hyphen = bp.join_across_hyphen
+_first_heading = bp.first_heading
 
 
 # ── Source collection ───────────────────────────────────────────────────────────

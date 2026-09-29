@@ -37,13 +37,32 @@ PARAGRAPHS = [
 ]
 
 
+#: Distinct prose per page. A real PDF's page 2 CONTINUES the document; byte-identical pages
+#: make every line inside the header-detection window look like a running header, which
+#: exercises the give-up backstop rather than the detection. `tests/test_blog_pipeline.py`
+#: covers that pathological case on purpose.
+CONTINUATIONS = [
+    "Restoration is not apology. An apology addresses the feeling while restoration "
+    "addresses the structure: saying what was not done, acknowledging what it cost, and "
+    "saying what will happen now instead of that.",
+    "Notice how rarely that third part appears. What appears instead is explanation, aimed "
+    "at the listener's judgement rather than at the thing that came apart, and it asks to "
+    "be excused rather than asking what is needed.",
+]
+
+
 def build_pdf(header: str = "THE INTEGRITY OF ONE'S WORD", pages: int = 2) -> bytes:
     page_list = []
     for index in range(pages):
         lines = [header, ""]
-        for paragraph in PARAGRAPHS:
-            lines += wrap(paragraph) + [""]
-        lines += ["Workability", ""] + wrap(PARAGRAPHS[2]) + ["", str(index + 11)]
+        if index == 0:
+            for paragraph in PARAGRAPHS:
+                lines += wrap(paragraph) + [""]
+            lines += ["Workability", ""] + wrap(PARAGRAPHS[2]) + [""]
+        else:
+            body = CONTINUATIONS[(index - 1) % len(CONTINUATIONS)]
+            lines += wrap(body) + [""] + wrap(f"Page {index + 1} continues: " + body) + [""]
+        lines += [str(index + 11)]
         page_list.append(lines)
     return make_pdf(page_list)
 

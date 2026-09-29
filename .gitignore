@@ -139,3 +139,7 @@ docs/execution/aws-inventory.partial.*
 # articles in content/conversations/batches/ ARE committed; they are ours.
 content/conversations/extracts/
 content/conversations/drafts/
+# Lambda code snapshots taken before a deploy, for rollback. Binary, and the config JSON
+# beside each one records the CodeSha256 that identifies it, so the zip itself does not
+# need to be in history.
+docs/execution/snapshots/*.zip

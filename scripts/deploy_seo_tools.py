@@ -37,6 +37,26 @@ WIX_CLIENT_ID = "197cd718-e4ec-4e2e-b380-46c297eb18a2"
 ROLE_NAME = "wecare-digital-lambda-role"
 ROLE_ARN = f"arn:aws:iam::{ACCOUNT}:role/{ROLE_NAME}"
 
+#: Where uploaded blog source PDFs land: the existing `wecare-digital-get` bucket, under a
+#: new prefix on the PUBLIC root. No bucket is created by this script.
+#:
+#: `o/` is public - CloudFront E2GP22R4BIFGQ3 serves it at `https://wecare.digital/get/o/...`
+#: with no authentication - while `secure/` is denied at the edge. This was `secure/blog-src/`
+#: and moved to `o/` on owner instruction. The exposure is bounded but real: the key is the
+#: sha256 of the file's own bytes so it cannot be guessed, and listing is not public (all
+#: four public-access-block settings are on, and the bucket policy grants s3:GetObject only
+#: to the CloudFront service principal) - but a source document is readable by anyone who
+#: has the URL. These are third-party books and articles, so treat the URL as the secret.
+#:
+#: Declared above ENV_VARS because ENV_VARS reads it.
+SOURCE_BUCKET = "wecare-digital-get"
+SOURCE_PREFIX = "o/blog-src/"
+
+#: Pure-python wheel, no compiled parts, so it zips straight into the function package -
+#: no layer, no Amazon Linux cross-compile. Pinned, and the same version
+#: requirements-dev.txt pins, so local extraction and Lambda extraction cannot differ.
+PYPDF_VERSION = "6.19.0"
+
 # HTTP API behind wecare.digital/api (stage prod, AutoDeploy on).
 # Frontend calls https://wecare.digital/api/seo-tools/{route} (src/api/seo.ts).
 API_ID = "zllr9lrg7j"
@@ -51,6 +71,15 @@ ENV_VARS = {
     "WIX_BLOG_AUTHOR_NAME": "Anew by WECARE.DIGITAL",
     "BEDROCK_MODEL_ID": "global.anthropic.claude-sonnet-4-6",
     "COGNITO_USER_POOL_ID": "us-east-1_cSx0RHCIR",
+    # Blog source intake, into the existing bucket under o/blog-src/. See SOURCE_PREFIX
+    # above for what `o/` being the public root means for an uploaded document.
+    "BLOG_SOURCE_BUCKET": SOURCE_BUCKET,
+    # AI drafting costs money per call, so it is a cost flag rather than always-on.
+    # Enabled here because this function ALREADY invokes Bedrock for ai-seo-audit and
+    # already holds the IAM for it - this adds volume to an accepted cost category, not a
+    # new one. Turn it off in the SystemConfig cost_flags item without a deploy; the route
+    # then answers 409 with the reason instead of silently doing nothing.
+    "ENABLE_BEDROCK_ASSIST": "true",
 }
 
 
@@ -127,14 +156,103 @@ def ensure_bedrock_inference_profile_perms() -> None:
     print(f"[iam] ensured inline policy seo-bedrock-inference-profiles on {ROLE_NAME}")
 
 
+def _vendor_pypdf(z: zipfile.ZipFile) -> int:
+    """Put pypdf in the package, from the local install rather than a fresh download.
+
+    Resolved from the interpreter running this script, which is the same version
+    requirements-dev.txt pins and the same one the local CLI extracts with. That equality
+    is the point: if the Lambda extracted with a different pypdf, the same PDF could
+    produce different article text depending on which door it came through, and nobody
+    would notice until somebody compared two extracts of one document.
+
+    Safe to zip from a Mac because pypdf is pure python - `pypdf-6.19.0-py3-none-any.whl`
+    has no compiled parts and no platform tag. Do NOT use this helper for anything with a
+    C extension; lxml would need building on Amazon Linux, which is exactly why
+    `shared/blog_pipeline.py` parses HTML with the stdlib instead.
+    """
+    try:
+        import pypdf
+    except ImportError:
+        raise SystemExit(
+            f"pypdf is not installed locally. Run:\n"
+            f"    python -m pip install pypdf=={PYPDF_VERSION}\n"
+            "It is pinned in requirements-dev.txt and is vendored into this package."
+        )
+    version = getattr(pypdf, "__version__", "?")
+    if version != PYPDF_VERSION:
+        raise SystemExit(
+            f"pypdf {version} is installed but this deploy pins {PYPDF_VERSION}. "
+            "Matching versions is what keeps local and Lambda extraction identical."
+        )
+    root = Path(pypdf.__file__).resolve().parent
+    count = 0
+    for path in sorted(root.rglob("*.py")):
+        if "__pycache__" in path.parts or "tests" in path.parts:
+            continue
+        z.write(path, f"pypdf/{path.relative_to(root).as_posix()}")
+        count += 1
+    # pypdf ships a py.typed marker; harmless to include and keeps the tree faithful.
+    marker = root / "py.typed"
+    if marker.exists():
+        z.write(marker, "pypdf/py.typed")
+    print(f"[package] vendored pypdf {version}: {count} modules")
+    return count
+
+
+def ensure_blog_source_perms() -> None:
+    """Additive inline policy for the blog source intake: S3 on one prefix, self-invoke.
+
+    Scoped as narrowly as the two capabilities allow, because this role is SHARED by the
+    whole fleet - a wildcard here would widen every other function too.
+
+    - S3 is limited to `o/blog-src/*` in one bucket, and to the three actions the pipeline
+      uses. No DeleteObject: nothing here deletes a source, and a source is the provenance
+      record for a published article. Note this grants WRITE on a prefix of the public root,
+      so the blast radius of a bug in key construction is "publishes a file publicly" rather
+      than "overwrites something" - which is why the key is derived from the content hash and
+      cannot collide with the 249 existing objects under `o/`.
+    - lambda:InvokeFunction is limited to THIS function, which is all the async worker
+      hand-off needs. The worker is reached only through IAM, so this statement is also the
+      thing that makes the `blogWorker` branch in the handler unreachable from the internet.
+    """
+    iam = boto3.client("iam")
+    policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "BlogSourceObjects",
+                "Effect": "Allow",
+                "Action": ["s3:PutObject", "s3:GetObject", "s3:HeadObject"],
+                "Resource": f"arn:aws:s3:::{SOURCE_BUCKET}/{SOURCE_PREFIX}*",
+            },
+            {
+                "Sid": "BlogWorkerSelfInvoke",
+                "Effect": "Allow",
+                "Action": "lambda:InvokeFunction",
+                "Resource": f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{FUNCTION_NAME}",
+            },
+        ],
+    }
+    iam.put_role_policy(
+        RoleName=ROLE_NAME,
+        PolicyName="seo-blog-source-intake",
+        PolicyDocument=json.dumps(policy),
+    )
+    print(f"[iam] ensured inline policy seo-blog-source-intake on {ROLE_NAME}")
+
+
 def package() -> bytes:
-    """Zip: shim at root + operations/seo-tools + shared/lambda_utils (+ static KB)."""
+    """Zip: shim + operations/seo-tools + shared/lambda_utils + blog pipeline + pypdf."""
     shim = FUNCTIONS_DIR / "seo_tools_handler.py"
     seo_dir = FUNCTIONS_DIR / "operations" / "seo-tools"
     lambda_utils = FUNCTIONS_DIR / "shared" / "lambda_utils"
-    assert shim.exists(), f"missing {shim}"
-    assert seo_dir.exists(), f"missing {seo_dir}"
-    assert lambda_utils.exists(), f"missing {lambda_utils}"
+    pipeline = FUNCTIONS_DIR / "shared" / "blog_pipeline.py"
+    # The quality gate is SHARED WITH THE CLI rather than reimplemented, which is the only
+    # way the browser path and the bulk path can agree on what passes. It is dependency-free
+    # by design so it can be dropped into a Lambda package unchanged.
+    gate = ROOT / "scripts" / "blog_quality_v2.py"
+    for required in (shim, seo_dir, lambda_utils, pipeline, gate):
+        assert required.exists(), f"missing {required}"
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
@@ -146,8 +264,16 @@ def package() -> bytes:
         skb = FUNCTIONS_DIR / "shared" / "static_knowledge_base.py"
         if skb.exists():
             z.write(skb, "shared/static_knowledge_base.py")
+        # Flat at the root, because the shim puts operations/seo-tools on sys.path and
+        # these are imported as bare module names (`import blog_pipeline`,
+        # `import blog_quality_v2`) from handler-local code.
+        z.write(pipeline, "blog_pipeline.py")
+        z.write(gate, "blog_quality_v2.py")
+        _vendor_pypdf(z)
     data = buf.getvalue()
     print(f"[package] built zip: {len(data)} bytes")
+    if len(data) > 50 * 1024 * 1024:
+        raise SystemExit("package exceeds the 50MB direct-upload limit; use S3 instead")
     return data
 
 
@@ -248,6 +374,7 @@ def main() -> None:
     print("=== deploy wecare-seo-tools ===")
     ensure_table()
     ensure_bedrock_inference_profile_perms()
+    ensure_blog_source_perms()
     zip_bytes = package()
     deploy_lambda(zip_bytes)
     ensure_api_route()
