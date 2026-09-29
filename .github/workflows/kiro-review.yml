@@ -2,12 +2,31 @@ name: Kiro PR review
 
 # Automated PR review via Kiro CLI.
 #
+# WHERE THE KEY HAS TO LIVE: a GITHUB ACTIONS SECRET, under
+# Settings > Secrets and variables > Actions > Repository secrets, named exactly
+# KIRO_API_KEY. `secrets.*` resolves GitHub Actions repository and organisation secrets
+# and NOTHING ELSE. It is worth stating because the near misses all look correct from the
+# outside and all present identically - the job skips and reports success:
+#   - AWS Secrets Manager. A different system entirely; `secrets.` cannot reach it. This
+#     is a CI-only credential consumed by one workflow, so Actions is also its right home
+#     - and reading it from AWS instead would mean giving a pull_request-triggered
+#     workflow an AWS role, which no other workflow here does (gastronomy-content-gate.yml
+#     confines its AWS job to workflow_dispatch on purpose).
+#   - An ENVIRONMENT secret. This job declares no `environment:`, so it would not see one.
+#   - A DEPENDABOT secret. Separate store, not available to Actions.
+#   - An ORGANISATION secret without this repository granted access.
+#
 # IT IS GATED ON THE SECRET EXISTING, and that is the whole reason this file is safe to
 # merge today. `kiro_api_key` is a REQUIRED input to the action, so without a
 # KIRO_API_KEY repository secret every run would fail - a workflow that is red on every
 # pull request from the moment it lands teaches people to ignore CI, which costs more
 # than the review is worth. Until the secret is added this job reports a notice and
 # skips. Add the secret and it starts working with no further edit.
+#
+# THE SKIP REPORTS SUCCESS, WHICH IS THE ONE TRAP IN THIS DESIGN. A configured-looking
+# green check on every PR is indistinguishable from a working review at a glance. To tell
+# them apart, open the run and look at the "Kiro CLI review" step: `skipped` means the key
+# is not visible, whatever any other system says about it being stored.
 #
 # The gate also handles fork pull requests correctly for free: GitHub does not expose
 # secrets to workflows triggered by a fork PR, so HAS_KIRO_KEY is false there and the
@@ -22,11 +41,19 @@ name: Kiro PR review
 #
 #   1. konippi/kiro-cli-review-action is a THIRD-PARTY, personal (non-org) action. It
 #      runs its own compiled JS (dist/main/index.cjs) plus a post step, and installs
-#      github-mcp-server at runtime. A version tag is mutable: whoever controls the repo
-#      can move v1.0.1 to different code at any time. For a personal action guarding a
-#      repo with deploy credentials, pinning to a full commit SHA rather than a tag is
-#      the safer choice. Left on the tag here because that is what was asked for -
-#      switch to a SHA if you want the stronger guarantee.
+#      github-mcp-server at runtime. A version tag is MUTABLE: whoever controls that
+#      repo can move v1.0.1 to different code at any time, and the next run would fetch
+#      it without anything here changing.
+#      NOW PINNED TO THE FULL COMMIT SHA that v1.0.1 resolved to, which is the only form
+#      GitHub will not silently re-point. Measured before pinning: the action is owned by
+#      a USER rather than an organisation, has 3 stars, and was last pushed the day
+#      before this pin - so it is small, personally controlled and actively changing,
+#      against a repo where four other workflows assume AWS roles and deploy Lambdas.
+#      A tag was not a defensible level of trust for that pairing.
+#      TO UPDATE: read the new tag's commit with
+#        gh api repos/konippi/kiro-cli-review-action/git/ref/tags/<tag> --jq .object.sha
+#      and replace the SHA below, keeping the trailing comment in step with it. Review
+#      the diff between the two commits before doing so - that is the point of pinning.
 #   2. Its `debug` input is left at its default of false ON PURPOSE. The action's own
 #      description warns that enabling it prints tool execution results that may contain
 #      sensitive data into public build logs. Do not turn it on to chase a failure on a
@@ -64,7 +91,7 @@ jobs:
       - name: Explain the skip when unconfigured
         if: env.HAS_KIRO_KEY != 'true'
         run: |
-          echo "::notice::Skipped - no KIRO_API_KEY secret on this repository (or this is a fork PR, which never receives secrets). Add the secret under Settings > Secrets and variables > Actions to enable automated review."
+          echo "::notice::Skipped - this workflow cannot see a KIRO_API_KEY. It must be a GITHUB ACTIONS secret: Settings > Secrets and variables > Actions > Repository secrets. An entry in AWS Secrets Manager is a different store and secrets.KIRO_API_KEY cannot read it - see the header of this file. Also skipped on fork PRs, which never receive secrets at all."
 
       - uses: actions/checkout@v7
         if: env.HAS_KIRO_KEY == 'true'
@@ -75,7 +102,8 @@ jobs:
 
       - name: Kiro CLI review
         if: env.HAS_KIRO_KEY == 'true'
-        uses: konippi/kiro-cli-review-action@v1.0.1
+        # v1.0.1 - pinned by SHA deliberately, see trust decision 1 in the header.
+        uses: konippi/kiro-cli-review-action@1c11ef476d5722d06a0c702a041e6393c8d5310d
         with:
           kiro_api_key: ${{ secrets.KIRO_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
