@@ -13,9 +13,13 @@ shape, the tests fail here until this fake is taught it. That is the intended co
 Supported, and only this
 ------------------------
     condition   attribute_exists(X) | attribute_not_exists(X) | X = :v , joined by AND
-    update      SET a = :v, b = :v2 [REMOVE c, d]
+    update      SET a = :v, b = if_not_exists(b, :v2) [REMOVE c, d] [ADD n :delta]
     query       one index, partition key .eq(value), optional range sort from the
                 index name, ScanIndexForward, Limit
+
+`ADD` and `if_not_exists` were added for the OTP throttle, which needs an atomic counter that
+initialises its own window on first use. They are the two forms a rate limiter cannot be written
+without: a read-then-increment is exactly the race the counter exists to close.
 
 Not a general DynamoDB: no filter expressions, no BETWEEN, no projections, no pagination.
 None of those are used by `crm.store`, and adding them unused would be code with no test
@@ -39,8 +43,14 @@ class FakeClientError(Exception):
 _ATTR_EXISTS = re.compile(r"attribute_exists\(\s*([#\w]+)\s*\)")
 _ATTR_NOT_EXISTS = re.compile(r"attribute_not_exists\(\s*([#\w]+)\s*\)")
 _EQUALITY = re.compile(r"([#\w]+)\s*=\s*(:[\w]+)")
-_SET_CLAUSE = re.compile(r"\bSET\b(.*?)(?:\bREMOVE\b|$)", re.IGNORECASE | re.DOTALL)
-_REMOVE_CLAUSE = re.compile(r"\bREMOVE\b(.*?)(?:\bSET\b|$)", re.IGNORECASE | re.DOTALL)
+_SET_CLAUSE = re.compile(r"\bSET\b(.*?)(?:\bREMOVE\b|\bADD\b|$)",
+                        re.IGNORECASE | re.DOTALL)
+_REMOVE_CLAUSE = re.compile(r"\bREMOVE\b(.*?)(?:\bSET\b|\bADD\b|$)",
+                           re.IGNORECASE | re.DOTALL)
+_ADD_CLAUSE = re.compile(r"\bADD\b(.*?)(?:\bSET\b|\bREMOVE\b|$)",
+                        re.IGNORECASE | re.DOTALL)
+_IF_NOT_EXISTS = re.compile(
+    r"if_not_exists\(\s*([#\w]+)\s*,\s*(:[\w]+)\s*\)", re.IGNORECASE)
 
 
 def _resolve(token: str, names: Dict[str, str]) -> str:
@@ -92,21 +102,51 @@ def _evaluate_condition(condition: Optional[str], row: Optional[Dict[str, Any]],
     return result
 
 
+def _split_assignments(clause: str) -> List[str]:
+    """Split a SET clause on commas that are NOT inside parentheses.
+
+    A naive `split(",")` breaks `if_not_exists(a, :v)` in half and then fails to parse either
+    piece, which surfaces as a confusing "only sets literal placeholders" error.
+    """
+    parts, depth, current = [], 0, []
+    for character in clause:
+        if character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+        if character == "," and depth == 0:
+            parts.append("".join(current))
+            current = []
+        else:
+            current.append(character)
+    parts.append("".join(current))
+    return [p.strip() for p in parts if p.strip()]
+
+
 def _apply_update(expression: str, row: Dict[str, Any], values: Dict[str, Any],
                   names: Dict[str, str]) -> Dict[str, Any]:
     out = dict(row)
 
     set_match = _SET_CLAUSE.search(expression)
     if set_match:
-        for assignment in set_match.group(1).split(","):
-            assignment = assignment.strip()
-            if not assignment:
+        for assignment in _split_assignments(set_match.group(1)):
+            target, _, source = (part.strip() for part in assignment.partition("="))
+            attribute = _resolve(target, names)
+
+            guarded = _IF_NOT_EXISTS.fullmatch(source)
+            if guarded:
+                # `if_not_exists(attr, :v)` — keep what is there, else take the placeholder.
+                existing_attr = _resolve(guarded.group(1), names)
+                if existing_attr in out:
+                    continue
+                out[attribute] = values[guarded.group(2)]
                 continue
-            target, _, placeholder = (part.strip() for part in assignment.partition("="))
-            if not placeholder.startswith(":"):
-                raise AssertionError(f"this fake only sets literal placeholders, got "
-                                     f"{assignment!r}")
-            out[_resolve(target, names)] = values[placeholder]
+
+            if not source.startswith(":"):
+                raise AssertionError(
+                    f"this fake only sets literal placeholders or if_not_exists(), got "
+                    f"{assignment!r}")
+            out[attribute] = values[source]
 
     remove_match = _REMOVE_CLAUSE.search(expression)
     if remove_match:
@@ -114,6 +154,20 @@ def _apply_update(expression: str, row: Dict[str, Any], values: Dict[str, Any],
             target = target.strip()
             if target:
                 out.pop(_resolve(target, names), None)
+
+    add_match = _ADD_CLAUSE.search(expression)
+    if add_match:
+        for addition in _split_assignments(add_match.group(1)):
+            pieces = addition.split()
+            if len(pieces) != 2 or not pieces[1].startswith(":"):
+                raise AssertionError(
+                    f"this fake only ADDs a numeric placeholder to one attribute, got "
+                    f"{addition!r}")
+            attribute = _resolve(pieces[0], names)
+            delta = values[pieces[1]]
+            # DynamoDB's ADD treats a missing attribute as zero, which is precisely what makes
+            # it usable as a counter without a separate initialise.
+            out[attribute] = out.get(attribute, 0) + delta
 
     return out
 

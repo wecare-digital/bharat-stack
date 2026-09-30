@@ -403,6 +403,15 @@ PHONE_PAYMENT_GATEWAYS = {
 }
 
 
+class PaymentConfigurationUnresolved(ValueError):
+    """No recognised Meta payment configuration for this sender.
+
+    Raised instead of substituting a default. A payment request naming a configuration Meta
+    does not hold still reaches the customer, and then fails when they tap Pay — the most
+    expensive possible place to discover it.
+    """
+
+
 def _build_payment_settings(phone_number_id: str, order_details: dict) -> list:
     """Build payment_settings array per Meta's latest PG deep integration spec (v25.0).
 
@@ -434,23 +443,47 @@ def _build_payment_settings(phone_number_id: str, order_details: dict) -> list:
         return [{'type': 'upi_intent_link', 'upi_intent_link': {'link': upi_intent}}]
 
     # ── Mode 3: PG Deep Integration (default) ──
-    # Both WABAs expose the same two config names, so no cross-WABA correction is
-    # possible or needed. Razorpay is the only provider; PayU no longer exists on
-    # Meta. WECAREUPI is a UPI-VPA config whose VPA (…​.rzp@rxairtel) is
-    # Razorpay-issued, so it also reports as type 'razorpay'.
+    # Razorpay is the only provider; PayU no longer exists on Meta and its secret is
+    # permanently deleted.
+    #
+    # THERE IS NO FALLBACK, AND THAT IS THE POINT OF THIS BLOCK.
+    #
+    # It used to log `unknown_payment_config_ignored` and then send
+    # DEFAULT_PAYMENT_CONFIG anyway. Three things were wrong with that, and the third is
+    # the one that cost something:
+    #
+    #   1. Meta's reference states that when `configuration_name` is invalid the customer
+    #      is unable to pay. Substituting a different name does not rescue the send, it
+    #      just moves the failure to the customer's screen.
+    #   2. The substituted name was itself unverified. Measured live 2026-09-30,
+    #      `GET /{waba}/payment_configurations` returns ZERO configurations on this WABA,
+    #      so `WECAREDIGITAL` exists only as a constant in this file. Falling back to it
+    #      is falling back to a guess.
+    #   3. A warning log is not a control. The send proceeded, Meta accepted the message,
+    #      and the failure surfaced only when a customer tapped Pay - by which point the
+    #      order exists in their mind and nothing in our logs says the payment was
+    #      impossible from the start.
+    #
+    # So an unrecognised configuration now refuses before the send. Readiness belongs to
+    # lambda_utils/payment_readiness.py, which proves the configuration against a live
+    # provider read rather than against this set.
     gw_type = 'razorpay'
-    if explicit_config and explicit_config in VALID_PAYMENT_CONFIGS:
-        config_name = explicit_config
-    else:
-        if explicit_config:
-            logger.warning(json.dumps({
-                'event': 'unknown_payment_config_ignored',
-                'requested': explicit_config,
-                'valid': sorted(VALID_PAYMENT_CONFIGS),
-                'fellBackTo': DEFAULT_PAYMENT_CONFIG,
-            }))
-        gateways = PHONE_PAYMENT_GATEWAYS.get(phone_number_id) or {}
-        config_name = gateways.get('razorpay', DEFAULT_PAYMENT_CONFIG)
+    config_name = explicit_config or (
+        PHONE_PAYMENT_GATEWAYS.get(phone_number_id) or {}
+    ).get('razorpay', '')
+
+    if not config_name:
+        raise PaymentConfigurationUnresolved(
+            f'no payment configuration is mapped for sender {phone_number_id!r}; '
+            'refusing to send a payment request rather than guessing one'
+        )
+    if config_name not in VALID_PAYMENT_CONFIGS:
+        raise PaymentConfigurationUnresolved(
+            f'payment configuration {config_name!r} is not recognised '
+            f'(known: {sorted(VALID_PAYMENT_CONFIGS)}); refusing to substitute a '
+            'different one, because an invalid configuration_name leaves the customer '
+            'unable to pay'
+        )
 
     pg_obj = {
         'type': gw_type,
@@ -2794,6 +2827,9 @@ class ReferenceIdTooLong(ValueError):
     """
 
 
+
+
+
 def _sanitize_reference_id(reference_id: str) -> str:
     """
     Normalise reference_id to the WD-PAY-<ID> shape Meta and Razorpay both accept.
@@ -2831,13 +2867,20 @@ def _sanitize_reference_id(reference_id: str) -> str:
         # snapshot would freeze a seeded PRNG across every restored sandbox.
         return f"WD-PAY-{secrets.token_hex(4).upper()}"
 
+    raw = reference_id.strip()
+
     # An order number is not a payment reference, and must never be turned into one (R2.9).
     #
+    # Checked BEFORE the byte-for-byte pass-through below, and the order matters: the compact
+    # order id `WD-ORD-A1B2C3D4` is 15 characters of permitted charset, so it *is* a
+    # Meta-valid string and a pass-through placed first would hand it straight to Meta as a
+    # payment reference.
+    #
     # Refused rather than converted, because the conversion looked safe by coincidence. The
-    # legacy WD number is 47 characters, and stripping its spaces, dashes and colons produced
-    # `WD-PAY-ORD<8hex><8date><6time>IST` at exactly 35 - passing the length check only because
-    # the date and time are fixed width. Change the format by one character and it silently
-    # truncated instead.
+    # legacy spaced number is 47 characters, and stripping its spaces, dashes and colons
+    # produced `WD-PAY-ORD<8hex><8date><6time>IST` at exactly 35 - passing the length check only
+    # because the date and time are fixed width. Change the format by one character and it
+    # silently truncated instead.
     if order_keys.is_wd_order_number(reference_id):
         raise ReferenceIdTooLong(
             'an order number must not be used as a reference_id: the two identifiers have '
@@ -2845,7 +2888,27 @@ def _sanitize_reference_id(reference_id: str) -> str:
             'payment is verified. Mint one with order_keys.mint_payment_reference()'
         )
 
-    stripped = reference_id.strip().upper()
+    # ── A canonical reference is sent BYTE-FOR-BYTE. ──
+    #
+    # A reference minted by `order_keys.mint_payment_reference` has already been reserved under
+    # PAYREF# and bound to a payment attempt. At that point it is not a candidate to be tidied,
+    # it is a stored fact that Meta, Razorpay and our reconciliation all key on. Any
+    # transformation here - even one that looks harmless - desynchronises the message from the
+    # row that owns it.
+    #
+    # `.upper()` below is the specific trap. It used to run on every value before the
+    # pass-through checks, and Meta's reference_id is case SENSITIVE. It happens to be a no-op
+    # for our current alphabet, which is entirely uppercase, and that is precisely why it
+    # survived: a correctness bug that is currently invisible. Change the alphabet and it starts
+    # breaking joins silently.
+    #
+    # A doubled prefix is excluded because it is a legacy double-prefixing artefact rather than
+    # a minted reference - valid charset, but not a value we ever reserved.
+    if (order_keys.is_valid_meta_reference_id(raw)
+            and 'WD-PAY-WD-PAY-' not in raw.upper()):
+        return raw
+
+    stripped = raw.upper()
 
     # Remove duplicate WD-PAY- prefixes
     while 'WD-PAY-WD-PAY-' in stripped:

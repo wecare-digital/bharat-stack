@@ -679,7 +679,8 @@ def cmd_inspect(auth: Auth, args) -> int:  # noqa: ANN001
     if st != 200:
         print(f"urlInspection http {st}  {why(body)}")
         return 2
-    res = (body.get("inspectionResult") or {}).get("indexStatusResult") or {}
+    result = body.get("inspectionResult") or {}
+    res = result.get("indexStatusResult") or {}
     print(f"url        : {target}")
     print(f"verdict    : {res.get('verdict')}")
     print(f"coverage   : {res.get('coverageState')}")
@@ -688,6 +689,37 @@ def cmd_inspect(auth: Auth, args) -> int:  # noqa: ANN001
     print(f"canonical  : google={res.get('googleCanonical')} "
           f"user={res.get('userCanonical')}")
     print(f"lastCrawl  : {res.get('lastCrawlTime')}")
+
+    # Rich results, which is what structured-data work is FOR.
+    #
+    # Read this against `lastCrawl` above, always. Both of these report what Google saw at its
+    # LAST CRAWL, not what the URL serves now - so a page whose markup was fixed today and
+    # whose lastCrawl is empty will report nothing here, and that is "not yet crawled", not
+    # "not eligible". Reading an absent verdict as a failure would send someone rewriting
+    # markup that is already correct.
+    rich = result.get("richResultsResult") or {}
+    if rich:
+        print(f"richResults: verdict={rich.get('verdict')}")
+        for item in rich.get("detectedItems") or []:
+            issues = item.get("items") or []
+            print(f"  {item.get('richResultType')}: {len(issues)} item(s)")
+            for entry in issues:
+                problems = entry.get("issues") or []
+                name = entry.get("name") or "(unnamed)"
+                if not problems:
+                    print(f"    ok   {name}")
+                for problem in problems:
+                    print(f"    {problem.get('severity', '?')}: {name} — "
+                          f"{problem.get('issueMessage')}")
+    else:
+        print("richResults: none reported"
+              + ("" if res.get("lastCrawlTime")
+                 else " — and lastCrawl is empty, so this URL has NOT been crawled;"
+                      " absence here is 'not seen yet', not 'not eligible'"))
+
+    mobile = (result.get("mobileUsabilityResult") or {}).get("verdict")
+    if mobile:
+        print(f"mobile     : {mobile}")
     return 0
 
 

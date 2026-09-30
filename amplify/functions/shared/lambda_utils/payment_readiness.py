@@ -55,6 +55,8 @@ PAYMENT_CONFIG_INACTIVE = "PAYMENT_CONFIG_INACTIVE"
 PAYMENT_CONFIG_WABA_MISMATCH = "PAYMENT_CONFIG_WABA_MISMATCH"
 PAYMENT_CONFIG_NAME_UNKNOWN = "PAYMENT_CONFIG_NAME_UNKNOWN"
 RAZORPAY_MID_MISMATCH = "RAZORPAY_MID_MISMATCH"
+RAZORPAY_ACCOUNT_UNVERIFIED = "RAZORPAY_ACCOUNT_UNVERIFIED"
+PAYMENT_TEMPLATE_MISSING = "PAYMENT_TEMPLATE_MISSING"
 META_UNAVAILABLE = "META_UNAVAILABLE"
 RAZORPAY_UNAVAILABLE = "RAZORPAY_UNAVAILABLE"
 CONFIGURATION_UNVERIFIED = "CONFIGURATION_UNVERIFIED"
@@ -68,6 +70,8 @@ BLOCKING_STATES = frozenset({
     PAYMENT_CONFIG_WABA_MISMATCH,
     PAYMENT_CONFIG_NAME_UNKNOWN,
     RAZORPAY_MID_MISMATCH,
+    RAZORPAY_ACCOUNT_UNVERIFIED,
+    PAYMENT_TEMPLATE_MISSING,
     META_UNAVAILABLE,
     RAZORPAY_UNAVAILABLE,
     CONFIGURATION_UNVERIFIED,
@@ -78,6 +82,42 @@ ALL_STATES = frozenset({PAYMENT_READY}) | BLOCKING_STATES
 #: Razorpay is the only gateway. PayU was removed from both WABAs at Meta and its secret is
 #: permanently deleted; Billdesk and Zaakpay are supported by Meta but not by this business.
 EXPECTED_GATEWAY = "razorpay"
+
+#: Meta's customer service window. A free-form interactive `order_details` message is only
+#: deliverable inside it; outside, the same payload has to travel in an approved template
+#: carrying an ORDER_DETAILS button.
+CUSTOMER_SERVICE_WINDOW_SECONDS = 24 * 60 * 60
+
+
+def window_is_open(last_inbound_at: Optional[int], *,
+                   now: Optional[int] = None) -> bool:
+    """Whether the customer's 24-hour service window is still open.
+
+    `last_inbound_at` is the epoch second of the customer's most recent inbound message, or
+    None when they have never messaged us.
+
+    **None means closed.** That is the conservative direction and it is the correct one: a
+    free-form `order_details` sent outside the window is rejected by Meta, or billed as a new
+    conversation, and either way the customer does not get a payment request. Assuming the
+    window is open when we do not know would convert a missing record into a failed checkout.
+    """
+    if not last_inbound_at:
+        return False
+    import time as _time
+    moment = int(_time.time()) if now is None else int(now)
+    return (moment - int(last_inbound_at)) < CUSTOMER_SERVICE_WINDOW_SECONDS
+
+
+def template_required(last_inbound_at: Optional[int], *,
+                      now: Optional[int] = None) -> bool:
+    """Whether this send needs an approved ORDER_DETAILS template rather than a free-form one.
+
+    In the normal checkout flow the customer has just completed WhatsApp OTP, so they *may* be
+    inside the window — but the OTP is delivered by a template and the code is typed on the web,
+    which sends no inbound message and therefore opens no window. So this is not a formality:
+    the common path may well need the template.
+    """
+    return not window_is_open(last_inbound_at, now=now)
 
 #: Meta reports a configuration's status as a string. Only this one may take money.
 _ACTIVE_STATUS = "active"
@@ -311,6 +351,104 @@ def evaluate(*,
     )
 
 
+def evaluate_for_delivery(*,
+                          last_inbound_at: Optional[int],
+                          payment_template_name: str = "",
+                          fetch_templates: Optional[Callable[[str], Any]] = None,
+                          now: Optional[int] = None,
+                          **account) -> PaymentReadiness:
+    """Account readiness **plus** whether a payment request can reach *this* customer.
+
+    Split from `evaluate` deliberately, because the two answer different questions and merging
+    them made one of them impossible to ask.
+
+    `evaluate` is account-level: is the configuration present, active, on the right WABA, and
+    pointing at our merchant account? Nothing about it depends on a customer.
+
+    This is per-send: the customer's 24-hour service window may be shut, in which case a
+    free-form `order_details` is undeliverable and an approved ORDER_DETAILS template is required
+    instead. A closed window is not a misconfiguration — it is the normal state of most customers
+    most of the time.
+
+    The first attempt at this had `evaluate` take `last_inbound_at=None` as a default, which made
+    "no window information supplied" indistinguishable from "window closed", and so made
+    `PAYMENT_READY` unreachable for an account-level check. Two functions is the honest shape:
+    neither can silently skip something that applies to it.
+
+    `last_inbound_at` is required rather than defaulted, for the same reason.
+    """
+    verdict = evaluate(**account)
+    if not verdict.ready:
+        return verdict
+
+    if not template_required(last_inbound_at, now=now):
+        # Window open: a free-form interactive order_details is deliverable, no template needed.
+        return verdict
+
+    waba_id = verdict.waba_id
+
+    if not payment_template_name:
+        return _blocked(
+            PAYMENT_TEMPLATE_MISSING,
+            "the customer's 24-hour service window is closed and no ORDER_DETAILS template "
+            "name is configured, so a payment request cannot be delivered",
+            configuration_name=verdict.configuration_name, waba_id=waba_id,
+            gateway=verdict.gateway, provider_mid=verdict.provider_mid,
+        )
+
+    if fetch_templates is None:
+        # Not a pass. Measured live 2026-09-30, this WABA holds exactly one template —
+        # `wecare_otp` — and no `wecare_pay`. A configured name proves nothing about what Meta
+        # has approved, which is the same mistake as trusting a configuration constant.
+        return _blocked(
+            CONFIGURATION_UNVERIFIED,
+            f"template {payment_template_name!r} is configured but was not verified against "
+            "Meta; a configured name is not an approved template",
+            configuration_name=verdict.configuration_name, waba_id=waba_id,
+            gateway=verdict.gateway, provider_mid=verdict.provider_mid,
+        )
+
+    try:
+        approved = _approved_template_names(fetch_templates(waba_id))
+    except Exception as error:  # noqa: BLE001
+        return _blocked(META_UNAVAILABLE,
+                        f"could not read templates: {type(error).__name__}")
+
+    if payment_template_name not in approved:
+        return _blocked(
+            PAYMENT_TEMPLATE_MISSING,
+            f"template {payment_template_name!r} is not APPROVED on this WABA "
+            f"(approved: {sorted(approved) or 'none'})",
+            configuration_name=verdict.configuration_name, waba_id=waba_id,
+            gateway=verdict.gateway, provider_mid=verdict.provider_mid,
+        )
+
+    return verdict
+
+
+def _approved_template_names(response: Any) -> set:
+    """The set of APPROVED template names from a Graph template readback.
+
+    Only `APPROVED` counts. `PENDING`, `REJECTED`, `PAUSED` and `DISABLED` are all names that
+    exist but cannot be sent, and treating "the name came back" as "the template works" is the
+    same class of error as treating a local constant as provider state.
+    """
+    if isinstance(response, dict):
+        items = response.get("templates") or response.get("data") or []
+    elif isinstance(response, list):
+        items = response
+    else:
+        raise ValueError("template readback was neither an object nor a list")
+
+    return {
+        str(item.get("name", ""))
+        for item in items
+        if isinstance(item, dict)
+        and str(item.get("status", "")).strip().upper() == "APPROVED"
+        and item.get("name")
+    }
+
+
 def require_ready(readiness: PaymentReadiness) -> None:
     """Raise unless payments may be initiated.
 
@@ -343,8 +481,14 @@ __all__ = [
     "BLOCKING_STATES",
     "ALL_STATES",
     "EXPECTED_GATEWAY",
+    "RAZORPAY_ACCOUNT_UNVERIFIED",
+    "PAYMENT_TEMPLATE_MISSING",
+    "CUSTOMER_SERVICE_WINDOW_SECONDS",
     "PaymentReadiness",
     "PaymentNotReady",
     "evaluate",
+    "evaluate_for_delivery",
+    "window_is_open",
+    "template_required",
     "require_ready",
 ]
