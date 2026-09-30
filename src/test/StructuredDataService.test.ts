@@ -61,11 +61,20 @@ const OFFERINGS = [
   '/grahak-os', '/hunar', '/niji-setu', '/ritual-guru', '/vayulok',
 ];
 
-/** Ways to interact with us, and page kinds. Neither is a thing we sell. */
+/**
+ * Ways to interact with us, and page kinds. Neither is a thing we sell.
+ *
+ * /shop IS IN THIS LIST AND THAT IS THE INTERESTING ONE, because it is the page most obviously
+ * about things that are sold. It is a LIST of them, not one of them: a Service node here would
+ * claim the catalogue itself is an offering with a single serviceType, when the seven items it
+ * links to are seven different things. Each of those pages emits a schema.org Product with an
+ * Offer - price, currency and availability - through components/ShopProductHead.tsx, which is the
+ * node that describes something purchasable. /shop emits an ItemList saying what it collects.
+ */
 const NOT_OFFERINGS = [
   '/submit-request', '/request-amendment', '/drop-docs', '/vault', '/leave-review',
   '/refer-and-earn',
-  '/terms', '/privacy', '/contact', '/orders',
+  '/terms', '/privacy', '/contact', '/orders', '/shop',
 ];
 
 describe( 'per-page Service structured data', () => {

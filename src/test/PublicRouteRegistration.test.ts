@@ -164,12 +164,24 @@ describe( 'public route registration', () => {
       return route !== '/' && fs.existsSync( dir ) && fs.statSync( dir ).isDirectory();
     } );
 
+    /**
+     * DYNAMIC ROUTES ARE NOW RESOLVED TO A FILE INSTEAD OF EXEMPTED BY PREFIX.
+     *
+     * This used to skip anything starting with /post or /blog, on the grounds that "dynamic and
+     * content routes are matched by pattern, not by a literal file name". The prefix was the
+     * problem: it exempted five real routes from the only check that notices a route left in the
+     * allowlist after its page is deleted - which is the exact failure this test exists for, and
+     * the one that left /faq and /studio advertised long after deletion.
+     *
+     * fileForRoute already resolves a bracketed pattern, because the path segments are literal
+     * directory and file names on disk: '/shop/[slug]' is src/pages/shop/[slug].tsx and
+     * '/blog/topic/[topic]/page/[page]' is src/pages/blog/topic/[topic]/page/[page].tsx. Measured
+     * on this tree, all five dynamic routes in the allowlist resolve, so nothing needs exempting.
+     */
     const orphaned = Array.from( allowlist ).filter( route =>
       !rootRoutes.has( route )
       && !dirBacked.includes( route )
-      // Dynamic and content routes are matched by pattern, not by a literal file name.
-      && !route.startsWith( '/post' )
-      && !route.startsWith( '/blog' )
+      && fileForRoute( route ) === null
     );
 
     expect(

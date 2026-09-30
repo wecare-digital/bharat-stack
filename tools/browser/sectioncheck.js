@@ -50,6 +50,11 @@ const ROUTES = [
   // /contact/. Same shape as the product pages: rotating hero plus one content section.
   '/submit-request/', '/request-amendment/', '/drop-docs/', '/vault/', '/leave-review/',
   '/refer-and-earn/',
+  // The catalogue. /shop/ is a hero plus a card grid, like /blog/ above it; /shop/kiosk/ is the
+  // one public page that does NOT wrap itself in RotatingHero, so it is the only route here whose
+  // band structure and header clearance are its own file's work rather than the shared shell's.
+  // That is exactly the case this harness exists for.
+  '/shop/', '/shop/kiosk/',
 ];
 
 const inventory = async () => {

@@ -71,6 +71,11 @@ const PUBLIC_EXACT = new Set( [
   // copy back. It is NOT /get/, which stays out of the sitemap because it needs a verified
   // link to mean anything - this page is the linkable front door that points at it.
   '/vault',
+  // The catalogue index. Same rule as every group above: it is in PUBLIC_PAGE_META in _app.tsx,
+  // so it renders. The seven product pages under it are NOT listed here - they come in through
+  // the '/shop/' prefix below, because the set moves with the catalogue snapshot rather than with
+  // the code, which is the same reason '/blog/page/' is a prefix.
+  '/shop',
 ] );
 // '/blog/page/' is pages 2..N of the paginated blog index. It has to be a prefix rather than
 // exact entries because the count moves with the corpus - 834 posts at 24 a page is 35 pages
@@ -84,7 +89,13 @@ const PUBLIC_EXACT = new Set( [
 // '/blog/topic/' is one stream per non-default category. Those streams are the ONLY index pages
 // listing their posts - /blog/ paginates the default category only - so leaving them out would
 // advertise 824 posts and hide 40.
-const PUBLIC_PREFIXES = [ '/post/', '/blog/page/', '/blog/topic/' ];
+// '/shop/' is the seven catalogue pages. A prefix rather than seven exact entries because the set
+// is enumerated from src/content/wix-catalog.json by getStaticPaths - it changes when the snapshot
+// is refreshed, which is a content change, and listing the slugs here would mean a sitemap that
+// goes stale on a data refresh instead of on a code change. THEY MUST BE IN THE SITEMAP: /shop/
+// links to all seven, but a product page is the page a search for the product should land on, and
+// each one carries its own Product and Offer markup.
+const PUBLIC_PREFIXES = [ '/post/', '/blog/page/', '/blog/topic/', '/shop/' ];
 
 function normalizeRoute ( base ) {
   if ( !base ) return '/';

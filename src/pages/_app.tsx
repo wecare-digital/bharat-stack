@@ -560,6 +560,18 @@ const PUBLIC_PAGE_META: Record<string, {
   '/vault': { name: 'Vault', type: 'WebPage', description: 'Ask for a copy of a document held against one of your requests.' },
   '/leave-review': { name: 'Leave Review', type: 'WebPage', description: 'Tell us how something went, well or badly.' },
   '/refer-and-earn': { name: 'Refer & Earn', type: 'WebPage', description: 'Introduce someone who would find this useful.' },
+  // The catalogue index. NO serviceType, and that is the decision rather than an omission: this
+  // page is a LIST of things that are sold, not itself a thing offered - the seven items each get
+  // their own page emitting a schema.org Product with an Offer, which is the node that describes
+  // something purchasable. src/test/StructuredDataService.test.ts records the same call in
+  // NOT_OFFERINGS.
+  //
+  // The seven product pages are NOT here. They are '/shop/[slug]', a dynamic route, and this map
+  // is keyed on router.pathname - so an entry for them would key on the literal string
+  // '/shop/[slug]' and every URL computed from it, canonical included, would name a page that does
+  // not exist. They qualify through the isContentPublic chain below and own their whole <head>
+  // through components/ShopProductHead.tsx, exactly as /post/[slug] does through SEO.tsx.
+  '/shop': { name: 'Shop', type: 'CollectionPage', description: 'What WECARE.DIGITAL sells, with each item\'s price and what it includes.' },
 };
 
 /**
@@ -876,7 +888,15 @@ export default function App ( { Component, pageProps }: AppProps ) {
     // Without this line every page but the first of every stream renders an empty body at
     // HTTP 200, which is the "404 that does not look like one" the note below describes.
     || router.pathname === '/blog/topic/[topic]/page/[page]'
-    || router.pathname === '/post/[slug]';
+    || router.pathname === '/post/[slug]'
+    // The seven catalogue pages. They belong in THIS chain and not in PUBLIC_PAGE_META for the
+    // same reason /post/[slug] does: the map is keyed on router.pathname, which for a dynamic
+    // route is the pattern '/shop/[slug]', so the canonical, og:url, twitter:url and the WebPage
+    // node's @id would all be computed from a literal '[slug]'. Being here suppresses the sitewide
+    // Head below and makes components/ShopProductHead.tsx responsible for the whole of it -
+    // including the Organization and WebSite entities, which otherwise would not exist on the page
+    // for its Product.brand and Offer.seller references to resolve against.
+    || router.pathname === '/shop/[slug]';
   // /faq and /partners are deliberately ABSENT. stack still lists them because this
   // branch's removal has not landed there yet; both pages were deleted on owner
   // instruction and re-adding the routes here would render blank 200s for them.
