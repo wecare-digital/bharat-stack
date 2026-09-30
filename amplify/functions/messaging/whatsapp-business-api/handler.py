@@ -3144,44 +3144,106 @@ _RAZORPAY_UPI_ID = os.environ.get('RAZORPAY_UPI_ID', '')
 # exists on either WABA, so these were dead reads.
 _PAYMENT_WABA_ID = os.environ.get('PAYMENT_WABA_ID', '')
 
-# Mirrors the live Meta state, verified via Graph API
-# /{waba}/payment_configurations on 2026-08-23. The configs were rebuilt on Meta
-# that day; all eight previously-listed per-WABA gateway/UPI config names were
-# deleted and are intentionally not repeated here so automated checks for stale
-# identifiers stay clean. Both WABAs now expose the identical pair below, and no
-# PayU configuration exists on either WABA. See git history for the old names.
-_RAZORPAY_ACC_MID = 'acc_TTFSyolquKEZEy'
-_WECARE_UPI_VPA = 'wecaredigitalbh511413.rzp@rxairtel'
-
-_LIVE_CONFIGS = [
-    {'name': 'WECAREDIGITAL', 'status': 'active', 'type': 'payment_gateway',
-     'gateway': 'razorpay', 'mid': _RAZORPAY_MID or _RAZORPAY_ACC_MID},
-    {'name': 'WECAREUPI', 'status': 'active', 'type': 'upi',
-     'gateway': 'razorpay', 'upiId': _RAZORPAY_UPI_ID or _WECARE_UPI_VPA},
+# These are the configuration names this repository DECLARES. They are not a mirror of Meta.
+#
+# This block used to say "Mirrors the live Meta state, verified via Graph API
+# /{waba}/payment_configurations on 2026-08-23" and marked both entries `status: 'active'`.
+# Re-measured **2026-09-30**: that WABA returns **ZERO** payment configurations. So the comment
+# was a year-stale claim and the status was a constant asserting a live fact.
+#
+# The cost was not theoretical - the two routes in this file disagreed with each other.
+# `/wa-business/payment-config/check`, which actually calls Meta, reported both as
+# `local_only` with `canReceivePayments: false` and `activeConfigs: 0`; this one reported
+# `status: 'active'`. Anyone reading the second would conclude payments were configured.
+#
+# `status` is now `local_only`, matching the route that asks. The live verdict comes from
+# `lambda_utils.payment_readiness`, which is built to answer this and blocks on
+# PAYMENT_CONFIG_MISSING when Meta reports none.
+#
+# There are deliberately NO hardcoded MID / VPA fallbacks any more. The previous ones were
+# `acc_TTFSyolquKEZEy` and `wecaredigitalbh511413.rzp@rxairtel`, and both disagreed with the
+# live Lambda environment (`acc_HDfub6wOfQybuH`, `wecaredigital83.rzp@icici`) - a different
+# account and a different PSP handle. A wrong merchant id is worse than an absent one: absent
+# yields CONFIGURATION_UNVERIFIED and blocks, whereas wrong could match a configuration
+# pointing at an account nobody here reconciles against. Empty is the fail-closed value.
+_DECLARED_CONFIGS = [
+    {'name': 'WECAREDIGITAL', 'status': 'local_only', 'type': 'payment_gateway',
+     'gateway': 'razorpay', 'mid': _RAZORPAY_MID},
+    {'name': 'WECAREUPI', 'status': 'local_only', 'type': 'upi',
+     'gateway': 'razorpay', 'upiId': _RAZORPAY_UPI_ID},
 ]
 
 PAYMENT_CONFIGS = {
     PHONE1_META_ID: {
         'phone': '+91 9330994400',
         'wabaId': WABA1_ID,
-        'configs': list(_LIVE_CONFIGS),
+        'configs': list(_DECLARED_CONFIGS),
         'mcc': '7392',
         'purposeCode': '03',
     },
     PHONE2_META_ID: {
         'phone': '+91 9903300044',
         'wabaId': WABA2_ID,
-        'configs': list(_LIVE_CONFIGS),
+        'configs': list(_DECLARED_CONFIGS),
         'mcc': '7392',
         'purposeCode': '03',
     },
 }
 
+
+def _payment_readiness_for(waba_id: str, configuration_name: str) -> Dict:
+    """The live verdict on whether a payment could actually be taken, or a reason it cannot.
+
+    Separated from the declared-config view above so a caller cannot mistake one for the other.
+    The declaration says what we intend to use; this says what Meta will accept. On 2026-09-30
+    those differ completely - zero configurations exist - and the whole point of returning both
+    is that the difference is visible rather than hidden behind a constant reading `active`.
+
+    Never raises: this is a diagnostic route, and a readiness check that 500s tells the reader
+    less than one that reports why it could not decide.
+    """
+    try:
+        from lambda_utils import payment_readiness
+
+        verdict = payment_readiness.evaluate(
+            expected_waba_id=waba_id,
+            expected_configuration_name=configuration_name,
+            expected_provider_mid=_RAZORPAY_MID,
+            fetch_configurations=lambda wid: _graph_api(
+                f'{wid}/payment_configurations',
+                params={'fields': 'configuration_name,status,payment_gateway,'
+                                  'merchant_category_code,purpose_code'},
+                waba_id=wid),
+        )
+        return {
+            'ready': verdict.ready,
+            'state': verdict.state,
+            'reason': verdict.reason,
+            'configurationsMetaReports': verdict.checked_configurations,
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {'ready': False, 'state': 'READINESS_CHECK_FAILED',
+                'reason': type(exc).__name__}
+
+
 def _get_payment_config(phone_id: str) -> Dict:
-    """Get payment configuration for a phone number."""
+    """Get payment configuration for a phone number.
+
+    Returns the DECLARED configuration and, beside it, the LIVE readiness verdict. The two used
+    to be conflated: this route reported `status: 'active'` for configurations that do not exist
+    at Meta, contradicting `/payment-config/check` in the same file.
+    """
     config = PAYMENT_CONFIGS.get(phone_id)
     if config:
-        return _resp(200, {'paymentConfig': config})
+        declared_name = (config['configs'][0]['name'] if config.get('configs') else '')
+        return _resp(200, {
+            'paymentConfig': config,
+            # Named to be impossible to misread as part of the declaration above.
+            'liveReadiness': _payment_readiness_for(config.get('wabaId', ''), declared_name),
+            'note': ("`configs[].status` is `local_only`: it is what this repository declares, "
+                     "not what Meta reports. `liveReadiness` is the live readback and is the "
+                     "only field that says whether a payment can be taken."),
+        })
     # Try commerce settings from Meta Graph API
     result = _graph_api(f'{phone_id}/whatsapp_commerce_settings', phone_id=phone_id)
     if 'error' in result:

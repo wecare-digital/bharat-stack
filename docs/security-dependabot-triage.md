@@ -6,14 +6,35 @@ and an alert left open with no note is indistinguishable from one nobody read.
 
 Measured 2026-09-30 against `repos/wecare-digital/wecare-digital/dependabot/alerts?state=open`.
 
+**Closed out 2026-09-30: 0 open alerts.** Two fixed, four dismissed with recorded evidence.
+
 | # | Sev | Package | Vulnerable range | Manifest | Verdict |
 |---:|---|---|---|---|---|
-| 59 | MEDIUM | `oauthlib` | `>= 3.0.0, < 4.0.0` | `requirements-dev.txt` | ✅ **FIXED** — pinned to 4.0.0 |
-| 58 | MEDIUM | `oauthlib` | `>= 0.6.1, <= 3.3.1` | `requirements-dev.txt` | ✅ **FIXED** — pinned to 4.0.0 |
-| 57 | MEDIUM | `brace-expansion` | `>= 4.0.0, < 5.0.12` | `amplify/package-lock.json` | ⛔ **UPSTREAM-GATED** |
-| 56 | HIGH | `brace-expansion` | `>= 4.0.0, < 5.0.11` | `amplify/package-lock.json` | ⛔ **UPSTREAM-GATED** |
-| 55 | HIGH | `brace-expansion` | `>= 4.0.0, < 5.0.10` | `amplify/package-lock.json` | ⛔ **UPSTREAM-GATED** |
-| 23 | MEDIUM | `uuid` | `< 11.1.1` | `package-lock.json` | 🟡 **NOT REACHABLE** — dev scope, awaiting dismissal |
+| 59 | MEDIUM | `oauthlib` | `>= 3.0.0, < 4.0.0` | `requirements-dev.txt` | ✅ **FIXED** — pinned to 4.0.0, closed by Dependabot 06:41:48Z |
+| 58 | MEDIUM | `oauthlib` | `>= 0.6.1, <= 3.3.1` | `requirements-dev.txt` | ✅ **FIXED** — same bump |
+| 57 | MEDIUM | `brace-expansion` | `>= 4.0.0, < 5.0.12` | `amplify/package-lock.json` | ⛔ **DISMISSED `tolerable_risk`** — unfixable here, watched by script |
+| 56 | HIGH | `brace-expansion` | `>= 4.0.0, < 5.0.11` | `amplify/package-lock.json` | ⛔ **DISMISSED `tolerable_risk`** |
+| 55 | HIGH | `brace-expansion` | `>= 4.0.0, < 5.0.10` | `amplify/package-lock.json` | ⛔ **DISMISSED `tolerable_risk`** |
+| 23 | MEDIUM | `uuid` | `< 11.1.1` | `package-lock.json` | ⛔ **DISMISSED `not_used`** — vulnerable function never called |
+
+## All four dismissals said `fix_started`, and that was wrong
+
+Every one of these four was first dismissed with reason **`fix_started`** and **no comment**.
+Both halves are defects, and the second is what this document exists to prevent.
+
+`fix_started` asserts a fix is underway. For `brace-expansion` that is not merely inaccurate,
+it is unachievable — the copy is bundled inside a tarball (below), so no amount of work here
+produces a fix. For `uuid` it is equally false: `xcode` pins `uuid@^7`, so the copy will never
+reach the patched 11.1.1. A reason that claims work is in progress on something nobody can fix
+guarantees the next reader wastes time confirming it.
+
+Corrected to the reasons in the table, each with an evidence comment naming this file. Verified
+by read-back: 0 open, 0 remaining `fix_started`, all four carrying a comment.
+
+**A dismissal is not free, and the cost is specific.** These were going to be left open so that
+the eventual upstream fix would surface on its own. Dismissing removes that — a dismissed alert
+cannot come back to tell you it became fixable. That is replaced by
+`scripts/check_bundled_advisories.py`, described under 55/56/57.
 
 ## 55 / 56 / 57 — `brace-expansion`, and why an override does not work
 
@@ -62,9 +83,43 @@ So the copy exists only when a developer runs `npm install` inside `amplify/` to
 reaching it needs attacker-controlled glob patterns, and at CDK synth time the patterns come
 from our own asset-bundling code.
 
-**Do not dismiss these as "not used".** They are genuinely present in a manifest and will
-become fixable the moment AWS refreshes the bundle. Leave them open so the fix is noticed;
-this file is the reason they are open.
+**`not_used` would be the wrong reason, and `tolerable_risk` is the right one.** The code is
+genuinely present in a manifest and genuinely installed whenever someone runs `npm install`
+inside `amplify/` — unlike the `uuid` case below, where the vulnerable *function* is never
+called. What makes it tolerable is reachability, not absence.
+
+### They are dismissed, so a script does the noticing now
+
+The plan recorded here was to leave them open so the upstream fix would surface by itself. They
+were dismissed instead, which is defensible on reachability but removes that mechanism
+entirely: **a dismissed alert cannot come back to tell you it became fixable.**
+
+`scripts/check_bundled_advisories.py` replaces it, and is better than what it replaces — an
+open alert nags on every page load and gets tuned out, whereas this answers the actual question
+on demand:
+
+```
+python scripts/check_bundled_advisories.py --gate            # offline, CI-safe
+python scripts/check_bundled_advisories.py --check-upstream  # is it fixable yet?
+```
+
+`--gate` reads the committed lockfile only and separates two things that must not be conflated:
+
+- a **PROBLEM** is the reasoning above no longer holding — the copy stops being `inBundle` (so
+  an `overrides` entry *would* now work), or a vulnerable copy appears under a different parent
+  and is therefore **not** covered by this dismissal;
+- a **NOTICE** is a fact having moved — a version bump, including the good one, which prints
+  "CLEARS all three advisories" and tells you to undo the dismissal.
+
+Getting that split wrong is how a gate ends up firing on routine upgrades and then switched
+off. `tests/test_bundled_advisory_watch.py` asserts the split by running the script against
+doctored lockfiles: a de-bundled copy must exit 1, a bump to 5.0.10 must be a problem (it
+clears one advisory of three), and a bump to 5.0.12 must be a notice rather than either.
+
+`--check-upstream` reads the newest `aws-cdk-lib` **tarball** rather than registry metadata,
+because a bundled dependency does not appear in a package's declared dependency list — it is
+simply inside the archive. Measured 2026-09-30: latest `2.271.0`, still bundles `5.0.9`,
+`FIX AVAILABLE: False`.
 
 ## 23 — `uuid`, and what the earlier fix actually achieved
 
@@ -84,10 +139,28 @@ It cannot be resolved by upgrading, because `xcode` requires `uuid@^7`, and nati
 is **POST-PROJECT** per `.kiro/steering/00-current-owner-overrides.md` — so the tool that
 drags it in is not used in the current phase either.
 
-**Remaining action is a dismissal, which is owner-gated.** Dismissing a security alert is an
-account-level security decision, so it is not taken under standing authorization. The
-dismissal reason to select is *"vulnerable code is not actually used"*, and the two points
-above are its evidence.
+### Dismissed `not_used` on owner instruction, and the evidence is sharper than "we don't import it"
+
+Re-reading the advisory text closed this properly. GHSA-w5hq-g745-h8pq is *"Missing buffer
+bounds check in **v3/v5/v6** when `buf` is provided"* — it is not "uuid is vulnerable", it is
+three specific functions called with a caller-supplied buffer. So the question is not whether
+`uuid` is present but whether anything calls those three.
+
+`xcode` calls **`uuid.v4()` only** (`node_modules/xcode/lib/pbxProject.js:90`). A search across
+the whole package for `v3`/`v5`/`v6` calls returns matches only inside the `uuid` package's own
+deprecation-warning strings, never a call site. `v4` does not take the vulnerable path.
+
+That makes `not_used` exactly right rather than approximately right:
+
+| | |
+|---|---|
+| Affected function called? | **No** — `v4` only |
+| Copy | `node_modules/xcode/node_modules/uuid@7.0.3`, `dev=True` |
+| Reached via | `@capacitor/cli` → `xcode`, both `dev=True` |
+| First-party imports of `uuid` | **zero** under `src/` or `amplify/` |
+| Production copy | already `uuid@11.1.1` — the first patched version |
+| Upgradable? | No. `xcode` requires `uuid@^7` |
+| Phase | native packaging is POST-PROJECT per `00-current-owner-overrides.md` |
 
 ## 58 / 59 — `oauthlib`, fixed
 
