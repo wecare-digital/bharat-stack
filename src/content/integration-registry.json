@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-24T13:16:03+00:00",
+  "generatedAt": "2026-09-30T10:35:22+00:00",
   "source": "amplify/functions/shared/lambda_utils/integrations/registry.py",
   "note": "Generated. Access is three-state on purpose: a credential existing is not a scope being granted, and VERIFIED means a real authorised read succeeded and was recorded. Nothing here claims VERIFIED.",
   "counts": {
@@ -67,7 +67,7 @@
       "writeScopeMitigation": null,
       "maxAgeSeconds": 21600,
       "adapterBuilt": false,
-      "unblock": "No adapter exists. Google Ads offers only one coarse scope, which grants writes as well as reads, so an adapter must be confined to report endpoints and reviewed before it is built. Developer tokens were SUNSET 2026-09-09 and are ignored by the API servers, so the previously recorded missing developer_token is no longer a blocker. Measured 2026-09-30: OAuth alone reaches v22-v25, listAccessibleCustomers returns HTTP 200 with 0 customers, and a customer query returns USER_PERMISSION_DENIED rather than CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION - so the Cloud project's access level is fine and the only gap is that the principal is not a user on the Ads account. Grant automation@wecaredigitalbw.iam.gserviceaccount.com read access, then build the report-only adapter.",
+      "unblock": "No adapter exists. Google Ads offers only one coarse scope, which grants writes as well as reads, so an adapter must be confined to report endpoints and reviewed before it is built. Developer tokens were SUNSET 2026-09-09 and are ignored by the API servers, so a missing developer_token is NOT a blocker. Measured 2026-09-30 by scripts/google_products_pull.py: OAuth alone reaches v22-v25 and listAccessibleCustomers returns HTTP 200 with 2 customers (8367589699 and manager 4270412231), so the ACCOUNT grant is already done. The remaining blocker is the Cloud project's API access level: a customer query returns CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION, meaning project wecaredigitalbw (756034744787), which owns the automation@ service account, is on Test access. Apply for EXPLORER on the Google Ads API page in Cloud Console for that project, re-run the probe, then build the report-only adapter.",
       "notes": "Scope list deliberately empty: the only Google Ads scope is read/write, and declaring it here would put a write capability in a read-only registry.",
       "key": "google_ads"
     },

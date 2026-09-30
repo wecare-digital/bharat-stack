@@ -114,9 +114,18 @@ REGISTRY: Dict[str, Provider] = {
         adapter_built=False,
         unblock=("No adapter exists. Google Ads offers only one coarse scope, which "
                  "grants writes as well as reads, so an adapter must be confined to "
-                 "report endpoints and reviewed before it is built. Confirm the "
-                 "developer token is approved for the account, then build the "
-                 "report-only adapter."),
+                 "report endpoints and reviewed before it is built. Developer tokens "
+                 "were SUNSET 2026-09-09 and are ignored by the API servers, so a "
+                 "missing developer_token is NOT a blocker. Measured 2026-09-30 by "
+                 "scripts/google_products_pull.py: OAuth alone reaches v22-v25 and "
+                 "listAccessibleCustomers returns HTTP 200 with 2 customers "
+                 "(8367589699 and manager 4270412231), so the ACCOUNT grant is already "
+                 "done. The remaining blocker is the Cloud project's API access level: "
+                 "a customer query returns CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION, "
+                 "meaning project wecaredigitalbw (756034744787), which owns the "
+                 "automation@ service account, is on Test access. Apply for EXPLORER on "
+                 "the Google Ads API page in Cloud Console for that project, re-run the "
+                 "probe, then build the report-only adapter."),
         notes=("Scope list deliberately empty: the only Google Ads scope is "
                "read/write, and declaring it here would put a write capability in a "
                "read-only registry."),
