@@ -550,21 +550,23 @@ const getPublicPageSchema = ( pathname: string ) => {
   if ( !meta ) {
     /**
      * THE FALLBACK IS PER-ROUTE NOW. It used to hardcode `@id: ${SITE}/#webpage` and
-     * `url: ${SITE}/` for every route missing from PUBLIC_PAGE_META - and three routes
-     * qualify, not one: `/` (correctly), plus `/get` and `/llm`, which are public but
-     * deliberately not marketing. So all three shipped the SAME @id claiming to be the home
-     * page at the home page's URL, which is a cross-route entity collision: two URLs
-     * defining one node with different content is exactly the conflicting-copy case
-     * Google's guidance is about.
+     * `url: ${SITE}/` for every route missing from PUBLIC_PAGE_META - and more than one route
+     * qualifies: `/` (correctly), plus `/get`, which is public but deliberately not
+     * marketing. So they shipped the SAME @id claiming to be the home page at the home
+     * page's URL, which is a cross-route entity collision: two URLs defining one node with
+     * different content is exactly the conflicting-copy case Google's guidance is about.
      *
      * seocheck.js could not see it. Its @id-clash check is per-route - it looks for the same
-     * @id twice within one page - so a collision ACROSS routes was invisible to it, and
-     * neither /get nor /llm is in its ROUTES list anyway.
+     * @id twice within one page - so a collision ACROSS routes was invisible to it, and /get
+     * is not in its ROUTES list anyway.
      *
      * The home page still resolves to `${SITE}/#webpage` and `${SITE}/`, because pathname
-     * is '/' there, so its markup is unchanged. Only /get and /llm move, onto their own
-     * identities. Still no breadcrumb: a trail whose only entry is the page you are on says
-     * nothing, which is the original and correct reasoning for this branch existing.
+     * is '/' there, so its markup is unchanged. Only /get moves, onto its own identity.
+     * Still no breadcrumb: a trail whose only entry is the page you are on says nothing,
+     * which is the original and correct reasoning for this branch existing.
+     *
+     * `/llm` was the third route in this position until 2026-09-30, when it was retired -
+     * see the note on the isPublic chain below.
      */
     const url = pathname === '/' ? `${SITE}/` : `${SITE}${pathname}/`;
     return {
@@ -855,28 +857,28 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // NOT in PUBLIC_PAGE_META, because entries there acquire WebPage structured data and a
   // sitemap entry, and advertising a redirect stub to a crawler is the opposite of the
   // intent. The page sets its own robots noindex and canonicals to the destination.
-  // '/llm' IS PUBLIC, and it takes the '/get' slot rather than a PUBLIC_PAGE_META entry.
+  // '/llm' USED TO BE ON THIS LIST AND IS DELIBERATELY GONE (2026-09-30).
   //
-  // It documents the AI-facing surface - the MCP endpoint at /mcp, /llms.txt and
-  // /llms-full.txt, and the terms for citing this content. Three audiences need somewhere to
-  // be sent that is not a JSON-RPC endpoint or a text file: an operator wiring up a client,
-  // anyone auditing what an unauthenticated route on this domain exposes, and a model that
-  // followed the link from robots.txt or llms.txt.
+  // It was an HTML page describing the AI-facing surface: the MCP endpoint at /mcp, the two
+  // llms.txt files, and the terms for citing this content. Retired because it was a fifth
+  // copy of facts that have to agree - the endpoint URL, the three protocol versions, the
+  // five tool names, the list of things the endpoint cannot do - and a documentation page
+  // that drifts from the thing it documents is worse than no page: it sends an operator to
+  // an endpoint that answers differently from the description they were given.
   //
-  // Listed HERE and not in PUBLIC_PAGE_META, so it renders without the staff sign-in but
-  // acquires no WebPage/BreadcrumbList schema and no sitemap entry - exactly the /get
-  // reasoning. That map is the indexable marketing and content set; this is a machine-facing
-  // reference page, and structured data describing it would compete for nothing. It is
-  // discoverable by the route its audience actually uses: robots.txt links it, /llms.txt
-  // links it, and the MCP server names it in its own `instructions` string.
+  // Nothing was lost. Its content moved into the surfaces its audience actually reads:
+  // /mcp itself answers `initialize` with an `instructions` string and `tools/list` with the
+  // tools and their schemas, get_site_summary returns the citation terms, and /llms.txt now
+  // carries the client config snippet and the cannot-do list. config/public-pages.json holds
+  // all of it, and src/test/PublicAiSurface.test.ts holds it in step with the handler.
   //
-  // Adding it to PUBLIC_PAGE_META instead would ALSO require adding it to PUBLIC_EXACT in
-  // scripts/generate-sitemap.js - src/test/PublicRouteRegistration.test.ts asserts the two
-  // stay in step - so the one-line form here is the whole change rather than half of one.
+  // /llm and /llm/ 301 to /llms.txt - see RETIRED in scripts/provision_legacy_redirects.py.
+  // Do NOT re-add the line below to "fix" a stale link; the redirect is the fix. Re-adding a
+  // route here while that 301 is live gives one URL two answers depending on whether the
+  // request reaches the CDN rule or the export.
   const isPublic = router.pathname === '/'
     || router.pathname === '/404'
     || router.pathname === '/get'
-    || router.pathname === '/llm'
     || Object.prototype.hasOwnProperty.call( PUBLIC_PAGE_META, router.pathname )
     || isContentPublic;
 

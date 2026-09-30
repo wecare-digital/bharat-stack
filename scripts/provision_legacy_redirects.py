@@ -126,6 +126,28 @@ RETIRED = {
     # fall through to the catch-all would serve 404.html at HTTP 200 instead, which is the
     # failure mode this whole script exists to avoid.
     "/my-order": "/orders/",
+    # /llm IS DELIBERATELY ABSENT, AND THIS ENTRY IS NOT COMING BACK.
+    #
+    # It was `"/llm": "/llms.txt"` from its retirement on 2026-09-30 until the owner removed
+    # the redirect the same day: "i dont want any redirect llm must go". So /llm now falls
+    # through to the `/<*>` catch-all and answers a real 404.
+    #
+    # THE ARGUMENT FOR THE 301 IS RECORDED RATHER THAN DELETED, because it was not a bad
+    # argument and whoever reads this next deserves to see what was traded away. /llm/ was
+    # live at HTTP 200, was named in public/robots.txt and out/llms.txt, and was linked from
+    # the MCP server's own User-Agent string - so it is an address other people and other
+    # machines already hold, and a 301 would have moved its equity to a document that carries
+    # the same content. The owner's call overrides that, and the cost is explicit: anyone
+    # holding the old URL now gets a 404 instead of the replacement document.
+    #
+    # WHAT THE 404 BUYS, so the decision is not only a cost. A 301 keeps a retired URL alive
+    # in Google's index as a redirect for as long as the rule exists; a 404 drops it. Given
+    # /llm/ was one thin page and its content is fully covered by /llms.txt - which robots.txt
+    # advertises directly - there is little equity to preserve and one fewer URL to explain.
+    #
+    # If it is ever restored, the target must be /llms.txt and NOT /mcp: /mcp answers 405 to a
+    # GET because it offers no SSE stream, so pointing a browser URL there turns a retired page
+    # into a method error. That reasoning is about the target and survives the removal.
 }
 
 # Prefix renames: old top-level segment -> new one. `/dm` became `/workspace/engage` on

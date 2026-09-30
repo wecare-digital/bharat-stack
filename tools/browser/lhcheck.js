@@ -59,7 +59,9 @@ const { resolveChrome } = require( './lib/browser' );
 const ROUTES = [
   '/', '/grahak-os/', '/vayulok/', '/contact/', '/get/', '/orders/', '/bharat-rx/',
   '/anew/', '/dastavez/', '/elsewhere/', '/expo-week/', '/niji-setu/', '/ritual-guru/',
-  '/clear-closure/', '/terms/', '/privacy/', '/blog/', '/llm/',
+  '/clear-closure/', '/terms/', '/privacy/', '/blog/',
+  // '/llm/' was here until 2026-09-30. The page is retired and the URL now 301s to
+  // /llms.txt, which is a text file with no DOM to audit.
   '/post/a-break-is-still-part-of-life/', '/404.html',
 ];
 

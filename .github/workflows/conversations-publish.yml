@@ -23,17 +23,21 @@ on:
     paths:
       - 'content/conversations/**'
       - 'scripts/conversations_batch.py'
+      - 'scripts/conversations_archive_triage.py'
       - 'scripts/wix_blog_migrate.py'
       - 'scripts/blog_quality_v2.py'
       - 'scripts/blog_ledger.py'
       - 'tests/test_conversations_batch.py'
+      - 'tests/test_conversations_archive_triage.py'
       - '.github/workflows/conversations-publish.yml'
   push:
     branches: [ conversations-publishing ]
     paths:
       - 'content/conversations/**'
       - 'scripts/conversations_batch.py'
+      - 'scripts/conversations_archive_triage.py'
       - 'tests/test_conversations_batch.py'
+      - 'tests/test_conversations_archive_triage.py'
       - '.github/workflows/conversations-publish.yml'
   workflow_dispatch:
     inputs:
@@ -91,7 +95,10 @@ jobs:
             pytest==9.1.1 boto3==1.43.98
 
       - name: Runner contract tests
-        run: python -m pytest tests/test_conversations_batch.py -q
+        run: |
+          python -m pytest \
+            tests/test_conversations_batch.py \
+            tests/test_conversations_archive_triage.py -q
 
       - name: Validate every committed Conversations batch
         shell: bash

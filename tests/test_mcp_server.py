@@ -129,6 +129,93 @@ class TestTransportMethods:
 
 
 # --------------------------------------------------------------------------- #
+# transport: every body is a well-formed JSON-RPC response
+# --------------------------------------------------------------------------- #
+
+class TestEveryErrorBodyIsValidJsonRpc:
+    """`id` is REQUIRED on a Response object, and null is the answer when there is no request.
+
+    WHAT WAS ACTUALLY WRONG, because this reads like pedantry and was not. Four transport-level
+    refusals - the Origin 403, the GET and DELETE 405s, the unsupported-verb 405 and the
+    unsupported-version 400 - were hand-built as `{"jsonrpc": "2.0", "error": {...}}` with no
+    `id` member at all. So a GET on the live endpoint returned:
+
+        {"jsonrpc": "2.0", "error": {"code": -32600, "message": "This endpoint does not offer
+         an SSE stream. POST a JSON-RPC message instead."}}
+
+    which announces itself as JSON-RPC 2.0 and is not a valid JSON-RPC 2.0 response. Section 5
+    of the specification makes `id` REQUIRED and names this exact situation: "If there was an
+    error in detecting the id in the Request Object (e.g. Parse error/Invalid Request), it MUST
+    be Null." A GET has no Request Object, so the answer is `"id": null`.
+
+    WHY IT SURVIVED EVERY OTHER TEST IN THIS FILE. The three tests directly above assert the
+    status code and the Allow header and never parse the body. That is the shape of the bug:
+    a client that ignores the body sees a perfectly correct 405, and a client that validates
+    the body rejects the response as malformed, while every measurement we had said healthy.
+
+    ASSERTED AS A PROPERTY OVER EVERY EMITTING PATH rather than four times in four places, so
+    a fifth hand-built body fails here instead of shipping. That is the whole reason this is a
+    class and not one more line in TestTransportMethods.
+    """
+
+    @staticmethod
+    def _check(response, *, expect_status):
+        assert response["statusCode"] == expect_status
+        body = response.get("body")
+        assert body, "an error response must carry a body explaining itself"
+        message = json.loads(body)
+        assert message["jsonrpc"] == "2.0"
+        # `in`, not truthiness. `"id": null` is the correct value here, so a check like
+        # `assert message["id"]` would pass on the bug and fail on the fix.
+        assert "id" in message, f"no id member: {message}"
+        assert message["id"] is None, f"id must be null when no request id was read: {message}"
+        assert isinstance(message["error"], dict)
+        assert isinstance(message["error"]["code"], int)
+        assert message["error"]["message"].strip()
+        # A Response is an error OR a result, never both.
+        assert "result" not in message
+        return message
+
+    def test_get_405(self):
+        self._check(call(None, method="GET"), expect_status=405)
+
+    def test_delete_405(self):
+        self._check(call(None, method="DELETE"), expect_status=405)
+
+    def test_unsupported_verb_405(self):
+        self._check(call(None, method="PUT"), expect_status=405)
+
+    def test_foreign_origin_403(self):
+        self._check(call({"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+                         origin="https://evil.example"), expect_status=403)
+
+    def test_unsupported_protocol_version_400(self):
+        message = self._check(
+            call({"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+                 headers={"MCP-Protocol-Version": "1999-01-01"}), expect_status=400)
+        # The refusal has to say what IS supported, or a client cannot negotiate down.
+        assert message["error"]["data"]["supported"] == list(mod.PROTOCOL_VERSIONS)
+
+    def test_the_handler_builds_no_response_body_by_hand(self):
+        """The structural half of the guard, because the cases above can only cover the paths
+        they know to call. Every JSON-RPC envelope in the handler must come from the two
+        constructors that set `id`; a literal `"jsonrpc": "2.0"` anywhere else is the defect
+        class returning, on some path a future test has not thought to exercise.
+        """
+        source = HANDLER_PATH.read_text(encoding="utf-8")
+        offenders = [
+            f"{number}: {line.strip()}"
+            for number, line in enumerate(source.splitlines(), start=1)
+            if '"jsonrpc": "2.0"' in line
+            and not line.lstrip().startswith("#")
+            and '"id": request_id' not in line
+        ]
+        assert offenders == [], (
+            "these build a JSON-RPC envelope outside _rpc_error/_rpc_result, so they can omit "
+            "the REQUIRED id member:\n  " + "\n  ".join(offenders))
+
+
+# --------------------------------------------------------------------------- #
 # transport: origin
 # --------------------------------------------------------------------------- #
 

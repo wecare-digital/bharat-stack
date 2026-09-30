@@ -137,8 +137,8 @@ ZIP_DATE = (1980, 1, 1, 0, 0, 0)
 # obvious instinct is to add it.
 #
 # The handler defaults SITE_URL to https://wecare.digital, which is the same way every other
-# consumer of the apex in this repo gets it - PageMeta.tsx, SEO.tsx, generate-sitemap.js and
-# src/lib/ai-surface.ts all hardcode it. It is a code constant, not deployment configuration.
+# consumer of the apex in this repo gets it - PageMeta.tsx, SEO.tsx and generate-sitemap.js all
+# hardcode it. It is a code constant, not deployment configuration.
 #
 # Setting it as an environment variable had a concrete cost. `https://wecare.digital` happens
 # to be the exact value of a field in one of the Secrets Manager entries, and

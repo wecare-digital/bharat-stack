@@ -90,6 +90,50 @@ workspace missing these hooks unless forced.
    (`git add <paths> && git commit -m ...`) so no other session can commit in
    between, and re-check `git status --short` immediately before staging rather
    than only before the commit.
+3b. **Chaining is ALSO not sufficient. Use `git commit --only <paths>`.**
+   Proved a second time on 2026-09-30, by a session that had followed 3a exactly.
+   It ran `git status --short | head -12 && git add <5 explicit paths> && git
+   commit`, all chained — and still swept five files belonging to another session
+   into a commit titled `"Create exactly one order from a verified payment, and
+   stop receipts being permanent"`. Ten files, five of them unrelated.
+
+   The reason 3a did not help: it defends the window between `add` and `commit`
+   against a *concurrent* stage. It does nothing about an index that was **already
+   dirty when the session arrived**. The other session had run `git add` and not
+   yet committed, so `conversations-publish.yml`, `conversations_archive_triage.py`
+   and three more were sitting staged (first-column `A`/`M` in `git status`) before
+   this session touched anything. `git commit` commits the index, so it took them.
+
+   Note the chaining actively hid it: `git status --short` was the first link in
+   the `&&` chain, so its output scrolled past and the commit happened in the same
+   breath. Reading it was structurally impossible.
+
+   The fix is one flag:
+
+       git commit --only <paths> -F <message-file>
+
+   `--only` commits **exactly** the named paths and ignores the rest of the index,
+   so a pre-staged file cannot ride along no matter who staged it or when. It makes
+   the guarantee independent of timing, which is what 3a was reaching for and could
+   not achieve.
+
+   **One limitation, found immediately after writing this rule:** `--only` resolves
+   pathspecs against files git already knows, so it rejects an untracked file with
+   `did not match any file(s) known to git`. A new file therefore needs an explicit
+   `git add` first:
+
+       git add <new paths> && git commit --only <all paths> -F <message-file>
+
+   That is still materially safer than 3a. The `git add` introduces the same window
+   3a describes, but `--only` then bounds what the commit can contain regardless of
+   what arrived during it — so the worst case becomes "another session's file is
+   staged and stays staged", not "it is committed under my message".
+
+   Nothing was lost either time — the absorbed files were committed intact and
+   their tests passed — and neither was repaired, because a history rewrite plus
+   force push is prohibited and the cost exceeds a misleading subject line. Both
+   are recorded here instead. **If the index is dirty with work that is not yours,
+   `--only` is not optional.**
 4. **Check before you stage.** `git status --short` plus
    `python scripts/session_map.py`. If a modified file is not yours, leave it.
 5. **A spec belongs to one session.** `~/.kiro/spec-sessions/<hash>.json` maps one

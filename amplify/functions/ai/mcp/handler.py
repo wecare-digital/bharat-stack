@@ -208,7 +208,10 @@ _BLOG_FIELDS = ("slug", "title", "excerpt", "category", "publishedDate", "author
 def _fetch_blog() -> List[Dict[str, Any]]:
     req = urllib.request.Request(BLOG_API, headers={
         "Accept": "application/json",
-        "User-Agent": f"{SERVER_NAME}/{SERVER_VERSION} (+{SITE_URL}/llm/)",
+        # Points at this endpoint, not at a page describing it. It named /llm/ until
+        # 2026-09-30, when that page was retired; a User-Agent URL that 301s is a URL
+        # someone reading an access log has to follow twice to learn who called them.
+        "User-Agent": f"{SERVER_NAME}/{SERVER_VERSION} (+{SITE_URL}/mcp)",
     })
     with urllib.request.urlopen(req, timeout=BLOG_TIMEOUT_SECONDS) as resp:
         payload = json.loads(resp.read().decode("utf-8"))
@@ -769,13 +772,31 @@ def handler(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
     if method == "OPTIONS":
         return _http(204, None, origin)
 
+    # EVERY ERROR BODY BELOW GOES THROUGH _rpc_error, AND THAT IS NOT TIDYING.
+    #
+    # These four transport-level refusals were hand-built dicts of the form
+    # `{"jsonrpc": "2.0", "error": {...}}` - with no `id` member. That is a MALFORMED
+    # JSON-RPC response object, not a stylistic difference. JSON-RPC 2.0 s5 is explicit that
+    # `id` is REQUIRED on a Response, and names this exact case:
+    #
+    #     If there was an error in detecting the id in the Request Object (e.g. Parse error /
+    #     Invalid Request), it MUST be Null.
+    #
+    # A GET carries no Request Object at all, so `"id": null` is the specified answer and
+    # omitting it is simply wrong. It shipped because the tests assert the status code and the
+    # Allow header and never looked at the body - so a client that ignores the body saw
+    # nothing wrong, and a client that validates it would reject the response as malformed
+    # while the endpoint looked healthy from every direction we were measuring.
+    #
+    # `_rpc_error(None, ...)` puts `"id": null` in by construction, which is why these route
+    # through it rather than being fixed in place four times. test_mcp_server.py now asserts
+    # the property over every response the handler can emit, so a fifth hand-built body fails.
+
     # Origin first, before anything else is parsed. A rebinding attempt should not reach
     # the body parser, and the check is cheap.
     if origin and origin not in _allowed_origins():
         logger.warning(json.dumps({"event": "mcp_origin_rejected", "originAllowed": False}))
-        return _http(403, {"jsonrpc": "2.0",
-                           "error": {"code": INVALID_REQUEST, "message": "Origin not allowed"}},
-                     origin)
+        return _http(403, _rpc_error(None, INVALID_REQUEST, "Origin not allowed"), origin)
 
     if method in ("GET", "DELETE"):
         # GET: "return HTTP 405 Method Not Allowed, indicating that the server does not
@@ -786,24 +807,20 @@ def handler(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
         detail = ("This endpoint does not offer an SSE stream. POST a JSON-RPC message instead."
                   if method == "GET" else
                   "This server is stateless and issues no session, so there is none to delete.")
-        return _http(405, {"jsonrpc": "2.0",
-                           "error": {"code": INVALID_REQUEST, "message": detail}},
+        return _http(405, _rpc_error(None, INVALID_REQUEST, detail),
                      origin, extra={"Allow": "POST, OPTIONS"})
 
     if method != "POST":
-        return _http(405, {"jsonrpc": "2.0",
-                           "error": {"code": INVALID_REQUEST, "message": f"{method} is not supported"}},
+        return _http(405, _rpc_error(None, INVALID_REQUEST, f"{method} is not supported"),
                      origin, extra={"Allow": "POST, OPTIONS"})
 
     # An unsupported version MUST be 400. Absent is NOT an error - the spec says assume
     # 2025-03-26 - so the empty case falls through deliberately.
     version = _header(event, "mcp-protocol-version").strip()
     if version and version not in PROTOCOL_VERSIONS:
-        return _http(400, {"jsonrpc": "2.0", "error": {
-            "code": INVALID_REQUEST,
-            "message": f"Unsupported MCP-Protocol-Version: {version}",
-            "data": {"supported": list(PROTOCOL_VERSIONS)},
-        }}, origin)
+        return _http(400, _rpc_error(None, INVALID_REQUEST,
+                                     f"Unsupported MCP-Protocol-Version: {version}",
+                                     {"supported": list(PROTOCOL_VERSIONS)}), origin)
     negotiated = version or DEFAULT_PROTOCOL_VERSION
 
     raw = event.get("body") or ""

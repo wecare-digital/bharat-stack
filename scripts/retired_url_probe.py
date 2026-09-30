@@ -44,6 +44,13 @@ RETIRED: dict[str, str] = {
     "/link/create/": "deleted route",
     "/growth/": "deleted top-level route",
     "/nocode/": "deleted top-level route",
+    # Retired 2026-09-30. It carried a 301 to /llms.txt for a few hours and the owner removed
+    # it, so a 404 is the intended answer here and a 301 reappearing is the regression.
+    # /llm/index.html is probed separately because that exact path kept serving the old page at
+    # HTTP 200 from CloudFront with s-maxage=31536000 - a one-year cache - after the route was
+    # deleted. The `/llm/` rule masked it, so the live page survived its own retirement.
+    "/llm/": "retired AI-access page; must 404, must NOT redirect",
+    "/llm/index.html": "the cached copy that outlived the route; must 404",
     # consolidated by Amplify 301s - these SHOULD redirect, not 404
     "/selfservice/": "301 -> /submit-request/",
     "/track/": "301 -> /orders/",
