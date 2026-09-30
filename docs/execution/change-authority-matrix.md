@@ -534,3 +534,5 @@ checks to make a test pass.
 - Rollback: remove only the newly added integrations/wix-velo-payment directory and this audit entry. Preserve pre-existing work.
 
 - 2026-10-01 A2_REMOTE_CODE: owner explicitly requested push. Rechecked official Wix backend and Velo payment-plugin docs; clarified self-managed versus Wix-managed headless. Package tests: 42 passed. Publish source to stack; no Wix deployment or payment activation. Rollback: revert the adapter-source commit.
+
+- 2026-10-01 A1_LOCAL/A2_REMOTE_CODE: external PSP Digest authentication module and 16 offline tests; onboarding eligibility explicitly unresolved, no deployed route or payment operation. Owner request to complete existing integration. Rollback: revert this isolated module/documentation commit.
