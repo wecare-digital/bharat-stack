@@ -37,7 +37,8 @@ A claim that is never confirmed is the recoverable state: `resolve(order_id, eff
 as `pending`, and the pipeline's own retry re-enters. Unlike the webhook lease, this guard does
 **not** auto-expire — a half-finished Wix order must not silently become claimable again and
 produce a second one; recovery is an explicit, audited retry that reads the pending marker and
-finishes the job, exactly as `order_creation._finish_numbering` does for the order number.
+reads back the external outcome before confirming success or authorizing another call.
+A pending marker is never permission to repeat an external mutation.
 
 Storage-agnostic
 ----------------
@@ -169,7 +170,8 @@ def resolve(table: Any, *, order_id: str, effect: str,
     """
     _validate(order_id, effect)
     try:
-        return (table.get_item(Key={key_attr: _key(order_id, effect)}).get("Item")) or None
+        return (table.get_item(Key={key_attr: _key(order_id, effect)},
+                               ConsistentRead=True).get("Item")) or None
     except Exception as error:  # noqa: BLE001
         raise SideEffectGuardUnavailable(
             f"could not read the {effect} marker: {type(error).__name__}") from error

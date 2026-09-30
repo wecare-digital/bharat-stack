@@ -257,21 +257,21 @@ Everything below requires R0 closed.
 checkout, the authoritative total is **Calculate Cart**, and an order exists only after
 payment (Phase 10/11). This is an in-chat flow; the Wix checkout page is not used. See D7.
 
-- [ ] 8.1 Backend cart keyed on phone, with the Wix cart id + revision and a TTL
-  - `USER#<phone> / CART#ACTIVE`; the customer never holds a Wix identifier
+- [x] 8.1 Backend cart keyed on phone, with the Wix cart id + revision and a TTL
+  - `CUSTOMERCART#<phone>` in existing WixOrderIds; conditional locks, durable request IDs and logical expiry; customer never chooses a Wix cart ID
   - _Requirements: R5.3, R5.5_
-- [ ] 8.2 Cart V2 adapter in `wix-store`: create cart, add / update / remove line items
+- [x] 8.2 Cart V2 adapter in `wix-store`: create cart, add / update / remove line items
       (`catalogReference {appId, catalogItemId, options.variantId}`), Calculate Cart for the
       authoritative total and price verification token, read `summary.violations`
   - _Requirements: R5.4_ · _Verify: contract test against the live V2 boundary (read/calc
     only) before any order-writing call_
-- [ ] 8.3 Integer-minor-unit money type; no float arithmetic anywhere in the path
+- [x] 8.3 Integer-minor-unit money type; no float arithmetic anywhere in the path
   - _Requirements: R6.1_ · _Verify: test asserting no float in the money path_
 
 ## Phase 9 — WhatsApp payment request
 
 - [ ] 9.1 Build `order_details` from a live Wix **Calculate Cart** (`summary.priceSummary`),
-      carrying the price verification token forward to order creation
+      storing the price verification token, cart revision and calculation ID in the immutable attempt snapshot
   - _Requirements: R6.5_
 - [ ] 9.2 Enforce exact total equality against the Wix Calculate-Cart total; reject on any
       difference
@@ -287,7 +287,7 @@ payment (Phase 10/11). This is an in-chat flow; the Wix checkout page is not use
       from Calculate Cart, order from the bound cart)
   - _Requirements: R7.1_
 - [ ] 10.2 Create-or-resolve Wix order once from the bound Wix cart, guarded by
-      `WIXORDER#<id>` (V2 `Place Order` or create + `Mark Cart As Completed`)
+      `WIXORDER#<id>` (Create Order after verified capture; completion independently verified)
   - _Requirements: R7.2_
 - [ ] 10.3 Await Wix payment reconciliation with bounded backoff
   - _Requirements: R7.6_
@@ -298,10 +298,11 @@ payment (Phase 10/11). This is an in-chat flow; the Wix checkout page is not use
 
 ## Phase 11 — Wix order creation and external payment record (Cart V2)
 
-**Settle the exact V2 order-creation call here**, against the live admin contract: `Place
-Order` with the payment marked external, versus create the order and `Mark Cart As
-Completed`. This is the first phase that writes to the live site, and no order-writing call
-runs until 11.2's enumeration test passes.
+**Order-writing remains off.** Use Create Order + Add Payments after verified capture;
+never call Place Order in the external-payment path. Prove the complete payload mapping,
+cart completion, inventory behavior and external-payment readback before setting the
+site-bound write-contract attestation. The Cart V2 demo probe creates no order and does
+not satisfy this production write contract.
 
 - [ ] 11.1 Record the externally collected payment against the created order (external
       payment, not a collection)
@@ -451,3 +452,12 @@ delivery. See the resolution note under R9 in `requirements.md`.
 - [ ] 21.5 Production deployment checkpoint with account, region, commit, functions,
       secrets, tests, infra diff, rollback version
 - [ ] 21.6 Post-deploy smoke tests and alarm verification
+
+### Cart V2 source verification — 2026-10-01
+
+Phase 8 source is implemented and exercised through the live demo response and offline
+customer ownership/replay/money tests. The GET/POST customer cart route remains gated off
+until deployed with its shared layer and IAM. Phase 9 initiation wiring, shipping/billing
+profile integration, authenticated Meta provider binding and Phase 11 full order/inventory
+verification remain open. An unrelated in-progress checkout scaffold using V1 must be
+migrated to this V2 boundary before activation; do not deploy both purchase flows.

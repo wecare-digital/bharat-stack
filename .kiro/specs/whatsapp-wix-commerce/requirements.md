@@ -298,8 +298,9 @@ fixed width.
 4. Currency SHALL be compared explicitly (Wix `businessInfo.currencyCode`), not assumed to
    be INR and not inferred from the amount.
 5. The payment payload SHALL be built from a live Wix **Calculate Cart**, never from cached
-   prices. The Calculate-Cart **price verification token** SHALL be carried to Wix order
-   creation so prices cannot drift between calculation and order.
+   prices. The Calculate-Cart **price verification token**, cart revision and calculation ID SHALL be
+   stored privately with the immutable payment-attempt snapshot. Create Order does not validate
+   the Place Order token; payment reconciliation SHALL explicitly verify amount and cart binding.
 
 ---
 
@@ -308,11 +309,12 @@ fixed width.
 **Acceptance criteria**
 
 1. WHEN Meta reports a confirmed payment THEN the system SHALL verify the signature, check
-   idempotency, resolve `reference_id`, load the internal order and the authoritative
-   checkout, and compare currency, amount and customer before mutating anything.
+   idempotency, resolve `reference_id`, load the immutable PaymentAttempt and its bound Cart V2
+   calculation, and confirm the provider payment belongs to that attempt. Currency, integer
+   amount and customer must match before creating any internal or Wix order.
 2. A Wix order SHALL be created or resolved **exactly once** per business order, from the
-   bound Wix cart (Cart V2 `Place Order`, or create + `Mark Cart As Completed` — the exact
-   call is settled in Phase 11 against the live contract).
+   bound Cart V2 snapshot using Create Order after verified capture. Place Order is excluded
+   from this external-payment path. Cart completion and inventory behavior require the Phase 11 contract.
 3. The externally collected payment SHALL be recorded against that order as an external
    payment. Recording SHALL NOT collect.
 4. The system SHALL NOT call any Wix API that would charge the customer again. Recording a

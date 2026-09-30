@@ -92,11 +92,11 @@ informational; this design does not redirect a customer to Wix to pay.
 **Cart V2, confirmed live 2026-10-01.** The earlier revision of this design was written
 against Wix **Cart V1 + Checkout V1**, which Wix will remove on **2027-02-01**. Cart V2
 unifies cart and checkout into one entity: there is **no checkout step and no
-`wixCheckoutId`** — the cart id *is* the checkout id, `purchaseFlowId` is the stable
-correlation id across retries, and `orderId` appears only after `Place Order`. See D7 for the
+`wixCheckoutId`** — the cart id identifies the unified cart; `purchaseFlowId` is the stable
+correlation id across retries, and the external order is linked only after verified payment. See D7 for the
 mechanics and the evidence. The consequence for this design is that the V1 `CHECKOUT#`
 mapping row is removed (see the data model): before payment the join key is the Wix **cart
-id**; after `Place Order` it is the Wix **orderId**.
+id**; after verified external order creation it is the Wix **orderId**. PaymentAttempt and provider-payment claims, not cart ID alone, enforce one funded order.
 
 ### D7 — Wix Cart V2 mechanics (supersedes the V1 cart/checkout assumptions)
 
@@ -116,7 +116,7 @@ Calculate Cart         → summary.priceSummary / taxSummary / paymentSummary / 
                          and a PRICE VERIFICATION TOKEN
                        (Estimate Cart is the lightweight, flag-controlled preview; Calculate
                         is the full, checkout-level calculation used to build a payment)
-Place Order            passes the price verification token; the ONLY call that creates an order
+Place Order            NOT USED: can enter Wix payment collection
 Mark Cart As Completed for an externally-created order (our case), when Place Order is not used
 ```
 
@@ -124,8 +124,10 @@ Load-bearing V2 facts, each of which shapes a requirement below:
 
 - **Totals are not stored on the cart.** They come from `Calculate Cart` → `summary`.
   R6's authoritative total is `summary.priceSummary` read at build time, never a cached price.
-- **The price verification token** binds the amount shown to the amount ordered, so prices
-  cannot drift between calculation and `Place Order`. It is the V2 mechanism that backs R6.3.
+- **The price verification token** is stored privately with the immutable calculation snapshot.
+  Wix validates this token in `Place Order`, which this external-payment path does not call.
+  Do not claim it provides price locking for `Create Order`; compare the paid attempt snapshot
+  and fresh cart calculation explicitly, and send mismatches to paid-but-blocked recovery.
 - **`summary.violations`** (severity `ERROR` / `WARNING`) is the pre-order validation surface
   — `OUT_OF_STOCK`, `REMOVED_FROM_CATALOG`. An `ERROR` violation must block, which is R8's
   stock-gone case expressed in the V2 contract.
@@ -134,13 +136,31 @@ Load-bearing V2 facts, each of which shapes a requirement below:
 - **`catalogReference`** for Catalog V3 is `{appId, catalogItemId, options:{variantId, …}}`;
   `variantId` is always included. This is the join between our catalog reads and the cart.
 
-**How order creation is recorded.** In this in-chat flow the money is collected by Meta, not
-by Wix. So after authoritative capture the backend creates the Wix order once, and records
-the external payment against it — it does **not** call any V2 method that would collect
-payment again. Whether that is `Place Order` (with the payment marked external) or create the
-order and `Mark Cart As Completed` is settled in Phase 11 against the live contract with a
-test that enumerates every reachable Wix call and asserts none can charge (R7.4). Until that
-test passes, no order-writing call runs against the live site.
+**How order creation is recorded.** After authoritative payment verification, use Wix
+`Create Order` followed by `Add Payments` to record the captured payment. The writeback
+allowlist excludes Cart V2 `Place Order` and all collection endpoints. Completion with
+`Mark Cart As Completed`, order payload mapping, and inventory behavior still require the
+Phase 11 contract; neither the live cart probe nor a price token proves those behaviors.
+No order write is enabled by this change. The gates require the R0.10 confirmed site ID,
+`WIX_WRITEBACK_ENABLED`, `WIX_ECOM_WRITE_CONFIRMED`, and the tested release contract
+`WIX_CART_V2_WRITE_CONTRACT=cart-v2-external-v1`. These are deployment attestations, not
+customer-controlled request fields.
+
+**Implementation evidence (2026-10-01).** `cart_v2.py` uses catalog-only create/add/update/
+remove/get/calculate calls. `customer_cart.py` stores `CUSTOMERCART#<E.164 phone>` rows in
+existing WixOrderIds, keyed by physical `orderId`, with customer ID ownership checks,
+conditional locks and durable `CARTOP#<phone digest>#<requestId>` replay records. Logical
+cart expiry is 30 days; quote expiry is 5 minutes. Never enable table-wide TTL: immutable
+order reservations share this table. Unknown remote outcomes retain their lock until
+readback; known calculation violations allow the customer to correct the cart. The
+customer route is GET/POST `/wix-store/cart`, authenticated through the customer pool and
+inert unless `WIX_CART_V2_ENABLED=true`.
+
+An isolated demo cart on the confirmed site was created, populated with one catalog variant,
+read and calculated. The redacted response is `tests/fixtures/wix_cart_v2_live_demo.json`.
+It returned INR 24999.00 and blocking MISSING_DELIVERY_ADDRESS / MISSING_DELIVERY_METHOD
+violations. No order, payment or customer message was created. The fixture proves populated
+Cart V2 shapes; it is not evidence of a successful payable checkout.
 
 ### D5 — Reuse the existing order number format, add the missing uniqueness reservation
 
@@ -215,11 +235,12 @@ Single-table additions alongside the existing `Order`, `Payment`, `WixOrdersCach
 | `ORDER#<commerceOrderId>` | `EVENT#<ts>#<eventId>` | append-only timeline |
 | `ORDERNO#<commerceOrderNumber>` | `UNIQUE` | **uniqueness reservation** |
 | `REFERENCE#<metaReferenceId>` | `ORDER` | Meta reference → order |
-| `WIXCART#<wixCartId>` | `ORDER` | Wix cart → order (V2: the cart id is the checkout id) |
+| `WIXCART#<wixCartId>` | `ORDER` | Correlation to the verified-paid order; uniqueness is enforced by PaymentAttempt/provider claims |
 | `WIXORDER#<wixOrderId>` | `ORDER` | Wix order → order, prevents a second Wix order |
 | `PAYMENT#<providerTransactionId>` | `METADATA` | provider transaction uniqueness |
 | `TRACKING#<tokenHash>` | `ORDER` | tracking token → order |
-| `USER#<phone>` | `CART#ACTIVE` | backend-managed cart, with TTL |
+| `CUSTOMERCART#<phone>` | physical `orderId` key | Active backend cart; logical expiry, customer ownership, Wix cart ID/revision, private calculation snapshot |
+| `CARTOP#<phone digest>#<requestId>` | physical `orderId` key | Durable command deduplication; never replay an ambiguous Wix write |
 | `IDEMPOTENCY#<eventId>` | `EVENT` | webhook dedupe, with TTL |
 
 Every mapping row above exists so that a duplicate inbound event resolves to an existing
@@ -343,8 +364,8 @@ Ordered, and the order is the design:
    bound cart. Compare currency (`businessInfo.currencyCode`), then amount in minor units,
    then customer. Any mismatch fails closed. (Cart V2: totals are not stored on the cart.)
 5. Create or resolve the Wix order **once**, guarded by `WIXORDER#<id>`, from the bound Wix
-   cart (V2 `Place Order` with the payment marked external, or create + `Mark Cart As
-   Completed` — settled in Phase 11 against the live contract).
+   cart via `Create Order`; record the external payment and complete the cart only after
+   the Phase 11 mapping/inventory contract is verified. Never call `Place Order`.
 6. Record the externally collected payment against that order. This records; it does not
    collect. No Wix V2 call that could charge again is reachable from this path (asserted by
    the Phase 11 test enumerating every reachable call).
@@ -467,8 +488,8 @@ here rather than deleted, so the reasoning survives.
    decrement? R8 cannot be closed until this is measured against the live contract (Phase 11).
 4. ~~Does the Wix cart/checkout contract match the shapes assumed here?~~ **Answered: use
    Cart V2** (`/ecom/v2/carts` resolves live; V1 removed 2027-02-01). See D7. The exact
-   `Calculate Cart` / `Place Order` request bodies still need a contract test with the admin
-   token before any order write (Phase 8 / Phase 11).
+   `Calculate Cart` response is now covered by a redacted live demo fixture. Create Order,
+   Add Payments and cart completion still need the Phase 11 contract before any order write.
 5. Is `+919330994400` connected? **Answered: yes** — `docs/compatibility.md` re-measured it
    healthy (quality GREEN, WABA `APPROVED`) on 2026-09-30; the `inbound-whatsapp-handler`
    "disconnected" comment was stale and is corrected.

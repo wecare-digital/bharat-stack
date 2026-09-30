@@ -468,14 +468,16 @@ def _create_order_for_captured_payment(payment: Dict, reference_id: str,
                 'paymentAttemptId': row['paymentAttemptId'],
                 'customerId': row.get('customerId', ''),
                 'amountPaise': row.get('amountPaise'),
-                'currency': row.get('currency', 'INR'),
+                'providerPaymentId': row.get('providerPaymentId', ''),
+                'providerOrderId': row.get('providerOrderId', ''),
+                'currency': row.get('currency', ''),
             }
 
         outcome = order_creation.reconcile_payment(
             table=table,
             reference_id=reference_id,
             verify_payment=razorpay_verify.verifier_for_event(
-                payment_id=payment_id, order_id=order_id),
+                payment_id=payment_id, order_id=order_id, load_attempt=_load_attempt),
             load_attempt=_load_attempt,
         )
 

@@ -536,3 +536,13 @@ checks to make a test pass.
 - 2026-10-01 A2_REMOTE_CODE: owner explicitly requested push. Rechecked official Wix backend and Velo payment-plugin docs; clarified self-managed versus Wix-managed headless. Package tests: 42 passed. Publish source to stack; no Wix deployment or payment activation. Rollback: revert the adapter-source commit.
 
 - 2026-10-01 A1_LOCAL/A2_REMOTE_CODE: external PSP Digest authentication module and 16 offline tests; onboarding eligibility explicitly unresolved, no deployed route or payment operation. Owner request to complete existing integration. Rollback: revert this isolated module/documentation commit.
+
+
+## 2026-10-01 — Cart V2 backend and payment-boundary corrections
+
+- A0_READ: live Cart V2 current/get/calculate and one catalog variant read on confirmed site fcd82f0c-9572-49c7-acfb-88fb05042ece; official schema read; bounded AWS metadata/count audit. No provider credential values read through shell.
+- A3_PRODUCTION (nonfinancial fixture only): created one empty demo cart and added one existing catalog variant to validate the V2 response contract. Demo ID de4d6a89-e575-4c51-b930-aec2adbd8b80; no order, payment, customer data or message. Reversible test fixture; never enabled checkout.
+- A1_LOCAL: Cart V2 adapter, authenticated phone-keyed cart, integer-paise money, spec updates and regression tests. Existing WixOrderIds reused; no table TTL change. Details and fixture evidence in headless-checkout-20261001.md.
+- A1_LOCAL: corrected pending-write replay, provider-payment binding, exact amount checks, order-number races and Wix Add Payments request/response contract. Wrong-site and unverified-contract writes fail closed.
+- A2_REMOTE_CODE: commit explicit owned paths to stack and non-force push after focused checks. Concurrent registration, V1 checkout scaffold, UI and provider-email work are preserved outside this commit.
+- Runtime: no Lambda deployment, alias movement, payment/send flag or provider-configuration change. Full WhatsApp checkout is not claimed live. Rollback: revert the source commit, keeping feature flags off.
