@@ -9,21 +9,26 @@ a throttled request 429s before any send, every verify failure collapses to one 
 and a successful verify stamps the customer at most once.
 """
 
-import importlib
+import importlib.util
 import json
 import os
 import sys
+from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                                                 'amplify', 'functions', 'shared')))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
-                                                'amplify', 'functions', 'auth',
-                                                'email-verification')))
 sys.path.insert(0, os.path.dirname(__file__))
 
 from crm_fake_dynamo import FakeDynamo  # noqa: E402
+
+# Load THIS handler under a unique module name. A bare `import handler` collides with every other
+# function's handler.py in sys.modules — seo-tools/handler.py, for one — so under a full-suite run
+# the name resolves to whichever handler was imported first. spec_from_file_location pins it to
+# this file regardless of ordering. (The WhatsApp-auth test does the same, for the same reason.)
+_HANDLER_PATH = (Path(__file__).resolve().parents[1]
+                 / "amplify/functions/auth/email-verification/handler.py")
 
 OTP_TABLE = 'stack-wecare-digital-DownloadGrantsTable'
 CUSTOMERS_TABLE = 'stack-wecare-digital-CustomersTable'
@@ -50,8 +55,10 @@ def handler_env(monkeypatch):
     monkeypatch.setenv('CUSTOMERS_TABLE', CUSTOMERS_TABLE)
     monkeypatch.setenv('APP_ENV', 'development')  # allow localhost origin in tests
 
-    import handler as h
-    importlib.reload(h)
+    spec = importlib.util.spec_from_file_location(
+        "email_verification_under_test", _HANDLER_PATH)
+    h = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(h)
 
     fake = FakeDynamo(keys={OTP_TABLE: 'grantId', CUSTOMERS_TABLE: 'customerId'})
     ses = _FakeSes()
