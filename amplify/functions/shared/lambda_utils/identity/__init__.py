@@ -20,10 +20,16 @@ and no redirect URI has ever been exercised.
 Shape
 -----
     customer.py        CUS_<ULID> identity, phone/email normalisation, checkout readiness
+    registration.py    the walk-up front door: throttle, OTP, then admin-provision a login
     provenance.py      which source may overwrite which Contact field
     oauth_pkce.py      PKCE, state, and the token lifecycle
     google_people.py   sync-token lifecycle and person -> Contact mapping
     truecaller.py      nonce issue/claim and the signed-assertion contract
+
+`registration.py` exists because the customer pool is `AllowAdminCreateUserOnly = true` and that
+is deliberate: a browser must never mint pool users. It proves the phone by OTP first and then
+provisions the Cognito user from the backend. It is also the only layer that can see a client IP -
+a Cognito trigger event carries none - so per-IP throttling lives there or nowhere.
 
 `customer.py` is the newest and is a different axis from the rest: the others enrich a
 `Contact` from a third party, while it defines the identity a checkout customer is keyed on.
