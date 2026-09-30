@@ -113,10 +113,11 @@ const COLUMNS: NavColumn[] = [
           // product listed beside Grahak OS and VayuLok that landed on a generic
           // marketing page was worse than not listing it.
           { label: 'Bharat Rx', href: '/bharat-rx/', match: '/bharat-rx' },
-          // GENERATED FROM src/content/products.ts, not retyped. Ten products across a menu,
-          // a sitemap allowlist, a structured-data map and seven route files is four places
-          // a name or a slug can disagree; mapping the same array means the menu cannot
-          // list a product that has no page, or miss one that does.
+          // GENERATED FROM src/content/products.ts, not retyped. Eleven products across a
+          // menu, a sitemap allowlist, a structured-data map and eight route files is four
+          // places a name or a slug can disagree; mapping the same array means the menu
+          // cannot list a product that has no page, or miss one that does. Hunar was added
+          // by a single entry in that file and appeared here on its own.
           ...PRODUCTS.map( p => ( {
             label: p.name,
             href: `/${p.slug}/`,
@@ -163,6 +164,15 @@ const COLUMNS: NavColumn[] = [
           { label: 'Submit Request', href: '/submit-request/', match: '/submit-request' },
           { label: 'Request Amendment', href: '/request-amendment/', match: '/request-amendment' },
           { label: 'Drop Docs', href: '/drop-docs/', match: '/drop-docs' },
+          // VAULT SITS DIRECTLY BELOW DROP DOCS because it is the same door in the other
+          // direction - Drop Docs sends paperwork in, Vault asks for a copy back out - and
+          // the pair only reads that way when the rows are adjacent.
+          //
+          // IT HAD TO BE TYPED HERE, unlike the products above. This group's rows are
+          // written out rather than mapped from src/content/selfservice.ts, so an entry in
+          // that file alone gives Vault a page and a sitemap line but no way to reach it
+          // from the menu. If Vault ever goes missing from the nav, this list is why.
+          { label: 'Vault', href: '/vault/', match: '/vault' },
           { label: 'Leave Review', href: '/leave-review/', match: '/leave-review' },
           // CONTACT MOVED OUT of Selfservice into the third column (Work with us), on
           // owner instruction - the Selfservice column is now the request ACTIONS only,

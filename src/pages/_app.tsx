@@ -502,7 +502,7 @@ const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description
   // said "Medicines, consults, reminders and records" until then. Structured data that
   // promises a product the page does not offer is worse than none.
   '/bharat-rx': { name: 'Bharat Rx', type: 'WebPage', description: 'Consults, appointments, reminders and records in one place.' },
-  // The seven product pages. Descriptions are shorter than the pages' own meta descriptions
+  // The eight product pages. Descriptions are shorter than the pages' own meta descriptions
   // on purpose: this feeds WebPage.description in the schema graph, where a sentence is
   // enough, while the <title>/<meta> pair in ProductPage.tsx does the search-result work.
   '/elsewhere': { name: 'Elsewhere', type: 'WebPage', description: 'End-to-end travel: visas, bookings and journeys.' },
@@ -514,8 +514,13 @@ const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description
   // brand name each time; neither earlier address was ever published, so there is nothing
   // to redirect from.
   '/anew': { name: 'Anew', type: 'WebPage', description: 'Reflection-led conversations that create clarity and action.' },
+  // Hunar is Hindi/Urdu for skill. The description says CV and skills profile and stops
+  // there: it must not imply placement or hiring, which the page itself is careful to
+  // disclaim, because a WebPage.description promising a service the page declines to offer
+  // is the same defect the Bharat Rx line above was corrected for.
+  '/hunar': { name: 'Hunar', type: 'WebPage', description: 'CV review, skills profiles and the pitch that introduces you.' },
   '/niji-setu': { name: 'Niji Setu', type: 'WebPage', description: 'A QR code people scan to reach you on a masked call.' },
-  // The five Selfservice pages. They exist because the header's Selfservice column offered
+  // The Selfservice pages. They exist because the header's Selfservice column offered
   // six labels and every one resolved to /contact/ - six promises, one destination, on every
   // page of the site. Header.tsx recorded that as a placeholder and named this as the fix.
   // Contact us keeps /contact/, which is its real destination, so there are five and not six.
@@ -525,6 +530,11 @@ const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description
   '/submit-request': { name: 'Submit Request', type: 'WebPage', description: 'Start a new request, in your own words.' },
   '/request-amendment': { name: 'Request Amendment', type: 'WebPage', description: 'Change a date, detail or scope on a request already under way.' },
   '/drop-docs': { name: 'Drop Docs', type: 'WebPage', description: 'Send the documents a request needs, once.' },
+  // Vault is the return leg of Drop Docs and sits next to it for that reason. The sentence
+  // says "ask for a copy" rather than "download your documents": a copy is released after an
+  // identity check, so a description promising an on-demand download would describe a
+  // different page from the one that renders.
+  '/vault': { name: 'Vault', type: 'WebPage', description: 'Ask for a copy of a document held against one of your requests.' },
   '/leave-review': { name: 'Leave Review', type: 'WebPage', description: 'Tell us how something went, well or badly.' },
   '/refer-and-earn': { name: 'Refer & Earn', type: 'WebPage', description: 'Introduce someone who would find this useful.' },
 };

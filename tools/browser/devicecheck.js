@@ -56,7 +56,7 @@ const launchEngine = async () => {
 // LONG-titled one, because a short title fits and would prove nothing.
 const ROUTES = [ '/', '/grahak-os/', '/vayulok/', '/bharat-rx/', '/contact/', '/orders/',
   '/terms/', '/privacy/', '/anew/', '/clear-closure/', '/dastavez/', '/elsewhere/',
-  '/expo-week/', '/niji-setu/', '/ritual-guru/', '/404/', '/blog/', '/get/',
+  '/expo-week/', '/niji-setu/', '/ritual-guru/', '/hunar/', '/vault/', '/404/', '/blog/', '/get/',
   '/post/a-bad-event-and-a-catastrophic-forecast-are-not-the-same/' ];
 
 // CSS pixels. DevTools presets where one exists, marked approx where modelled.

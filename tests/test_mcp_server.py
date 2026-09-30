@@ -459,11 +459,16 @@ class TestTools:
             assert page["url"].startswith(APEX)
 
     def test_list_pages_can_be_narrowed_to_a_group(self):
+        """The set is written out rather than derived from the catalogue the handler just
+        read, which would assert nothing. It is SUPPOSED to fail when a page joins the
+        group - that failure is what makes adding a page a decision about which heading an
+        agent will find it under, instead of something that happens silently. /vault was
+        added on 2026-09-30 and this is the line that noticed."""
         _, body = rpc("tools/call", {"name": "list_pages", "arguments": {"group": "selfservice"}})
         payload = body["result"]["structuredContent"]
-        assert payload["count"] == 5
+        assert payload["count"] == 6
         assert {p["path"] for p in payload["pages"]} == {
-            "/submit-request", "/request-amendment", "/drop-docs",
+            "/submit-request", "/request-amendment", "/drop-docs", "/vault",
             "/leave-review", "/refer-and-earn",
         }
 

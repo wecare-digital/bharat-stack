@@ -153,6 +153,12 @@
       "description": "Reflection-led conversations that create clarity and action."
     },
     {
+      "path": "/hunar",
+      "group": "services",
+      "name": "Hunar",
+      "description": "CV review, skills profiles and the pitch that introduces you."
+    },
+    {
       "path": "/niji-setu",
       "group": "services",
       "name": "Niji Setu",
@@ -175,6 +181,12 @@
       "group": "selfservice",
       "name": "Drop Docs",
       "description": "Send the documents a request needs, once."
+    },
+    {
+      "path": "/vault",
+      "group": "selfservice",
+      "name": "Vault",
+      "description": "Ask for a copy of a document held against one of your requests."
     },
     {
       "path": "/leave-review",

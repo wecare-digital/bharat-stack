@@ -41,7 +41,7 @@ const ROUTES = [
   '/', '/grahak-os/', '/vayulok/', '/contact/', '/terms/', '/privacy/',
   '/orders/', '/bharat-rx/',
   '/elsewhere/', '/expo-week/', '/dastavez/', '/clear-closure/',
-  '/ritual-guru/', '/anew/', '/niji-setu/',
+  '/ritual-guru/', '/anew/', '/niji-setu/', '/hunar/', '/vault/',
 ];
 
 const WIDTHS = [ 1280, 900 ];
