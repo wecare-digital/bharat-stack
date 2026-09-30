@@ -147,7 +147,7 @@ const BharatRxPage: React.FC = () => (
             transition:background-color .2s,transform .2s,box-shadow .2s;
           }
           .brx-cta:hover{background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-          .brx-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+          .brx-cta:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
           /* Static 1px hairline, per the rule: 1px static, 2px hoverable. */
           .brx-note{
             margin:34px 0 0;padding:16px 18px;border:1px solid #e5e7eb;border-radius:12px;

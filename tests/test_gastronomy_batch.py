@@ -30,7 +30,8 @@ def make_post(n: int, title=None):
         'body_markdown': (
             'This recipe has a clear culinary identity and enough context to explain what to look for before cooking.\n\n'
             '## Ingredients\n\n- 1 cup ingredient\n- 1 tsp spice\n\n'
-            '## Method\n\nCook carefully, watching texture and heat rather than relying only on the clock.'
+            '## Method\n\nCook carefully, watching texture and heat rather than relying only on the clock. '
+            'Let it rest off the heat before serving, so the texture settles rather than tightening.'
         ),
     }
 
@@ -151,9 +152,33 @@ def test_legacy_manifest_can_still_validate_but_cannot_publish():
     assert any('quality_version' in e for e in m.validate_batch_document(legacy, require_v2=True))
 
 
-def test_progress_is_variable_size_up_to_150():
+def test_unreconciled_live_baseline_is_valid_but_cannot_advance():
     m = load_module()
-    progress = {'completed_through': 454, 'next_id': 455, 'max_manifest_posts': 150}
+    progress = {
+        'completed_through': 340,
+        'next_id': None,
+        'max_manifest_posts': 150,
+        'live_verified_posts': 454,
+        'sequence_reconciled': False,
+    }
+    assert m.validate_progress(progress) == []
+    try:
+        m.advance_progress(progress, 341, 454)
+    except ValueError as exc:
+        assert 'reconciliation' in str(exc)
+    else:
+        raise AssertionError('expected unreconciled progress to block sequence advance')
+
+
+def test_progress_is_variable_size_up_to_150_after_reconciliation():
+    m = load_module()
+    progress = {
+        'completed_through': 454,
+        'next_id': 455,
+        'max_manifest_posts': 150,
+        'live_verified_posts': 454,
+        'sequence_reconciled': True,
+    }
     assert m.validate_progress(progress) == []
     advanced = m.advance_progress(progress, 455, 604)
     assert advanced['completed_through'] == 604
@@ -163,7 +188,13 @@ def test_progress_is_variable_size_up_to_150():
 
 def test_progress_rejects_skip_and_over_150():
     m = load_module()
-    progress = {'completed_through': 454, 'next_id': 455, 'max_manifest_posts': 150}
+    progress = {
+        'completed_through': 454,
+        'next_id': 455,
+        'max_manifest_posts': 150,
+        'live_verified_posts': 454,
+        'sequence_reconciled': True,
+    }
     try:
         m.advance_progress(progress, 456, 500)
     except ValueError as exc:
@@ -177,3 +208,57 @@ def test_progress_rejects_skip_and_over_150():
         assert '1-150' in str(exc)
     else:
         raise AssertionError('expected oversized manifest to fail')
+
+
+def test_normal_cooking_language_is_not_globally_blocked():
+    m = load_module()
+    doc = make_doc(size=1)
+    doc['posts'][0]['body_markdown'] += (
+        '\n\nThe vegetables are cooked with ginger and herbs, and the technique can be learned from repeated practice.'
+    )
+    errors = m.validate_batch_document(doc, require_v2=True)
+    assert not any('personal provenance' in e for e in errors)
+    assert not any('source-institution provenance' in e for e in errors)
+
+
+def test_pdf_profile_blocks_publisher_author_title_and_private_place():
+    m = load_module()
+    doc = make_doc(size=1)
+    doc['source_profile'] = {
+        'label': 'PDF source',
+        'source_type': 'PDF',
+        'source_ref': 'private://example.pdf',
+        'publisher_names': ['Example Publisher'],
+        'author_names': ['Example Author'],
+        'publication_titles': ['Example Cookbook'],
+        'institution_names': ['Example Institute'],
+        'private_person_names': ['Private Person'],
+        'private_place_names': ['Private Kitchen'],
+        'provenance_phrases': ['family kitchen in Example Town'],
+        'allowed_public_terms': [],
+        'required_public_attribution_terms': [],
+    }
+    doc['posts'][0]['body_markdown'] += '\n\nExample Cookbook was prepared by Example Author for Example Publisher.'
+    errors = m.validate_batch_document(doc, require_v2=True)
+    joined = '\n'.join(errors)
+    assert 'Example Cookbook' in joined
+    assert 'Example Author' in joined
+    assert 'Example Publisher' in joined
+
+
+def test_allowed_public_term_overrides_source_profile_block():
+    m = load_module()
+    doc = make_doc(size=1)
+    doc['source_profile']['blocked_public_terms'] = ['Persian']
+    doc['source_profile']['allowed_public_terms'] = ['Persian']
+    doc['posts'][0]['body_markdown'] += '\n\nPersian culinary identity is central to this dish.'
+    errors = m.validate_batch_document(doc, require_v2=True)
+    assert not any('Persian' in e for e in errors)
+
+
+def test_v2_source_profile_requires_label():
+    m = load_module()
+    doc = make_doc(size=1)
+    doc['source_profile']['label'] = ''
+    errors = m.validate_batch_document(doc, require_v2=True)
+    assert any('source_profile requires label' in e for e in errors)

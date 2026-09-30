@@ -14,6 +14,32 @@ live in states none of them enters.
 
 ---
 
+> ## Status re-measured 2026-09-29 — read this before acting on anything below
+>
+> This document carries no "fixed" markers, so every finding below still reads as open. Some
+> are not. What was actually re-measured on 2026-09-29, and nothing more:
+>
+> **`homeprobe.js` is 11/11, not 5/12.** The suite this audit was written alongside now passes,
+> including the assertions for the JS-off pill, the reduced-motion resting state, the
+> post-paint resize and the Tab stops. `tools/browser/README.md` recorded 5/12 and has been
+> corrected.
+>
+> **H1 is fixed — verified, not assumed.** Counted in a fresh `out/`: `aggregateRating` on
+> **0** pages (was 17), review schema on **0** pages, and `foundingDate` absent entirely (was
+> 123). `src/pages/grahak-os/index.tsx` carries a comment recording the removal. The fake
+> 4.8/150 rating and the 2020 founding date do not ship.
+>
+> **TYPE-3 is a recorded decision, not a defect.** `.brand-dot` at `#ff0040` measures ~3.9:1 on
+> white, and `BrandLockup.tsx` documents that deliberately: it is a decorative glyph in a
+> wordmark, so 3:1 for a non-text graphic is the applicable bar, and the two higher-contrast
+> alternatives were tried and rejected by the owner for reading as near-black rather than as a
+> colour.
+>
+> **Everything else below was NOT re-verified.** H2, H3, M4, M5, M6, L7, L8, the five FOLD
+> postures and TYPE-1/2/4 may be open, fixed, or partly either. Treat each as unknown and
+> measure it before working on it — the point of this note is that a finding reading as open
+> here is not evidence that it is.
+
 ## H1 — Fake review schema and a false founding date still ship, on 17 and 123 pages
 
 `FRONTEND_FULL_AUDIT.md` filed this as **P0 #2** against `src/pages/index.tsx`. It reads

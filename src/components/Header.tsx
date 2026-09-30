@@ -680,7 +680,13 @@ const Header: React.FC = () => {
         /* The Selfservice heading is a link, so it needs an affordance the plain
            headings do not have - without one it looks like the same inert label. */
         .nav-group-link{color:#1a3a2a;text-decoration:none;border-radius:8px}
-        .nav-group-link:hover,.nav-group-link:focus-visible{background:rgba(209,244,112,.22);outline:none}
+        /* Split, same reason as .lgd-toc-link: this was one rule giving hover and
+           focus-visible the same lime tint plus outline:none, so a keyboard user's only
+           focus cue was a tint that composites to rgb(245,253,224) over white. The tint is
+           a pointer affordance on hover; focus needs a ring that measures 3:1, and opaque
+           #1a3a2a on the panel is 12.48:1. */
+        .nav-group-link:hover{background:rgba(209,244,112,.22)}
+        .nav-group-link:focus-visible{background:rgba(209,244,112,.22);outline:3px solid #1a3a2a;outline-offset:1px}
         .nav-empty{margin:0;padding:10px 12px 12px;font-size:14px;color:rgba(0,0,0,.54)}
 
         /* 15px/46px was undersized against a 108px header and a 24px brand lockup,
@@ -705,7 +711,11 @@ const Header: React.FC = () => {
            the active row is SOLID #d1f470 with #0f2a1d type, which is the palette's
            own-surface treatment (.msg.sent, .tab.active) and unmistakably marks the
            current page. */
-        .nav-item:hover,.nav-item:focus-visible{background:rgba(209,244,112,.38);outline:none}
+        /* Split, same reason. .38 is a stronger tint than the .22 above but still only
+           reaches rgb(238,251,201) over white - darker than nothing, nowhere near 3:1, and
+           outline:none removed the fallback. Tint on hover, opaque ring on focus. */
+        .nav-item:hover{background:rgba(209,244,112,.38)}
+        .nav-item:focus-visible{background:rgba(209,244,112,.38);outline:3px solid #1a3a2a;outline-offset:1px}
         .nav-item.active{font-weight:800;background:#d1f470;color:#0f2a1d}
         /* DIVIDER LINE AFTER EACH ROW + a lime SWEEP on hover.
            ::after is the faint resting hairline (#f1f3ec - deliberately very light, so it

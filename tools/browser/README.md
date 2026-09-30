@@ -94,7 +94,10 @@ recorded here (12/12 and 28/28) were stale — both suites have grown since.
 | `typecheck.js` | **3/3** |
 | `uicheck.js` | **96/96** |
 | `contactcheck.js` | **12/13** — the one failure is blocked on a Google Maps API key |
-| `homeprobe.js` | **5/12** — seven open defects, see `docs/home-design-audit-20260926.md` |
+| `homeprobe.js` | **11/11** — was 5/12 with seven open defects; re-measured 2026-09-29 |
+| `rtlcheck.js` | **6883/6883** |
+| `pageaudit.js` | 180 routes, **0** horizontal overflow |
+| `sectioncheck.js`, `devicecheck.js`, `closeprobe.js` | run clean; `closeprobe` leaves its band findings red on purpose |
 
 Those failures are left red deliberately. They are not tuned to pass.
 
@@ -329,3 +332,93 @@ measured value, and the failure it produces is the one that stops dead links shi
   mid-transition number with full confidence.
 - Keep console-error allowlists narrow and justify each entry. A broad `/error/i` filter
   would have permanently hidden the `X-Frame-Options` error that these checks surfaced.
+
+## Two ways a focus-ring measurement lies
+
+Both of these produced confident false failures while auditing the focus rings site-wide, and
+both are the same underlying mistake: scoring a focus indicator without knowing what the
+indicator actually is.
+
+**It is not always an outline or a box-shadow.** `.bs-form input:focus-visible` signals focus by
+moving `border-color` to `#1a3a2a` — 11.85:1, documented at the rule — and pairs it with a lime
+halo that is decorative. A script collecting only `outlineColor` and `boxShadow` scores the halo
+at about 1:1 and reports a correct control as a failure. Diff the **computed style before and
+after `.focus()`** and treat every property that changed as a candidate, then take the best.
+
+**The backdrop is not always the parent's background.** Two opposite errors, one run apart:
+
+| Backdrop rule | What it got wrong |
+|---|---|
+| walk from the element | `.pp-tab.active` carries its own lime fill, so this is right for it |
+| walk from `parentElement` | scored `.pp-tab.active` against the panel's `#000` and reported **1.68:1** for a ring that measures **10.04:1** on the lime it actually sits on |
+| first opaque ancestor | `.wt-play` has `background:transparent` over a dark bar, so this resolved **white** and scored its lime ring at 1.24:1 — the ring is correct, drawn inside a dark bar with `outline-offset:-2px` |
+
+So: start at the element itself, composite every translucent layer you pass, and when a result
+looks wrong for a control whose CSS is documented, suspect the backdrop before the CSS.
+
+## No backticks in a styled-jsx comment — including in a prose note
+
+`.kiro/steering/grahak-os-design.md` already records this and it still cost two builds during
+this work. A `<style jsx>` block is a template literal, so a single backtick **inside a CSS
+comment** ends it and the build fails in JSX, pointing at a brace hundreds of lines away rather
+than at the comment:
+
+```
+src/components/LegalDocument.tsx(250,13): error TS1005: '}' expected.
+```
+
+Both times the backtick was quoting a CSS property in an explanation — `outline:none` and a git
+command. Write the property bare. To find one:
+
+```bash
+npx tsc --noEmit        # the first error names the file; the line is near the stray backtick
+```
+
+## Target size: 24x24 is the AA bar, not 44x44
+
+Worth stating precisely, because auditing the public pages against the wrong number produced 23
+routes of "failures" that are not failures.
+
+- **SC 2.5.8 Target Size (Minimum)** is **Level AA** and asks for **24 by 24 CSS pixels** —
+  [W3C Understanding 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum),
+  [wcag.com](https://www.wcag.com/developers/2-5-8-target-size-minimum-level-aa/).
+- **SC 2.5.5 Target Size (Enhanced)** is **Level AAA** and is where **44 by 44** comes from —
+  [W3C Understanding 2.5.5](https://www.w3.org/WAI/WCAG21/Understanding/target-size.html).
+
+2.5.8 also carries an **inline exception**: a target in a sentence, or whose size is constrained
+by the line-height of surrounding text, is exempt. That covers most of what a naive sweep flags.
+
+Measured across 23 public routes against the correct AA bar, there are **no** target-size
+failures. What a 44px sweep reported, and what each actually is:
+
+| Flagged | Size | Verdict |
+|---|---|---|
+| `.wc-wa` (every route) | 40x40 | passes AA; also documented in `uicheck.js` as sitting in a 48px pill |
+| `.lgd-toc-link` (71 on the legal pages) | 422x34 | passes AA |
+| breadcrumb `Home` on `/blog/` | 41x32 | passes AA |
+| `.cl-link`, `.mo-link`, `.lgd-inline-link` | ~20-26px tall | inline in a sentence — exempt |
+| `.pp-tab` on `/grahak-os/` | was 43.3 | already passed AA; raised to 44 for **2.5.5 AAA** |
+
+So write the number you mean. A suite asserting 44 is asserting AAA, which is a legitimate house
+standard but should say so, or every inline link on the site reads as a defect.
+
+## An accessible name is not just aria-label
+
+A sweep looking for unnamed controls reported the search input on `/get/` and the one on `/blog/`
+as having no accessible name. Both are correctly labelled — each has an `id` with a matching
+`<label for>`:
+
+```
+/get/    <input id="mobile"  ...>   labelFor: true
+/blog/   <input id="blog-q"  ...>   labelFor: true
+```
+
+The check had looked at `aria-label`, `aria-labelledby`, `title`, text content and nested
+`img[alt]`, and stopped there. Name computation also has to consider:
+
+- `label[for="<id>"]` elsewhere in the document
+- a wrapping `<label>` ancestor
+- `<svg><title>` for icon-only controls
+- `value` on `input[type=submit|button]`, and `alt` on `input[type=image]`
+
+Miss the first two and every properly-labelled form field on the site reports as a violation.

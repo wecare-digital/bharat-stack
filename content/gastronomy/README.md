@@ -2,7 +2,7 @@
 
 This directory is the durable state for WECARE.DIGITAL Gastronomy publishing.
 
-Current live Wix baseline: **454 published Gastronomy posts**.
+Current live Wix baseline: **454 published Gastronomy posts**. The historical Git sequence is verified through GAST-340; the 114 newer live posts must be reconciled to source IDs before assigning the next GAST sequence.
 
 ## Production model
 
@@ -41,15 +41,22 @@ Each newly supplied PDF, website, cookbook, publisher archive, or source collect
 }
 ```
 
-`blocked_public_terms` can include:
+`source_profile` is created separately for every new PDF/source. It may include:
 
-- publisher names;
-- author names;
-- book/PDF titles;
-- foundations, centres, institutes, ashrams, schools or kitchens;
-- family/friend/teacher names;
-- personal places or private provenance;
-- source-specific phrases that should remain only in the editorial ledger.
+- `publisher_names`
+- `author_names`
+- `publication_titles`
+- `institution_names`
+- `private_person_names`
+- `private_place_names`
+- `provenance_phrases`
+- additional `blocked_public_terms`
+- `allowed_public_terms` for legitimate public culinary terms
+- `required_public_attribution_terms` when attribution genuinely must remain
+
+Do not carry one source profile forward blindly to the next PDF.
+
+Normal culinary language is **not** a provenance violation by itself. Phrases such as `cooked with`, `learned from`, `volunteer`, `programme`, family, place, or institution terms should only be blocked when they actually expose the current source's private/provenance context.
 
 `required_public_attribution_terms` is an exception list only for material whose attribution is genuinely necessary.
 
@@ -99,7 +106,7 @@ Non-recipe articles are not forced into artificial Ingredients/Method sections.
 Validate:
 
 ```bash
-python scripts/gastronomy_batch.py validate --manifest content/gastronomy/batches/GAST-455-GAST-604.json
+python scripts/gastronomy_batch.py validate --manifest <v2-manifest>
 ```
 
 Publishing and live audit remain separate gates:
@@ -116,3 +123,21 @@ The audit checks live Wix output after publication, including source/privacy lea
 ## Governing rule
 
 **Keep culinary identity. Remove source scaffolding. Keep necessary attribution. Remove unnecessary personal provenance. Never invent WECARE.DIGITAL biography. Preserve recipe facts.**
+
+
+## Future PDF workflow
+
+For each newly uploaded or linked PDF:
+
+1. Read and inventory the complete relevant source.
+2. Create a new source profile for that PDF only.
+3. Record publisher, author, publication title, institutions, personal names/places, and provenance phrases privately.
+4. Preserve legitimate culinary geography and established food terminology through `allowed_public_terms`.
+5. Prepare independent WECARE.DIGITAL articles.
+6. Validate a manifest containing **1-150 articles**.
+7. Publish only records that pass the source/privacy, attribution, metadata, structure, and safety gates.
+8. Wix writes remain internally chunked at 20.
+9. Read every published record back before treating it as verified.
+10. Start a fresh source profile when the next PDF/publisher is supplied.
+
+The quality gate targets source leakage, privacy/provenance, attribution, real content corruption, and relevant safety issues. It does **not** attempt to rewrite ordinary cooking prose simply for stylistic preference.

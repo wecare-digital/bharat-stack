@@ -504,7 +504,7 @@ const TotpSetup: React.FC = () => {
           border-color:#d1f470;color:#1a3a2a;transform:translateY(-2px);
           box-shadow:0 4px 12px rgba(26,58,42,.12);
         }
-        .ts-pill:focus-visible{outline:none;border-color:#d1f470;box-shadow:0 0 0 3px rgba(26,58,42,.3)}
+        .ts-pill:focus-visible{outline:none;border-color:#d1f470;box-shadow:0 0 0 3px #1a3a2a}
         .ts-pill:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
 
         .ts-steps{margin-top:6px}

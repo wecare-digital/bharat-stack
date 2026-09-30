@@ -672,7 +672,25 @@ describe( 'Blog post page', () => {
     expect( css ).toContain( '.content :global(ul),.content :global(ol){margin:28px 0;padding-inline-start:1.4em}' );
     expect( css ).toContain( '.content :global(li + li){margin-top:10px}' );
     expect( css ).toContain( '.content :global(blockquote){margin:36px 0;padding:2px 0 2px 22px;border-inline-start:3px solid #d1f470;font-size:21px;line-height:1.5;' );
-    expect( css ).toContain( '.content :global(a:focus-visible){outline:3px solid rgba(26,58,42,.25);outline-offset:3px;border-radius:2px}' );
+    /*
+     * THE CONTENT LINK RING IS OPAQUE, AND THIS IS THE LAST OF THE TRANSLUCENT FAMILY.
+     *
+     * It was rgba(26,58,42,.25), which composites to rgb(205,212,208) over the white article
+     * column and measures 1.51:1 against it - well under the 3:1 WCAG 1.4.11 asks of a focus
+     * indicator. Opaque #1a3a2a on white is 12.48:1. Body copy is the one place a keyboard
+     * user follows links continuously, so a ring they cannot see is worst here.
+     *
+     * `.post-related-all` in this same file was already opaque, so the page shipped two
+     * different focus treatments; that inconsistency is what made this one easy to miss.
+     * Eighteen rings across thirteen files were on the translucent value and all are now
+     * #1a3a2a. Do not reintroduce an alpha - outline-offset is what softens a ring, and it
+     * costs no contrast.
+     */
+    expect( css ).toContain( '.content :global(a:focus-visible){outline:3px solid #1a3a2a;outline-offset:3px;border-radius:2px}' );
+    // Scoped to this component's own style block and stripped of comments, because the note
+    // above names the value it replaced - see styleBlockWith and declarationsOnly at the top.
+    expect( declarationsOnly( styleBlockWith( container, '.content :global(a:focus-visible)' ) ) )
+      .not.toContain( 'rgba(26,58,42,.25)' );
   } );
 
   /**

@@ -18,9 +18,8 @@ on:
   workflow_dispatch:
     inputs:
       manifest:
-        description: 'Gastronomy manifest path (1-150 posts)'
+        description: 'V2 Gastronomy manifest path (1-150 posts; sequence must be reconciled before publishing)'
         required: true
-        default: 'content/gastronomy/batches/GAST-455-GAST-604.json'
         type: string
       publish:
         description: 'Publish validated v2 manifest to Wix and audit it'

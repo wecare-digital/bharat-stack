@@ -447,7 +447,7 @@ export default function SecureFilesPage ( { signOut, user }: PageProps ) {
                   transition:border-color .2s;
                 }
                 .sf-input:focus{outline:none;border-color:#1a3a2a}
-                .sf-input:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+                .sf-input:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
                 .sf-input:disabled{opacity:.6}
                 .sf-input-file{padding:11px 12px;min-height:48px}
                 .sf-hint{margin:8px 0 0;font-size:13px;line-height:1.45;color:rgba(26,58,42,.72)}
@@ -467,7 +467,7 @@ export default function SecureFilesPage ( { signOut, user }: PageProps ) {
                   background:#fff;transform:translateY(-2px);
                   box-shadow:0 4px 12px rgba(26,58,42,.12);
                 }
-                .sf-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+                .sf-cta:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
                 .sf-cta:disabled{opacity:.55;cursor:default}
                 /* Secondary: same geometry, white by default, so it reads as the lesser
                    of the two without introducing a third shape. */
@@ -523,7 +523,7 @@ export default function SecureFilesPage ( { signOut, user }: PageProps ) {
                   font-size:14px;font-weight:600;cursor:pointer;transition:background-color .2s;
                 }
                 .sf-revoke:hover{background:#fee2e2;border-color:#ef4444;color:#991b1b}
-                .sf-revoke:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+                .sf-revoke:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
 
                 @media(prefers-reduced-motion:reduce){
                   .sf-cta,.sf-input,.sf-revoke{transition:none}

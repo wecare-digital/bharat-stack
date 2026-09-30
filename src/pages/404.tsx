@@ -94,7 +94,7 @@ const NotFoundRedirect: React.FC = () => {
             transition:background-color .2s,transform .2s;
           }
           .nf-cta:hover{background:#fff;transform:translateY(-1px)}
-          .nf-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+          .nf-cta:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
 
           @media(max-width:767px){
             .nf-shell{padding-top:96px}
