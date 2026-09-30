@@ -31,6 +31,14 @@ TARGETS = [
     ("wecare/razorpay-webhook",  "Razorpay webhook + API pair read by wecare-partner-onboarding"),
     ("wecare/google-api-key",    "Google API key (migrated 2026-09-18)"),
     ("wecare/google-maps",       "Google Maps key read by wecare-whatsapp-templates"),
+    # Added 2026-09-30. Google Cloud project wecaredigitalbw contains exactly ONE API key -
+    # "WECARE Unified Google API Key", uid 1febded3-3e68-4d6a-9737-9628ff8ebc19, created
+    # 2026-08-17 - while FOUR secrets here describe themselves as holding a Google key, two of
+    # them claiming different restriction profiles that a single key cannot have at once.
+    # Whether they hold one value or several is answerable ONLY by comparing fingerprints,
+    # which is the whole reason this audit exists, so the two missing ones are now in scope.
+    ("wecare/google/cloud",      "Unified Google API key + project metadata (CMK-encrypted)"),
+    ("wecare/google-maps-server", "Claims to be a SERVER-restricted Maps key for address capture"),
     ("wecare/openai/api",        "OpenAI key (migrated 2026-09-18)"),
     ("wecare/plivo/api",         "Plivo API credentials (migrated 2026-09-18)"),
     ("wecare/aws/iam-access-keys", "AWS IAM access keys (developer auth - see note)"),
