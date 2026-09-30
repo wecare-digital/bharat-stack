@@ -177,14 +177,39 @@ the Meta token never enters context. Measured that way, 2026-09-26:
 | Quality | `qualityRating: GREEN` | `LIVE` |
 | Platform | `platformType: CLOUD_API`, `isOfficialBusinessAccount: true` | `LIVE` |
 | Code verification | **`codeVerificationStatus: EXPIRED`** | `LIVE` |
-| OTP template | `wecare_otp` id `1292079089453029`, `AUTHENTICATION`, `en`, **`APPROVED`** | `LIVE` |
-| Payment template | `wecare_pay`, `UTILITY`, `APPROVED` (plus `postpay_request_v1`, `postpay_details_v1`) | `LIVE` |
-| Templates total | 12 | `LIVE` |
+| OTP template | `wecare_otp`, `AUTHENTICATION`, `en`, **`APPROVED`** | `LIVE` re-measured 2026-09-30 ✅ |
+| Payment template | `wecare_pay`, `UTILITY`, `APPROVED` | ⛔ **HISTORICALLY VERIFIED — NOT CURRENT.** Re-measured 2026-09-30: the WABA returns **only `wecare_otp`**. See the correction below |
+| Templates total | 12 | ⚠️ **HISTORICAL.** The 2026-09-30 read returned **1** |
 | Graph version | `v25.0` fleet-wide | `LIVE` env + `REPO` |
 
 **Brief §4 and §66.4 are therefore satisfied at the provider**: the configured sender
 identity really is `+91 93309 94400`, on the right WABA, with an APPROVED
 `AUTHENTICATION` template, and the live Lambda env already points at exactly those ids.
+
+### ⛔ Correction, 2026-09-30 — the payment template is not present
+
+A live template read for WABA `2094615664435155` returned **exactly one** template, `wecare_otp`.
+No `wecare_pay`, no `postpay_request_v1`, no `postpay_details_v1`. The rows above are left in place
+with a date rather than deleted, because knowing the template *used* to exist is useful — but they
+must not be read as current.
+
+Why it matters rather than being tidy-up: a free-form interactive `order_details` message is only
+deliverable inside the customer's 24-hour service window, and the OTP is delivered by a template
+while the code is typed on the web — which sends no inbound message and therefore opens no window.
+So the common checkout path may well need the template, and sending a template that does not exist
+fails at Meta.
+
+`lambda_utils/payment_readiness.evaluate_for_delivery()` now checks this: outside the window it
+requires a template name **and** verifies it is `APPROVED` against a live read. A configured name
+is not an approved template, which is the same mistake as trusting a configuration constant.
+
+Creating and submitting the template is an owner action; no code here may do it.
+
+### ⚠️ Correction, 2026-09-30 — the route count
+
+The **361** figure recorded in this file is superseded: a paginated read returns **359**. Note that
+an *unpaginated* `get_routes` returns 25, which looks like a mass deletion and is not — any future
+count must paginate and say so. Authorizers remain 0 and all routes remain `AuthorizationType=NONE`.
 
 Two qualifications, stated rather than smoothed over:
 

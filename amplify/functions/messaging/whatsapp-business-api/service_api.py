@@ -36,6 +36,7 @@ from decimal import Decimal
 
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
+from botocore.exceptions import ClientError
 
 from lambda_utils import media_paths
 
@@ -155,28 +156,41 @@ def _get_order(order_id: str) -> Dict:
 
 def _create_order(body: Dict) -> Dict:
     table = dynamodb.Table(ORDERS_TABLE)
-    short = _gen_id()
-    order_id = f'WD-ORD-{short}'
     now = _now()
-    item = {
-        'orderId': order_id,
-        'shortId': short,
-        'source': body.get('source', 'manual'),
-        'customerPhone': body.get('customerPhone', ''),
-        'customerName': body.get('customerName', ''),
-        'customerEmail': body.get('customerEmail', ''),
-        'itemsSummary': body.get('itemsSummary', ''),
-        'totalAmount': body.get('totalAmount'),
-        'currency': body.get('currency', 'INR'),
-        'orderStatus': body.get('status', 'active'),
-        'paymentStatus': body.get('paymentStatus', 'pending'),
-        'adminNotes': body.get('notes', ''),
-        'createdAt': now,
-        'updatedAt': now,
-    }
-    item = {k: v for k, v in item.items() if v is not None and v != ''}
-    table.put_item(Item=item)
-    return _resp(201, item)
+
+    # Conditional, and retried on collision. See the identical fix in
+    # core/service-api/handler.py — these two files are near-copies of each other, which is
+    # precisely why the bare `put_item` had to be fixed in both: a duplicate `orderId` silently
+    # REPLACED an existing order and still returned 201. `shortId` is `sha256(uuid4)[:8]`, so
+    # 32 bits, and the database should enforce uniqueness rather than the generator's luck.
+    for attempt in range(5):
+        short = _gen_id()
+        order_id = f'WD-ORD-{short}'
+        item = {
+            'orderId': order_id,
+            'shortId': short,
+            'source': body.get('source', 'manual'),
+            'customerPhone': body.get('customerPhone', ''),
+            'customerName': body.get('customerName', ''),
+            'customerEmail': body.get('customerEmail', ''),
+            'itemsSummary': body.get('itemsSummary', ''),
+            'totalAmount': body.get('totalAmount'),
+            'currency': body.get('currency', 'INR'),
+            'orderStatus': body.get('status', 'active'),
+            'paymentStatus': body.get('paymentStatus', 'pending'),
+            'adminNotes': body.get('notes', ''),
+            'createdAt': now,
+            'updatedAt': now,
+        }
+        item = {k: v for k, v in item.items() if v is not None and v != ''}
+        try:
+            table.put_item(Item=item, ConditionExpression='attribute_not_exists(orderId)')
+            return _resp(201, item)
+        except ClientError as exc:
+            if exc.response.get('Error', {}).get('Code') != 'ConditionalCheckFailedException':
+                raise
+
+    return _resp(503, {'error': 'Could not allocate a unique order id', 'retryable': True})
 
 
 def _update_order(order_id: str, body: Dict) -> Dict:

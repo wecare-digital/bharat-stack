@@ -244,3 +244,122 @@ def test_require_ready_raises_for_a_blocked_verdict():
 
 def test_require_ready_is_silent_when_ready():
     pr.require_ready(_evaluate({'data': [_configuration()]}))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# the 24-hour window, and delivery readiness as a SEPARATE question
+# ══════════════════════════════════════════════════════════════════════════════
+
+NOW = 1_700_000_000
+
+
+def test_the_window_is_open_inside_24_hours():
+    assert pr.window_is_open(NOW - 3600, now=NOW)
+    assert pr.window_is_open(NOW - (24 * 3600) + 1, now=NOW)
+
+
+def test_the_window_is_closed_at_and_past_24_hours():
+    assert not pr.window_is_open(NOW - (24 * 3600), now=NOW)
+    assert not pr.window_is_open(NOW - (48 * 3600), now=NOW)
+
+
+@pytest.mark.parametrize('unknown', [None, 0, ''])
+def test_an_unknown_last_inbound_counts_as_closed(unknown):
+    """Conservative, and correct: a free-form order_details outside the window is rejected by
+    Meta or billed as a new conversation, so assuming open turns a missing record into a failed
+    checkout."""
+    assert not pr.window_is_open(unknown, now=NOW)
+    assert pr.template_required(unknown, now=NOW)
+
+
+def _delivery(response, **kw):
+    params = dict(
+        expected_waba_id=WABA, expected_configuration_name=CONFIG,
+        expected_provider_mid=MID, fetch_configurations=_fetcher(response),
+    )
+    return pr.evaluate_for_delivery(now=NOW, **{**params, **kw})
+
+
+def test_account_readiness_does_not_need_window_information():
+    """The design error this split fixed: with the window folded into `evaluate`, a default of
+    None made PAYMENT_READY unreachable for an account-level check."""
+    import inspect
+    assert 'last_inbound_at' not in inspect.signature(pr.evaluate).parameters
+    assert _evaluate({'data': [_configuration()]}).state == pr.PAYMENT_READY
+
+
+def test_an_open_window_needs_no_template():
+    verdict = _delivery({'data': [_configuration()]}, last_inbound_at=NOW - 60)
+    assert verdict.state == pr.PAYMENT_READY
+
+
+def test_a_closed_window_with_no_template_configured_blocks():
+    verdict = _delivery({'data': [_configuration()]}, last_inbound_at=NOW - (25 * 3600))
+    assert verdict.state == pr.PAYMENT_TEMPLATE_MISSING
+
+
+def test_a_configured_template_that_was_not_verified_blocks():
+    """Measured live: this WABA holds only `wecare_otp`. A configured name proves nothing."""
+    verdict = _delivery({'data': [_configuration()]},
+                        last_inbound_at=NOW - (25 * 3600),
+                        payment_template_name='wecare_pay')
+    assert verdict.state == pr.CONFIGURATION_UNVERIFIED
+
+
+def test_a_template_absent_from_meta_blocks():
+    verdict = _delivery(
+        {'data': [_configuration()]}, last_inbound_at=NOW - (25 * 3600),
+        payment_template_name='wecare_pay',
+        fetch_templates=lambda _w: {'templates': [
+            {'name': 'wecare_otp', 'status': 'APPROVED'}]})
+    assert verdict.state == pr.PAYMENT_TEMPLATE_MISSING
+    assert 'wecare_otp' in verdict.reason
+
+
+@pytest.mark.parametrize('status', ['PENDING', 'REJECTED', 'PAUSED', 'DISABLED', 'pending'])
+def test_a_non_approved_template_does_not_count(status):
+    """A name that exists but cannot be sent is the same class of error as a local constant."""
+    verdict = _delivery(
+        {'data': [_configuration()]}, last_inbound_at=NOW - (25 * 3600),
+        payment_template_name='wecare_pay',
+        fetch_templates=lambda _w: {'templates': [
+            {'name': 'wecare_pay', 'status': status}]})
+    assert verdict.state == pr.PAYMENT_TEMPLATE_MISSING
+
+
+def test_an_approved_template_outside_the_window_is_ready():
+    verdict = _delivery(
+        {'data': [_configuration()]}, last_inbound_at=NOW - (25 * 3600),
+        payment_template_name='wecare_pay',
+        fetch_templates=lambda _w: {'templates': [
+            {'name': 'wecare_pay', 'status': 'APPROVED'},
+            {'name': 'wecare_otp', 'status': 'APPROVED'}]})
+    assert verdict.state == pr.PAYMENT_READY
+
+
+def test_a_template_read_failure_fails_closed():
+    def explode(_waba):
+        raise TimeoutError('graph unreachable')
+
+    verdict = _delivery({'data': [_configuration()]},
+                        last_inbound_at=NOW - (25 * 3600),
+                        payment_template_name='wecare_pay',
+                        fetch_templates=explode)
+    assert verdict.state == pr.META_UNAVAILABLE
+
+
+def test_delivery_readiness_never_rescues_a_broken_account():
+    """An open window must not paper over a missing configuration."""
+    verdict = _delivery({'data': []}, last_inbound_at=NOW - 60)
+    assert verdict.state == pr.PAYMENT_CONFIG_MISSING
+
+
+def test_the_template_readback_accepts_both_graph_shapes():
+    for shape in ({'templates': [{'name': 'wecare_pay', 'status': 'APPROVED'}]},
+                  {'data': [{'name': 'wecare_pay', 'status': 'APPROVED'}]},
+                  [{'name': 'wecare_pay', 'status': 'APPROVED'}]):
+        verdict = _delivery({'data': [_configuration()]},
+                            last_inbound_at=NOW - (25 * 3600),
+                            payment_template_name='wecare_pay',
+                            fetch_templates=lambda _w, s=shape: s)
+        assert verdict.state == pr.PAYMENT_READY

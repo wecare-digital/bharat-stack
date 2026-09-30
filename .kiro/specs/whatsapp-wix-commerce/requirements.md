@@ -22,6 +22,39 @@ The prompt supplied baselines to verify at execution time. Verification changed 
 correct choice for new TypeScript functions — at the cost of introducing a second runtime
 into a 64/64-Python fleet.
 
+## The ten statements that override anything older in this document
+
+Recorded here, at the top, because each one reverses or narrows something the spec previously
+said and every one of them is load-bearing.
+
+1. **Public Cognito self-signup remains disabled.** The customer pool is
+   `AllowAdminCreateUserOnly = true`, measured live, and that is deliberate architecture rather
+   than an oversight to fix.
+2. **Registration uses a trusted backend front door.** The browser never calls Cognito `SignUp`.
+   An HTTP route normalises the phone, throttles per IP and per phone, sends the OTP, and only
+   then provisions a Cognito user administratively.
+3. **Per-IP throttling cannot live in the Cognito trigger**, which receives no client IP. It
+   belongs at the HTTP door, where `requestContext.http.sourceIp` exists and cannot be spoofed.
+4. **A PaymentAttempt exists before payment; an order does not.** The attempt has no field in
+   which to put an order number.
+5. **The Meta `reference_id` belongs to the PaymentAttempt**, is minted once from `secrets`, and
+   is sent byte-for-byte. It is never truncated, prefixed, re-cased or "repaired" after
+   reservation.
+6. **Order identity does not exist until a provider readback confirms capture.** A webhook is a
+   trigger to verify, not proof.
+7. **A failed, cancelled, expired or pending payment creates zero orders**, zero order numbers,
+   zero Wix orders and zero receipts. It stays visible in payment history, labelled
+   `Payment failed — no order created`.
+8. **The Meta payment configuration is currently absent.** A live read returns zero
+   configurations on WABA `2094615664435155`, so payment is disabled until the owner restores it.
+9. **Payment readiness is provider-driven, never constant-driven.** No local constant, and no
+   environment variable, may enable payment. There is no fallback configuration name: an
+   unrecognised one fails closed before the send.
+10. **The final confirmation and the receipt are WhatsApp-only.** No purchase-confirmation email
+    is sent; email is for verification and account security.
+
+---
+
 ## Goals
 
 Let a customer messaging `+919330994400` browse a Wix catalog, build a cart, pay inside
