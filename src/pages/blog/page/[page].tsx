@@ -31,7 +31,7 @@ import { listPublicBlogPosts, listBlogCards, blogPageCount } from '../../../lib/
 export default function BlogIndexPage ( props: BlogIndexPageProps ) {
   return (
     <>
-      <BlogIndexHead page={ props.page } totalPages={ props.totalPages } />
+      <BlogIndexHead page={ props.page } totalPages={ props.totalPages } posts={ props.posts } />
       <BlogIndexView { ...props } />
     </>
   );

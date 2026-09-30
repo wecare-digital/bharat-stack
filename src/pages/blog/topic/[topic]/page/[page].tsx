@@ -41,6 +41,7 @@ export default function BlogTopicPagedPage ( props: BlogIndexPageProps ) {
         topic={ props.activeCategory }
         topicHref={ `/blog/topic/${topicSlug( props.activeCategory )}/` }
         count={ props.totalPosts }
+        posts={ props.posts }
       />
       <BlogIndexView { ...props } />
     </>

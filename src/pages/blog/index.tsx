@@ -21,7 +21,7 @@ import { blogIndexProps, type BlogIndexPageProps } from '../../lib/blog-index-pr
 export default function BlogIndex ( props: BlogIndexPageProps ) {
   return (
     <>
-      <BlogIndexHead page={ props.page } totalPages={ props.totalPages } />
+      <BlogIndexHead page={ props.page } totalPages={ props.totalPages } posts={ props.posts } />
       <BlogIndexView { ...props } />
     </>
   );
