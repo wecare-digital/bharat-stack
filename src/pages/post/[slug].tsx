@@ -305,8 +305,35 @@ export default function BlogPostPage ( {
                 return <p key={ index }>{ inlineFormat( line ) }</p>;
               } ) }
           </div>
+          {/* TAGS ARE LINKS NOW, AND THEY GO WHERE TAGS ARE ALREADY USED.
+              They were plain spans, so giving them a hover would have been an affordance for
+              nothing - the trap Footer.tsx documents at .ft-tagline, where a hover was removed
+              precisely because the line was not a link.
+              There is no /blog/tag/<x>/ route and inventing one is not the answer, because the
+              destination already exists: scripts/generate-blog-search-index.js records that
+              `tags` is requested FOR SEARCH rather than for display - "Beverages", "Herbal Tea",
+              "Chai", "Lemongrass" are tags on posts whose title and excerpt contain none of
+              those words. So a tag linking to a search FOR ITSELF is the one destination that
+              matches what the field is for.
+              /blog/?q= is a real target, not a guess: BlogSearch is a form with
+              action="/blog/" method="get" and name="q", and its own note says q is "the one
+              /blog/ reads". It also works with JavaScript off, which is why this is a plain
+              navigation rather than a click handler.
+              next/link with :global() in the CSS below, matching .category-switch and
+              .post-related-card - styled-jsx does not scope a composite component, so a
+              className passed to Link would arrive unstyled. */}
+          {/* nav + aria-label, copying .category-switch rather than adding a visible heading.
+              A heading was tried first and is wrong here twice over: typecheck.js asserts every
+              section h2 sits on the 40px/700 rung, so a 14px "Tagged" would either fail it or
+              need a documented exception the way .lgd-toc-title does - and the row does not
+              need a heading to be understood, it needs a NAME, which is what aria-label gives a
+              landmark. */}
           { post.tags && post.tags.length > 0 && (
-            <div className="tags">{ post.tags.map( tag => <span key={ tag }>{ tag }</span> ) }</div>
+            <nav className="tags" aria-label="Tags on this post">
+              { post.tags.map( tag => (
+                <Link key={ tag } href={ `/blog/?q=${encodeURIComponent( tag )}` }>{ tag }</Link>
+              ) ) }
+            </nav>
           ) }
 
           {/* SHARE, AT THE END OF THE READING RATHER THAN THE START.
@@ -458,8 +485,57 @@ export default function BlogPostPage ( {
               colour over #fff measures 4.59:1 and passes, so moving to the palette fixed the
               contrast as a side effect rather than needing a darker grey.
            The wrapper already used the palette hairline and is unchanged. */
-        .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:52px;padding-top:24px;border-top:1px solid #e5e7eb}
-        .tags span{font-size:14px;font-weight:400;letter-spacing:-.125px;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:7px 14px;color:rgba(0,0,0,.54)}
+        /* ONE LINE THAT SCROLLS, NOT A BLOCK THAT WRAPS.
+           This was flex-wrap:wrap, so on a phone a post with six tags grew the row to three
+           lines and pushed the footer down; on a landscape phone it wrapped for no reason at
+           all, because the width was there and the row simply refused to use it. nowrap plus
+           overflow-x:auto keeps it to a single line at every width and lets the row scroll
+           instead - which is exactly what .category-switch on /blog/ already does, so this is
+           the site's existing answer to the same problem rather than a new one.
+
+           DIRECTION IS NOT HARD-CODED. overflow-x on a flex row follows the document's dir
+           so under the RTL languages SupportWidget switches to, the row starts at the right and
+           scrolls leftward with no separate rule. That is why there is no direction or
+           margin-left declaration here - a logical layout gets RTL for free, and rtlcheck asserts it.
+
+           padding-bottom:6px is for the FOCUS RING, not for looks. A scroll container clips its
+           children, and these pills carry a 3px outline at 2px offset; without the room the ring
+           on a focused tag is sliced off at the container's edge. .category-switch carries the
+           same 6px for the same reason. -2px top padding does the same for the hover lift.
+
+           scrollbar-width:thin rather than hidden: a row that scrolls should say so. Hiding the
+           bar leaves a mouse-only user with no indication there is more to the right. */
+        .tags{
+          display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;
+          margin-top:52px;padding:26px 0 6px;border-top:1px solid #e5e7eb;
+          scrollbar-width:thin;align-items:center;
+        }
+        /* 2px, not 1px - and that change is the whole point of making these links.
+           The hairline rule is weight-as-meaning: 2px means hoverable, 1px means static. These
+           were spans at 1px, correctly, because nothing happened when you moused over them. Now
+           that each one navigates to a search for itself, it is a hoverable control and takes
+           the 2px edge that .pill, .pp-pill and .category-switch all carry.
+           :global() because these are next/link, and styled-jsx does not scope a composite
+           component - the same reason .category-switch and .post-related-card use it. */
+        .tags :global(a){
+          flex:0 0 auto;display:inline-flex;align-items:center;
+          font-size:14px;font-weight:400;letter-spacing:-.125px;
+          background:#fff;border:2px solid #e5e7eb;border-radius:999px;
+          padding:6px 13px;color:rgba(0,0,0,.54);text-decoration:none;white-space:nowrap;
+          transition:background-color .2s,border-color .2s,color .2s,transform .2s,box-shadow .2s;
+        }
+        /* THE HOME PAGE'S HOVER, EXACTLY. Lime border, the .22 state tint, a 2px lift and the one
+           shadow this design language uses - the same four properties .category-switch and the
+           home closing CTA move, at the same .2s. The label also goes from the muted
+           rgba(0,0,0,.54) to solid #1a3a2a, because a control being pointed at should read as
+           active rather than as quiet metadata: 12.48:1 on the tint.
+           Anchored on :hover AND :focus-visible so a keyboard user gets the same feedback a
+           mouse user does, which is the split .lgd-toc-link needed for the opposite reason. */
+        .tags :global(a:hover),.tags :global(a:focus-visible){
+          border-color:#d1f470;background:rgba(209,244,112,.22);color:#1a3a2a;
+          transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12);
+        }
+        .tags :global(a:focus-visible){outline:3px solid #1a3a2a;outline-offset:2px}
         /* The share row sits in the same hairline rhythm as the tags above it and the pager below
            - 24px of air under a 1px e5e7eb rule - so the tail of the page reads as three bands of
            one object rather than three unrelated blocks. The controls style themselves; see
@@ -647,6 +723,12 @@ export default function BlogPostPage ( {
         @media(prefers-reduced-motion:reduce){
           .post-related-card,.post-related :global(.post-related-all){transition:none}
           .post-related-card:hover,.post-related :global(.post-related-all:hover){transform:none;box-shadow:none}
+          /* The tag pills lose the lift, not the feedback. transform is the part a reader who
+             asked for less motion should not get; the lime border, the tint and the darkened
+             label all stay, so the control still answers when it is pointed at. Same treatment
+             the related cards above get, and the same reason. */
+          .tags :global(a){transition:none}
+          .tags :global(a:hover),.tags :global(a:focus-visible){transform:none;box-shadow:none}
           /* THE REVEAL IS CANCELLED HERE AS WELL AS SKIPPED IN SCRIPT, and the belt and the
              braces do different jobs. The effect reads the preference once, on mount, and never
              arms if it is set - that covers the normal case. This covers the one the script
