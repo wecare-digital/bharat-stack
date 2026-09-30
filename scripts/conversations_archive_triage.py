@@ -5,8 +5,10 @@ from pathlib import Path
 
 KNOWN_SOURCE_TERMS = [
     'landmark', 'landmark education', 'landmark forum', 'landmark worldwide',
-    'werner erhard', 'erhard', 'lucent', 'lucent technologies', 'patrick',
-    'est training', 'the forum', 'curriculum for living'
+    'werner erhard', 'werner', 'erhard', 'lucent', 'lucent technologies', 'patrick',
+    'est training', 'the forum', 'landmark forum', 'leadership course', 'six day course',
+    'curriculum for living', 'the work of transformation', 'work of transformation',
+    'world to word fit', 'word to world fit', 'who we really are'
 ]
 SOURCE_SCAFFOLD_PATTERNS = [
     r'\bsource note\b', r'\badapted from\b', r'\bthe source\b', r'\bsource article\b',
@@ -14,7 +16,7 @@ SOURCE_SCAFFOLD_PATTERNS = [
     r'\baccording to the source\b', r'\baccording to the author\b'
 ]
 PERSONAL_PATTERNS = [
-    r'\bmy (?:mother|father|mom|dad|wife|husband|partner|son|daughter|brother|sister|aunt|uncle|friend|teacher|mentor|boss|colleague|home|school|office|childhood)\b',
+    r'\bmy (?:mother|father|mom|dad|parents|wife|husband|spouse|partner|girlfriend|boyfriend|lover|ex|son|daughter|children|brother|sister|siblings|aunt|uncle|friend|teacher|mentor|boss|colleague|family|marriage|home|school|office|childhood|private life)\b',
     r'\bi (?:grew up|was born|was raised|worked at|studied at|met|married|divorced|remember when|learned from)\b'
 ]
 RISK_PATTERNS = {
@@ -82,10 +84,10 @@ def classify(row, text):
     factual_risk = bool(research)
     if overlap_strong:
         bucket='LIKELY_EXISTING_COVERAGE'
-    elif attribution_risk:
-        bucket='ATTRIBUTION_REVIEW'
     elif personal_risk:
         bucket='PERSONAL_REFERENCE_REWORK'
+    elif attribution_risk:
+        bucket='ATTRIBUTION_REVIEW'
     elif factual_risk:
         bucket='FACT_CHECK_REQUIRED'
     elif overlap_medium:
