@@ -759,3 +759,64 @@ describe( 'Blog post page', () => {
     expect( css ).toContain( '@media(prefers-reduced-motion:reduce)' );
   } );
 } );
+
+/**
+ * THE PILLS ARE ON THE HOME PAGE'S LANGUAGE, AND EACH VALUE HERE IS THE REASON WHY.
+ *
+ * Before this, the blog carried four pill treatments that agreed with nothing: tag chips at
+ * 11px on an off-palette #f3f4f6 with no border, a category badge at 11px/700 on a lime alpha
+ * that does not exist in the design language, category-switch pills at 13px with POSITIVE
+ * letter-spacing, and the same category badge styled two different ways on the listing card
+ * and on the post itself.
+ *
+ * The contract they are measured against is `.kiro/steering/grahak-os-design.md`:
+ *
+ *   - Exactly THREE lime treatments. `#d1f470` fill + `#1a3a2a` type for our own surfaces,
+ *     `rgba(209,244,112,.22)` for transient state, `#1a3a2a` fill + `#d1f470` type inverted.
+ *     The contract says in as many words not to invent an in-between alpha, naming `#f2fbf6`
+ *     and `#fbfff0` as what happened last time. `.28` was a fourth value in four places.
+ *   - Hairline weight carries meaning: `2px` hoverable, `1px` static, colour always `#e5e7eb`.
+ *   - Labels are not uppercase and not letter-spaced.
+ *   - `BrandBadge` is the lime identity rung: 14px/600/-.125px, no border.
+ *
+ * Measured after, in a browser: category-switch 12.48:1, `.cat-here` 10.04:1, both category
+ * badges 10.04:1, tag chips 4.59:1 — up from 4.49:1, which failed the 4.5:1 AA minimum for
+ * normal text by 0.01. Moving the chips onto the palette fixed a contrast miss as a side
+ * effect rather than needing a darker grey.
+ */
+describe( 'Blog pills sit on the home page design language', () => {
+  it( 'gives tag chips the static hairline and the label rung', () => {
+    const { container } = render( <BlogPostPage post={ samplePost } /> );
+    const css = cssOf( container );
+
+    // 1px because a tag is a plain span with no hover - the static half of the weight rule.
+    // #fff rather than #f3f4f6: the palette's grey is #e5e7eb, and this repo has already
+    // retired #4b5563 and #9ca3af from that same Tailwind family.
+    expect( css ).toContain( '.tags span{font-size:14px;font-weight:400;letter-spacing:-.125px;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:7px 14px;color:rgba(0,0,0,.54)}' );
+    // Weight 400, not 600: these are metadata, so they take the contract's label spec rather
+    // than BrandBadge's identity weight.
+    expect( declarationsOnly( styleBlockWith( container, '.tags span' ) ) ).not.toContain( '#f3f4f6' );
+  } );
+
+  it( 'gives the category badge the full lime voice, because it is identity', () => {
+    const { container } = render( <BlogPostPage post={ samplePost } /> );
+    const css = cssOf( container );
+
+    // The fill, not the .22 tint. BrandBadge went through exactly this move: it began on .22
+    // and was lifted because that value composites to (245,253,224) over white - a wash that
+    // reads as barely-not-white rather than as a green badge. A category badge naming the
+    // post's category is identity, so it has the same requirement and takes the same answer.
+    // No border, which .tab.active, .msg.sent and BrandBadge also carry none of.
+    expect( css ).toContain( '.category{display:inline-block;background:#d1f470;color:#1a3a2a;border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;letter-spacing:-.125px;margin-bottom:18px}' );
+  } );
+
+  it( 'keeps every lime state tint on the one documented alpha', () => {
+    const { container } = render( <BlogPostPage post={ samplePost } /> );
+    // Hover IS the right place for a tint - transient state is exactly what .22 is for. What
+    // was wrong was the alpha. Comments stripped: the notes at those rules name the .28 they
+    // replaced, and a substring search cannot tell a citation from a declaration.
+    const declared = declarationsOnly( cssOf( container ) );
+    expect( declared ).not.toContain( 'rgba(209,244,112,.28)' );
+    expect( declared ).toContain( 'rgba(209,244,112,.22)' );
+  } );
+} );

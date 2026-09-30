@@ -457,16 +457,25 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
            The hover now matches the home CTA exactly - lime tint, a 2px lift and the one
            shadow this design language uses - so a pill behaves like every other raised
            control on the site instead of having its own quieter version. */
+        /* TYPE AND TRACKING PUT ON THE LABEL RUNG, 2026-09-29.
+           13px was its own private size, and letter-spacing:.01em is positive tracking on a
+           label - the contract says eyebrows and labels are not letter-spaced and not
+           uppercase, because notion sets them plain. 14px/-.125px is the rung BrandBadge and
+           the tag pills use, so all three now agree.
+           The hover tint moves .28 -> .22. Here the tint IS the right treatment - hover is a
+           transient state, which is exactly what the .22 value is for - it was just written at
+           an alpha that does not exist in the language. The fill stays reserved for .cat-here,
+           which is identity: the category you are actually on. */
         .category-switch{display:flex;gap:8px;overflow-x:auto;margin:0 0 32px;padding:2px 0 6px;scrollbar-width:thin;align-items:center}
         .category-switch :global(a),.category-switch .cat-here{
           flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
           min-height:44px;padding:0 18px;border:2px solid #e5e7eb;border-radius:999px;
-          background:#fff;color:#1a3a2a;font:inherit;font-size:13px;font-weight:600;
-          letter-spacing:.01em;text-decoration:none;
+          background:#fff;color:#1a3a2a;font:inherit;font-size:14px;font-weight:600;
+          letter-spacing:-.125px;text-decoration:none;
           transition:background-color .2s,border-color .2s,transform .2s,box-shadow .2s;
         }
         .category-switch :global(a:hover){
-          border-color:#d1f470;background:rgba(209,244,112,.28);
+          border-color:#d1f470;background:rgba(209,244,112,.22);
           transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12);
         }
         .category-switch :global(a:focus-visible){outline:3px solid #1a3a2a;outline-offset:3px}
@@ -513,7 +522,22 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
         .post-card:nth-child(3n+3){border-inline-start-color:#9849e8}
         .post-card:hover{border-color:#d1f470;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
         .post-copy{display:flex;flex-direction:column;flex:1;padding:26px}
-        .category{display:inline-block;align-self:flex-start;background:rgba(209,244,112,.28);color:#1a3a2a;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;margin-bottom:14px}
+        /* THE CATEGORY BADGE IS IDENTITY, SO IT GETS THE FULL LIME VOICE.
+           It was rgba(209,244,112,.28) at 11px/700. Two separate problems.
+           First, .28 is a FOURTH lime value. The contract lists exactly three treatments and
+           says in as many words not to mix a fresh tint or a new alpha, because inventing an
+           in-between value is how #f2fbf6 and #fbfff0 got into the codebase. The state tint is
+           .22; .28 is neither that nor the fill.
+           Second, and the reason the answer is the fill rather than .22: this badge NAMES the
+           post's category, which is identity, not a transient state. BrandBadge went through
+           exactly this - it began on the .22 tint and was lifted to the full fill because .22
+           composites to (245,253,224) over white, a wash that reads as barely-not-white rather
+           than as a green badge. A category that reads as barely-not-white has the same
+           problem, so it takes the same answer.
+           Now BrandBadge's own rung: 14px/600/-.125px, #d1f470 fill, #1a3a2a type, and NO
+           border - which .tab.active and .msg.sent also carry none of, and which is already
+           what this rule did. #1a3a2a on #d1f470 is ~10:1. */
+        .category{display:inline-block;align-self:flex-start;background:#d1f470;color:#1a3a2a;border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;letter-spacing:-.125px;margin-bottom:14px}
         h2{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;margin:0 0 12px}
         h2 :global(a){color:#000;text-decoration:none;text-underline-offset:3px}
         h2 :global(a:hover){color:#1a3a2a}
@@ -581,7 +605,8 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
         }
         .pager :global(.is-prev .pager-mark){transform:rotate(-135deg)}
         .pager :global(.is-next .pager-mark){transform:rotate(45deg)}
-        .pager :global(.pager-num:hover),.pager :global(.pager-step:hover){background:rgba(209,244,112,.28)}
+        /* .22, not .28 - same reason as the category-switch hover above. */
+        .pager :global(.pager-num:hover),.pager :global(.pager-step:hover){background:rgba(209,244,112,.22)}
         .pager :global(.pager-num:focus-visible),.pager :global(.pager-step:focus-visible){outline:3px solid #1a3a2a;outline-offset:2px}
         /* The current page: filled, and it is a <span>, so there is nothing to hover. */
         .pager :global(.pager-num.is-here){background:#d1f470;border:2px solid #1a3a2a;cursor:default}
