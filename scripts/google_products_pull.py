@@ -94,6 +94,12 @@ SCOPES = ",".join([
     "https://www.googleapis.com/auth/adwords",
 ])
 
+#: Each probe records its verdict here and the summary RENDERS FROM IT. The summary used to be
+#: hardcoded prose, and on the run after the Google Ads grant landed it printed "only the account
+#: link is missing" directly underneath output proving the link existed and the project was the
+#: blocker instead. A report that contradicts its own measurements is worse than no report.
+VERDICT: dict[str, str] = {}
+
 SITE = "https://wecare.digital"
 GSC_PROPERTY = f"{SITE}/"
 GTM_CONTAINER = "GTM-TXZ8JT78"
@@ -161,8 +167,11 @@ def search_console(tok: str) -> None:
     for e in entries:
         print(f"    {e.get('siteUrl')}  permission={e.get('permissionLevel')}")
     if not entries:
+        VERDICT["Search Console"] = "BLOCKED - owns no property"
         print("  BLOCKED - this principal owns no property.")
         return
+    VERDICT["Search Console"] = f"OK - {len(entries)} property, permission " \
+        f"{entries[0].get('permissionLevel')}"
 
     st, body = call(tok, "https://searchconsole.googleapis.com/webmasters/v3/sites/"
                     f"{urllib.parse.quote(GSC_PROPERTY, safe='')}/sitemaps")
@@ -219,9 +228,11 @@ def tag_manager(tok: str) -> None:
     accounts = (body or {}).get("account") or []
     print(f"  accounts visible: {len(accounts)}")
     if not accounts:
+        VERDICT["Tag Manager"] = "BLOCKED - authenticates, on no GTM account"
         print("  BLOCKED - authentication works but this principal is on no GTM account.")
         print("  There is no API to grant it; it is added in Tag Manager > Admin > User Management.")
         return
+    VERDICT["Tag Manager"] = f"OK - {len(accounts)} account(s)"
     for a in accounts:
         print(f"    {a.get('accountId')}  {a.get('name')}")
         st2, b2 = call(tok, "https://tagmanager.googleapis.com/tagmanager/v2/"
@@ -249,6 +260,7 @@ def analytics(tok: str) -> None:
                     f"properties/{GA4_PROPERTY}")
     print(f"  properties/{GA4_PROPERTY}: http {st}")
     if st == 200:
+        VERDICT["Analytics GA4"] = f"OK - property {GA4_PROPERTY} readable"
         print(f"    displayName={body.get('displayName')} "
               f"timeZone={body.get('timeZone')} currency={body.get('currencyCode')}")
         st2, rep = call(
@@ -273,6 +285,7 @@ def analytics(tok: str) -> None:
         else:
             print(f"      {why(rep)}")
     else:
+        VERDICT["Analytics GA4"] = f"BLOCKED - http {st} on property {GA4_PROPERTY}"
         print(f"    {why(body)}")
         print("  BLOCKED - the service account is not on this GA4 property. It is granted in")
         print("  Analytics > Admin > Account access management. There IS an API for it -")
@@ -338,6 +351,17 @@ def google_ads(tok: str) -> None:
         print(f"    {len(rows)} row(s): {json.dumps(rows)[:200]}")
 
     joined = " ".join(codes)
+    if not codes:
+        VERDICT["Google Ads"] = f"OK - {len(names)} customer(s), query succeeded"
+    elif "CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION" in joined or "ACTION_NOT_PERMITTED" in joined:
+        VERDICT["Google Ads"] = (
+            f"PARTIAL - account access GRANTED ({len(names)} customers visible), "
+            "but the Cloud project is on Test access")
+    elif "USER_PERMISSION_DENIED" in joined:
+        VERDICT["Google Ads"] = "BLOCKED - not a user on the Ads account"
+    else:
+        VERDICT["Google Ads"] = f"BLOCKED - {joined[:60]}"
+
     if "CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION" in joined or "ACTION_NOT_PERMITTED" in joined:
         print("\n  BLOCKER = the Cloud project's API access level (Test).")
         print("  Apply for Explorer or Basic access on the Google Ads API Overview page in")
@@ -377,26 +401,40 @@ def main() -> int:
     google_ads(tok)
 
     head("SUMMARY")
-    print("  Search Console  reachable - ownership was proven by serving a verification file.")
-    print("  Tag Manager / Analytics / Ads  all three authenticate and all three return no")
-    print("  data for one reason: the principal is not a user inside the product.")
-    print("  Ads needs NO developer token - they were sunset 2026-09-09 - and its Cloud project")
-    print("  is not refused for production either. Only the account link is missing.")
-    print("\n  TWO of the three DO have a grant API, which an earlier version of this summary")
-    print("  denied. It matters because it decides whether this can ever be automated:")
-    print("      Tag Manager  accounts.user_permissions.create   scope tagmanager.manage.users")
-    print("      Analytics    accounts.accessBindings.create     scope analytics.manage.users")
-    print("      Google Ads   UI only")
-    print("  The catch is the CALLER, not the endpoint: a service account cannot grant itself")
-    print("  access, so those two calls need an administrator token carrying the manage.users")
-    print("  scopes, and obtaining one means a browser consent once. Since Ads needs the UI")
-    print("  regardless, doing all three in the UI is the shorter path - no consent at all.")
-    print(f"\n  To grant all three, add this principal as a read-only user in each product:")
-    print(f"    {SA}")
-    print("      Google Ads  Admin > Access and security > Users > +   (NOT 'Email only' -")
-    print("                  that level is the one thing service accounts cannot have)")
-    print("      Analytics   Admin > Account access management > +     role Viewer")
-    print("      Tag Manager Admin > Account > User Management > +     account + container Read")
+    for product, verdict in VERDICT.items():
+        mark = "ok  " if verdict.startswith("OK") else (
+            "part" if verdict.startswith("PARTIAL") else "FAIL")
+        print(f"  {mark}  {product:<16} {verdict}")
+
+    outstanding = {p: v for p, v in VERDICT.items() if not v.startswith("OK")}
+    if not outstanding:
+        print("\n  All four products reachable.")
+        return 0
+
+    print(f"\n  {len(outstanding)} product(s) still outstanding:")
+    for product, verdict in outstanding.items():
+        if product == "Google Ads" and "Test access" in verdict:
+            print("    Google Ads   the USER grant has landed - 2 customers are visible, and the")
+            print("                 error moved from USER_PERMISSION_DENIED to")
+            print("                 CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION. That second error")
+            print("                 PROVES what could only be guessed before: the Cloud project")
+            print("                 sits on Test access, which cannot call a production account.")
+            print("                 Cloud Console > Google Ads API Overview > apply for Explorer")
+            print("                 or Basic. Basic is automated and reviewed in minutes after")
+            print("                 brand verification. Needs Owner/Editor/Quota Admin, which")
+            print("                 wecare.digital.bw@gmail.com has and this service account")
+            print("                 does not - so it is a browser action.")
+        elif product == "Tag Manager":
+            print("    Tag Manager  Admin > Account > User Management > + , account + container")
+            print("                 Read. Or accounts.user_permissions.create called by an")
+            print("                 existing admin token with tagmanager.manage.users.")
+        elif product == "Analytics GA4":
+            print("    Analytics    Admin > Account access management > + , role Viewer. Or")
+            print("                 accounts.accessBindings.create called by an existing admin")
+            print("                 token with analytics.manage.users.")
+        else:
+            print(f"    {product:<12} {verdict}")
+    print(f"\n  principal to grant: {SA}")
     return 0
 
 
