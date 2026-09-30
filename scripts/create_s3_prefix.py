@@ -46,7 +46,7 @@ import sys
 from pathlib import Path
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent
                        / "amplify" / "functions" / "shared"))
@@ -71,10 +71,27 @@ def s3():
 
 
 def bucket_exists() -> bool:
+    """False whenever the bucket cannot be CONFIRMED - including with no credentials at all.
+
+    BotoCoreError, not just ClientError. `NoCredentialsError` is a BotoCoreError and is NOT a
+    subclass of ClientError, so `except ClientError` did not catch it: with no credentials the
+    call raised straight out of here, printed a traceback, and exited 1.
+
+    That exit code is the whole problem. tests/test_create_s3_prefix.py deliberately accepts
+    0 or 2 - its own comment reads "Exit 2 is the no-credentials path, which is fine in CI" -
+    and treats anything else as a crash. So a credential-less runner made this script look
+    broken rather than unauthenticated. Measured on 2026-09-30: the `Handler auth enforcement
+    (source)` job went red on `stack` itself with
+    `botocore.exceptions.NoCredentialsError: Unable to locate credentials`, from `--list`,
+    which mutates nothing.
+
+    Returning False routes it through main()'s existing `return 2`, which is the documented
+    "cannot confirm" answer.
+    """
     try:
         s3().head_bucket(Bucket=BUCKET)
         return True
-    except ClientError:
+    except (ClientError, BotoCoreError):
         return False
 
 
@@ -140,7 +157,13 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     if not bucket_exists():
-        print(f"ERROR: bucket {BUCKET} not reachable. This script does NOT create buckets - "
+        # Both causes are named because they need opposite responses, and the old message
+        # asserted only one of them. On a runner with no AWS credentials this path is reached
+        # with the bucket perfectly healthy, and "not reachable" sent the reader looking for a
+        # deleted bucket.
+        print(f"ERROR: bucket {BUCKET} could not be confirmed. Either there are no usable AWS "
+              f"credentials in this environment (the usual cause in CI, and nothing is wrong), "
+              f"or the bucket really is unreachable. This script does NOT create buckets - "
               f"the existing bucket is mandated by .kiro/steering/blog-production-s3.md.",
               file=sys.stderr)
         return 2
