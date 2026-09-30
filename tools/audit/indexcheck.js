@@ -1,0 +1,215 @@
+#!/usr/bin/env node
+/* CommonJS, matching the rest of tools/audit - the directory's own package.json overrides the
+ * repo root's "type": "module". */
+
+/**
+ * Every public page is indexable; every inner page is not. Asserted, not assumed.
+ *
+ * WHY THIS IS A GATE AND NOT A REPORT. Three independent mechanisms decide whether a URL can
+ * reach Google's index, they live in three different files, and they fail in OPPOSITE
+ * directions:
+ *
+ *   robots meta      src/pages/_app.tsx and each page's own <Head>   - permission to index
+ *   robots.txt       public/robots.txt                               - permission to fetch
+ *   sitemap.xml      scripts/generate-sitemap.js                     - the invitation
+ *
+ * Nothing reconciles them. So the failures are all silent:
+ *
+ *   noindex + in the sitemap        -> Google reports the contradiction and trusts neither
+ *   indexable + absent from sitemap -> crawlable but never advertised
+ *   advertised + Disallowed         -> "Indexed, though blocked by robots.txt"
+ *   inner page missing its noindex  -> the authenticated dashboard's route map is published
+ *
+ * The last one is the expensive one, and this repository has shipped its close cousin before:
+ * `/contact-test/` was in the public allowlist AND wrapped in the authenticated <Layout>, so
+ * it returned HTTP 200 carrying the entire staff sidebar to anyone who asked. That was found
+ * by hand on the live site. robots.txt's own header records the rule that came out of it - a
+ * top-level segment belongs in exactly one of the sitemap allowlist or a Disallow - and this
+ * file is that rule made executable.
+ *
+ * "INNER PAGES" means the authenticated dashboard: the `inner-page` class,
+ * src/styles/inner-pages.css, everything under /workspace/. Those must be excluded by ALL
+ * THREE mechanisms, not just one, because any single one of them can be edited away.
+ *
+ * TWO PUBLIC PAGES ARE DELIBERATELY NOT INDEXABLE and are allowlisted below with reasons. The
+ * allowlist is exact and closed: a third noindex public page fails this check, which is the
+ * point - it should require a decision rather than appearing.
+ *
+ * Usage:  node tools/audit/indexcheck.js            (after npm run build)
+ *         node tools/audit/indexcheck.js --json
+ */
+const fs = require( 'fs' );
+const path = require( 'path' );
+
+const OUT = path.join( __dirname, '..', '..', 'out' );
+const SITE = 'https://wecare.digital';
+const JSON_MODE = process.argv.includes( '--json' );
+
+/** The authenticated dashboard. Must be excluded by robots meta AND robots.txt AND the sitemap. */
+const INNER_PREFIX = '/workspace/';
+
+/**
+ * Public routes that are deliberately NOT indexable. Exact matches only, each with the reason,
+ * because "we meant that one" is the whole difference between this list and a bug.
+ */
+const ALLOWED_NOINDEX = {
+  '/404/': 'a redirect stub, not a page - src/pages/404.tsx sends the visitor to the home '
+    + 'page. Indexing it would put a redirect in the index; Google reports those as "Page '
+    + 'with redirect". It exists only because deleting it restores Next\'s built-in 404, '
+    + 'which ships zero links.',
+  '/get/': 'the customer file-collection gate. A visitor verifies their own phone number over '
+    + 'WhatsApp against the customer pool before anything renders, so there is no content to '
+    + 'index - only an authentication step. Indexing it would put a login gate in search '
+    + 'results. Public so it needs no staff sign-in; not marketing, so no sitemap entry.',
+};
+
+function emittedRoutes ( dir = OUT, base = '' ) {
+  const out = [];
+  if ( !fs.existsSync( dir ) ) return out;
+  for ( const entry of fs.readdirSync( dir, { withFileTypes: true } ) )
+  {
+    if ( entry.name.startsWith( '_' ) || entry.name.startsWith( '.' ) ) continue;
+    const full = path.join( dir, entry.name );
+    if ( entry.isDirectory() ) out.push( ...emittedRoutes( full, `${base}/${entry.name}` ) );
+    else if ( entry.name === 'index.html' ) out.push( base === '' ? '/' : `${base}/` );
+  }
+  return out;
+}
+
+function robotsDisallows () {
+  for ( const candidate of [ path.join( OUT, 'robots.txt' ),
+    path.join( __dirname, '..', '..', 'public', 'robots.txt' ) ] )
+  {
+    if ( !fs.existsSync( candidate ) ) continue;
+    return fs.readFileSync( candidate, 'utf-8' ).split( '\n' )
+      .filter( line => /^\s*disallow\s*:/i.test( line ) )
+      .map( line => line.split( ':' ).slice( 1 ).join( ':' ).trim() )
+      .filter( Boolean );
+  }
+  return [];
+}
+
+function sitemapRoutes () {
+  const file = path.join( OUT, 'sitemap.xml' );
+  if ( !fs.existsSync( file ) ) return new Set();
+  const xml = fs.readFileSync( file, 'utf-8' );
+  const out = new Set();
+  for ( const m of xml.matchAll( /<loc>([^<]+)<\/loc>/g ) )
+  {
+    let p = m[ 1 ].startsWith( SITE ) ? m[ 1 ].slice( SITE.length ) : m[ 1 ];
+    if ( !p.endsWith( '/' ) ) p += '/';
+    out.add( p === '' ? '/' : p );
+  }
+  return out;
+}
+
+const META = /<meta[^>]+name="robots"[^>]+content="([^"]*)"/i;
+
+const routes = emittedRoutes();
+if ( routes.length === 0 )
+{
+  console.error( 'indexcheck: out/ is empty or missing - run `npm run build` first' );
+  process.exit( 1 );
+}
+
+const disallows = robotsDisallows();
+const advertised = sitemapRoutes();
+
+const blockedBy = route => disallows.find( rule => rule !== '/' && route.startsWith( rule ) ) || '';
+
+const pages = routes.map( route => {
+  const file = route === '/' ? path.join( OUT, 'index.html' )
+    : path.join( OUT, route.replace( /^\/|\/$/g, '' ), 'index.html' );
+  const html = fs.readFileSync( file, 'utf-8' );
+  const m = META.exec( html );
+  const meta = m ? m[ 1 ] : '';
+  return {
+    route,
+    meta,
+    noindex: /noindex/i.test( meta ),
+    disallow: blockedBy( route ),
+    advertised: advertised.has( route ),
+    inner: route.startsWith( INNER_PREFIX ),
+  };
+} );
+
+const inner = pages.filter( p => p.inner );
+const publicPages = pages.filter( p => !p.inner );
+
+const problems = {
+  innerIndexable: inner.filter( p => !p.noindex )
+    .map( p => `${p.route} has no noindex (meta="${p.meta || 'none'}")` ),
+  innerNotDisallowed: inner.filter( p => !p.disallow )
+    .map( p => `${p.route} is not covered by any robots.txt Disallow` ),
+  innerAdvertised: inner.filter( p => p.advertised )
+    .map( p => `${p.route} is in sitemap.xml` ),
+  publicNoindex: publicPages.filter( p => p.noindex && !( p.route in ALLOWED_NOINDEX ) )
+    .map( p => `${p.route} carries noindex and is not on the allowlist (meta="${p.meta}")` ),
+  publicDisallowed: publicPages.filter( p => p.disallow )
+    .map( p => `${p.route} is Disallowed by "${p.disallow}"` ),
+  contradicted: publicPages.filter( p => p.advertised && ( p.noindex || p.disallow ) )
+    .map( p => `${p.route} is advertised AND suppressed (noindex=${p.noindex} disallow="${p.disallow}")` ),
+  unadvertised: publicPages.filter( p => !p.advertised && !p.noindex && !p.disallow )
+    .map( p => `${p.route} is indexable but absent from sitemap.xml` ),
+  // An allowlisted page that stopped being noindex is also a failure: the allowlist records a
+  // decision, and silently reverting it is the regression this catches in the other direction.
+  allowlistDrift: Object.keys( ALLOWED_NOINDEX )
+    .filter( route => {
+      const page = pages.find( p => p.route === route );
+      return page && !page.noindex;
+    } )
+    .map( route => `${route} is allowlisted as noindex but no longer carries it` ),
+  sitemapOrphans: [ ...advertised ].filter( r => !routes.includes( r ) )
+    .map( r => `${r} is in sitemap.xml but no page was emitted` ),
+};
+
+const checks = [
+  [ 'every inner page carries noindex', problems.innerIndexable ],
+  [ 'every inner page is robots-Disallowed', problems.innerNotDisallowed ],
+  [ 'no inner page is in the sitemap', problems.innerAdvertised ],
+  [ 'no unapproved public page carries noindex', problems.publicNoindex ],
+  [ 'no public page is robots-Disallowed', problems.publicDisallowed ],
+  [ 'no page is advertised and suppressed at once', problems.contradicted ],
+  [ 'every indexable public page is in the sitemap', problems.unadvertised ],
+  [ 'allowlisted noindex pages still carry it', problems.allowlistDrift ],
+  [ 'every sitemap URL has an emitted page', problems.sitemapOrphans ],
+];
+
+if ( JSON_MODE )
+{
+  console.log( JSON.stringify( {
+    emitted: pages.length, inner: inner.length, public: publicPages.length,
+    sitemap: advertised.size, disallows, allowedNoindex: Object.keys( ALLOWED_NOINDEX ),
+    problems,
+  }, null, 2 ) );
+}
+else
+{
+  console.log( `indexcheck - ${pages.length} emitted pages: ${inner.length} inner, ${publicPages.length} public` );
+  console.log( `  sitemap entries   ${advertised.size}` );
+  console.log( `  robots.txt Disallow  ${[ ...new Set( disallows ) ].join( ', ' ) || '(none)'}` );
+  console.log( `  indexable public pages  ${publicPages.filter( p => !p.noindex && !p.disallow ).length}` );
+  console.log( '\nDELIBERATELY NOT INDEXABLE (allowlisted)' );
+  for ( const [ route, why ] of Object.entries( ALLOWED_NOINDEX ) )
+  {
+    const page = pages.find( p => p.route === route );
+    console.log( `  ${route}  ${page ? `meta="${page.meta}"` : 'NOT EMITTED'}` );
+    console.log( `      ${why.replace( /\s+/g, ' ' ).slice( 0, 150 )}` );
+  }
+  console.log( '\nASSERTIONS' );
+  for ( const [ label, list ] of checks )
+  {
+    console.log( `  ${list.length === 0 ? 'ok  ' : 'FAIL'} ${label}${list.length ? ` (${list.length})` : ''}` );
+    for ( const line of list.slice( 0, 6 ) ) console.log( `         ${line}` );
+    if ( list.length > 6 ) console.log( `         +${list.length - 6} more` );
+  }
+}
+
+const total = checks.reduce( ( n, [ , list ] ) => n + list.length, 0 );
+if ( !JSON_MODE )
+{
+  console.log( total
+    ? `\nFAIL: ${total} indexability problem(s)`
+    : '\nok: every public page is indexable, every inner page is excluded three ways' );
+}
+process.exit( total ? 1 : 0 );
