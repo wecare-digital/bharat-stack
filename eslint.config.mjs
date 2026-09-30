@@ -28,6 +28,22 @@ export default [
       '.amplify/**',
       'amplify_outputs.json',
       '**/__pycache__/**',
+      // ESLint flat config does NOT read .gitignore, and .scratch/ is the agent scratch
+      // directory .gitignore sanctions ("Kept inside the workspace on purpose"). So a
+      // throwaway .cjs measurement probe left there is linted like source, and because
+      // eslint-config-next's config objects do not match a bare .cjs file, the react-hooks
+      // plugin is out of scope for it and the whole run dies before linting anything:
+      //
+      //   A configuration object specifies rule "react-hooks/set-state-in-effect", but
+      //   could not find plugin "react-hooks".
+      //
+      // That message names the plugin and the rule, which is the one place the fault is
+      // NOT - it sent this session checking next, eslint-config-next and
+      // eslint-plugin-react-hooks versions before the actual cause turned up. `npm run
+      // lint` went from 0 errors to a hard config failure purely because a scratch file
+      // existed, and `npx eslint src/components/Footer.tsx` passed the whole time.
+      // Measured: removing the probes restored 0 errors / 182 warnings exactly.
+      '.scratch/**',
       // NOTE: there was a 'docs/reference/**' ignore here for a vendored copy of Wix's
       // own Next.js headless examples. That tree has been deleted, so the ignore went
       // with it rather than being left behind as inert config.

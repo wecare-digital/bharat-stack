@@ -61,7 +61,29 @@ const ProductPage: React.FC<ProductPageProps> = ( { product } ) => (
             <li className="pdp-point" key={ point.heading }>
               <span className="pdp-point-n">{ i + 1 }</span>
               <div>
-                <strong className="pdp-point-t">{ point.heading }</strong>
+                {/* h3, NOT a strong. This is the same defect fixed on /grahak-os/ for its six
+                    capability cards, and the same fix - see the note beside .pp-strip-title
+                    there. Measured before this change: every one of the fourteen routes this
+                    component renders had an outline of exactly H1 + H2, so the three points
+                    that carry the actual argument of the page had no heading semantics at
+                    all. A screen-reader user skimming by heading - which is the primary way
+                    that is done - could not reach them, and they were absent from the
+                    document outline entirely.
+
+                    h3 is the correct rung, not h2: these sit under .pdp-h2 inside the same
+                    section, so h2 -> h3 is a step with no level skipped.
+
+                    NOT a <dl>. That was floated as "more precise" and it is the worse
+                    choice: a <dt> cannot be a heading, so it would fix the outline for
+                    nobody while giving up the heading navigation that is the entire point,
+                    and screen-reader support for description lists is uneven. These are
+                    three titled points, and a titled thing wants a heading.
+
+                    The .pdp-point-t rule below already declares display and margin outright,
+                    so the UA stylesheet's 1em h3 margin never applies and promoting the tag
+                    moves nothing: the card-heading rung stays 22px/700/lh 27.94px/ls -.25px
+                    with a 6px gap to the body copy, measured identical before and after. */}
+                <h3 className="pdp-point-t">{ point.heading }</h3>
                 <p className="pdp-p">{ point.body }</p>
               </div>
             </li>

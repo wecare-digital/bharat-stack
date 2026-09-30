@@ -64,9 +64,16 @@ Usage
     python scripts/deploy_mcp_server.py                # package, deploy, route, rewrite
     python scripts/deploy_mcp_server.py --dry-run      # build and report, change nothing
     python scripts/deploy_mcp_server.py --verify       # check live state, change nothing
+    python scripts/deploy_mcp_server.py --verify-live  # public endpoint vs repo, NO credentials
     python scripts/deploy_mcp_server.py --skip-hosting # Lambda + API only
 
 Exit status is 1 when a step fails, or when --verify finds the live state wrong.
+
+`--verify-live` is the one command here that needs no AWS credentials: it POSTs to
+https://wecare.digital/mcp and compares the pages it serves with config/public-pages.json.
+That is what makes it schedulable - see .github/workflows/mcp-catalogue-drift.yml and the
+long note on verify_live() for why a second catalogue check earns its place. It exits 1 on
+drift and 3 when the endpoint cannot be read, because a network blip must not look like drift.
 """
 from __future__ import annotations
 
@@ -128,6 +135,13 @@ HOSTING_RULES = [
     {"source": "/mcp/", "target": EXECUTE_API_TARGET, "status": "200"},
 ]
 CATCH_ALL_SOURCE = "/<*>"
+
+# The apex endpoint an MCP client actually talks to. `SITE` matches the constant name in
+# scripts/provision_legacy_redirects.py and scripts/retired_url_probe.py, which probe the same
+# origin over stdlib urllib for the same reason: no credential should be needed to read a
+# public URL.
+SITE = "https://wecare.digital"
+PUBLIC_ENDPOINT = f"{SITE}/mcp"
 
 # Deterministic zip, matching deploy_all_lambdas.py, so an unchanged tree produces an
 # unchanged CodeSha256 and redeploying does not mint a pointless version.
@@ -591,13 +605,167 @@ def verify() -> int:
     return 0
 
 
+# --------------------------------------------------------------------------- #
+# verify-live
+# --------------------------------------------------------------------------- #
+
+def _rpc(method: str, params: dict, timeout: int) -> dict:
+    """One JSON-RPC POST to the public endpoint. Raises on transport or parse failure.
+
+    NO initialize HANDSHAKE. The server is stateless streamable-http, and a bare tools/call
+    was measured to work against production on 2026-09-30 - so a handshake would add a round
+    trip and a second thing to go wrong without proving anything more.
+
+    `accept: application/json` only. The MCP streamable-http transport invites
+    `application/json, text/event-stream`, and the deployed server was measured to answer
+    application/json either way; asking for JSON alone means a future switch to event-stream
+    framing surfaces as a parse failure here rather than being silently tolerated.
+    """
+    import urllib.request
+
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
+    request = urllib.request.Request(
+        PUBLIC_ENDPOINT,
+        data=body,
+        method="POST",
+        headers={
+            "content-type": "application/json",
+            "accept": "application/json",
+            # Named so an operator reading access logs can tell this apart from a real client.
+            "user-agent": "wecare-mcp-catalogue-drift-check",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read().decode())
+
+
+def verify_live(timeout: int = 25) -> int:
+    """Compare what the LIVE endpoint serves with config/public-pages.json. No credentials.
+
+    WHY THIS EXISTS ALONGSIDE --verify, WHICH ALREADY CHECKS THE CATALOGUE.
+    `--verify` downloads the deployed zip and compares public-pages.json byte for byte. That
+    is the stronger check of the two and it stays. But it needs lambda:GetFunction, so it can
+    only run on the OIDC read role in public-surface-deploy.yml - a workflow that is
+    dispatch-only, has no schedule, and whose role variables this repo cannot confirm are even
+    provisioned. The practical consequence was that nothing ran automatically, and the drift
+    it describes went unreported until a human thought to look: measured on 2026-09-30, the
+    live endpoint was serving 21 pages while the repo had 23, missing /hunar and /vault, three
+    hours after the pages merged.
+
+    This check needs no role, no OIDC, and no AWS API at all - only an HTTPS POST to a public
+    URL - so it can be scheduled today and cannot sit red for want of an IAM provisioning
+    decision. It is also closer to the truth that matters: it reads what a client is actually
+    served, rather than what is sitting in a deployment artifact.
+
+    It is weaker in one way and the difference is worth stating: it can only see fields a tool
+    exposes. `list_pages` returns path, name, description and group, which is every field the
+    catalogue's `pages` entries carry, so for `pages` the two are equivalent. It cannot see
+    drift in `usage_terms` or `ai_surface`; `--verify` can. Run both where you can.
+
+    EXIT CODES, and why unreachable is not a failure.
+        0  the live catalogue matches the repo
+        1  DRIFT - the live catalogue disagrees. A real, actionable finding.
+        3  UNREACHABLE - the endpoint could not be read, so NOTHING is known about live
+           state. Distinct from 1 on purpose, for the reason recorded in plivo-drift.yml:
+           that check once reported a false CRITICAL because a failed credential read and a
+           moved invariant shared one exit code. A network blip must not look like drift.
+    """
+    print("=" * 78)
+    print(f"live catalogue drift check  ->  {PUBLIC_ENDPOINT}")
+    print("=" * 78)
+
+    try:
+        catalog = json.loads(CATALOG_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        _log("live", f"cannot read {CATALOG_FILE}: {exc}")
+        return 3
+
+    try:
+        payload = _rpc("tools/call", {"name": "list_pages", "arguments": {}}, timeout)
+    except Exception as exc:  # noqa: BLE001 - any transport failure means "nothing is known"
+        _log("live", f"UNREACHABLE: {type(exc).__name__}: {exc}")
+        print("\nNothing is known about the live catalogue, so this is NOT reported as drift.")
+        return 3
+
+    if "error" in payload:
+        _log("live", f"UNREACHABLE: endpoint returned a JSON-RPC error: {payload['error']}")
+        return 3
+    result = payload.get("result") or {}
+    if result.get("isError"):
+        _log("live", f"UNREACHABLE: list_pages reported an error: {result.get('content')}")
+        return 3
+    served = (result.get("structuredContent") or {}).get("pages")
+    if not isinstance(served, list) or not served:
+        _log("live", "UNREACHABLE: no structuredContent.pages in the response")
+        return 3
+
+    # Compare on the four fields the catalogue declares. `url` is derived from `path` by the
+    # handler rather than stored, so it is checked for self-consistency instead of equality.
+    fields = ("path", "name", "description", "group")
+    def key(page: dict) -> tuple:
+        return tuple(page.get(f) for f in fields)
+
+    local = {p["path"]: key(p) for p in catalog.get("pages", [])}
+    live = {p.get("path"): key(p) for p in served}
+    _log("live", f"repo declares {len(local)} pages; the endpoint serves {len(live)}")
+
+    problems: list[str] = []
+    for path in sorted(set(local) - set(live)):
+        problems.append(f"MISSING from the live endpoint: {path}  ({local[path][1]})")
+    for path in sorted(set(live) - set(local)):
+        problems.append(f"STILL SERVED but not in the repo: {path}  ({live[path][1]}) "
+                        f"- an agent given this URL may get a 404")
+    for path in sorted(set(local) & set(live)):
+        if local[path] != live[path]:
+            for i, field in enumerate(fields):
+                if local[path][i] != live[path][i]:
+                    problems.append(f"{path} {field} differs:\n"
+                                    f"        repo: {local[path][i]!r}\n"
+                                    f"        live: {live[path][i]!r}")
+
+    # A trailing slash on every url, for the reason test_mcp_server.py pins it: trailingSlash
+    # means the slashless form 301s, so a citation without it can rot.
+    for page in served:
+        url, path = page.get("url", ""), page.get("path", "")
+        expected = f"{SITE}/" if path == "/" else f"{SITE}{path}/"
+        if url != expected:
+            problems.append(f"{path} url is {url!r}, expected {expected!r}")
+
+    if problems:
+        print("\nDRIFT — the live /mcp is not describing this repository's pages")
+        for problem in problems:
+            print(f"  - {problem}")
+        print(
+            "\n  /mcp carries its OWN COPY of config/public-pages.json inside its deployment"
+            "\n  zip, so a catalogue change does not reach it until the Lambda is redeployed."
+            "\n"
+            "\n  Converge with:"
+            "\n      gh workflow run public-surface-deploy.yml -f action=apply -f target=mcp"
+            "\n  or, with AWS credentials to hand:"
+            "\n      python scripts/deploy_mcp_server.py"
+        )
+        return 1
+
+    print(f"\nLIVE OK — the endpoint serves the same {len(live)} pages the repo declares")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true", help="build and report, change nothing")
     parser.add_argument("--verify", action="store_true", help="check live state, change nothing")
+    parser.add_argument("--verify-live", action="store_true",
+                        help="compare the public endpoint's catalogue with the repo. "
+                             "No AWS credentials. Exit 1 on drift, 3 if unreachable.")
+    parser.add_argument("--timeout", type=int, default=25,
+                        help="seconds to wait for the endpoint in --verify-live (default 25)")
     parser.add_argument("--skip-hosting", action="store_true", help="Lambda and API route only")
     args = parser.parse_args()
 
+    # BEFORE --verify, so the credential-free check never reaches a boto3 client. Both flags
+    # together run the cheap public one first and stop if it already found the answer.
+    if args.verify_live:
+        return verify_live(args.timeout)
     if args.verify:
         return verify()
 

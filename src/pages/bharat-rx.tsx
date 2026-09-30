@@ -74,25 +74,32 @@ const BharatRxPage: React.FC = () => (
             of scope. Bharat Rx does not do medicine retail, so the whole track came out
             along with the licensed-pharmacy line it needed. */}
         <h2 className="brx-h2">How it works</h2>
+        {/* THE THREE STEP TITLES ARE h3, NOT strong. Same defect and same fix as the six
+            capability cards on /grahak-os/ and the three points in ProductPage.tsx: measured
+            before this change, this page's outline was exactly H1 + H2 and the three steps had
+            no heading semantics, so a screen-reader user skimming by heading could not reach
+            them. h3 is the right rung - they sit under the .brx-h2 above, so no level is
+            skipped. .brx-step-t already declares display and margin outright, so the UA's 1em
+            h3 margin never applies and the rung stays 22px/700/lh 27.94px/ls -.25px. */}
         <ol className="brx-steps">
           <li className="brx-step">
             <span className="brx-step-n">1</span>
             <div>
-              <strong className="brx-step-t">Send a request</strong>
+              <h3 className="brx-step-t">Send a request</h3>
               <p className="brx-p">Describe what you need and attach anything relevant — a report, a photograph, a previous record.</p>
             </div>
           </li>
           <li className="brx-step">
             <span className="brx-step-n">2</span>
             <div>
-              <strong className="brx-step-t">A professional reviews it</strong>
+              <h3 className="brx-step-t">A professional reviews it</h3>
               <p className="brx-p">Requests that need a qualified opinion get one. What that involves depends on the request, and is set out in section 17 of the Terms.</p>
             </div>
           </li>
           <li className="brx-step">
             <span className="brx-step-n">3</span>
             <div>
-              <strong className="brx-step-t">Track it, and keep the record</strong>
+              <h3 className="brx-step-t">Track it, and keep the record</h3>
               <p className="brx-p">Status, changes and history stay in one place, alongside every other request you have made.</p>
             </div>
           </li>
