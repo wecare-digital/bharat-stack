@@ -34,24 +34,43 @@ This file used to say the developer token was missing, that Ads therefore "canno
 at all", and that adding the service account as a read-only user would fix all three products.
 Measured instead:
 
-    * the developer token IS present in `wecare/google/ads` - a 22-character string, which is
-      the documented shape of a developer token from a manager account's API Center;
-    * with it, `v25/customers:listAccessibleCustomers` returns **HTTP 200**, so authentication
-      SUCCEEDS. Both of the things that were blamed are fine;
-    * the HTML 404s from v17-v21 were never about the token. **v25 is the served version** and
-      those older ones are simply retired, which is why an unserved version answers with an
-      HTML error page rather than a JSON one;
-    * the real blocker is that 200 came back with an EMPTY customer list, because a service
-      account cannot be a Google Ads user. Ads user management accepts real Google accounts
-      only, so unlike GA4 and GTM there is no grant to make - the step does not exist. Ads
-      needs a stored human refresh token permanently.
+    * the developer token was never the blocker. Tokens were SUNSET on 2026-09-09: they may
+      still be sent and are IGNORED by the API servers, and API access level now attaches to
+      the Google Cloud project owning the credential - for a service-account workflow, the
+      project that owns the service account;
+    * `v25/customers:listAccessibleCustomers` returns **HTTP 200** with no developer token
+      sent at all, so authentication SUCCEEDS;
+    * the HTML 404s from v17-v21 were never about the token either. v22-v25 are served and
+      the older ones are retired, which is why an unserved version answers with an HTML
+      error page rather than a JSON one;
+    * the real blocker is that 200 came back with an EMPTY customer list, because
+      `automation@wecaredigitalbw` is not a user on the Ads account.
 
-So a 200 with an empty list is the most misleading answer in this whole script, and it is now
-reported in full rather than as success.
+CORRECTED AGAIN, 2026-09-30, and this correction matters more than the one above because it
+changes what someone is told to go and do. An earlier revision of this docstring - written by
+me - claimed "a service account cannot be a Google Ads user, Ads user management accepts real
+Google accounts only, so there is no grant to make; Ads needs a stored human refresh token
+permanently." **Every clause of that is wrong**, and it would have sent a reader to build an
+OAuth refresh-token flow that is not needed. Google's own service-account workflow guide
+documents the opposite:
 
-No secret value is printed. The developer token is read into memory at call time and never
-rendered; only its presence and length are reported. Identifiers - property ids, container
-ids, customer ids - are not credentials; they appear in page source and in tag payloads.
+    Google Ads -> Admin -> Access and security -> Users -> +
+    type the SERVICE ACCOUNT EMAIL into the Email box, pick an access level, Add account
+    (the only restriction: service accounts do not support the 'Email only' level)
+
+No domain-wide delegation, no Google Workspace, no human refresh token, no browser consent.
+So all three blocked surfaces have the SAME one-step fix - add the service account as a
+read-only user inside each product - and Ads is not the special case it was made out to be.
+
+Which cause it is, is measured rather than assumed, because the two candidates look identical
+at `listAccessibleCustomers` (both answer 200 with an empty list) and differ only in the error
+code from a real customer query:
+
+    USER_PERMISSION_DENIED                     -> not an Ads user; project access level FINE
+    CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION  -> project on Test access; a user grant will
+                                                  NOT help, apply for Explorer/Basic instead
+
+Measured here: USER_PERMISSION_DENIED. So the grant is the fix and the Cloud project is fine.
 
 No secret value is printed. Identifiers - property ids, container ids, customer ids - are not
 credentials; they appear in page source and in tag payloads.
@@ -256,7 +275,9 @@ def analytics(tok: str) -> None:
     else:
         print(f"    {why(body)}")
         print("  BLOCKED - the service account is not on this GA4 property. It is granted in")
-        print("  Analytics > Admin > Property Access Management; there is no API for it.")
+        print("  Analytics > Admin > Account access management. There IS an API for it -")
+        print("  accounts.accessBindings.create, scope analytics.manage.users - but it must be")
+        print("  called by an existing administrator, so it cannot bootstrap itself.")
 
 
 # ── Google Ads ─────────────────────────────────────────────────────────────────
@@ -341,11 +362,24 @@ def main() -> int:
     head("SUMMARY")
     print("  Search Console  reachable - ownership was proven by serving a verification file.")
     print("  Tag Manager / Analytics / Ads  all three authenticate and all three return no")
-    print("  data for one reason: the principal is not a user inside the product. None of the")
-    print("  three offers an API to grant that.")
+    print("  data for one reason: the principal is not a user inside the product.")
     print("  Ads needs NO developer token - they were sunset 2026-09-09 - and its Cloud project")
     print("  is not refused for production either. Only the account link is missing.")
-    print(f"\n  To grant all three at once, add this principal as a read-only user:\n    {SA}")
+    print("\n  TWO of the three DO have a grant API, which an earlier version of this summary")
+    print("  denied. It matters because it decides whether this can ever be automated:")
+    print("      Tag Manager  accounts.user_permissions.create   scope tagmanager.manage.users")
+    print("      Analytics    accounts.accessBindings.create     scope analytics.manage.users")
+    print("      Google Ads   UI only")
+    print("  The catch is the CALLER, not the endpoint: a service account cannot grant itself")
+    print("  access, so those two calls need an administrator token carrying the manage.users")
+    print("  scopes, and obtaining one means a browser consent once. Since Ads needs the UI")
+    print("  regardless, doing all three in the UI is the shorter path - no consent at all.")
+    print(f"\n  To grant all three, add this principal as a read-only user in each product:")
+    print(f"    {SA}")
+    print("      Google Ads  Admin > Access and security > Users > +   (NOT 'Email only' -")
+    print("                  that level is the one thing service accounts cannot have)")
+    print("      Analytics   Admin > Account access management > +     role Viewer")
+    print("      Tag Manager Admin > Account > User Management > +     account + container Read")
     return 0
 
 

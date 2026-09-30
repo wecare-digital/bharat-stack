@@ -349,20 +349,32 @@ fi
 echo
 
 echo "[9/9] Google Ads readiness..."
-echo "  Read this before spending time on it:"
-echo "  A plain service account CANNOT be granted access to a Google Ads account."
-echo "  Ads user management only accepts real Google accounts, and the Ads API"
-echo "  authenticates either as a human via OAuth, or as a service account with"
-echo "  Workspace domain-wide delegation impersonating a human in your domain."
-echo "  wecaredigitalbw is not a Workspace domain, so the practical route is an"
-echo "  OAuth refresh token for $ADMIN plus an approved developer token."
+echo "  CORRECTED 2026-09-30. This section used to say a plain service account CANNOT be"
+echo "  granted access to a Google Ads account, that Ads accepts real Google accounts only,"
+echo "  and that the practical route was an OAuth refresh token plus an approved developer"
+echo "  token. All of that is wrong, and it sent readers to build a flow they do not need."
+echo
+echo "  A SERVICE ACCOUNT CAN BE ADDED DIRECTLY AS AN ADS USER. Google's service-account"
+echo "  workflow guide documents it:"
+echo "      Google Ads -> Admin -> Access and security -> Users -> +"
+echo "      enter the service account email, choose an access level, Add account"
+echo "      (service accounts do not support the 'Email only' level - that is the only limit)"
+echo "  No domain-wide delegation, no Workspace domain, no human refresh token."
+echo
+echo "  DEVELOPER TOKENS WERE SUNSET 2026-09-09. They may still be sent and are IGNORED by"
+echo "  the API servers; access level now attaches to the Google Cloud project that owns the"
+echo "  credential. So the live call below no longer needs GOOGLE_ADS_DEVELOPER_TOKEN, and"
+echo "  putting one on a command line is prohibited here anyway - see"
+echo "  .kiro/steering/secret-handling.md. Prefer: python scripts/google_products_pull.py"
+echo
+echo "  Grant read access to: $SA"
 if [[ -n "${GOOGLE_ADS_DEVELOPER_TOKEN:-}" ]]; then
   ADS_HEADER="$TMP_DIR/ads.header"; ADS_OUT="$TMP_DIR/ads.json"
   if make_auth_header "https://www.googleapis.com/auth/adwords" "$ADS_HEADER"; then
     ADS_HTTP="$(curl -sS -o "$ADS_OUT" -w '%{http_code}' -H @"$ADS_HEADER" \
       -H "developer-token: $GOOGLE_ADS_DEVELOPER_TOKEN" \
       "https://googleads.googleapis.com/${ADS_API_VERSION}/customers:listAccessibleCustomers" || true)"
-    echo "  HTTP: $ADS_HTTP  (expect 401/403 for the reason above)"
+    echo "  HTTP: $ADS_HTTP  (expect 200 with 0 customers until the grant above is made)"
     if [[ "$ADS_HTTP" == "200" ]]; then
       echo "  accessible customers: $(json_count "$ADS_OUT" '(.resourceNames // []) | length')"
       jq -r '.resourceNames[]? | "    - " + .' "$ADS_OUT" 2>/dev/null || true
@@ -371,7 +383,11 @@ if [[ -n "${GOOGLE_ADS_DEVELOPER_TOKEN:-}" ]]; then
     fi
   fi
 else
-  echo "  SKIP live call: GOOGLE_ADS_DEVELOPER_TOKEN is not set."
+  echo "  SKIP live call here: GOOGLE_ADS_DEVELOPER_TOKEN is not set, and it should not be."
+  echo "  The token is vestigial since the 2026-09-09 sunset, and setting a credential as an"
+  echo "  environment assignment on a command line is exactly what leaked four live keys on"
+  echo "  2026-09-19. Run scripts/google_products_pull.py instead - it needs no token and"
+  echo "  reaches v25 with an impersonated token alone."
 fi
 echo
 
