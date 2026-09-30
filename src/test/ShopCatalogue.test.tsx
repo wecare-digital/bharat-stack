@@ -330,21 +330,25 @@ describe( 'the product page', () => {
     }
   } );
 
-  it( 'sends the call to action to /contact/, because there is no checkout', () => {
+  it( 'offers an add-to-cart action rather than a contact link', () => {
+    // The CTA is now the page's single lime surface: it adds the item to the browser cart. It is a
+    // button (a client action) before anything is added, so there is no /contact/ link to find.
     const kiosk = shopProductBySlug( 'kiosk' ) as ShopProduct;
     render( <ShopProductPage product={ kiosk } /> );
-    const cta = screen.getByRole( 'link', { name: 'Ask about Kiosk' } );
-    expect( cta.getAttribute( 'href' ) ).toBe( asRendered( '/contact/' ) );
+    const cta = screen.getByRole( 'button', { name: 'Add Kiosk to cart' } );
+    expect( cta ).toBeTruthy();
+    expect( screen.queryByRole( 'link', { name: 'Ask about Kiosk' } ) ).toBeNull();
   } );
 
-  it( 'states that nothing is charged on the page', () => {
-    // The boundary statement is the honest part of shipping a priced catalogue with no checkout,
-    // and it is load-bearing rather than decorative: an order in this system exists only after a
-    // payment has been verified against the provider.
+  it( 'stays truthful that payment is not live yet, without claiming it is not a checkout', () => {
+    // The boundary statement is the honest part of shipping a priced catalogue while live payment
+    // is off: the store confirms the amount, and proceeding prepares the order without charging.
+    // It no longer claims "this page is not a checkout" now that a cart path exists.
     const kiosk = shopProductBySlug( 'kiosk' ) as ShopProduct;
     render( <ShopProductPage product={ kiosk } /> );
-    expect( screen.getByText( /not a checkout: nothing is charged here/ ) ).toBeTruthy();
-    expect( screen.getByText( /order only exists once a payment has been verified/ ) ).toBeTruthy();
+    expect( screen.getByText( /Live payment is not being accepted yet/ ) ).toBeTruthy();
+    expect( screen.getByText( /prepares your order without charging you/ ) ).toBeTruthy();
+    expect( screen.queryByText( /This page is not a checkout/ ) ).toBeNull();
   } );
 
   it( 'marks a product that is out of stock', () => {

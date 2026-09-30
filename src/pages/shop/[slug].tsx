@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import Link from 'next/link';
 import type { GetStaticPaths, GetStaticProps } from 'next';
 import ShopProductHead from '../../components/ShopProductHead';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { SHOP_PRODUCTS, shopProductBySlug, catalogReadOn } from '../../content/shop';
 import type { ShopProduct } from '../../content/shop';
+import { addItem } from '../../lib/cart';
 
 /**
  * /shop/<slug>/ - one page per catalogue item.
@@ -30,20 +31,35 @@ import type { ShopProduct } from '../../content/shop';
  * NO IMAGE. The snapshot reports mediaCount 0 on all seven products, so there is nothing to show.
  * A grey placeholder frame is a promise that a picture exists.
  *
- * THE CALL TO ACTION GOES TO /contact/, like every other public page here, and that is a
- * statement of fact rather than a placeholder: there is no cart and no checkout. The storefront
- * Lambda exposes GET /wix-store/products and nothing else - no cart read, no checkout read - so
- * there is no amount to put in front of a payment provider. An order in this system exists only
- * after a payment has been verified against the provider (amplify/functions/shared/
- * order_creation.py), which means a button that took money before that check could not be built
- * here even if the API existed.
+ * THE CALL TO ACTION IS ADD-TO-CART, and it is the page's single LIME surface - lime means
+ * actionable on this site and a page gets one. It adds the product's catalogue REFERENCE and a
+ * quantity to the browser cart (src/lib/cart.ts) and points at /cart/, which is the authenticated
+ * Cart V2 -> checkout path. The button never charges anything: an order in this system exists only
+ * after a payment has been verified server-side (amplify/functions/shared/order_creation.py), and
+ * live payment initiation is off by default (amplify/functions/ecommerce/checkout/handler.py), so
+ * proceeding prepares an order without taking money. The boundary note below says exactly that - it
+ * no longer claims "this page is not a checkout", because a cart path now exists, but it stays
+ * truthful that payment is not live yet. The wiring is product-agnostic: it drives off the
+ * product's id/slug and a quantity, with no per-product behaviour, because the seven items are
+ * dummy placeholders today.
  */
 
 interface ShopProductPageProps {
   product: ShopProduct;
 }
 
-const ShopProductPage: React.FC<ShopProductPageProps> = ( { product } ) => (
+const ShopProductPage: React.FC<ShopProductPageProps> = ( { product } ) => {
+  // "added" flips once the item is in the cart, turning the CTA into a link to the cart rather
+  // than re-adding on every press. Client-only state; the settled markup is the add button, so a
+  // no-JS load still shows a coherent, honest page.
+  const [ added, setAdded ] = useState<boolean>( false );
+
+  const onAdd = useCallback( (): void => {
+    addItem( product, 1 );
+    setAdded( true );
+  }, [ product ] );
+
+  return (
   <>
     <ShopProductHead product={ product } />
     <main className="shopd" aria-label={ product.name }>
@@ -88,17 +104,31 @@ const ShopProductPage: React.FC<ShopProductPageProps> = ( { product } ) => (
             <p className="shopd-p" key={ `p-${index}` }>{ paragraph }</p>
           ) ) }
 
-          <Link className="shopd-cta" href="/contact/">Ask about { product.name }</Link>
+          {/* THE PAGE'S SINGLE LIME SURFACE: add to cart, then a link on to /cart/. It is a
+              button before the item is added (a client action) and a link once it is, so a shopper
+              is never stranded. :global() wraps the next/link case because styled-jsx cannot scope
+              a capitalised component - see the .shopd-cta rule below. */}
+          { added
+            ? (
+              <Link className="shopd-cta" href="/cart/">Go to your cart</Link>
+            )
+            : (
+              <button className="shopd-cta shopd-cta-btn" type="button" onClick={ onAdd }>
+                Add { product.name } to cart
+              </button>
+            ) }
 
-          {/* THE BOUNDARY STATEMENT, in the hairline box rather than a lime one - .pdp-note records
-              the whole argument: lime means actionable on this site and the page's single lime
-              surface is already spent on the button above. Both sentences are things this page can
-              keep. Nothing is charged here, and an order really does not exist until a payment has
-              been verified. */}
+          {/* THE BOUNDARY STATEMENT, in the hairline box rather than a lime one - .shopd-note
+              records the whole argument: lime means actionable on this site and the page's single
+              lime surface is already spent on the CTA above. It no longer claims "this page is not
+              a checkout" now that a cart path exists, but it stays truthful: the store confirms the
+              amount, live payment is not being accepted yet, and proceeding prepares your order
+              without charging you. */}
           <p className="shopd-note">
-            The price above was read from the store catalogue on { catalogReadOn() }, so ask us to
-            confirm it before you pay. This page is not a checkout: nothing is charged here, and an
-            order only exists once a payment has been verified.
+            The price above was read from the store catalogue on { catalogReadOn() }; the store
+            confirms the amount when you check out. Live payment is not being accepted yet, so
+            adding to your cart and proceeding prepares your order without charging you - nothing is
+            taken until a payment has been verified.
           </p>
 
           <p className="shopd-back"><Link href="/shop/">All items in the shop</Link></p>
@@ -189,6 +219,7 @@ const ShopProductPage: React.FC<ShopProductPageProps> = ( { product } ) => (
           display:inline-flex;align-items:center;min-height:52px;margin-top:34px;
           padding:0 26px;border:2px solid #d1f470;border-radius:50px;
           background:#d1f470;color:#1a3a2a;font-size:17px;font-weight:600;text-decoration:none;
+          font-family:inherit;line-height:normal;cursor:pointer;
           transition:background-color .2s,transform .2s,box-shadow .2s;
         }
         .shopd-in :global(.shopd-cta:hover){background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
@@ -220,7 +251,8 @@ const ShopProductPage: React.FC<ShopProductPageProps> = ( { product } ) => (
       `}</style>
     </main>
   </>
-);
+  );
+};
 
 export const getStaticPaths: GetStaticPaths = async () => ( {
   paths: SHOP_PRODUCTS.map( product => ( { params: { slug: product.slug } } ) ),
