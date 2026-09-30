@@ -846,6 +846,45 @@ describe( 'Blog pills sit on the home page design language', () => {
     expect( css ).toContain( '.tags :global(a:hover),.tags :global(a:focus-visible){transform:none;box-shadow:none}' );
   } );
 
+  it( 'colours each tag from the contract accents, by tag name rather than by position', () => {
+    const { container } = render( <BlogPostPage post={ samplePost } /> );
+    const css = cssOf( container );
+
+    // Accent for identity, lime for interaction - the split .post-card already uses, where the
+    // inline-start border carries a hue and the hover goes lime. Colour says WHICH tag; lime
+    // says you are pointing at it.
+    expect( css ).toContain( '.tags :global(.tag-h0){border-color:#3da35a}' );
+    expect( css ).toContain( '.tags :global(.tag-h1){border-color:#2563eb}' );
+    expect( css ).toContain( '.tags :global(.tag-h2){border-color:#9849e8}' );
+    expect( css ).toContain( '.tags :global(.tag-h3){border-color:#dc2626}' );
+
+    // FOUR hues, not five. Amber #f0a818 is the one the hero pills use that is excluded here:
+    // 2.04:1 on white, the ratio the contract records as the reason it was rejected for light
+    // surfaces. The other four clear the 3:1 WCAG 1.4.11 asks of an identifying graphic.
+    expect( declarationsOnly( styleBlockWith( container, '.tag-h0' ) ) ).not.toContain( '#f0a818' );
+
+    // The dot is the hero pill's other half. The TINT is deliberately not carried over: the
+    // label is rgba(0,0,0,.54) at 4.61:1 on white, which clears 4.5:1 with almost nothing
+    // spare, and over a pale tint it drops under - these pills were on #f3f4f6 and measured
+    // 4.49:1, failing by 0.01. So the ground stays white and the hue arrives as dot + border.
+    expect( css ).toContain( 'content:\'\';flex:0 0 auto;width:7px;height:7px;border-radius:50%;' );
+    expect( css ).toContain( 'background:#fff;border:2px solid #e5e7eb;border-radius:999px;' );
+
+    // A hue per TAG, not per position. .post-card cycles by nth-child, which is right for a
+    // card in a stream; for a tag it would colour the same word differently on each post and
+    // spend the colour without buying the recognition it is for.
+    const cls = Array.from( container.querySelectorAll( '.tags a' ) ).map( a => a.getAttribute( 'class' ) || '' );
+    expect( cls.length ).toBeGreaterThan( 0 );
+    cls.forEach( c => expect( c ).toMatch( /tag-h[0-3]\b/ ) );
+
+    // AND NO NEGATIVE INDEX. The first version hashed with & 0xffffffff, which in JavaScript is
+    // a SIGNED 32-bit integer, and -5 % 4 is -1 - so tags produced class names like tag-h-1
+    // that match no rule and fell back to neutral grey. Two of three tags on one post were
+    // grey. It passed its own check because that check was written in Python, where the mask is
+    // unsigned. This assertion is the one that would have caught it.
+    cls.forEach( c => expect( c ).not.toMatch( /tag-h-/ ) );
+  } );
+
   it( 'points each tag at the search that already uses tags, not at a route it invented', () => {
     const { container } = render( <BlogPostPage post={ samplePost } /> );
     // There is no /blog/tag/<x>/ route, and the destination does not need inventing:
