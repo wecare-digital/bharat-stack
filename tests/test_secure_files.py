@@ -720,10 +720,51 @@ def test_provisioner_preserves_a_manually_enabled_payment_flag():
 
 def test_reconcile_only_accepts_a_captured_payment():
     """`authorized` means held, not taken. Granting on it hands over the file for a
-    payment that can still fail."""
+    payment that can still fail.
+
+    Asserts the PROPERTY, not one spelling of it. This used to pin the literal source text
+    `payment.get("status") == "captured"`, which made it fail when that comparison was routed
+    through `lambda_utils.payment_status.canonical` - a change that strictly widened what
+    counts as captured (Razorpay saying `paid` now also grants) while leaving `authorized`
+    denied, which is the thing this test actually cares about.
+
+    A test pinned to a spelling blocks the correct fix and calls it a regression.
+    """
+    import sys
+
+    shared = ROOT / "amplify" / "functions" / "shared"
+    if str(shared) not in sys.path:
+        sys.path.insert(0, str(shared))
+    from lambda_utils import payment_status
+
     source = (FUNC_DIR / "razorpay_orders.py").read_text()
-    assert 'payment.get("status") == "captured"' in source
-    assert '"authorized"' not in source
+    # The decision must go through the shared vocabulary rather than a bare string compare.
+    assert "payment_status.canonical" in source
+    assert "payment_status.CAPTURED" in source
+
+    # No raw comparison against the word. Checked on the AST, not the text: the comment
+    # explaining why not to compare it raw necessarily contains the comparison, so a
+    # substring search flags its own explanation. (This test learned that the hard way one
+    # line above.)
+    import ast
+
+    raw_compares = [
+        node.lineno
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Compare)
+        and any(isinstance(operand, ast.Constant) and operand.value == "captured"
+                for operand in (node.left, *node.comparators))
+    ]
+    assert not raw_compares, (
+        f"raw comparison against 'captured' at line(s) {raw_compares}; that pins an access "
+        f"decision to one provider spelling")
+
+    # And the property itself: held funds never grant, received funds always do.
+    assert payment_status.canonical("authorized") != payment_status.CAPTURED
+    assert payment_status.canonical("created") != payment_status.CAPTURED
+    assert payment_status.canonical("failed") != payment_status.CAPTURED
+    assert payment_status.canonical("captured") == payment_status.CAPTURED
+    assert payment_status.canonical("paid") == payment_status.CAPTURED
 
 
 def test_reconcile_cannot_replay_a_spent_grant():

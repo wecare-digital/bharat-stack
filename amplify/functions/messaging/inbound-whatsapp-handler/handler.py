@@ -27,6 +27,9 @@ from decimal import Decimal
 from lambda_utils.logging import get_logger
 from lambda_utils.response import extract_origin
 from lambda_utils.privacy import mask_phone, mask_flow_token, mask_contact_id, redact_pii  # contactId is `wa` + the customer's digits
+# Aliased because `payment_status` is a local variable throughout the payment handlers below,
+# holding Meta's raw word. `pay_status` is the module that says what that word means.
+from lambda_utils import payment_status as pay_status
 from lambda_utils.validation import normalize_phone
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
@@ -3241,6 +3244,13 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
     # Sanitize reference_id - remove duplicate WD prefix and underscores
     reference_id = _sanitize_reference_id(raw_reference_id)
     payment_status = status.get('status', '')
+    # Meta's raw word is kept for storage and logging - we must not lose what the provider
+    # actually said - but every DECISION below goes through the canonical form. Meta's own
+    # vocabulary is not ours: `payment_status` measured `FlowSubmission.paymentStatus` already
+    # holding Meta's raw `paid`, and the branches below used to compare `== 'captured'`. So a
+    # capture reported as `paid` took the else branch: no verification, no invoice, and no
+    # confirmation to a customer who had paid.
+    payment_state = pay_status.canonical(payment_status)
     recipient_id = status.get('recipient_id', '')
     timestamp = int(status.get('timestamp', time.time()))
     
@@ -3368,12 +3378,13 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
     # transaction.status="failed" (e.g. insufficient funds / gateway error).
     transaction_status = transaction.get('status', '')
     effective_failed = (
-        payment_status == 'failed'
-        or (payment_status == 'pending' and transaction_status in ('failed', 'error'))
+        payment_state == pay_status.FAILED
+        or (payment_state == pay_status.PENDING
+            and pay_status.canonical(transaction_status) == pay_status.FAILED)
     )
 
     # Send order_status message based on payment status
-    if payment_status == 'captured':
+    if payment_state == pay_status.CAPTURED:
         # ── Security: Verify payment via Meta Payment Lookup API ──
         # Meta docs: "must not rely solely on the status of the transaction provided in the webhook"
         #
@@ -3439,12 +3450,19 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
                         payments = lookup_result.get('payments', [])
                         if payments:
                             lookup_status = payments[0].get('status', '')
-                            if lookup_status != 'captured':
+                            # Canonical, not raw. This branch decides whether to REJECT a payment
+                            # the customer has already made, so a vocabulary mismatch here refuses
+                            # real money: Meta answering `paid` against our `captured` would have
+                            # been recorded as REJECTED_MISMATCH. An unrecognised word still
+                            # rejects - `canonical` returns '' for anything unmappable, which is
+                            # the correct direction for a verification step.
+                            if pay_status.canonical(lookup_status) != pay_status.CAPTURED:
                                 verification_outcome = REJECTED_MISMATCH
                                 logger.warning(json.dumps({
                                     'event': 'payment_lookup_mismatch',
                                     'webhookStatus': 'captured',
                                     'lookupStatus': lookup_status,
+                                    'lookupStatusCanonical': pay_status.canonical(lookup_status),
                                     'referenceId': reference_id,
                                     'requestId': request_id,
                                 }))
@@ -3565,7 +3583,7 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
             request_id=request_id,
             phone_number_id=originating_phone_id
         )
-    elif payment_status == 'pending':
+    elif payment_state == pay_status.PENDING:
         # Genuine pending (transaction still in progress)  -  log and wait
         logger.info(json.dumps({
             'event': 'payment_pending_waiting',

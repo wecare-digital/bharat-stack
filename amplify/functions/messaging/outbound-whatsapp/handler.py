@@ -25,6 +25,9 @@ from decimal import Decimal
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_headers, extract_origin
 from lambda_utils.privacy import mask_phone, mask_contact_id, redact_pii  # contactId is `wa` + the customer's digits
+# Aliased for the same reason as in the inbound handler: `payment_status` is a local variable
+# holding a provider's raw word, and this is the module that says what the word means.
+from lambda_utils import payment_status as pay_status
 from lambda_utils.middleware import require_auth
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 from lambda_utils import graph_errors  # Meta error subcode + transient classification
@@ -1075,8 +1078,15 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
         except (ValueError, TypeError):
             amount = 0.0
         
-        # Generate appropriate message based on status
-        if order_status == 'completed' or order_status == 'captured':
+        # Generate appropriate message based on status.
+        #
+        # Canonical, not a two-spelling `or`. That `or` was already an admission that one state
+        # has several words, and it listed two of the five `payment_status` measured - so a status
+        # of `paid` or `success` fell through to the failure branch and told a customer who had
+        # just paid that their payment did not work. `completed` maps to `captured`, so the
+        # canonical form covers both arms of the original test plus the ones it missed.
+        payment_state = pay_status.canonical(order_status)
+        if payment_state == pay_status.CAPTURED:
             # Use description from inbound handler if amount is 0 (fallback)
             if amount > 0:
                 body_text = f"Payment of ₹{amount:.2f} received successfully! Thank you ✅"
@@ -1084,8 +1094,10 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
                 # Use the description passed from inbound handler which may have the amount
                 body_text = order_status_details.get('description', 'Payment received successfully! Thank you ✅')
             description = "Payment received. Thank you!"
+            # Meta's own order_status vocabulary, which is not the payment vocabulary - this is the
+            # word that goes back to Meta on the wire, so it stays literal rather than canonical.
             order_status = 'completed'
-        elif order_status == 'failed':
+        elif payment_state == pay_status.FAILED:
             body_text = "Payment failed. Please try again ❌"
             description = "Payment failed"
         else:

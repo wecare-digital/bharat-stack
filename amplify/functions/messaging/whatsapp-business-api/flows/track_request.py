@@ -12,6 +12,7 @@ from flows.orders import (
     extract_short_id, format_order_dropdown,
 )
 from flows.common import get_phone_from_token, save_draft, restore_draft
+from lambda_utils import payment_status as pay_status
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +70,12 @@ def handle_order_select(data: Dict, flow_token: str, request_id: str) -> Dict:
             sub_num = sub.get('submissionNumber', sub.get('submissionId', ''))[:16]
             subject = sub.get('subject', sub.get('requestType', ''))[:25]
             status = (sub.get('status', 'open') or 'open').replace('_', ' ').title()
-            pay = sub.get('paymentStatus', 'none')
-            pay_icon = '✓' if pay == 'captured' else '⏳' if pay == 'pending' else ''
+            # Canonical: this tick is what tells a customer we have their money. A submission
+            # stored as `paid` showed no tick at all under the raw comparison, which reads as
+            # "not paid" to the one person who knows for certain that it was.
+            pay = pay_status.canonical(sub.get('paymentStatus'))
+            pay_icon = ('✓' if pay == pay_status.CAPTURED
+                        else '⏳' if pay == pay_status.PENDING else '')
             line = f'{sub_num} — {subject} — {status}'
             if pay_icon:
                 line += f' {pay_icon}'
