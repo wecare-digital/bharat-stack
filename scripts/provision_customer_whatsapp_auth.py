@@ -59,6 +59,11 @@ MAX_ATTEMPTS = "3"
 OTP_PROBE_MAX_PER_WINDOW = "5"
 OTP_PROBE_WINDOW_SECONDS = "3600"
 
+# Send throttle for REGISTERED numbers (G5 fix). Bounds outbound WhatsApp OTP messages per
+# number per window, fail-closed. Defaults match the handler; set here so they are tunable.
+OTP_SEND_MAX_PER_WINDOW = "5"
+OTP_SEND_WINDOW_SECONDS = "3600"
+
 EXPECTED_ADMIN_POOL_ID = "us-east-1_cSx0RHCIR"
 
 
@@ -234,6 +239,10 @@ def expected_environment() -> dict:
         "MAX_ATTEMPTS": MAX_ATTEMPTS,
         "OTP_PROBE_MAX_PER_WINDOW": OTP_PROBE_MAX_PER_WINDOW,
         "OTP_PROBE_WINDOW_SECONDS": OTP_PROBE_WINDOW_SECONDS,
+        # Send throttle for registered numbers (G5). Defaults are baked into the handler, so
+        # these are set explicitly only to make the limit tunable without a code change.
+        "OTP_SEND_MAX_PER_WINDOW": OTP_SEND_MAX_PER_WINDOW,
+        "OTP_SEND_WINDOW_SECONDS": OTP_SEND_WINDOW_SECONDS,
     }
 
 
