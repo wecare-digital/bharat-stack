@@ -62,6 +62,17 @@ export interface ShopProduct {
   currency: string;
   inStock: boolean;
   /**
+   * Absolute URL of the product's primary image, when one exists. ABSENT ON ALL SEVEN TODAY, and
+   * that absence is what gates the Product structured data - see ShopProductHead.tsx.
+   *
+   * Two separate things have to change before this is ever populated, and neither is a code
+   * change here: the merchant has to upload images in Wix (all seven currently report
+   * `mediaCount: 0`), and scripts/fetch-wix-catalog.js has to capture the URL - its docblock
+   * states "IMAGES ARE NOT PULLED. Data only", which was the right call while there was nothing
+   * to pull. Then refresh the snapshot and the markup appears on its own.
+   */
+  image?: string;
+  /**
    * The bold opening line of the Wix description. It is the product's own one-line statement of
    * what it does - "Put your location to work.", "Think it through before you decide." - which is
    * exactly what a card in a grid needs and what a meta description should open with.
@@ -81,6 +92,7 @@ interface RawProduct {
   inStock?: boolean;
   visible?: boolean;
   descriptionHtml?: string;
+  image?: string;
 }
 
 /**
@@ -112,14 +124,73 @@ interface RawProduct {
 /** U+0001, which cannot appear in Wix rich text and is not whitespace, so \s+ leaves it alone. */
 const BREAK = '\u0001';
 
+/**
+ * Remove tag-shaped runs until the string stops changing.
+ *
+ * ONE PASS IS NOT ENOUGH, and CodeQL caught this as a high-severity
+ * js/incomplete-multi-character-sanitization on the first version of this file. A single
+ * `.replace( /<[^>]+>/g, '' )` is defeated by nesting the delimiters, because removing the inner
+ * match splices the outer one together:
+ *
+ *     <scr<script>ipt>   ->  one pass removes <script>  ->  <script>
+ *     <a<b>c>            ->  one pass removes <b>       ->  <ac>
+ *
+ * So the single pass turns input that was not a tag into output that is. Looping to a fixed point
+ * is the remediation: every pass either shortens the string or returns it unchanged, so it
+ * terminates, and it cannot leave a tag behind for the next splice to assemble.
+ *
+ * This mattered even though the output is rendered as React children and therefore escaped. The
+ * defect was in the function's contract rather than in today's rendering: ShopCatalogue.test.tsx
+ * asserts that no `<span` survives into the DOM, and a crafted description could have satisfied
+ * that assertion while carrying `<script>` in the text.
+ */
+const stripTags = ( value: string ): string => {
+  let text = value;
+  for ( ; ; ) {
+    const next = text.replace( /<[^>]*>/g, '' );
+    if ( next === text ) break;
+    text = next;
+  }
+  /*
+   * THEN REMOVE WHAT IS LEFT OF THE DELIMITERS, and this is the half that closes the finding.
+   *
+   * The loop above only removes a `<` that has a matching `>` after it. An UNTERMINATED run does
+   * not match at all, so `<script` - no closing bracket - passed through untouched, which is
+   * literally what CodeQL reported: "this string may still contain <script". Nesting leaves the
+   * same residue from the other side: `a<scr<script>ipt>b` consumes `<scr<script>` and strands the
+   * `>` in `aipt>b`.
+   *
+   * A raw `<` or `>` surviving here cannot be legitimate content, and that is what makes deleting
+   * them safe rather than lossy: well-formed HTML encodes a literal angle bracket as `&lt;` or
+   * `&gt;`, and those are still entities at this point - they are decoded AFTER this runs, so
+   * `a &lt; b` keeps its bracket while markup debris does not.
+   */
+  return text.replace( /[<>]/g, '' );
+};
+
 export function toParagraphs ( html: string ): string[] {
-  return html
+  const withBreaks = html
     // Any BREAK is stripped first, so a control character in the source cannot be mistaken for one
     // this function inserted.
     .replace( new RegExp( BREAK, 'g' ), '' )
     .replace( /<\s*br\s*\/?\s*>/gi, BREAK )
-    .replace( /<\/\s*p\s*>/gi, BREAK )
-    .replace( /<[^>]+>/g, '' )
+    .replace( /<\/\s*p\s*>/gi, BREAK );
+
+  /*
+   * TAGS GO BEFORE ENTITIES, AND THE OUTPUT IS DISPLAY TEXT RATHER THAN MARKUP.
+   *
+   * Decoding runs last, so `&lt;b&gt;` in the source becomes the literal characters `<b>` in the
+   * output. That is correct and deliberate: this function produces text for React children, which
+   * React escapes on render, so a reader sees `<b>` on the page exactly as the merchant typed it.
+   * It is NOT an HTML sanitiser and its result must never reach dangerouslySetInnerHTML - the
+   * safety property is the render path, not the string.
+   *
+   * Stripping again after decoding was the alternative and it is worse: it would delete
+   * legitimate copy, turning `a &lt; b &gt; c` into `a  c` because `< b >` is tag-shaped.
+   * Corrupting the owner's words to make a string look safe in a context it never enters is the
+   * wrong trade.
+   */
+  return stripTags( withBreaks )
     .replace( /&nbsp;/g, ' ' )
     .replace( /&lt;/g, '<' )
     .replace( /&gt;/g, '>' )
@@ -155,6 +226,11 @@ export const SHOP_PRODUCTS: ShopProduct[] = ( ( catalog as { products?: RawProdu
       price: String( raw.price || '' ),
       currency: String( raw.currency || 'INR' ),
       inStock: raw.inStock !== false,
+      // Spread rather than `image: raw.image || undefined`, so a product with no image has no
+      // `image` KEY at all. ShopProductHead gates the Product node on the field's presence, and an
+      // explicit `undefined` would serialise away in JSON but still read as present to a truthiness
+      // check written carelessly later.
+      ...( raw.image ? { image: String( raw.image ) } : {} ),
       tagline: paragraphs[ 0 ] || '',
       body: paragraphs.slice( 1 ),
     };
