@@ -56,19 +56,19 @@ Generated 2026-09-30 from pending positions 26–1237:
 
 | Bucket | Count |
 |---|---:|
-| ATTRIBUTION_REVIEW | 467 |
-| FACT_CHECK_REQUIRED | 315 |
+| ATTRIBUTION_REVIEW | 676 |
+| PERSONAL_REFERENCE_REWORK | 240 |
 | LIKELY_EXISTING_COVERAGE | 153 |
-| CANDIDATE_NEW_ARTICLE | 116 |
-| DEDUPE_REVIEW | 93 |
-| PERSONAL_REFERENCE_REWORK | 68 |
+| FACT_CHECK_REQUIRED | 77 |
+| CANDIDATE_NEW_ARTICLE | 39 |
+| DEDUPE_REVIEW | 27 |
 | **Total** | **1,212** |
 
 Recommended review order for speed without lowering standards:
 
-1. confirm `LIKELY_EXISTING_COVERAGE` and close true duplicates;
-2. review `CANDIDATE_NEW_ARTICLE` for genuine new Anew articles;
-3. resolve `DEDUPE_REVIEW`;
+1. `LIKELY_EXISTING_COVERAGE` has been live-confirmed for all 153 records and is resolved;
+2. review the 39 `CANDIDATE_NEW_ARTICLE` records for genuine new Anew articles;
+3. resolve the 27 `DEDUPE_REVIEW` records;
 4. process attribution/privacy and factual-review queues with their required specialist
    checks.
 
