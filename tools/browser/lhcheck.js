@@ -60,6 +60,10 @@ const ROUTES = [
   '/', '/grahak-os/', '/vayulok/', '/contact/', '/get/', '/orders/', '/bharat-rx/',
   '/anew/', '/dastavez/', '/elsewhere/', '/expo-week/', '/niji-setu/', '/ritual-guru/',
   '/clear-closure/', '/terms/', '/privacy/', '/blog/',
+  // The two routes added on 2026-09-30. Every other ProductPage route scores 100 on the four
+  // categories, so these are here to prove the two new ones do too rather than to sample a
+  // shape already covered - a new page is exactly where a regression would hide.
+  '/hunar/', '/vault/',
   // '/llm/' was here until 2026-09-30. The page is retired and the URL now 301s to
   // /llms.txt, which is a text file with no DOM to audit.
   '/post/a-break-is-still-part-of-life/', '/404.html',

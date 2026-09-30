@@ -45,7 +45,7 @@ const PUBLIC_EXACT = new Set( [
   '/privacy',
   '/terms',
   '/vayulok',
-  // The seven product pages. These must stay in step with PUBLIC_PAGE_META in _app.tsx:
+  // The eight product pages. These must stay in step with PUBLIC_PAGE_META in _app.tsx:
   // a route missing there renders an empty body with HTTP 200, so advertising it here
   // without it there would put blank pages in front of a crawler.
   '/clear-closure',
@@ -55,9 +55,10 @@ const PUBLIC_EXACT = new Set( [
   // Renamed '/swdhya' -> '/open-possibility' -> '/anew'. Alphabetical, so it moved to the
   // top of this group.
   '/anew',
+  '/hunar',
   '/niji-setu',
   '/ritual-guru',
-  // The five Selfservice pages. Same rule as the product group above: these must stay in
+  // The Selfservice pages. Same rule as the product group above: these must stay in
   // step with PUBLIC_PAGE_META in _app.tsx, because a route advertised here but missing
   // there serves an empty body at HTTP 200 - i.e. it would put blank pages in front of a
   // crawler. They replaced six menu labels that all resolved to /contact/.
@@ -66,6 +67,10 @@ const PUBLIC_EXACT = new Set( [
   '/refer-and-earn',
   '/request-amendment',
   '/submit-request',
+  // Vault is the return leg of Drop Docs: one page sends paperwork in, this one asks for a
+  // copy back. It is NOT /get/, which stays out of the sitemap because it needs a verified
+  // link to mean anything - this page is the linkable front door that points at it.
+  '/vault',
 ] );
 // '/blog/page/' is pages 2..N of the paginated blog index. It has to be a prefix rather than
 // exact entries because the count moves with the corpus - 834 posts at 24 a page is 35 pages

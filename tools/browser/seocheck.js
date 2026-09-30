@@ -40,10 +40,11 @@ const ROUTES = [
   '/', '/grahak-os/', '/vayulok/', '/contact/', '/terms/', '/privacy/',
   '/orders/', '/bharat-rx/',
   '/elsewhere/', '/expo-week/', '/dastavez/', '/clear-closure/',
-  '/ritual-guru/', '/anew/', '/niji-setu/',
-  // The five Selfservice pages, added when the header's six labels stopped all resolving
-  // to /contact/. Same shape as the product pages: rotating hero plus one content section.
-  '/submit-request/', '/request-amendment/', '/drop-docs/', '/leave-review/', '/refer-and-earn/',
+  '/ritual-guru/', '/anew/', '/niji-setu/', '/hunar/',
+  // The Requests pages, added when the header's six labels stopped all resolving to
+  // /contact/. Same shape as the product pages: rotating hero plus one content section.
+  '/submit-request/', '/request-amendment/', '/drop-docs/', '/vault/', '/leave-review/',
+  '/refer-and-earn/',
 ];
 
 /**
