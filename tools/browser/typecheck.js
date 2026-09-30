@@ -42,6 +42,16 @@ const ROUTES = [
   '/orders/', '/bharat-rx/',
   '/elsewhere/', '/expo-week/', '/dastavez/', '/clear-closure/',
   '/ritual-guru/', '/anew/', '/niji-setu/', '/hunar/', '/vault/',
+  // '/shop/' AND '/shop/<slug>/' ARE DELIBERATELY ABSENT, for the same reason '/blog/' is.
+  //
+  // This harness pins the SECTION-h2 rung at 40px/700 - the contract for a page shaped as one
+  // hero plus one content section, which is what every route above is. /shop/ is a card grid: its
+  // h2s are the seven card titles at the 22px/700 CARD rung, because the hero owns the h1 and
+  // there is no section heading between them, so h2 is the next rung with nothing skipped. Listing
+  // it here would report seven correct headings as off-ladder.
+  //
+  // That is not the same as leaving the pages unmeasured. seocheck, sectioncheck, devicecheck,
+  // lhcheck and pageaudit all carry them, and pageaudit's sweep discovers all eight.
 ];
 
 const WIDTHS = [ 1280, 900 ];

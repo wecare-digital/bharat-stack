@@ -57,6 +57,10 @@ const launchEngine = async () => {
 const ROUTES = [ '/', '/grahak-os/', '/vayulok/', '/bharat-rx/', '/contact/', '/orders/',
   '/terms/', '/privacy/', '/anew/', '/clear-closure/', '/dastavez/', '/elsewhere/',
   '/expo-week/', '/niji-setu/', '/ritual-guru/', '/hunar/', '/vault/', '/404/', '/blog/', '/get/',
+  // The catalogue. /shop/ for the grid's three-to-two-to-one reflow, /shop/kiosk/ because its top
+  // band is hand-written rather than RotatingHero's - so the 108px/96px header clearance and the
+  // h1's clamp are this file's numbers and nobody else's, across all fifteen devices.
+  '/shop/', '/shop/kiosk/',
   '/post/a-bad-event-and-a-catastrophic-forecast-are-not-the-same/' ];
 
 // CSS pixels. DevTools presets where one exists, marked approx where modelled.

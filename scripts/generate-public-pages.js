@@ -94,6 +94,28 @@ const STRUCTURAL = [
   { path: '/contact', group: 'start' },
   { path: '/blog', group: 'start', name: 'Blog',
     description: 'Published articles. Paginated index; individual posts live under /post/<slug>/.' },
+  /*
+   * The catalogue index. It needs a line here rather than coming through a content module because
+   * its items are read from a committed Wix snapshot, not declared as ProductDefs - the two
+   * contentModule() readers below parse `slug` and `name` out of products.ts and selfservice.ts,
+   * and src/content/shop.ts has neither field in that shape.
+   *
+   * IT SITS IMMEDIATELY BEFORE /orders, and the pair is the reason: Shop is where something is
+   * bought and Orders is where it is tracked, so buying before tracking is the order a reader
+   * would expect. This is the only place that order is decided - the comment at the top of this
+   * array records that within-group order is this declaration's order.
+   *
+   * 'start' rather than 'services'. That group is described as "consumer-facing services, each
+   * with its own page", and this is not a service page; it is a front door to a list, like Blog
+   * and Orders beside it. The seven items under it are not catalogued individually: /shop/ links
+   * to all seven, and PUBLIC_EXACT deliberately admits them by prefix rather than by name, so
+   * there is nothing here for this file to place.
+   *
+   * No name or description: PUBLIC_PAGE_META in _app.tsx carries both, and
+   * src/test/PublicAiSurface.test.ts asserts the catalogue reuses that description verbatim so a
+   * crawler and a model reading llms.txt get one account of the page rather than two.
+   */
+  { path: '/shop', group: 'start' },
   { path: '/orders', group: 'start' },
   // Grahak OS and VayuLok are the two platform products: they are what a business buys, as
   // against the consumer services in products.ts. Both have bespoke page files rather than

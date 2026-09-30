@@ -50,7 +50,13 @@ const PUBLIC = [ '/', '/grahak-os/', '/vayulok/', '/bharat-rx/', '/contact/', '/
   '/terms/', '/privacy/', '/anew/', '/clear-closure/', '/dastavez/', '/elsewhere/',
   '/expo-week/', '/hunar/', '/niji-setu/', '/ritual-guru/',
   '/submit-request/', '/request-amendment/', '/drop-docs/', '/vault/', '/leave-review/',
-  '/refer-and-earn/' ];
+  '/refer-and-earn/',
+  // The catalogue. This list is only used with --public; the default sweep discovers every
+  // exported route, so all eight shop pages are already audited either way. /shop/kiosk/ is named
+  // here because the obscured check below is the one that matters for it: its top band is
+  // hand-written, so the 108px/96px clearance is this page's own and /llm/ is the worked example
+  // of getting that wrong.
+  '/shop/', '/shop/kiosk/' ];
 
 function discover () {
   const routes = [];
