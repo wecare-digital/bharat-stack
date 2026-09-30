@@ -47,51 +47,7 @@
         "PRIVACY": "PASS",
         "HUMAN_QUALITY_TEST": "PASS"
       }
-    },
-    {
-      "articleClass": "ARCHIVE_DERIVED",
-      "status": "READY_TO_PUBLISH",
-      "sourceReviewedFully": "YES",
-      "sourceFile": "c4t2(1).zip/2001awee.html",
-      "originalSourceTitle": "2001 - A Week Before",
-      "sourceType": "archive_html",
-      "sourceHash": "07132c318e32272bfc753ded8b108cc13f0fe0ab2310923d3fcc2a94136d092c",
-      "sourceId": "07132c318e32272bfc753ded8b108cc13f0fe0ab2310923d3fcc2a94136d092c",
-      "originalSourceDate": "2000-12-25",
-      "sourceSlug": "2001awee",
-      "title": "The Future Arrives; Possibility Has to Be Created",
-      "slug": "the-future-arrives-possibility-has-to-be-created",
-      "category": "Conversations",
-      "author": "Anew by WECARE.DIGITAL",
-      "canonical": "https://wecare.digital/post/the-future-arrives-possibility-has-to-be-created/",
-      "tags": [
-        "Possibility",
-        "Future"
-      ],
-      "seoTitle": "The Future Arrives; Possibility Has to Be Created | WECARE.DIGITAL",
-      "metaDescription": "Time carries us into a future whether or not we choose one. Possibility begins when we create a direction that is not merely an extension of what already exists.",
-      "articleType": "DISTINCTION",
-      "imageStatus": "none",
-      "centralDistinction": "A future will arrive through the passage of time, but possibility is not guaranteed by arrival. Possibility is a created orientation that can change what actions make sense now.",
-      "distinctPurpose": "Existing future articles examine planning and participation. This article separates the future that arrives anyway from a possibility that must be actively created in the present.",
-      "materiallyDifferentInquiry": "YES",
-      "titleOnlyDifference": "NO",
-      "uniqueReaderPromise": "YES",
-      "uniqueIntellectualMovement": "YES",
-      "contentMarkdown": "Tomorrow does not need our permission to arrive. Time moves, circumstances change, other people act, and eventually we find ourselves in a day that once seemed far away.\n\nThat is one meaning of the future: what comes next.\n\nPossibility is different.\n\nA possibility does not appear simply because the calendar advances. We can arrive at a new year, a new job, a new relationship, or a new stage of life while carrying forward the same expectations about what can happen. The date changes; the range of action may not.\n\nCreating a possibility begins before there is evidence that it will become a result. A team can create the possibility of being candid with one another before the next difficult meeting. A person can create the possibility of learning before they know whether they will succeed. A relationship can create the possibility of repair before either person knows what the repair will require.\n\nThis does not make possibility a prediction. It does not guarantee an outcome or override material limits. It changes the context in which action is chosen.\n\nWhen the future is treated only as what is coming toward us, we mainly prepare for arrival. When possibility is created, we also ask what can be brought into existence through what we say, choose, practice, and coordinate now.\n\nThe future will arrive in some form. The more demanding question is whether anything genuinely new will be possible when it does.",
-      "gate": {
-        "DISTINCTION": "PASS",
-        "SOURCE_FIDELITY": "PASS",
-        "CLARITY": "PASS",
-        "VALUE": "PASS",
-        "ORIGINAL_EXPRESSION": "PASS",
-        "SUBSTANCE": "PASS",
-        "VOICE": "PASS",
-        "FACTUAL_INTEGRITY": "PASS",
-        "ATTRIBUTION": "PASS",
-        "PRIVACY": "PASS",
-        "HUMAN_QUALITY_TEST": "PASS"
-      }
     }
-  ]
+  ],
+  "notes": "First 25-position review slice; only one source survived full-source review and live-corpus distinction-level dedupe."
 }
