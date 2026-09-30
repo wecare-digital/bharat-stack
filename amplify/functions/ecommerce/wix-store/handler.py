@@ -32,6 +32,7 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 # credential, so these 13 functions are unit-testable without standing up the
 # integration - which is what made ~270 lines of shape-mapping untestable before.
 from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
+from lambda_utils.ecommerce import order_keys  # ORDERNO#/REFERENCE# reservations, fail-closed
 from lambda_utils.ecommerce.wix_domain import (  # noqa: F401
     _base36,
     _extract_id,
@@ -754,37 +755,85 @@ def _get_or_create_wd_order_number(order_id: str, order_date: str = '',
     Look up or create a WD-ORD number for a Wix order.
     Stores the mapping in DynamoDB (WixOrderIds table).
     Returns the WD-ORD number.
+
+    Two defects fixed here, both of which made this function's name a lie.
+
+    It was NOT idempotent. The reuse check was `startswith('WD-ORD-')`, but
+    `_generate_wd_order_number` emits 'WD-ORD - A1B2C3D4 - ...' with a SPACE at index 6.
+    So the check was false for every number this function had ever written, and each call
+    regenerated and overwrote the mapping. `_enrich_order` calls this per order per listing,
+    so every refresh of the orders view reissued every order number - and
+    `_backfill_order_ids` then pushed the new value onto the Wix order. Matching is now
+    `order_keys.is_wd_order_number`, which accepts both live formats.
+
+    It also FAILED OPEN. The old `except` returned `_generate_wd_order_number(...)` without
+    storing it, so the one situation where a duplicate is most likely - DynamoDB unavailable -
+    was the situation that skipped the uniqueness record. A number that exists only in a
+    response is a duplicate waiting to be issued, so the number is now reserved with a
+    conditional write before it is returned, and a storage failure raises.
     """
+    table = dynamodb.Table(ORDER_IDS_TABLE)
+
+    # Existing mapping wins, always. This is the idempotent path and it must come first.
     try:
-        table = dynamodb.Table(ORDER_IDS_TABLE)
-        # Check if mapping already exists
-        resp = table.get_item(Key={'orderId': order_id})
-        item = resp.get('Item')
-        if item and item.get('wdOrderNumber', '').startswith('WD-ORD-'):
-            return item['wdOrderNumber']
+        item = table.get_item(Key={'orderId': order_id}).get('Item')
+    except Exception as e:
+        logger.error(json.dumps({
+            'action': 'wd_order_number_lookup_failed',
+            'orderId': order_id,
+            'error': type(e).__name__,
+        }))
+        raise order_keys.OrderIdentityUnavailable(
+            f'could not read the order-number mapping for {order_id}'
+        ) from e
 
-        # Generate new WD order number
-        wd_num = _generate_wd_order_number(order_date)
+    if item and order_keys.is_wd_order_number(item.get('wdOrderNumber', '')):
+        return item['wdOrderNumber']
 
-        # Store mapping
+    # No mapping yet. Reserve a number under ORDERNO#<number> BEFORE returning it, so a
+    # collision is refused by DynamoDB rather than discovered by a customer.
+    wd_num = order_keys.reserve_order_number(
+        table, order_date,
+        generate=_generate_wd_order_number,
+        extra={'wixOrderId': order_id},
+    )
+
+    try:
         table.put_item(Item={
             'orderId': order_id,
             'wdOrderNumber': wd_num,
             'nativeNumber': str(native_number),
             'orderDate': order_date,
             'createdAt': datetime.now(timezone.utc).isoformat(),
-        })
-        logger.info(json.dumps({
-            'action': 'wd_order_number_created',
-            'orderId': order_id,
-            'wdOrderNumber': wd_num,
-            'nativeNumber': native_number,
-        }))
-        return wd_num
+        }, ConditionExpression='attribute_not_exists(orderId)')
     except Exception as e:
-        logger.error(json.dumps({'action': 'wd_order_number_error', 'orderId': order_id, 'error': str(e)}))
-        # Fallback: generate without storing (will be retried next time)
-        return _generate_wd_order_number(order_date)
+        # A concurrent caller mapped this Wix order first. Its number is authoritative;
+        # ours stays reserved and unused, which is the safe direction to lose in.
+        if getattr(e, 'response', {}).get('Error', {}).get('Code') == 'ConditionalCheckFailedException':
+            winner = table.get_item(Key={'orderId': order_id}).get('Item') or {}
+            if order_keys.is_wd_order_number(winner.get('wdOrderNumber', '')):
+                logger.info(json.dumps({
+                    'action': 'wd_order_number_race_lost',
+                    'orderId': order_id,
+                    'kept': winner['wdOrderNumber'],
+                }))
+                return winner['wdOrderNumber']
+        logger.error(json.dumps({
+            'action': 'wd_order_number_store_failed',
+            'orderId': order_id,
+            'error': type(e).__name__,
+        }))
+        raise order_keys.OrderIdentityUnavailable(
+            f'reserved a number for {order_id} but could not store the mapping'
+        ) from e
+
+    logger.info(json.dumps({
+        'action': 'wd_order_number_created',
+        'orderId': order_id,
+        'wdOrderNumber': wd_num,
+        'nativeNumber': native_number,
+    }))
+    return wd_num
 
 
 def _backfill_order_ids(request_id: str) -> Dict[str, Any]:

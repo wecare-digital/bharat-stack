@@ -5,12 +5,14 @@
  * The repository contains many authenticated dashboard pages under the same
  * static export. They must never be emitted into the public sitemap.
  */
+import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath( import.meta.url );
 const __dirname = path.dirname( __filename );
+const REPO_ROOT = path.join( __dirname, '..' );
 
 const SITE_URL = 'https://wecare.digital';
 const OUT_DIR = path.join( __dirname, '..', 'out' );
@@ -104,23 +106,199 @@ function findHtmlFiles ( dir, base = '' ) {
   return urls;
 }
 
+/* ------------------------------------------------------------------------- *
+ * lastmod
+ *
+ * THIS USED TO BE `new Date()` FOR EVERY URL, WHICH IS THE ONE WAY TO GET THE ONE
+ * FIELD GOOGLE ACTUALLY READS WRONG. Measured on the live sitemap before this change:
+ * 1353 URLs, 1353 of them stamped with the build date, every build. Google's own
+ * guidance on the sitemaps ping deprecation is explicit that lastmod has to match
+ * reality or it stops being believed - and once it stops being believed for a domain,
+ * an accurate lastmod on the twenty URLs that did change is worth nothing either.
+ * changefreq and priority are already ignored outright, so a fabricated lastmod left
+ * the sitemap advertising 1353 URLs and telling Google nothing usable about any of them.
+ *
+ * Three sources, in the order they are trusted, all of them OFFLINE - no new network
+ * dependency is added to the build, deliberately, because the guard further down this
+ * file exists precisely because a network-dependent build step already failed silently
+ * once:
+ *
+ *   /post/<slug>/       the page's own JSON-LD dateModified. This is the strongest
+ *                       source available: it is the date the page itself states, so
+ *                       the sitemap cannot contradict the document Google fetches.
+ *
+ *   index pages         the newest dateModified among the posts the page links. An
+ *                       index page's content IS its list of posts, so it changes when
+ *                       they do. Derived from the emitted HTML, so pagination moving
+ *                       a post between pages is picked up without any bookkeeping.
+ *
+ *   static pages        the last commit date of the page's own source file.
+ *
+ * WHEN NONE OF THE THREE ANSWERS, THE ELEMENT IS OMITTED. lastmod is optional, and
+ * omitting it costs only a hint, while guessing it costs the credibility of every
+ * other date in the file. A shallow CI clone with no usable history is the realistic
+ * case here, and it must degrade to silence rather than back to today's date.
+ *
+ * KNOWN APPROXIMATION, stated rather than hidden: a static page's commit date does not
+ * move when a shared component it renders - the header, the footer, Layout - changes.
+ * Tracking the full component graph would be the accurate answer and is not worth its
+ * complexity; the practical effect is that a chrome-only change is under-reported,
+ * which is the safe direction. Over-reporting is the failure this block replaced.
+ * ------------------------------------------------------------------------- */
+
+/** ISO 8601 as the sitemaps spec wants it, second precision. `null` stays `null`. */
+function w3cDate ( value ) {
+  if ( !value ) return null;
+  const d = new Date( value );
+  if ( Number.isNaN( d.getTime() ) ) return null;
+  return d.toISOString().replace( /\.\d{3}Z$/, 'Z' );
+}
+
+/** slug -> dateModified, read out of each post page's own JSON-LD. */
+function postDates () {
+  const dates = new Map();
+  const postsDir = path.join( OUT_DIR, 'post' );
+  if ( !fs.existsSync( postsDir ) ) return dates;
+
+  for ( const entry of fs.readdirSync( postsDir, { withFileTypes: true } ) )
+  {
+    if ( !entry.isDirectory() ) continue;
+    const file = path.join( postsDir, entry.name, 'index.html' );
+    if ( !fs.existsSync( file ) ) continue;
+    const html = fs.readFileSync( file, 'utf-8' );
+    // dateModified first: a post edited after publication is what a recrawl is for.
+    const modified = html.match( /"dateModified"\s*:\s*"([^"]+)"/ );
+    const published = html.match( /"datePublished"\s*:\s*"([^"]+)"/ );
+    const iso = w3cDate( ( modified && modified[ 1 ] ) || ( published && published[ 1 ] ) );
+    if ( iso ) dates.set( entry.name, iso );
+  }
+  return dates;
+}
+
+/** The newest post date on an index page, from the /post/ links it actually shipped. */
+function indexPageDate ( route, dates ) {
+  const rel = route.replace( /^\/+/, '' );
+  const file = rel ? path.join( OUT_DIR, rel, 'index.html' ) : path.join( OUT_DIR, 'index.html' );
+  if ( !fs.existsSync( file ) ) return null;
+
+  const html = fs.readFileSync( file, 'utf-8' );
+  let newest = null;
+  for ( const match of html.matchAll( /\/post\/([^"'/\s]+)\//g ) )
+  {
+    const iso = dates.get( match[ 1 ] );
+    if ( iso && ( newest === null || iso > newest ) ) newest = iso;
+  }
+  return newest;
+}
+
+/** Last commit date of a static page's source file, or null when git cannot say. */
+const gitDateCache = new Map();
+function gitDate ( route ) {
+  if ( gitDateCache.has( route ) ) return gitDateCache.get( route );
+
+  const rel = route === '/' ? 'index' : route.replace( /^\/+/, '' );
+  const candidates = [
+    path.join( 'src', 'pages', `${rel}.tsx` ),
+    path.join( 'src', 'pages', rel, 'index.tsx' ),
+  ];
+  let iso = null;
+  for ( const candidate of candidates )
+  {
+    if ( !fs.existsSync( path.join( REPO_ROOT, candidate ) ) ) continue;
+    try
+    {
+      const out = execFileSync(
+        'git', [ 'log', '-1', '--format=%cI', '--', candidate ],
+        { cwd: REPO_ROOT, encoding: 'utf-8', stdio: [ 'ignore', 'pipe', 'ignore' ] }
+      ).trim();
+      iso = w3cDate( out );
+    }
+    catch { /* no git, no history, or a shallow clone - fall through to null */ }
+    if ( iso ) break;
+  }
+  gitDateCache.set( route, iso );
+  return iso;
+}
+
+function lastmodFor ( route, dates ) {
+  if ( route.startsWith( '/post/' ) )
+  {
+    return dates.get( route.slice( '/post/'.length ) ) || null;
+  }
+  if ( route === '/blog' || route.startsWith( '/blog/' ) )
+  {
+    return indexPageDate( route, dates );
+  }
+  return gitDate( route );
+}
+
 function generateSitemap ( routes ) {
-  const today = new Date().toISOString().split( 'T' )[ 0 ];
+  const dates = postDates();
   const unique = [ ...new Set( routes ) ].sort();
+  const lastmods = new Map( unique.map( route => [ route, lastmodFor( route, dates ) ] ) );
+
   const entries = unique.map( route => {
     const pathname = route === '/' ? '/' : route + '/';
+    const lastmod = lastmods.get( route );
     return `  <url>
-    <loc>${SITE_URL}${pathname}</loc>
-    <lastmod>${today}</lastmod>
+    <loc>${SITE_URL}${pathname}</loc>${lastmod ? `
+    <lastmod>${lastmod}</lastmod>` : ''}
     <changefreq>${route.startsWith( '/post/' ) ? 'monthly' : 'weekly'}</changefreq>
     <priority>${route === '/' ? '1.0' : route === '/blog' ? '0.8' : '0.7'}</priority>
   </url>`;
   } ).join( '\n' );
 
+  reportLastmod( lastmods );
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${entries}
 </urlset>`;
+}
+
+/**
+ * Report the lastmod spread, and shout if it collapses back to one value.
+ *
+ * The defect this file used to have was invisible: the sitemap was well-formed, the
+ * build passed, and every URL claimed to have changed today. The only way to see it is
+ * to count distinct dates, so that count is printed on every build. A single distinct
+ * value across a corpus of this size cannot be true, and is the exact signature of the
+ * bug coming back - most plausibly via a clone with no history, where every static page
+ * falls to null and every post date is read from the export instead. Warn rather than
+ * fail: a legitimately tiny export would trip a hard check, and a sitemap with a weak
+ * lastmod is still better than no sitemap.
+ */
+function reportLastmod ( lastmods ) {
+  const values = [ ...lastmods.values() ];
+  const dated = values.filter( Boolean );
+  const distinctDays = new Set( dated.map( v => v.slice( 0, 10 ) ) );
+
+  console.log(
+    `Sitemap lastmod: ${dated.length}/${values.length} URLs dated, `
+    + `${distinctDays.size} distinct day(s)`
+  );
+
+  const undated = [ ...lastmods.entries() ].filter( ( [ , v ] ) => !v ).map( ( [ r ] ) => r );
+  if ( undated.length > 0 )
+  {
+    console.warn(
+      `  ${undated.length} URL(s) carry no lastmod (the element is omitted rather than\n`
+      + '  invented). Usually a page whose source file git cannot date:\n'
+      + `    ${undated.slice( 0, 12 ).join( ', ' )}`
+      + ( undated.length > 12 ? ` +${undated.length - 12} more` : '' )
+    );
+  }
+  if ( dated.length > 20 && distinctDays.size === 1 )
+  {
+    console.warn(
+      `\n  SITEMAP WARNING: all ${dated.length} dated URLs share one lastmod day`
+      + ` (${[ ...distinctDays ][ 0 ]}).\n`
+      + '  That is the signature of the build-date bug this generator was fixed for.\n'
+      + '  Google stops trusting lastmod it can see is fabricated, and it stops trusting\n'
+      + '  it for the whole property, not just the URLs that are wrong. Check that the\n'
+      + '  post pages still emit JSON-LD dateModified and that git history is available.\n'
+    );
+  }
 }
 
 /**
