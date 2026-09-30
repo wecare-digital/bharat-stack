@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
 
 /**
  * The single floating widget on every page: WhatsApp contact, and page translation.
@@ -321,6 +322,64 @@ const SupportWidget: React.FC = () => {
       if ( node.parentNode ) node.nodeValue = value;
     }
   }, [] );
+
+  /**
+   * EVERY CLIENT-SIDE NAVIGATION GOES BACK TO ENGLISH, and without this the site served
+   * half-translated pages.
+   *
+   * THE DEFECT, as reported with a screenshot of /post/<slug>/ in Arabic: after translating a
+   * page and then clicking through to another post, the chrome stayed Arabic - "شارك", "أقدم",
+   * "أحدث", "المزيد في محادثات" - while every post title rendered in English, the whole
+   * document still laid out right-to-left, and the language control still claimed AR.
+   *
+   * WHY, and it is not the translator's fault. This is a Next.js client-side route change, so
+   * the document is never reloaded:
+   *
+   *   the shared chrome - header, footer, this widget, the share row - is NOT re-rendered, so
+   *   its Text nodes survive the navigation still holding translated values
+   *
+   *   the page body IS re-rendered, so it arrives fresh from React in English
+   *
+   *   `lang` and `dir` live on <html>, outside React entirely, so the right-to-left layout
+   *   persisted under English text - exactly the defect applyDirection() was written for,
+   *   reappearing by a different route
+   *
+   *   `originals.current` kept Text node references for the PREVIOUS page's body, which are
+   *   detached after the navigation. That is the stale cache: dead keys pinned in a Map, and
+   *   a restore() that could never reach the nodes that needed restoring.
+   *
+   * RESETTING IS THE RIGHT ANSWER RATHER THAN RE-TRANSLATING, and the choice is already
+   * recorded two effects down: a selection is deliberately not persisted, because translation
+   * is billed per character and auto-translating each new page is what the removed
+   * localStorage key used to do. So navigation returns to the documented resting state - "the
+   * page always arrives in English and translates only when someone asks it to" - instead of
+   * silently spending on a page nobody asked to have translated.
+   *
+   * ON routeChangeStart, NOT routeChangeComplete. At Start the old body nodes are still
+   * attached, so restore() reaches all of them and the English is in place before the new page
+   * paints. At Complete the chrome would flash translated text for a frame first.
+   *
+   * `originals.current` is cleared, not merely restored, so the Map cannot accumulate one
+   * page's worth of dead Text nodes per navigation.
+   *
+   * The router is read defensively: this component renders in _app.tsx where a router always
+   * exists, but it is also mounted directly by tests that do not provide one.
+   */
+  const router = useRouter();
+  useEffect( () => {
+    const events = router?.events;
+    if ( !events ) return;
+    const resetToEnglish = () => {
+      restore();
+      originals.current = null;
+      document.documentElement.lang = 'en';
+      applyDirection( 'en' );
+      setCurrent( 'en' );
+      setStatus( '' );
+    };
+    events.on( 'routeChangeStart', resetToEnglish );
+    return () => { events.off( 'routeChangeStart', resetToEnglish ); };
+  }, [ router?.events, restore ] );
 
   useEffect( () => {
     let cancelled = false;
