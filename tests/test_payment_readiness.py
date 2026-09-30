@@ -19,7 +19,10 @@ from lambda_utils import payment_readiness as pr  # noqa: E402
 
 WABA = '2094615664435155'
 CONFIG = 'WECAREDIGITAL'
-MID = 'acc_HDfub6wOfQybuH'
+# Authoritative as of 2026-09-30 (owner-confirmed against the live Meta dashboard): this is the
+# Payment gateway MID Meta reports for WECAREDIGITAL. The previously-assumed acc_HDfub6wOfQybuH
+# was the stale env value, not what the configuration points at. See payment_readiness.py.
+MID = 'acc_TTFSyolquKEZEy'
 
 
 def _configuration(**overrides):
@@ -72,12 +75,13 @@ def test_a_named_constant_with_no_provider_config_blocks_payment():
 
 
 def test_a_mid_mismatch_blocks_payment():
-    """The two-MID conflict. A disagreement means payments settle into an account we are not
-    reconciling against."""
+    """A disagreement means payments settle into an account we are not reconciling against.
+    The reported MID here is the now-stale acc_HDfub6wOfQybuH; expected is the authoritative
+    acc_TTFSyolquKEZEy, so this must block."""
     verdict = _evaluate({'data': [_configuration(
-        payment_gateway={'type': 'razorpay', 'merchant_id': 'acc_TTFSyolquKEZEy'})]})
+        payment_gateway={'type': 'razorpay', 'merchant_id': 'acc_HDfub6wOfQybuH'})]})
     assert verdict.state == pr.RAZORPAY_MID_MISMATCH
-    assert verdict.provider_mid == 'acc_TTFSyolquKEZEy'
+    assert verdict.provider_mid == 'acc_HDfub6wOfQybuH'
 
 
 def test_a_configuration_on_the_wrong_waba_blocks_payment():
