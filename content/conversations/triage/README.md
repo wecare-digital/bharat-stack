@@ -76,3 +76,24 @@ Recommended review order for speed without lowering standards:
 
 The full generated CSV is retained as the persistent control file in the WECARE.DIGITAL
 working Library.
+
+
+## Reviewed checkpoint after full-source candidate + dedupe passes
+
+The first two post-triage editorial queues are now exhausted.
+
+Resolved from the 1,212-source automated queue:
+- confirmed existing live coverage: **170**
+- no distinct public article: **9**
+- **total resolved: 179**
+
+Active exception queue:
+- attribution/source-dependent review: **731**
+- personal/private-provenance review: **241**
+- factual/specialist review: **61**
+- **total active: 1,033**
+
+There are currently **0 clean CANDIDATE_NEW_ARTICLE records** and **0 DEDUPE_REVIEW records**
+left after full-source review. The only new article currently surviving the broader
+CONV-CONT-01 work is the separately validated `100wattl.html` reconstruction,
+**Pleasant Feelings Can Be Reactive Too**.
