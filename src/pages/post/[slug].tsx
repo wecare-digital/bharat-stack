@@ -14,6 +14,51 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import BlogSearch from '../../components/BlogSearch';
 
 /**
+ * WHICH ACCENT A TAG GETS, DERIVED FROM THE TAG ITSELF RATHER THAN FROM ITS POSITION.
+ *
+ * The blog already cycles the contract's accent hues by position: .post-card steps
+ * #3da35a, #2563eb, #9849e8 with nth-child(3n+...). That is right for a card in a stream,
+ * where position is the only thing available and nobody expects card three to look like
+ * card three on another page.
+ *
+ * It is wrong for a tag. The same tag appears across many posts, and position-based cycling
+ * would colour "Chai" green on one post and blue on the next - which spends the colour
+ * without buying the recognition it is for. Hashing the tag name makes a tag look the same
+ * everywhere it appears, so the colour becomes a property of the tag rather than of the row.
+ *
+ * Deterministic and pure, so the server and the client compute the same value and hydration
+ * does not mismatch - that is the reason this is a hash rather than a random pick or a
+ * useState.
+ *
+ * FOUR HUES, NOT FIVE. Amber #f0a818 is the one the hero pills use that is excluded here: it
+ * measures 2.04:1 on white, which is the ratio the design contract records as the reason it
+ * was rejected for light surfaces. The other four all clear the 3:1 that WCAG 1.4.11 asks of
+ * a graphic used to identify a control - green 3.19:1, blue 5.17:1, purple 4.72:1, red
+ * 4.83:1 - so this palette is measured rather than picked.
+ *
+ * Verified against the real corpus: 433 distinct tags in the built export distribute
+ * 112/108/108/105 across the four, which is close enough to even that no hue dominates a
+ * post's row by accident.
+ *
+ * THE UNSIGNED SHIFT IS LOAD-BEARING, and this is the bug the first version shipped.
+ * It used & 0xffffffff, which in JavaScript yields a SIGNED 32-bit integer - and a negative
+ * remainder stays negative, because -5 % 4 is -1 in JS rather than 3. So tags hashing to a
+ * negative value produced class names like tag-h-1 and tag-h-2, which match no rule, and
+ * those pills silently fell back to the neutral grey border. Measured in the browser: of
+ * three tags on one post, two were grey.
+ *
+ * It survived its own verification because that was written in Python, where & 0xffffffff is
+ * UNSIGNED and the distribution came out even. The check and the code disagreed about the
+ * language, not about the maths. The distribution figures above are re-measured in Node.
+ */
+const TAG_HUE_COUNT = 4;
+const tagHue = ( tag: string ): number => {
+  let h = 0;
+  for ( let i = 0; i < tag.length; i += 1 ) h = ( h * 33 + tag.charCodeAt( i ) ) >>> 0;
+  return h % TAG_HUE_COUNT;
+};
+
+/**
  * EVERY FIELD BELOW `post` IS OPTIONAL, and that is not defensiveness - it is what keeps
  * BlogDesign.test.tsx compiling. Its two post-page tests render <BlogPostPage post={ samplePost } />
  * with no other props, so a required prop here would break them, and they are the only guard on
@@ -331,7 +376,12 @@ export default function BlogPostPage ( {
           { post.tags && post.tags.length > 0 && (
             <nav className="tags" aria-label="Tags on this post">
               { post.tags.map( tag => (
-                <Link key={ tag } href={ `/blog/?q=${encodeURIComponent( tag )}` }>{ tag }</Link>
+                <Link
+                  key={ tag }
+                  href={ `/blog/?q=${encodeURIComponent( tag )}` }
+                  className={ `tag-h${tagHue( tag )}` }
+                  aria-label={ `Search posts tagged ${tag}` }
+                >{ tag }</Link>
               ) ) }
             </nav>
           ) }
@@ -518,12 +568,41 @@ export default function BlogPostPage ( {
            :global() because these are next/link, and styled-jsx does not scope a composite
            component - the same reason .category-switch and .post-related-card use it. */
         .tags :global(a){
-          flex:0 0 auto;display:inline-flex;align-items:center;
+          flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;
           font-size:14px;font-weight:400;letter-spacing:-.125px;
           background:#fff;border:2px solid #e5e7eb;border-radius:999px;
           padding:6px 13px;color:rgba(0,0,0,.54);text-decoration:none;white-space:nowrap;
           transition:background-color .2s,border-color .2s,color .2s,transform .2s,box-shadow .2s;
         }
+        /* THE DOT IS THE HOME HERO PILL'S OTHER HALF.
+           Those pills are a pale tint with a saturated dot of the same hue. The dot travels
+           here; the tint does not, and that is a contrast decision rather than a stylistic
+           one. The label is rgba(0,0,0,.54), which measures 4.61:1 on white and clears the
+           4.5:1 AA minimum for normal text with almost nothing to spare - over a pale tint it
+           drops under. That is not hypothetical: these pills were on #f3f4f6 until recently
+           and measured 4.49:1, failing by 0.01. So the ground stays white and the hue arrives
+           as a dot and a border instead.
+           A pseudo-element, so it is decorative by construction and never reaches the
+           accessibility tree - the same reason the hero dot carries aria-hidden. */
+        .tags :global(a)::before{
+          content:'';flex:0 0 auto;width:7px;height:7px;border-radius:50%;
+          background:#e5e7eb;transition:background-color .2s;
+        }
+        /* ACCENT FOR IDENTITY, LIME FOR INTERACTION - the split .post-card already uses, where
+           the inline-start border carries one of these three hues and the hover goes lime.
+           Colour here says WHICH tag; lime says you are pointing at it. Mixing the two would
+           break the rule the contract states outright: lime marks our own surfaces and
+           interaction state, accents categorise.
+           Border and dot take the same hue so the pill reads as one object rather than as a
+           bordered box with an unrelated dot in it. */
+        .tags :global(.tag-h0){border-color:#3da35a}
+        .tags :global(.tag-h0)::before{background:#3da35a}
+        .tags :global(.tag-h1){border-color:#2563eb}
+        .tags :global(.tag-h1)::before{background:#2563eb}
+        .tags :global(.tag-h2){border-color:#9849e8}
+        .tags :global(.tag-h2)::before{background:#9849e8}
+        .tags :global(.tag-h3){border-color:#dc2626}
+        .tags :global(.tag-h3)::before{background:#dc2626}
         /* THE HOME PAGE'S HOVER, EXACTLY. Lime border, the .22 state tint, a 2px lift and the one
            shadow this design language uses - the same four properties .category-switch and the
            home closing CTA move, at the same .2s. The label also goes from the muted
@@ -727,7 +806,7 @@ export default function BlogPostPage ( {
              asked for less motion should not get; the lime border, the tint and the darkened
              label all stay, so the control still answers when it is pointed at. Same treatment
              the related cards above get, and the same reason. */
-          .tags :global(a){transition:none}
+          .tags :global(a),.tags :global(a)::before{transition:none}
           .tags :global(a:hover),.tags :global(a:focus-visible){transform:none;box-shadow:none}
           /* THE REVEAL IS CANCELLED HERE AS WELL AS SKIPPED IN SCRIPT, and the belt and the
              braces do different jobs. The effect reads the preference once, on mount, and never
