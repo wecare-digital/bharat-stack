@@ -26,6 +26,7 @@ import blog_repetition
 import blog_sources
 import blog_templates
 import blog_verify
+import faq
 import storage
 import wix
 
@@ -959,6 +960,26 @@ def handler(event: Dict[str, Any], context: Optional[Any]):
                 post = wix.get_blog_post_by_slug(slug)
                 if not post:
                     return _response(404, {'ok': False, 'error': 'Blog post not found'}, origin)
+                # APPROVED FAQ IS ATTACHED HERE, and only on the single-post route.
+                #
+                # This is the seam between the CMS and the published page: the static export
+                # builds by fetching this endpoint per post, and src/pages/post/[slug].tsx
+                # already renders post.jsonLd.faqSchema. So the frontend needs no change - the
+                # chain existed end to end and was cut only by wix.py hardcoding jsonLd to {}.
+                #
+                # NOT ON THE LIST ROUTE. faqSchema is read by the post page alone; the index
+                # renders cards from seven fields and never touches it. Enriching the list would
+                # add a DynamoDB query per post to a response that already carries 1279 of them,
+                # for output nothing consumes.
+                #
+                # THE QUERY IS GUARDED SEPARATELY from faq.attach's own guard. attach() cannot
+                # raise, but list_slug_records talks to DynamoDB and can - and a post must still
+                # be served when the SEO table is unreachable. An absent FAQ is invisible; a 503
+                # on a published article is not.
+                try:
+                    post = faq.attach(post, storage.list_slug_records(slug))
+                except Exception:  # noqa: BLE001
+                    logger.exception('faq lookup failed for slug %s', slug)
                 return _cacheable(200, {'ok': True, 'post': post}, origin, event)
             posts = wix.list_blog_posts()
             fields = _projection(event)
