@@ -281,8 +281,13 @@ value is read at build time. Paste it in the console, never on a command line
 exists because of the 2026-09-19 incident). Verify with
 `node tools/browser/contactcheck.js`, expecting 13/13.
 
-**2. Narrow it before publishing, and this is the part that matters.** 49 API
-targets on a key that will sit in a public JS chunk is a wide billing surface.
+**2. Narrow it before publishing, and this is the part that matters.** **57** API
+targets — re-measured 2026-09-30, up from the 49 recorded when this was written, so the
+surface is growing rather than holding. On a key that will sit in a public JS chunk that
+is a wide billing surface. The eight added since include the seven Business Profile APIs
+plus `businessaicode`, which an API key cannot authorise at all — Business Profile
+requires OAuth — so they are inert targets that widen the list without enabling
+anything.
 Referrer restrictions stop casual reuse from another website; they do **not** stop
 deliberate abuse, because a `Referer` header is trivially forged with `curl`. The
 browser needs Maps JavaScript API (`maps-backend`) and little else. These are on the
@@ -300,6 +305,33 @@ currently failing. Having done that, add the server key's fingerprint to
 *that* key genuinely must never reach the export. Remember both Lambdas cache the
 key at first use, so publish a new version and move the `live` alias:
 `python scripts/refresh_secret_consumers.py wecare/google-maps`.
+
+> **READ THIS BEFORE DOING STEP 3: IT HAS ALREADY BEEN DONE ONCE, AND UNDONE.**
+> Added 2026-09-30, because following the step above as written would mint a *third*
+> key without knowing a second ever existed.
+>
+> | | |
+> |---|---|
+> | Key | `WECARE Address Capture Server Key`, uid `d936bd15-1009-4a63-93d0-a4eca73eff54` |
+> | Created | 2026-09-26 by `scripts/provision_maps_server_key.py --create` |
+> | Stored as | `wecare/google-maps-server` (still exists, single `api_key` field) |
+> | Proven | live at the time — Places (New) returned suggestions, legacy Geocoding `OK` |
+> | **Deleted** | **2026-09-30**, in Google Cloud |
+>
+> So the secret is still there and the key inside it is dead:
+> `check_secrets_live.py` reports `INVALID — REQUEST_DENIED: The provided API key is
+> expired`, the only INVALID credential in the account. The consumers were never
+> repointed at it either, so `wecare/google-maps` and `wecare/google/cloud` still hold
+> the browser key and `whatsapp-templates` is still making server-side Maps calls with
+> a referrer-restricted key.
+>
+> **Therefore step 3 is not "create a second key" any more, it is `--create` again and
+> then finish the repoint that never happened.** Reuse `provision_maps_server_key.py`
+> rather than minting by hand; `wecare/google-maps-server` already exists, so this is an
+> overwrite of a dead value rather than a new secret. Four keys have been created and
+> deleted in this project inside six weeks — unified, unified (rotated), Map Key, Address
+> Capture — so the failure mode here is key sprawl, and the way to avoid adding to it is
+> to check `gcloud services api-keys list --show-deleted` before creating anything.
 
 **4. Drop the two meaningless referrer entries.** `places.googleapis.com` and
 `*.googleapis.com/*` are in `allowedReferrers`. Referrer matching applies to the
