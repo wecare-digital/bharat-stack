@@ -25,7 +25,7 @@
  * the run for no extra information.
  *
  * Run:  node tools/browser/pageaudit.js            # all non-blog routes
- *       node tools/browser/pageaudit.js --public   # the 15 public routes only
+ *       node tools/browser/pageaudit.js --public   # the public routes only
  *       node tools/browser/pageaudit.js /contact/ /terms/
  * Writes docs/execution/page-audit.json alongside the console table.
  */
@@ -39,10 +39,18 @@ const { installVisible } = require( './lib/visible' );
 const REPO = path.join( __dirname, '..', '..' );
 const OUT_JSON = path.join( REPO, 'docs', 'execution', 'page-audit.json' );
 
-// The 15 routes _app.tsx treats as public, plus the two it names directly.
+// The routes PUBLIC_PAGE_META in _app.tsx admits, plus '/'.
+//
+// THIS LIST HAD DRIFTED. It said "the 15 public routes" and named 15, but PUBLIC_PAGE_META
+// had grown the Requests group and this list never followed - so `--public` audited 15 of 22
+// public routes while claiming to cover them all. It only matters for the `--public` flag:
+// the default run discovers routes by walking out/, which is how /hunar/ and /vault/ get
+// audited without being typed anywhere. The flag is the one that lies when it is stale.
 const PUBLIC = [ '/', '/grahak-os/', '/vayulok/', '/bharat-rx/', '/contact/', '/orders/',
   '/terms/', '/privacy/', '/anew/', '/clear-closure/', '/dastavez/', '/elsewhere/',
-  '/expo-week/', '/niji-setu/', '/ritual-guru/' ];
+  '/expo-week/', '/hunar/', '/niji-setu/', '/ritual-guru/',
+  '/submit-request/', '/request-amendment/', '/drop-docs/', '/vault/', '/leave-review/',
+  '/refer-and-earn/' ];
 
 function discover () {
   const routes = [];

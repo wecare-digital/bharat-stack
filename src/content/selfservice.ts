@@ -134,6 +134,55 @@ export const SELFSERVICE: ProductDef[] = [
     ctaHref: SELFSERVICE_CTA,
   },
   {
+    /*
+     * VAULT IS THE RETURN LEG OF DROP DOCS, and the pair is why it sits directly beneath it in
+     * the menu: one page is for sending paperwork in, this one is for getting it back out.
+     *
+     * IT IS NOT A SECOND /get/. /get/ is the mechanism - verify a number over WhatsApp, then
+     * collect what was shared with you - and it is noindex,nofollow with no inbound link
+     * anywhere in the export, because it is reached from the message carrying the link.
+     * Somebody whose document was never shared into it lands on an empty screen. This page is
+     * the part that belongs in a menu: what is kept, how long, how you ask for a copy, and
+     * what we will not do. The third point describes the mechanism; the CTA still goes to
+     * /contact/, like every other row in this group, because asking always works.
+     *
+     * The boundary note is the important half. A page called Vault invites the assumption that
+     * everything is kept forever and can be downloaded on demand, and neither is true - the
+     * privacy policy sets retention, and a copy is released to the person it belongs to after
+     * the same identity check the rest of the service uses.
+     */
+    slug: 'vault',
+    name: 'Vault',
+    blurb: 'Get a copy of a document we hold for you.',
+    title: 'Vault — download your documents | WECARE.DIGITAL',
+    description:
+      'Ask WECARE.DIGITAL for a copy of a document held against one of your requests - what is kept, how long it is kept, and how a copy is released to you.',
+    frame: 'Get back your',
+    words: cycle( 'copies', 'letters', 'records', 'reports' ),
+    sub: 'The documents a request produced, available to the person they belong to.',
+    sectionHeading: 'Getting a copy',
+    lead:
+      'A request usually leaves something behind - a filed document, a letter, a receipt, an outcome in writing. Vault is how you ask for a copy of it. Drop Docs is the same door in the other direction.',
+    points: [
+      {
+        heading: 'Ask for it by the request',
+        body: 'Name the request rather than the file. You are not expected to know what a document was called internally, and quoting the request is what lets us find it.',
+      },
+      {
+        heading: 'Released to you, after a check',
+        body: 'A copy goes to the person the document belongs to, after the same identity check the rest of the service uses. That check is the reason a copy cannot be handed over on a single message.',
+      },
+      {
+        heading: 'A link, not an attachment',
+        body: 'Files arrive as a private link you open, rather than as an attachment sitting in a mailbox. The link is yours, it expires, and it can be reissued if it lapses before you use it.',
+      },
+    ],
+    note:
+      'Documents are not kept indefinitely - our privacy policy sets how long each kind is retained, and once a period ends a copy may no longer exist to send. We also cannot release someone else\'s document to you, or a document to someone acting on your behalf without your authority.',
+    ctaLabel: 'Request a copy',
+    ctaHref: SELFSERVICE_CTA,
+  },
+  {
     slug: 'leave-review',
     name: 'Leave Review',
     blurb: 'Say how it actually went.',
