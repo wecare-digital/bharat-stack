@@ -1018,8 +1018,73 @@ const schema = a.schema( {
       processedAt: a.integer(),
       expiresAt: a.integer(), // TTL: 7 days
       ttl: a.integer(), // TTL attribute for backend.ts override
+      // Lease fields. `claim_event` claims permanently, which is right for an inbound message:
+      // a Meta redelivery hours later must not re-insert it. But taking the claim BEFORE the work
+      // and never releasing it means a handler exception makes the provider's retry look like a
+      // duplicate, and on payment.captured that silently discards a captured payment.
+      // `claim_event_with_lease` writes these two instead, so an uncompleted lease lapses and the
+      // retry gets through. Absent on every legacy row, which is what keeps those non-reclaimable.
+      leaseExpiresAt: a.integer(), // epoch seconds; absent = permanent claim
+      completedAt: a.integer(), // set only after the work succeeded
     } )
     .identifier( [ 'eventId' ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
+  // Table 42: PaymentAttempt - the entity that exists BEFORE payment, and is not an order.
+  //
+  // Most payment attempts never become orders, and that is normal rather than exceptional: an
+  // abandoned checkout, a timed-out UPI mandate, a declined card. Every one leaves a record that
+  // has to be visible to the customer and to staff, and none may carry an order number, appear in
+  // order history, or produce a receipt.
+  //
+  // So there is deliberately NO orderId or orderNumber field here. The order identity lives in
+  // `lambda_utils/ecommerce/order_keys` under PAYMENTATTEMPT#<id> and is minted only after a
+  // provider readback confirms capture. Adding those fields to this model would make the rule
+  // ("an order does not exist until payment is verified") depend on discipline instead of shape.
+  PaymentAttempt: a
+    .model( {
+      paymentAttemptId: a.string().required(), // UUIDv7, internal, never shown to a customer
+      customerId: a.string().required(), // CUS_<ULID>
+      referenceId: a.string().required(), // the Meta/Razorpay join key, <=35 chars
+      // Integer minor units. Floating-point money is prohibited on this path: 0.1 + 0.2 != 0.3 in
+      // binary, and a one-paise difference must fail the payment closed, so a rounding artefact
+      // would refuse a legitimate order.
+      amountPaise: a.integer().required(),
+      currency: a.string().default( 'INR' ), // compared explicitly, never inferred
+      configurationName: a.string(), // the Meta payment configuration actually used
+      provider: a.string().default( 'razorpay' ),
+      cartId: a.string(),
+      wixCheckoutId: a.string(),
+      // CREATED | PAYMENT_READINESS_CHECKED | PAYMENT_REQUEST_SENT | PAYMENT_PENDING
+      // then exactly one of PAYMENT_PAID | PAYMENT_FAILED | PAYMENT_CANCELLED | PAYMENT_EXPIRED
+      status: a.string().default( 'CREATED' ),
+      // Persisted rank, so the guard is a ConditionExpression rather than a read-then-write race.
+      // PAYMENT_PAID outranks every failure: a late `failed` must not unpay a capture.
+      attemptRank: a.integer(),
+      attemptNumber: a.integer().default( 1 ),
+      retryOf: a.string(), // previous paymentAttemptId, for retry lineage
+      providerPaymentId: a.string(),
+      providerOrderId: a.string(),
+      failureCode: a.string(),
+      failureReason: a.string(), // constructed from known-safe parts, never a provider string
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+      paidAt: a.integer(),
+      failedAt: a.integer(),
+    } )
+    .identifier( [ 'paymentAttemptId' ] )
+    .secondaryIndexes( ( index ) => [
+      // Payment history for one customer, newest first. `createdAt` is the sort key rather than a
+      // client-side sort because history is read on every "my payments" view and an attempt chain
+      // can be long after retries.
+      index( 'customerId' ).sortKeys( [ 'createdAt' ] ),
+      index( 'referenceId' ), // resolve an inbound payment event; a unique lookup, so no sort key
+      // Staff view of stuck and failed attempts. Only 8 distinct partition values, so `createdAt`
+      // is what keeps a query bounded to a window instead of reading the whole status partition.
+      index( 'status' ).sortKeys( [ 'createdAt' ] ),
+    ] )
+    // No TTL, deliberately. A failed attempt is the record proving no order was created, and
+    // payment history has to keep it.
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 39: SystemEvent - Persistent system event log (template status, quality, account updates)

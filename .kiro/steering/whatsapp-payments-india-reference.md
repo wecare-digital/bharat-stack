@@ -92,10 +92,37 @@ is the join key three separate subsystems agree on.
 ## Payment status has three vocabularies and one of them must win
 
 `lambda_utils/payment_status.py` documents a `paid` versus `captured` disagreement
-across three tables. Spec task 1.4 requires picking one and making every legacy mapping
-explicit. Until that lands, **do not infer a state from a string comparison** — go
-through `payment_status`, which also owns monotonic ordering so a late webhook cannot
-move an order backwards.
+across three tables and maps every measured spelling onto one ladder. **Do not infer a
+state from a string comparison** — go through `payment_status`, which also owns monotonic
+ordering so a late webhook cannot move an order backwards.
+
+**Landed 2026-09-30, and the distinction matters.** The module always did the mapping; what
+it lacked was callers. Four handlers compared raw strings and imported nothing, so the
+vocabulary was correct and unconsulted. Every *decision* now routes through it —
+`invoice-engine`, `inbound-whatsapp-handler`, `outbound-whatsapp`,
+`whatsapp-business-api` (+ `flows/track_request`) and `secure-files/razorpay_orders` — and
+three of those comparisons were failing in the dangerous direction:
+
+| Site | Raw comparison | Consequence of `paid` |
+|---|---|---|
+| `invoice-engine.cancel_invoice` | `== 'captured'` | a **paid invoice was cancellable** |
+| `invoice-engine` dedup update | required `'paid'` **and** `'captured'` | invoice stayed unpaid, permanently, silently |
+| `inbound-whatsapp-handler` Meta lookup | `!= 'captured'` | a confirmed capture recorded `REJECTED_MISMATCH` |
+| `outbound-whatsapp` order status | `== 'completed' or == 'captured'` | a paying customer told "Payment failed" |
+
+Two boundaries, both deliberate and both pinned by tests:
+
+- **`InvoicesTable.status` is NOT this vocabulary.** It is a document lifecycle
+  (`created` → `sent` → `paid` → `cancelled`), so `inv.get('status') != 'paid'` is
+  *correct* and was left alone. `for_storage`'s docstring says the module does not own
+  that field. "Finishing the job" by canonicalising it would collapse two different facts
+  about one row.
+- **Only `captured` is banned as a raw literal**, by
+  `tests/test_payment_vocabulary_at_decision_points.py`. `captured` belongs exclusively to
+  the payment vocabulary, and banning it catches the dangerous direction — `== 'captured'`
+  is the comparison that misses `paid`. Banning `paid` too would fail on the correct
+  lifecycle code above. The gate walks the **AST**, not the text, because the comments
+  explaining the rule necessarily contain the forbidden literal.
 
 ## What is prohibited, and generates no prompt
 

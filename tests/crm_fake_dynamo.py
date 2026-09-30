@@ -31,13 +31,25 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional
 
+from botocore.exceptions import ClientError as _BotoClientError
 
-class FakeClientError(Exception):
-    """Shaped like `botocore.exceptions.ClientError` for the bits the store reads."""
+
+class FakeClientError(_BotoClientError):
+    """A real `botocore.exceptions.ClientError`, not merely shaped like one.
+
+    It used to be a bare `Exception` carrying a `.response` dict, which was enough for code that
+    inspects `.response` — `order_keys`, `otp_challenge` and `crm.store` all do — but **not** for
+    code written as `except ClientError:`. `webhook_dedup.claim_event` is written that way, and
+    against the old fake its conditional branch never matched: every simulated collision fell
+    through to the generic handler and took the fail-open path instead.
+
+    So a test asserting "a duplicate is skipped" was quietly asserting "a duplicate is processed",
+    and passing, because that is what fail-open returns. Subclassing the real exception is what
+    makes both styles of error handling testable.
+    """
 
     def __init__(self, code: str) -> None:
-        super().__init__(code)
-        self.response = {"Error": {"Code": code}}
+        super().__init__({"Error": {"Code": code, "Message": code}}, "FakeOperation")
 
 
 _ATTR_EXISTS = re.compile(r"attribute_exists\(\s*([#\w]+)\s*\)")

@@ -65,6 +65,9 @@ from lambda_utils.meta_client import MetaGraphClient  # shared Meta Graph client
 
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+# Aliased to leave the many local `payment_status` / `ps` variables alone; this is the module that
+# says `paid` and `captured` are one state.
+from lambda_utils import payment_status as pay_status
 from lambda_utils.middleware import require_auth
 from lambda_utils import meta_signature  # X-Hub-Signature-256, fails closed
 from lambda_utils.privacy import mask_flow_token  # a Flow token ends in the customer's number
@@ -3948,10 +3951,17 @@ def _get_flow_submission_stats(params: Dict) -> Dict:
             ps = item.get('paymentStatus', 'none')
             amt = int(item.get('paymentAmount', 0))
             stats['byStatus'][s] = stats['byStatus'].get(s, 0) + 1
+            # Bucketed on the raw value, deliberately: this breakdown is for spotting which
+            # spellings are actually in the table, and canonicalising it here would hide that.
             stats['byPaymentStatus'][ps] = stats['byPaymentStatus'].get(ps, 0) + 1
-            if ps == 'captured':
+            # The money totals are canonical, because they are sums rather than a breakdown. A row
+            # stored as `paid` was counted in neither bucket while still landing in
+            # `totalPaymentAmount`, so captured + pending did not reconcile to the total and the
+            # shortfall looked like missing data rather than a vocabulary mismatch.
+            payment_state = pay_status.canonical(ps)
+            if payment_state == pay_status.CAPTURED:
                 stats['capturedAmount'] += amt
-            elif ps == 'pending':
+            elif payment_state == pay_status.PENDING:
                 stats['pendingAmount'] += amt
             stats['totalPaymentAmount'] += amt
         return _resp(200, stats)
@@ -4010,7 +4020,12 @@ def _check_sla_and_escalate(params: Dict) -> Dict:
                 continue
             days_old = (now - created) // 86400
             sub_id = item.get('submissionId', '')
-            if item.get('paymentStatus') == 'pending' and days_old > sla_days:
+            # Canonical, so `pending_payment`, `payment_pending`, `initiated` and `in_progress`
+            # are all recognised as still-owing. The raw comparison only matched one of the five
+            # spellings, so a genuinely overdue payment stored under any other never raised an SLA
+            # action - it silently aged out instead of being chased.
+            if (pay_status.canonical(item.get('paymentStatus')) == pay_status.PENDING
+                    and days_old > sla_days):
                 actions['overdue_payments'] += 1
                 try:
                     table.update_item(Key={'submissionId': sub_id},
@@ -4079,7 +4094,10 @@ def _get_customer_journey(params: Dict) -> Dict:
         submissions.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
         logs.sort(key=lambda x: x.get('createdAt', 0), reverse=True)
         flows_completed = list(set(s.get('flowCode', '') for s in submissions))
-        total_paid = sum(int(s.get('paymentAmount', 0)) for s in submissions if s.get('paymentStatus') == 'captured')
+        # Canonical: a submission stored as `paid` is money this customer has paid, and the raw
+        # comparison left it out of their own total.
+        total_paid = sum(int(s.get('paymentAmount', 0)) for s in submissions
+                         if pay_status.canonical(s.get('paymentStatus')) == pay_status.CAPTURED)
         return _resp(200, {
             'phone': phone, 'contactId': contact_id, 'contact': contact,
             'submissions': submissions, 'logs': logs,
@@ -5312,8 +5330,10 @@ def _list_submit_requests(params: Dict) -> Dict:
             if created:
                 days_old = (now - created) // 86400
                 item['daysOld'] = days_old
-                # Mark as expired if pending for more than 7 days
-                if item.get('paymentStatus') == 'pending' and days_old > 7:
+                # Mark as expired if pending for more than 7 days. Canonical for the same reason as
+                # the SLA sweep above: four other spellings mean the same "still owing".
+                if (pay_status.canonical(item.get('paymentStatus')) == pay_status.PENDING
+                        and days_old > 7):
                     item['isExpired'] = True
 
         # Sort by createdAt descending

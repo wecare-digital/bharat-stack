@@ -60,6 +60,10 @@ ADMIN="${ADMIN:-wecare.digital.bw@gmail.com}"
 SA="${SA:-automation@wecaredigitalbw.iam.gserviceaccount.com}"
 EXPECTED_KEY_ID="${EXPECTED_KEY_ID:-d281dbfcf7efd9dad587bc833a30fec9be669a4d}"
 ADS_API_VERSION="${ADS_API_VERSION:-v25}"
+# Manager (MCC) account, digits only - the API rejects the dashed display form
+# 427-041-2231. An identifier, not a credential: it travels in a request header and
+# appears in the Ads UI, so it belongs here rather than in Secrets Manager.
+ADS_LOGIN_CUSTOMER_ID="${ADS_LOGIN_CUSTOMER_ID:-4270412231}"
 DRY_RUN="${DRY_RUN:-0}"
 
 run() {
@@ -349,29 +353,72 @@ fi
 echo
 
 echo "[9/9] Google Ads readiness..."
-echo "  Read this before spending time on it:"
-echo "  A plain service account CANNOT be granted access to a Google Ads account."
-echo "  Ads user management only accepts real Google accounts, and the Ads API"
-echo "  authenticates either as a human via OAuth, or as a service account with"
-echo "  Workspace domain-wide delegation impersonating a human in your domain."
-echo "  wecaredigitalbw is not a Workspace domain, so the practical route is an"
-echo "  OAuth refresh token for $ADMIN plus an approved developer token."
-if [[ -n "${GOOGLE_ADS_DEVELOPER_TOKEN:-}" ]]; then
-  ADS_HEADER="$TMP_DIR/ads.header"; ADS_OUT="$TMP_DIR/ads.json"
-  if make_auth_header "https://www.googleapis.com/auth/adwords" "$ADS_HEADER"; then
-    ADS_HTTP="$(curl -sS -o "$ADS_OUT" -w '%{http_code}' -H @"$ADS_HEADER" \
-      -H "developer-token: $GOOGLE_ADS_DEVELOPER_TOKEN" \
-      "https://googleads.googleapis.com/${ADS_API_VERSION}/customers:listAccessibleCustomers" || true)"
-    echo "  HTTP: $ADS_HTTP  (expect 401/403 for the reason above)"
-    if [[ "$ADS_HTTP" == "200" ]]; then
-      echo "  accessible customers: $(json_count "$ADS_OUT" '(.resourceNames // []) | length')"
-      jq -r '.resourceNames[]? | "    - " + .' "$ADS_OUT" 2>/dev/null || true
-    else
-      show_body "$ADS_OUT" | sed 's/^/    /'
+echo "  CORRECTED 2026-09-30. This section used to say a plain service account CANNOT be"
+echo "  granted access to a Google Ads account, that Ads accepts real Google accounts only,"
+echo "  and that the practical route was an OAuth refresh token plus an approved developer"
+echo "  token. All of that is wrong, and it sent readers to build a flow they do not need."
+echo
+echo "  A SERVICE ACCOUNT CAN BE ADDED DIRECTLY AS AN ADS USER. Google's service-account"
+echo "  workflow guide documents it:"
+echo "      Google Ads -> Admin -> Access and security -> Users -> +"
+echo "      enter the service account email, choose an access level, Add account"
+echo "      (service accounts do not support the 'Email only' level - that is the only limit)"
+echo "  No domain-wide delegation, no Workspace domain, no human refresh token."
+echo
+echo "  DEVELOPER TOKENS WERE SUNSET 2026-09-09. They may still be sent and are IGNORED by"
+echo "  the API servers; access level now attaches to the Google Cloud project that owns the"
+echo "  credential. So the live call below no longer needs GOOGLE_ADS_DEVELOPER_TOKEN, and"
+echo "  putting one on a command line is prohibited here anyway - see"
+echo "  .kiro/steering/secret-handling.md. Prefer: python scripts/google_products_pull.py"
+echo
+echo "  Grant read access to: $SA"
+echo
+# THE DEVELOPER-TOKEN HEADER IS GONE FROM THIS CALL, ON GOOGLE'S OWN INSTRUCTION.
+#
+#   "Fix your app code: We encourage you to update your app to stop sending a developer
+#    token as part of your API calls. We will start rejecting developer tokens in API
+#    calls in a future major version of the Google Ads API."
+#   -- developer-token sunset guide, 2026-09-09
+#
+# So sending it is not merely pointless now, it is a scheduled future breakage. It also
+# had to go for a second, local reason: the only way this script could obtain the value
+# was `GOOGLE_ADS_DEVELOPER_TOKEN=...` on a command line, and an "Always allow" on that
+# shape records the whole command - secret included - into a Kiro permissions file. That
+# is precisely how four live credentials landed on disk here on 2026-09-19, so
+# .kiro/steering/secret-handling.md forbids it and .kiro/hooks/block-inline-secrets.json
+# blocks it. Removing the header removes the only reason to ever set that variable.
+#
+# The call still works without it: access level now attaches to the Google Cloud project
+# that owns the credential, not to a token.
+ADS_HEADER="$TMP_DIR/ads.header"; ADS_OUT="$TMP_DIR/ads.json"
+if make_auth_header "https://www.googleapis.com/auth/adwords" "$ADS_HEADER"; then
+  ADS_HTTP="$(curl -sS -o "$ADS_OUT" -w '%{http_code}' -H @"$ADS_HEADER" \
+    -H "login-customer-id: $ADS_LOGIN_CUSTOMER_ID" \
+    "https://googleads.googleapis.com/${ADS_API_VERSION}/customers:listAccessibleCustomers" || true)"
+  echo "  HTTP: $ADS_HTTP  (no developer token sent)"
+  if [[ "$ADS_HTTP" == "200" ]]; then
+    ADS_N="$(json_count "$ADS_OUT" '(.resourceNames // []) | length')"
+    echo "  accessible customers: $ADS_N"
+    jq -r '.resourceNames[]? | "    - " + .' "$ADS_OUT" 2>/dev/null || true
+    if [[ "$ADS_N" == "0" ]]; then
+      echo "  READ THIS: 200 with ZERO customers is not success. Authentication worked and"
+      echo "  the access list is empty, because $SA is not yet a user on the Ads account."
+      echo "  Add it at Admin > Access and security > Users > + and re-run."
     fi
+  else
+    show_body "$ADS_OUT" | sed 's/^/    /'
+    echo "  USER_PERMISSION_DENIED                    -> not an Ads user; project is fine"
+    echo "  CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION -> project on Test access; a user"
+    echo "                                               grant will NOT fix it, apply for"
+    echo "                                               Explorer/Basic in Cloud Console"
   fi
-else
-  echo "  SKIP live call: GOOGLE_ADS_DEVELOPER_TOKEN is not set."
+fi
+if [[ -n "${GOOGLE_ADS_DEVELOPER_TOKEN:-}" ]]; then
+  echo
+  echo "  WARNING: GOOGLE_ADS_DEVELOPER_TOKEN is set in this environment. It is ignored"
+  echo "  by this script and by Google's servers since the 2026-09-09 sunset, and holding"
+  echo "  a credential in an environment variable is what .kiro/steering/secret-handling.md"
+  echo "  exists to prevent. Unset it."
 fi
 echo
 

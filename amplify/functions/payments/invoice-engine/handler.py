@@ -32,6 +32,9 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 from lambda_utils.logging import get_logger
 from lambda_utils.privacy import mask_phone  # a full number must never reach CloudWatch
 from lambda_utils import media_paths
+# Aliased: `payment_status` is a local parameter in the invoice renderers below, holding the raw
+# stored word. `pay_status` is the module that says what the word means.
+from lambda_utils import payment_status as pay_status
 
 logger = get_logger(__name__)
 
@@ -366,10 +369,20 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
                 inv = existing[0]
                 existing_id = inv.get('invoiceId', '')
 
-                # If caller says this is now paid, update the existing invoice status
+                # If caller says this is now paid, update the existing invoice status.
+                #
+                # Two axes, and only one of them is the payment vocabulary. `status` is the
+                # document lifecycle (created -> sent -> paid -> cancelled) so `'paid'` is its own
+                # correct literal; `paymentStatus` is what the money did, so it goes canonical.
+                #
+                # The original demanded `incoming_ps == 'captured'` exactly, which meant a caller
+                # sending the equally valid `paymentStatus='paid'` satisfied neither branch - the
+                # invoice stayed unpaid, permanently, with no error anywhere.
                 incoming_status = body.get('status', '')
                 incoming_ps = body.get('paymentStatus', '')
-                if incoming_status == 'paid' and incoming_ps == 'captured' and inv.get('status') != 'paid':
+                if (incoming_status == 'paid'
+                        and pay_status.canonical(incoming_ps) == pay_status.CAPTURED
+                        and inv.get('status') != 'paid'):
                     try:
                         table.update_item(
                             Key={'invoiceId': existing_id},
@@ -878,7 +891,7 @@ def _build_invoice_html(invoice: Dict, items: List[Dict]) -> str:
     time_str = _ist_strftime('%H:%M IST', int(created_at)) if created_at else ''
     if paid_at and int(paid_at) > 0:
         paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(paid_at))
-    elif payment_status == 'captured':
+    elif pay_status.canonical(payment_status) == pay_status.CAPTURED:
         paid_str = _ist_strftime('%d-%m-%Y %H:%M IST', int(time.time()))
     else:
         paid_str = ''
@@ -2241,9 +2254,21 @@ def cancel_invoice(invoice_id: str, reason: str, request_id: str) -> Dict:
     if not invoice:
         return _resp(404, {'error': 'Invoice not found'})
 
+    # Money-moved guard, and it used to fail OPEN. It compared `== 'captured'` against a field
+    # that is written with at least two spellings for one state: `payment_status` measured
+    # `InvoicesTable.status` and `OrderTable.paymentStatus` saying `paid` where `PaymentsTable`
+    # says `captured`. So an invoice stored as `paid` sailed past this check and got cancelled.
+    #
+    # Ranked rather than compared, so it also catches `refunded` and `disputed`. Cancelling a
+    # refunded invoice would erase the record that money was taken and returned, and cancelling a
+    # disputed one destroys the evidence while the dispute is live. Anything at or past `captured`
+    # means money moved, and none of those may be voided.
     current_status = invoice.get('paymentStatus', '')
-    if current_status == 'captured':
-        return _resp(400, {'error': 'Cannot cancel a paid invoice. Use refund instead.'})
+    if pay_status.rank(current_status) >= pay_status.STATUS_RANK[pay_status.CAPTURED]:
+        return _resp(400, {
+            'error': 'Cannot cancel a paid invoice. Use refund instead.',
+            'paymentStatus': pay_status.canonical(current_status),
+        })
 
     try:
         # Preserve existing notes, append cancellation reason

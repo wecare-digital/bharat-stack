@@ -87,10 +87,25 @@ exiting zero is not verification.
   - Record `nodejs24.x` as available-and-rejected with the D1 reason, so the decision is
     revisited rather than forgotten
   - _Requirements: R1.4_
-- [ ] 1.4 Unify the payment status vocabulary
+- [x] 1.4 Unify the payment status vocabulary
   - `payment_status.py` documents `paid` vs `captured` disagreement across three tables;
     choose one and make each legacy mapping explicit
-  - _Requirements: R15, R7.8_ · _Verify: test asserting one vocabulary across all three_
+  - **Done 2026-09-30.** The module already held the mapping; the gap was that nobody
+    consulted it. Every payment *decision* now routes through `canonical()`/`rank()`:
+    `invoice-engine`, `inbound-whatsapp-handler`, `outbound-whatsapp`,
+    `whatsapp-business-api` (+ `flows/track_request`), `secure-files/razorpay_orders`.
+    Three raw comparisons were failing dangerously — a paid invoice was cancellable, a
+    Meta-confirmed capture was recorded `REJECTED_MISMATCH`, and a paying customer was
+    told the payment failed.
+  - Scope boundaries, both pinned by tests: `InvoicesTable.status` is a document lifecycle
+    and stays literal; renderers (badge colour, PDF stamp) are not decisions. Only
+    `captured` is banned as a raw literal, since `paid` is legitimately shared with the
+    lifecycle vocabulary.
+  - _Requirements: R15, R7.8_ · _Verify:_ `tests/test_payment_vocabulary_at_decision_points.py`
+    (53 tests: 5 decision points parameterised over every measured spelling, an AST gate on
+    raw `captured` comparisons, an import assertion per handler, and a test pinning why
+    `paid` is deliberately excluded). 5201 pytest passed. Deployed: invoice-engine v38,
+    inbound v65, outbound v43, business-api v55, secure-files v21.
 - [x] 1.5 Fill `.kiro/steering/whatsapp-payments-india-reference.md`
   - Was 0 bytes while carrying `inclusion: always`, which is worse than absent: it occupied
     a slot that reads as "the payments rules are written down". Now holds the one-gateway

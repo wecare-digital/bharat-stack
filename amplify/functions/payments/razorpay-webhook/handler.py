@@ -268,12 +268,20 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         else:
             logger.info(json.dumps({'event': 'razorpay_event_unhandled', 'eventType': event_type, 'requestId': request_id}))
 
+        # Close the dedup lease. LAST thing on the success path, deliberately: everything above
+        # has run, so this is the point at which "already processed" becomes true. Moving it
+        # earlier recreates the claim-before-work defect it exists to fix, and leaving it out
+        # entirely means every event is reprocessed once the lease lapses.
+        _complete_event(razorpay_event_id, request_id)
+
         return _response(200, {'status': 'ok', 'event': event_type})
 
     except json.JSONDecodeError as e:
         logger.error(json.dumps({'event': 'webhook_parse_error', 'error': str(e), 'requestId': request_id}))
         return _response(400, {'error': 'Invalid JSON'})
     except Exception as e:
+        # The lease is deliberately NOT completed here. Letting it lapse is what allows Razorpay's
+        # retry to be processed instead of dismissed as a duplicate, which is the entire fix.
         logger.error(json.dumps({'event': 'webhook_error', 'error': str(e), 'requestId': request_id}))
         return _response(500, {'error': 'Internal server error'})
 
@@ -373,22 +381,137 @@ def _log_webhook_event(event_type: str, event_data: Dict, request_id: str, razor
 
 
 def _is_duplicate_event(razorpay_event_id: str, request_id: str) -> bool:
-    """Idempotency via the shared WebhookDedup table (atomic conditional claim).
+    """Idempotency via the shared WebhookDedup table, as a LEASE rather than a permanent claim.
 
     Returns True if this event was already processed (caller should skip).
-    Replaces the previous read-then-write query+scan against the log table, which
-    had a race window (check, then log) and could fall back to a full-table scan.
-    claim_event() does a single atomic conditional put. Fails open (process) on
-    infra errors — better to process twice than to drop a real payment event."""
+
+    It used to call `claim_event`, which claims permanently. That has an invisible and expensive
+    failure mode on a payment path:
+
+        claim -> handler raises -> claim remains -> Razorpay retries -> "duplicate" -> DROPPED
+
+    The claim was taken before the work and never released, so an exception anywhere below made
+    Razorpay's retry look like a duplicate. On `payment.captured` that silently discards a captured
+    payment, and throws away the exact mechanism that exists to recover from it.
+
+    `claim_event_with_lease` releases the claim by lapsing if `_complete_event` is never reached,
+    so a crashed handler gets retried and a successful one is closed permanently. Legacy rows carry
+    no lease and stay non-reclaimable, so the 271 entries already in the table are unaffected.
+
+    Still fails open, and that is safer than it used to be: order creation is now guarded by its own
+    conditional markers in `lambda_utils/ecommerce/order_keys`, so processing an event twice
+    converges on one order rather than making two."""
     if not razorpay_event_id:
         return False
     try:
-        from lambda_utils.webhook_dedup import claim_event
-        # claim_event returns True when newly claimed (process); duplicate = not claimed.
-        return not claim_event(razorpay_event_id, source='razorpay')
+        from lambda_utils.webhook_dedup import claim_event_with_lease
+        # Returns True when newly claimed (process); duplicate = not claimed.
+        return not claim_event_with_lease(razorpay_event_id, source='razorpay')
     except Exception as e:
         logger.warning(json.dumps({'event': 'idempotency_check_failed', 'error': str(e), 'requestId': request_id}))
         return False  # Fail open on check errors — better to process twice than miss
+
+
+def _complete_event(razorpay_event_id: str, request_id: str) -> None:
+    """Close the lease. MUST be the last thing a successful path does.
+
+    Calling it earlier turns the lease back into a claim-before-work-and-never-release, which is
+    the defect it replaced. Never raises: a failure here leaves the lease to lapse, costing one
+    reprocess, and a reprocess is safe."""
+    if not razorpay_event_id:
+        return
+    try:
+        from lambda_utils.webhook_dedup import complete_event
+        complete_event(razorpay_event_id)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(json.dumps({'event': 'dedup_complete_failed',
+                                   'error': type(e).__name__, 'requestId': request_id}))
+
+
+def _create_order_for_captured_payment(payment: Dict, reference_id: str,
+                                       request_id: str) -> Dict[str, Any]:
+    """Turn a verified capture into exactly one order. Returns the outcome as a dict.
+
+    This is the step the payment path never had. Measured across the tree, nothing here created a
+    commerce order - the path produced payment records, invoice state, GST invoices and
+    notifications. So this is an addition, and `OrderTable` held zero rows when it was written.
+
+    Two things it deliberately does NOT do. It does not trust `payment`: the amount, currency and
+    status all come back from Razorpay's API through `razorpay_verify`, because the webhook signing
+    secret is in this repository's public git history and a signature therefore proves only that
+    somebody read the history. And it does not perform the downstream side effects - Wix order,
+    transaction record, receipt, confirmation - which are separately guarded so that a failure in
+    the last one does not re-run the first.
+
+    Never raises. A failure to create the order must not fail the webhook, because a non-2xx makes
+    Razorpay retry the whole event and the lease above already handles recovery.
+    """
+    try:
+        from lambda_utils.ecommerce import order_creation, order_keys
+        from lambda_utils.integrations import razorpay_verify
+
+        payment_id = str(payment.get('id') or '')
+        order_id = str(payment.get('order_id') or '')
+        if not payment_id and not order_id:
+            return {'outcome': 'NO_PROVIDER_ID', 'hasOrder': False}
+
+        table = dynamodb.Table(order_keys.commerce_keys_table_name())
+
+        def _load_attempt(ref: str):
+            row = order_keys.resolve_payment_reference(table, ref)
+            if not row or not row.get('paymentAttemptId'):
+                return None
+            # The attempt's authoritative amount and currency live on the PAYREF# row, written when
+            # the payment request was built from the Wix checkout. Reading them from the webhook
+            # instead would make the comparison compare the event against itself.
+            return {
+                'paymentAttemptId': row['paymentAttemptId'],
+                'customerId': row.get('customerId', ''),
+                'amountPaise': row.get('amountPaise'),
+                'currency': row.get('currency', 'INR'),
+            }
+
+        outcome = order_creation.reconcile_payment(
+            table=table,
+            reference_id=reference_id,
+            verify_payment=razorpay_verify.verifier_for_event(
+                payment_id=payment_id, order_id=order_id),
+            load_attempt=_load_attempt,
+        )
+
+        logger.info(json.dumps({
+            'event': 'order_reconciliation_result',
+            'outcome': outcome.outcome,
+            'hasOrder': outcome.has_order,
+            'needsHuman': outcome.needs_human,
+            'orderNumber': outcome.order_number or None,
+            'referenceId': reference_id,
+            'requestId': request_id,
+        }))
+
+        if outcome.needs_human:
+            # Money moved and no order followed. The alarm condition: recoverable only by staff,
+            # and the customer must never be asked to pay again.
+            logger.error(json.dumps({
+                'event': 'order_reconciliation_needs_attention',
+                'alert': 'PAID_BUT_NO_ORDER',
+                'outcome': outcome.outcome,
+                'reason': outcome.reason,
+                'referenceId': reference_id,
+                'requestId': request_id,
+            }))
+        return outcome.as_dict()
+
+    except Exception as e:  # noqa: BLE001
+        # Type only, and never re-raised: a non-2xx makes Razorpay retry the whole event, and the
+        # lease already provides recovery without the noise.
+        logger.error(json.dumps({
+            'event': 'order_reconciliation_error',
+            'error': type(e).__name__,
+            'referenceId': reference_id,
+            'requestId': request_id,
+        }))
+        return {'outcome': 'RECONCILIATION_ERROR', 'hasOrder': False}
 
 
 
@@ -528,6 +651,15 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
 
     # Store payment record in DynamoDB
     _store_payment_record(payment, 'captured', request_id)
+
+    # ── Create the commerce order, if this capture verifies against Razorpay ──
+    #
+    # Placed before the invoice work so the order exists first: an order is the thing the customer
+    # bought, and an invoice is a document about it. It is a no-op when no payment attempt exists
+    # for this reference, which is every payment that did not originate from the new checkout - so
+    # the existing invoice-only flows are untouched.
+    if reference_id:
+        _create_order_for_captured_payment(payment, reference_id, request_id)
 
     # ── Direct invoice status update by referenceId ──
     if reference_id:

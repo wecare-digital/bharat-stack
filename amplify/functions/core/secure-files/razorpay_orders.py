@@ -206,7 +206,13 @@ def order_is_paid(order_id: str) -> tuple[bool, str, int]:
     except urllib.error.URLError:
         raise RuntimeError("Razorpay unreachable") from None
 
+    # Canonical rather than `== "captured"`. Razorpay's own word is `captured`, so this is not a
+    # bug being fixed - it is a decision that grants file access, and pinning it to one spelling
+    # means a provider-side rename would silently start denying paid customers their downloads.
+    # `canonical` returns '' for anything unmappable, so an unrecognised status still denies.
+    from lambda_utils import payment_status
+
     for payment in payload.get("items", []) or []:
-        if payment.get("status") == "captured":
+        if payment_status.canonical(payment.get("status")) == payment_status.CAPTURED:
             return True, str(payment.get("id") or ""), int(payment.get("amount") or 0)
     return False, "", 0

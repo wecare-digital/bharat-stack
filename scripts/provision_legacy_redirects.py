@@ -148,6 +148,26 @@ RETIRED = {
     # If it is ever restored, the target must be /llms.txt and NOT /mcp: /mcp answers 405 to a
     # GET because it offers no SSE stream, so pointing a browser URL there turns a retired page
     # into a method error. That reasoning is about the target and survives the removal.
+    #
+    # ONE 301 ON /llm CANNOT BE REMOVED, AND IT IS NOT A RULE IN THIS FILE. Measured 2026-09-30:
+    #
+    #     /llm       301 -> /llm/        then 404
+    #     /contact   301 -> /contact/    then 200
+    #     /zzz-fake  301 -> /zzz-fake/   then 404
+    #
+    # `trailingSlash: true` in next.config.js makes the canonical form of every URL carry the
+    # slash, and Amplify normalises to it for EVERY path - including ones that never existed.
+    # So /llm is already treated identically to any other dead address.
+    #
+    # An explicit `{'source': '/llm', 'target': '/404.html', 'status': '404-200'}` rule was
+    # tried, to serve the 404 without the hop. IT IS INERT: Amplify applies the slash
+    # normalisation before custom rules, so /llm still answered 301. The rule was removed rather
+    # than left in place, on the same principle robots.txt states for a Disallow on a route that
+    # does not exist - a rule that does nothing implies something works.
+    #
+    # The only way to drop the hop is turning trailingSlash off, which rewrites all 1,353
+    # canonicals, the sitemap and every internal link to remove one redirect from a dead path.
+    # Do not do that.
 }
 
 # Prefix renames: old top-level segment -> new one. `/dm` became `/workspace/engage` on

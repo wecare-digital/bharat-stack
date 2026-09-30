@@ -971,148 +971,21 @@ def _update_review(review_id: str, body: Dict) -> Dict:
 
 
 # ============================================================================
-# MAIN HANDLER — ROUTER
+# NO ROUTER HERE, DELIBERATELY
 # ============================================================================
-
-def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    global origin
-    origin = _extract_origin(event)
-    request_id = context.aws_request_id if context else 'local'
-
-    rc = event.get('requestContext', {})
-    http = rc.get('http', {})
-    method = http.get('method', event.get('httpMethod', 'GET'))
-    path = http.get('path', '') or event.get('rawPath', '') or event.get('path', '')
-    params = event.get('queryStringParameters') or {}
-
-    if method == 'OPTIONS':
-        return _resp(200, {})
-
-    try:
-        body = json.loads(event.get('body', '{}')) if event.get('body') else {}
-    except (json.JSONDecodeError, TypeError, ValueError):
-        body = {}
-
-    logger.info(f'[{request_id}] {method} {path}')
-
-    try:
-        # ── ORDERS ──
-        if '/orders/sync' in path and method == 'POST':
-            return _sync_orders()
-        elif '/orders/' in path and '/submissions' in path:
-            order_id = _extract_path_param(path, 'orders')
-            return _get_order_submissions(order_id)
-        elif '/orders/' in path:
-            order_id = _extract_path_param(path, 'orders')
-            if method == 'GET':
-                return _get_order(order_id)
-            elif method in ('PATCH', 'PUT'):
-                return _update_order(order_id, body)
-        elif '/orders' in path:
-            if method == 'GET':
-                return _list_orders(params)
-            elif method == 'POST':
-                return _create_order(body)
-
-        # ── SERVICE ──
-        elif '/service/submit' in path and method == 'POST':
-            return _submit_request(body)
-        elif '/service/amend' in path and method == 'POST':
-            return _amend_request(body)
-        elif '/service/track/' in path:
-            order_id = path.split('/service/track/')[-1].split('?')[0]
-            return _track_order(order_id)
-        elif '/service/history' in path:
-            return _get_status_history(params)
-        elif '/service/drafts' in path:
-            if method == 'POST':
-                return _save_draft(body)
-            elif method == 'GET':
-                flow_code = params.get('flowCode', path.split('/service/drafts/')[-1].split('?')[0])
-                return _get_draft(flow_code)
-            elif method == 'DELETE':
-                flow_code = path.split('/service/drafts/')[-1].split('?')[0]
-                return _delete_draft(flow_code)
-
-        # ── DOCUMENTS ──
-        elif '/documents/' in path and '/download' in path:
-            doc_id = _extract_path_param(path, 'documents')
-            return _get_document_download_url(doc_id)
-        elif '/documents/' in path:
-            doc_id = _extract_path_param(path, 'documents')
-            if method == 'GET':
-                return _get_document(doc_id)
-            elif method in ('PUT', 'PATCH'):
-                return _update_document(doc_id, body)
-        elif '/documents' in path:
-            if method == 'GET':
-                return _list_documents(params)
-            elif method == 'POST':
-                return _create_document(body)
-
-        # ── FAQ ──
-        elif '/faq/' in path:
-            faq_id = _extract_path_param(path, 'faq')
-            if method in ('PUT', 'PATCH'):
-                return _update_faq(faq_id, body)
-            elif method == 'DELETE':
-                return _delete_faq(faq_id)
-        elif '/faq' in path:
-            if method == 'GET':
-                return _list_faqs(params)
-            elif method == 'POST':
-                return _create_faq(body)
-
-        # ── APPOINTMENTS ──
-        elif '/appointments/' in path:
-            apt_id = _extract_path_param(path, 'appointments')
-            if method in ('PUT', 'PATCH'):
-                return _update_appointment(apt_id, body)
-        elif '/appointments' in path:
-            if method == 'GET':
-                return _list_appointments(params)
-            elif method == 'POST':
-                return _create_appointment(body)
-
-        # ── RX SLOTS ──
-        elif '/rx-slots/' in path:
-            slot_id = _extract_path_param(path, 'rx-slots')
-            if method in ('PUT', 'PATCH'):
-                return _update_rx_slot(slot_id, body)
-        elif '/rx-slots' in path:
-            if method == 'GET':
-                return _list_rx_slots(params)
-            elif method == 'POST':
-                return _create_rx_slot(body)
-
-        # ── ENTERPRISE ASSIST ──
-        elif '/enterprise-assist/' in path:
-            case_id = _extract_path_param(path, 'enterprise-assist')
-            if method in ('PUT', 'PATCH'):
-                return _update_enterprise_case(case_id, body)
-        elif '/enterprise-assist' in path:
-            if method == 'GET':
-                return _list_enterprise_cases(params)
-            elif method == 'POST':
-                return _create_enterprise_case(body)
-
-        # ── REVIEWS ──
-        elif '/reviews/' in path:
-            review_id = _extract_path_param(path, 'reviews')
-            if method in ('PUT', 'PATCH'):
-                return _update_review(review_id, body)
-        elif '/reviews' in path:
-            if method == 'GET':
-                return _list_reviews(params)
-            elif method == 'POST':
-                return _create_review(body)
-
-        return _resp(404, {'error': f'Unknown path: {path}'})
-
-    except Exception as e:
-        logger.exception(f'[{request_id}] Error: {e}')
-        return _resp(500, {'error': str(e)})
-
+#
+# This module used to end with its own `handler(event, context)` that duplicated the routing
+# in handler.py. It was dead code: this Lambda's configured entry point is `handler.handler`,
+# which imports 35 named functions from this module and never its router, and nothing in the
+# tree referenced `service_api.handler`.
+#
+# It was removed rather than fixed, because it was a trap. The near-identical router in
+# `core/service-api/handler.py` calls `require_auth` and this one did not, so the two copies
+# disagreed on authentication - and a dead function that looks exactly like a live entry point
+# is what somebody wires up later, inheriting the gap. The live path is authenticated:
+# handler.py calls `require_auth(event)` before dispatching to any of the functions above.
+#
+# The helper below stays: handler.py imports it as `_svc_path_param`.
 
 def _extract_path_param(path: str, resource: str) -> str:
     """Extract ID from path like /orders/{id} or /orders/{id}/submissions."""

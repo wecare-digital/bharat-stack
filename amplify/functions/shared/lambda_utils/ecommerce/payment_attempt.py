@@ -33,12 +33,31 @@ with `retryOf`.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Any, Dict, List, Optional
 
 from lambda_utils.identifiers import new_uuid7
 
 logger = logging.getLogger(__name__)
+
+#: The provisioned store for these records, created by
+#: `scripts/provision_payment_attempts_table.py`. Indirected through an env var for the same reason
+#: `order_keys.commerce_keys_table_name` is, but note this module never reads it itself: every
+#: function here takes an injected `table`, so the module holds no AWS client, needs no credential
+#: and is fully testable offline. This exists so the handlers that DO need a client all resolve the
+#: same name instead of each embedding a literal.
+DEFAULT_TABLE_NAME = "stack-wecare-digital-PaymentAttemptsTable"
+
+
+def table_name() -> str:
+    """The payment attempts table. TTL must stay disabled on it.
+
+    A failed attempt is the record proving no order was created, so expiring one destroys the
+    evidence that a customer was not charged twice. `provision_payment_attempts_table.py --verify`
+    asserts TTL is DISABLED rather than merely leaving it unset.
+    """
+    return os.environ.get("PAYMENT_ATTEMPTS_TABLE", DEFAULT_TABLE_NAME)
 
 # ── states (section 38) ────────────────────────────────────────────────────────
 CREATED = "CREATED"
@@ -312,6 +331,8 @@ def filter_order_history(attempts: List[Dict[str, Any]]) -> List[Dict[str, Any]]
 
 
 __all__ = [
+    "DEFAULT_TABLE_NAME",
+    "table_name",
     "CREATED",
     "PAYMENT_READINESS_CHECKED",
     "PAYMENT_REQUEST_SENT",
