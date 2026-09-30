@@ -43,8 +43,10 @@ Measured instead:
     * the HTML 404s from v17-v21 were never about the token either. v22-v25 are served and
       the older ones are retired, which is why an unserved version answers with an HTML
       error page rather than a JSON one;
-    * the real blocker is that 200 came back with an EMPTY customer list, because
-      `automation@wecaredigitalbw` is not a user on the Ads account.
+    * the blocker at the time was that 200 came back with an EMPTY customer list, because
+      `automation@wecaredigitalbw` was not a user on the Ads account. THAT IS NOW FIXED -
+      the grant described below was made, and `listAccessibleCustomers` returns 2
+      customers. The blocker moved rather than cleared; see the measurement note below.
 
 CORRECTED AGAIN, 2026-09-30, and this correction matters more than the one above because it
 changes what someone is told to go and do. An earlier revision of this docstring - written by
@@ -70,7 +72,18 @@ code from a real customer query:
     CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION  -> project on Test access; a user grant will
                                                   NOT help, apply for Explorer/Basic instead
 
-Measured here: USER_PERMISSION_DENIED. So the grant is the fix and the Cloud project is fine.
+Measured, and the answer CHANGED once the grant landed, which is why both codes are documented
+here rather than just the one that was current when this was written:
+
+    earlier on 2026-09-30   USER_PERMISSION_DENIED                     -> grant was missing
+    later  on 2026-09-30    CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION  -> grant done, tier Test
+
+So the account grant is COMPLETE and the remaining blocker is the Cloud project's API access
+level. The project is `wecaredigitalbw` (number 756034744787) - the one owning the service
+account, NOT whatever project gcloud happens to have set as current, and not the organization.
+`googleads.googleapis.com` is already ENABLED there; enabling the API and being granted an
+access level are different things. Apply for EXPLORER on the Google Ads API page in Cloud
+Console for that project. Do not go looking for a developer token: they were sunset.
 
 No secret value is printed. Identifiers - property ids, container ids, customer ids - are not
 credentials; they appear in page source and in tag payloads.

@@ -16,11 +16,21 @@
  * executablePath, which is exactly the arrangement we want when the binary is
  * already on disk and its revision is not ours to choose.
  *
+ * THIS FILE USED TO BE LINUX-ONLY, AND THAT COST A DEBUGGING ROUND OF ITS OWN -
+ * the same kind the revision scan above exists to prevent, one platform out. It
+ * searched /opt/playwright, ~/.cache/ms-playwright and four /usr/bin paths, so on
+ * macOS every harness in this directory threw "No Chromium executable found" on a
+ * machine with Google Chrome sitting in /Applications. Nothing was broken: the
+ * cache is ~/Library/Caches/ms-playwright on macOS, not ~/.cache, and a Mac browser
+ * is an .app bundle rather than a file on PATH. Neither is an unusual setup, which
+ * is precisely why hardcoding one platform's shape reads as a harness bug.
+ *
  * Resolution order, first hit wins:
- *   1. CHROME env var          - explicit override, always respected
- *   2. /opt/playwright         - this sandbox, highest chromium-* revision
- *   3. ~/.cache/ms-playwright  - a normal Playwright install
- *   4. system chrome/chromium  - a developer laptop
+ *   1. CHROME env var             - explicit override, always respected
+ *   2. PLAYWRIGHT_BROWSERS_PATH   - respected when Playwright's own cache is moved
+ *   3. /opt/playwright            - the Linux sandbox, highest chromium-* revision
+ *   4. Playwright's per-OS cache  - ~/.cache (Linux) or ~/Library/Caches (macOS)
+ *   5. system chrome/chromium     - a developer laptop, Linux paths or .app bundles
  *
  * On total failure it THROWS naming every path it searched. It must never return
  * undefined: launch() would then report a misleading "executable doesn't exist" for
@@ -32,24 +42,80 @@ const os = require( 'os' );
 const path = require( 'path' );
 
 /**
- * Chromium dirs expose the binary at one of two relative paths depending on build
- * flavour. chrome-linux64 is the current layout; chrome-linux is the older one. The
- * headless_shell builds are accepted too but ranked below a full chrome, because a
- * headless shell cannot report layout for anything that needs a real compositor.
+ * Where a chromium-<rev> directory keeps its binary. Taken from playwright-core's own
+ * EXECUTABLE_PATHS table (lib/coreBundle.js, v1.63) rather than from memory, because the
+ * names have churned: the mac directories are chrome-mac-x64 / chrome-mac-arm64 and NOT
+ * the chrome-mac that older guides and older Playwright releases describe.
+ *
+ * Every platform's paths are listed unconditionally and simply miss on the wrong OS. That
+ * is deliberate - a process.platform switch here would be one more thing to get wrong on
+ * the next host, and a miss costs one statSync.
+ *
+ * ORDER IS SIGNIFICANT. Full-chrome layouts come first and headless-shell layouts last,
+ * for the reason the original file gave: a headless shell cannot report layout for
+ * anything that needs a real compositor, so it is a fallback rather than an equal.
  */
 const BINARY_SUBPATHS = [
+  // Linux, current then legacy.
   path.join( 'chrome-linux64', 'chrome' ),
+  path.join( 'chrome-linux-arm64', 'chrome' ),
   path.join( 'chrome-linux', 'chrome' ),
+  // macOS. The bundle is "Google Chrome for Testing", which is what Playwright ships;
+  // a Chromium.app name covers older cached revisions.
+  path.join( 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing' ),
+  path.join( 'chrome-mac-x64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing' ),
+  path.join( 'chrome-mac', 'Chromium.app', 'Contents', 'MacOS', 'Chromium' ),
+  // Headless shells, current naming then legacy.
+  path.join( 'chrome-headless-shell-linux64', 'chrome-headless-shell' ),
+  path.join( 'chrome-headless-shell-linux-arm64', 'chrome-headless-shell' ),
+  path.join( 'chrome-headless-shell-mac-arm64', 'chrome-headless-shell' ),
+  path.join( 'chrome-headless-shell-mac-x64', 'chrome-headless-shell' ),
   path.join( 'chrome-linux64', 'headless_shell' ),
   path.join( 'chrome-linux', 'headless_shell' ),
 ];
 
+/**
+ * A browser already installed on the host. Linux paths are files on PATH; macOS ones are
+ * executables inside .app bundles, which is the shape the old list could not express.
+ *
+ * Chrome ranks above Edge and both rank above a Beta/Canary channel: these harnesses
+ * measure layout, and a pre-release engine can legitimately lay out differently from the
+ * one visitors use, so it should only ever be a last resort.
+ */
 const SYSTEM_CANDIDATES = [
   '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
   '/usr/bin/chromium-browser',
   '/usr/bin/chromium',
   '/snap/bin/chromium',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  '/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
+  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+  '/Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta',
+  '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
 ];
+
+/**
+ * Playwright's browser cache, per OS, plus the PLAYWRIGHT_BROWSERS_PATH override it
+ * documents. macOS is ~/Library/Caches/ms-playwright and Linux is ~/.cache/ms-playwright;
+ * searching only the second is what made this module blind on a Mac.
+ */
+function playwrightCacheRoots() {
+  const roots = [];
+  const override = process.env.PLAYWRIGHT_BROWSERS_PATH;
+  // '0' means "next to the package" and names no directory, so it is not a root.
+  if ( override && override !== '0' ) roots.push( override );
+  roots.push( '/opt/playwright' );
+  if ( process.platform === 'darwin' ) {
+    roots.push( path.join( os.homedir(), 'Library', 'Caches', 'ms-playwright' ) );
+  } else if ( process.platform === 'win32' ) {
+    roots.push( path.join( os.homedir(), 'AppData', 'Local', 'ms-playwright' ) );
+  }
+  // Always searched: it is the Linux default, and a manually seeded cache lands here too.
+  roots.push( path.join( os.homedir(), '.cache', 'ms-playwright' ) );
+  return roots;
+}
 
 function isExecutableFile( p ) {
   try {
@@ -101,7 +167,7 @@ function resolveChrome() {
     if ( isExecutableFile( process.env.CHROME ) ) return process.env.CHROME;
   }
 
-  for ( const root of [ '/opt/playwright', path.join( os.homedir(), '.cache', 'ms-playwright' ) ] ) {
+  for ( const root of playwrightCacheRoots() ) {
     const found = scanRevisionRoot( root, searched );
     if ( found ) return found;
   }
@@ -112,9 +178,10 @@ function resolveChrome() {
   }
 
   throw new Error(
-    'No Chromium executable found. Searched:\n  ' + searched.join( '\n  ' ) +
-    '\nSet CHROME=/path/to/chrome, or install one with:\n' +
-    '  cd tools/browser && npx playwright install chromium'
+    `No Chromium executable found on ${process.platform}/${process.arch}. Searched:\n  `
+    + searched.join( '\n  ' )
+    + '\nSet CHROME=/path/to/chrome, or install one with:\n'
+    + '  cd tools/browser && npx playwright install chromium'
   );
 }
 
@@ -123,10 +190,15 @@ async function launch( opts = {} ) {
   const { chromium } = require( 'playwright-core' );
   return chromium.launch( {
     executablePath: resolveChrome(),
-    // --no-sandbox: this container runs as root, where Chromium's setuid sandbox
-    // refuses to start at all. --disable-dev-shm-usage: /dev/shm is small here and
-    // the renderer crashes on larger pages without it.
-    args: [ '--no-sandbox', '--disable-dev-shm-usage' ],
+    // BOTH FLAGS ARE LINUX CONTAINER WORKAROUNDS, so they are scoped to Linux rather
+    // than passed everywhere. --no-sandbox: the sandbox container runs as root, where
+    // Chromium's setuid sandbox refuses to start at all. --disable-dev-shm-usage:
+    // /dev/shm is small there and the renderer crashes on larger pages without it.
+    //
+    // Neither condition exists on a developer Mac, and --no-sandbox is not a harmless
+    // no-op - it turns off a real security boundary while this harness loads pages. A
+    // flag whose justification does not hold should not be sent.
+    args: process.platform === 'linux' ? [ '--no-sandbox', '--disable-dev-shm-usage' ] : [],
     ...opts,
   } );
 }

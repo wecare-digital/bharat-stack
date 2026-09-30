@@ -31,13 +31,29 @@ cd tools/browser
 npm install          # one package, no browser download
 ```
 
-Chromium is resolved at runtime by `lib/browser.js`, in this order: `$CHROME`, the
-highest `chromium-*` revision under `/opt/playwright`, `~/.cache/ms-playwright`, then a
-system Chrome. **Never hardcode the revision** — it changes across sandbox resets, and
-a harness pinned to `chromium-1243` failed with "executable doesn't exist" on a box
-holding `chromium-1232`, which reads like a broken harness rather than a moved browser
-and cost a debugging round. If nothing is found the resolver throws naming every path it
-searched.
+Chromium is resolved at runtime by `lib/browser.js`, in this order: `$CHROME`,
+`$PLAYWRIGHT_BROWSERS_PATH`, the highest `chromium-*` revision under `/opt/playwright`,
+Playwright's cache for the current OS, then a system Chrome. **Never hardcode the
+revision** — it changes across sandbox resets, and a harness pinned to `chromium-1243`
+failed with "executable doesn't exist" on a box holding `chromium-1232`, which reads like
+a broken harness rather than a moved browser and cost a debugging round. If nothing is
+found the resolver throws naming every path it searched, and the platform it searched on.
+
+**Works on macOS as well as the Linux sandbox, since 2026-09-30.** It did not before, and
+the failure was the same class as the pinned-revision one above, one platform out: the
+resolver knew only `~/.cache/ms-playwright` and four `/usr/bin` paths, so on a Mac every
+harness here threw "No Chromium executable found" while Google Chrome sat in
+`/Applications`. Two things differ on macOS and both are now handled — Playwright caches
+under `~/Library/Caches/ms-playwright`, and a browser is an executable inside an `.app`
+bundle rather than a file on `PATH`. The cached-revision layouts come from
+playwright-core's own `EXECUTABLE_PATHS` table rather than from memory, because the names
+churn: the current mac directories are `chrome-mac-x64` / `chrome-mac-arm64` holding
+`Google Chrome for Testing.app`, not the `chrome-mac` that older guides describe.
+
+`--no-sandbox` and `--disable-dev-shm-usage` are now **only** passed on Linux. Both are
+container workarounds — root-owned sandbox, small `/dev/shm` — and neither condition holds
+on a developer Mac, where `--no-sandbox` would switch off a real security boundary while
+the harness loads pages for no benefit.
 
 If no Chromium is present at all:
 
