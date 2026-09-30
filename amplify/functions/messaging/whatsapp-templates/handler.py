@@ -113,27 +113,111 @@ def _meta_request(url: str, method: str = 'GET', data: bytes = None, headers: di
 
 
 # ── Google Maps Places proxy (location templates) ──────────────────────────
-# Key stored in Secrets Manager (wecare/google-maps) — never exposed to the browser.
+#
+# ONE GOOGLE KEY, ONE SECRET ID. This read 'wecare/google-maps'; site-language reads
+# 'wecare/google/cloud'. Both secrets hold the SAME key - docs/CREDENTIAL-ROTATION-RUNBOOK.md
+# records one key, `WECARE Unified Google API Key`, with fingerprint sha256:0bd4beb6... present
+# in wecare/google/cloud, wecare/google-api-key AND wecare/google-maps. Three copies of one
+# value, read through two different ids.
+#
+# site-language's own comment already stated the rule this violated: "Do NOT point this at a new
+# secret: a parallel id means rotation updates one copy and consumers keep reading the other."
+# The owner has said they will rotate and update AWS themselves once the project is complete, and
+# with three ids in play that rotation updates one copy and leaves the other consumers on a dead
+# key. So the id is consolidated here BEFORE the rotation rather than after it, which is the only
+# ordering that makes the rotation safe.
+#
+# wecare/google-api-key and wecare/google-maps are now read by NO code. They are not deleted from
+# AWS here - that is an owner action, and deleting a secret is not something a code change should
+# do - but nothing in this repository depends on them any more.
+#
+# THE COMMENT THAT USED TO BE HERE SAID THE KEY IS "never exposed to the browser", AND THAT IS
+# BACKWARDS. The key is a browser key with referrer restrictions, and Google refuses referrer-
+# restricted keys for server-side calls: measured as
+# `REQUEST_DENIED: API keys with referer restrictions cannot be used with this API`. So these
+# Places calls have been failing, not succeeding secretly. The runbook's step 3 is the fix and it
+# needs a SERVER key, which is the one thing "use only one key" cannot satisfy - a referrer-
+# restricted key cannot serve a Lambda, and an unrestricted key must not ship in a public bundle.
+# Repointing the id does not fix that and is not pretending to; it makes the single rotation the
+# owner is planning reach every consumer.
+GOOGLE_SECRET_NAME = os.environ.get('WHATSAPP_TEMPLATES_GOOGLE_SECRET', 'wecare/google/cloud')
+# Same two candidates, and the same reason, as site-language: store_provider_secret.py declares
+# this secret's field as `api_key` while check_secrets_live.py probes it for
+# `unified_google_api_key`. One of them is wrong and the repository cannot settle which, so both
+# are tried. Kept identical to site-language's list on purpose - a test asserts they match.
+GOOGLE_SECRET_FIELDS = tuple(
+    part.strip() for part in os.environ.get(
+        'WHATSAPP_TEMPLATES_GOOGLE_SECRET_FIELD', 'api_key,unified_google_api_key'
+    ).split(',') if part.strip()
+)
 _gmaps_key_cache = {}
 
 
 def _get_gmaps_key() -> str:
     if 'key' in _gmaps_key_cache:
         return _gmaps_key_cache['key']
+    key = ''
+    resolved_from = ''
+    failure = ''
     try:
-        resp = secrets_client.get_secret_value(SecretId='wecare/google-maps')
+        resp = secrets_client.get_secret_value(SecretId=GOOGLE_SECRET_NAME)
         data = json.loads(resp['SecretString'])
-        _gmaps_key_cache['key'] = (data.get('api_key') or '').strip()
+        if isinstance(data, dict):
+            for candidate in GOOGLE_SECRET_FIELDS:
+                value = (data.get(candidate) or '').strip()
+                if value:
+                    key = value
+                    resolved_from = candidate
+                    break
+        if not key:
+            failure = 'no_candidate_field'
     except Exception as e:
+        failure = type(e).__name__
         logger.error(json.dumps({'event': 'gmaps_key_load_error', 'error': str(e)}))
-        _gmaps_key_cache['key'] = ''
-    return _gmaps_key_cache['key']
+    # The failure CLASS, and which field answered, so a miss is diagnosable. Field names are not
+    # secrets; `resolved_from` is a literal from the constant tuple above and the key value never
+    # appears in a log expression. AccessDeniedException here is most likely kms:Decrypt on the
+    # CMK rather than GetSecretValue - iam-policies.ts grants GetSecretValue on the wildcard
+    # wecare/*, and no kms:Decrypt grant appears in that file at all.
+    if failure == 'no_candidate_field':
+        logger.error(json.dumps({
+            'event': 'gmaps_key_no_field', 'secret': GOOGLE_SECRET_NAME,
+            'candidates': list(GOOGLE_SECRET_FIELDS)}))
+    elif not failure and resolved_from:
+        logger.info(json.dumps({'event': 'gmaps_key_loaded', 'field': resolved_from}))
+    _gmaps_key_cache['key'] = key
+    return key
 
 
 def _http_get_json(url: str) -> dict:
     req = urllib.request.Request(url, method='GET')
     with urllib.request.urlopen(req, timeout=10) as resp:
         return json.loads(resp.read().decode())
+
+
+def _google_status_problem(data: dict) -> str:
+    """'' when Google answered normally, else a diagnosis naming the cause.
+
+    WHY THIS EXISTS. Both Places proxies returned HTTP 200 with Google's `status` echoed in the
+    body and an empty result list. So `REQUEST_DENIED` - a refused credential - reached the
+    caller looking exactly like "no matching addresses", and the feature appeared to work badly
+    rather than to be broken. docs/CREDENTIAL-ROTATION-RUNBOOK.md records this as measured:
+    the key these calls use is referrer-restricted, and Google refuses referrer-restricted keys
+    for server-side calls, so REQUEST_DENIED is the EXPECTED answer here until a server key
+    exists. An expected failure that is indistinguishable from an empty result is the worst of
+    both - nobody investigates it and nobody fixes it.
+
+    ZERO_RESULTS stays a success: it is a real, correct answer to a query that matched nothing.
+    """
+    status = str(data.get('status') or '')
+    if status in ('OK', 'ZERO_RESULTS', ''):
+        return ''
+    detail = str(data.get('error_message') or '')
+    if status == 'REQUEST_DENIED' and 'referer' in detail.lower():
+        return ('Google refused the credential: this is a referrer-restricted BROWSER key being '
+                'used server-side, which Google does not allow. A server key is required - see '
+                'step 3 in docs/CREDENTIAL-ROTATION-RUNBOOK.md.')
+    return f'Google returned {status}' + (f': {detail}' if detail else '')
 
 
 def _places_autocomplete(q: str, session_token: str = ''):
@@ -150,6 +234,11 @@ def _places_autocomplete(q: str, session_token: str = ''):
         url += f'&sessiontoken={urllib.parse.quote(session_token)}'
     try:
         data = _http_get_json(url)
+        problem = _google_status_problem(data)
+        if problem:
+            logger.error(json.dumps({'event': 'places_autocomplete_denied',
+                                     'status': data.get('status'), 'diagnosis': problem}))
+            return _error_response(502, problem)
         preds = [{'description': p.get('description'), 'placeId': p.get('place_id')}
                  for p in data.get('predictions', [])]
         return {'statusCode': 200, 'headers': cors_headers(origin),
@@ -173,6 +262,11 @@ def _place_details(place_id: str, session_token: str = ''):
         url += f'&sessiontoken={urllib.parse.quote(session_token)}'
     try:
         data = _http_get_json(url)
+        problem = _google_status_problem(data)
+        if problem:
+            logger.error(json.dumps({'event': 'place_details_denied',
+                                     'status': data.get('status'), 'diagnosis': problem}))
+            return _error_response(502, problem)
         r = data.get('result', {})
         loc = r.get('geometry', {}).get('location', {})
         place = {

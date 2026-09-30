@@ -333,6 +333,60 @@ key at first use, so publish a new version and move the `live` alias:
 > Capture — so the failure mode here is key sprawl, and the way to avoid adding to it is
 > to check `gcloud services api-keys list --show-deleted` before creating anything.
 
+### Step 0, done 2026-09-30: every consumer now reads ONE secret id
+
+The owner's instruction was "use only one key", and **not** to rotate anything yet — they will
+rotate and update AWS themselves once the project is complete. Nothing was rotated. What changed
+is the plumbing, because with three ids live a single rotation is unsafe:
+
+| | before | after |
+|---|---|---|
+| `wecare-site-language` (Translate) | `wecare/google/cloud` | `wecare/google/cloud` |
+| `wecare-whatsapp-templates` (Places) | `wecare/google-maps` | `wecare/google/cloud` |
+| read by any code | 2 ids for 1 key | **1 id** |
+
+`wecare/google-api-key` and `wecare/google-maps` are now read by **no code**. They still exist in
+AWS — deleting a secret is an owner action, not something a code change should do — but nothing in
+the repository depends on them. `tests/test_one_google_key.py` fails if any Lambda reads them
+again.
+
+**Why before the rotation rather than after.** Both consumers degrade quietly: `site-language`
+falls back to Amazon Translate, and the Places proxies returned HTTP 200 with an empty list. A
+rotation that updated one of three copies would have left the other consumers on a dead key with
+nothing in the application to show it. Consolidating first is what makes the planned rotation
+land everywhere.
+
+**A contradiction this repository could not settle about itself.** Two files disagree on the field
+name inside `wecare/google/cloud`:
+
+| file | claims the field is |
+|---|---|
+| `scripts/store_provider_secret.py` | `api_key` |
+| `scripts/check_secrets_live.py` | `unified_google_api_key` |
+
+One is wrong and it is not decidable from the repository. Both possibilities were bad, and both
+were invisible: if the field is `api_key`, then `check_secrets_live.py` has been probing a field
+that does not exist and its `INVALID` verdict for this secret was a false negative rather than a
+refused key; if it is `unified_google_api_key`, then `site-language` has been reading nothing and
+silently serving Amazon Translate since it shipped. Both handlers now try both names in order and
+log which one answered, by NAME — a field name is not a secret, and no value reaches a log.
+
+**Two silent failures made loud.** `_google_status_problem()` in `whatsapp-templates` now returns
+a diagnosis instead of letting `REQUEST_DENIED` reach the caller as HTTP 200 with an empty
+prediction list, and it names the referrer case specifically. `ZERO_RESULTS` stays a success,
+because it is a correct answer. `site-language` now logs *why* it fell back — unreadable secret
+versus missing field — and notes that `AccessDeniedException` there is most likely `kms:Decrypt`
+on the CMK rather than `GetSecretValue`, since `amplify/iam-policies.ts` grants `GetSecretValue`
+on the wildcard `wecare/*` and contains no `kms:Decrypt` grant at all.
+
+**What "one key" still cannot do, and this consolidation does not pretend to fix.** A
+referrer-restricted key cannot authorise a server-side call, and an unrestricted key must not ship
+in a public JS bundle. So the browser half and the server half genuinely need different keys. One
+*secret id* is now true; one *key* is not achievable while any Lambda calls a Google API. Step 3
+below is still outstanding, and the choice is the owner's: mint the server key again, or stop
+calling Google from Lambda — `site-language` already has a working Amazon Translate path, so for
+Translate the second option costs nothing.
+
 **4. Drop the two meaningless referrer entries.** `places.googleapis.com` and
 `*.googleapis.com/*` are in `allowedReferrers`. Referrer matching applies to the
 `Referer` header a *client* sends, so naming Google's own API hosts there achieves

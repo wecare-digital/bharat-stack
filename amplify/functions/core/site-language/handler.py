@@ -75,7 +75,32 @@ TRANSLATE_PROVIDER = os.environ.get("SITE_LANGUAGE_TRANSLATE_PROVIDER", "auto").
 # canonical id for every provider). Do NOT point this at a new secret: a parallel
 # id means rotation updates one copy and consumers keep reading the other.
 GOOGLE_SECRET_NAME = os.environ.get("SITE_LANGUAGE_GOOGLE_SECRET", "wecare/google/cloud")
-GOOGLE_SECRET_FIELD = os.environ.get("SITE_LANGUAGE_GOOGLE_SECRET_FIELD", "api_key")
+
+# TWO FILES IN THIS REPO DISAGREE ABOUT WHAT THIS FIELD IS CALLED, so both names are tried.
+#
+#   scripts/store_provider_secret.py  declares wecare/google/cloud as holding `api_key`
+#   scripts/check_secrets_live.py     probes wecare/google/cloud for `unified_google_api_key`
+#
+# One of them is wrong and it cannot be settled from the repository. The consequence depended
+# on which, and BOTH possibilities were bad:
+#
+#   if the field is `api_key`                 check_secrets_live.py has been reading a field
+#                                             that does not exist, so its INVALID verdict for
+#                                             this secret was a false negative, not a refused key
+#   if it is `unified_google_api_key`         this handler has been reading nothing, silently
+#                                             serving Amazon Translate since the day it shipped
+#
+# Neither would ever surface, because TRANSLATE_PROVIDER defaults to "auto" and a missing key is
+# indistinguishable from a working fallback. So the field is no longer a single guess: the
+# candidates are tried in order and the one that resolved is logged by NAME. A field name is not
+# a secret; the value is never logged, and nothing derived from the secret reaches a log call.
+#
+# The override remains a single name for pinning during debugging.
+GOOGLE_SECRET_FIELDS: Tuple[str, ...] = tuple(
+    part.strip() for part in os.environ.get(
+        "SITE_LANGUAGE_GOOGLE_SECRET_FIELD", "api_key,unified_google_api_key"
+    ).split(",") if part.strip()
+)
 GOOGLE_ENDPOINT = "https://translation.googleapis.com/language/translate/v2"
 # v2 accepts up to 128 q values per call. MAX_TEXTS is 40, so one HTTP request
 # covers a whole batch - versus one AWS API call per string today.
@@ -227,15 +252,49 @@ def _google_key() -> str:
         return _google_key_cache["key"]
 
     key = ""
+    # Held as a plain literal taken from the CONSTANT candidate tuple, never from the secret, so
+    # nothing tainted is in scope when it is logged below. See the CodeQL note further down.
+    resolved_from = ""
+    failure = ""
     try:
         raw = secrets_client.get_secret_value(SecretId=GOOGLE_SECRET_NAME)
         data = json.loads(raw.get("SecretString") or "{}")
         if isinstance(data, dict):
-            key = str(data.get(GOOGLE_SECRET_FIELD) or "").strip()
+            for candidate in GOOGLE_SECRET_FIELDS:
+                value = str(data.get(candidate) or "").strip()
+                if value:
+                    key = value
+                    resolved_from = candidate
+                    break
+        if not key:
+            failure = "no_candidate_field"
     except Exception as exc:
         # Log the failure class only. str(exc) on a Secrets Manager error carries
         # the secret NAME, which is fine, but never the value.
-        logger.warning("google key unavailable (%s), using amazon translate", type(exc).__name__)
+        failure = type(exc).__name__
+
+    # WHY THE MISS IS NOW LOGGED AT ALL. This used to fall through to Amazon Translate in
+    # silence, which made two completely different faults look identical to a healthy fallback:
+    # a secret this role cannot decrypt, and a secret whose field is named something else. The
+    # second one is live in this repo - see the note on GOOGLE_SECRET_FIELDS. An "auto" provider
+    # that hides why it chose the fallback is a provider nobody can debug.
+    #
+    # AccessDeniedException here most likely means kms:Decrypt, not GetSecretValue:
+    # amplify/iam-policies.ts grants GetSecretValue on the wildcard wecare/*, and
+    # scripts/audit_secrets_structure.py records wecare/google/cloud as CMK-encrypted, while no
+    # kms:Decrypt grant appears anywhere in that file. That is the same shape as the false
+    # CRITICAL plivo-drift.yml reported on 2026-09-28 when its role lacked kms:Decrypt.
+    if failure == "no_candidate_field":
+        logger.warning(
+            "google key: secret read but none of the candidate fields held a value (%s); "
+            "using amazon translate", ",".join(GOOGLE_SECRET_FIELDS))
+    elif failure:
+        logger.warning(
+            "google key unavailable (%s), using amazon translate. AccessDeniedException here is "
+            "most likely kms:Decrypt on the CMK, not GetSecretValue - see "
+            "docs/CREDENTIAL-ROTATION-RUNBOOK.md", failure)
+    elif resolved_from:
+        logger.info("google key resolved from field %s", resolved_from)
 
     _google_key_cache.update({"loaded": True, "key": key})
     # Deliberately no logging here, and this getter has no side effects.

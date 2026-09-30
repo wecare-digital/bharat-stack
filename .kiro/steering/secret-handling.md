@@ -12,7 +12,7 @@ own workspace permissions file**, `~/.kiro/workspace-roots/<hash>/permissions.ya
 | Credential | Consumed by | Rotated |
 |---|---|---|
 | Razorpay **LIVE** key id + secret | `wecare-partner-onboarding` via `wecare/razorpay-webhook` | see runbook |
-| Google API key | `wecare-whatsapp-templates` via `wecare/google-maps` | see runbook |
+| Google API key | `wecare-whatsapp-templates` and `wecare-site-language`, both via `wecare/google/cloud` | see runbook |
 | OpenAI service-account key | **nothing** - ad-hoc local use only | see runbook |
 | Plivo auth id + token | **nothing** - ad-hoc local use only | see runbook |
 
