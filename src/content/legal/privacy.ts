@@ -38,7 +38,12 @@
 
 import type { LegalSection } from './types';
 
-export const PRIVACY_UPDATED = '2026-09-23';
+/**
+ * Bumped from 2026-09-23 when section 23.1 was added. Same rule, and the same caveat, as
+ * TERMS_UPDATED: this is an engineering revision marker, not a line the reader sees - nothing
+ * outside src/content/legal/ reads it.
+ */
+export const PRIVACY_UPDATED = '2026-09-30';
 
 export const PRIVACY_INTRO: string[] = [
   'This policy explains what personal data WECARE.DIGITAL collects, why we collect it, who we share it with, how long we keep it, and what you can ask us to do about it.',
@@ -344,6 +349,39 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       'For any question, request or complaint about your personal data, contact our Privacy and Grievance Desk: email one@wecare.digital, or call +91 9330994400. Our postal address is in section 24.',
       'We may ask for enough information to verify your identity or authority before acting on a request.',
       'If you are not satisfied with our response, you keep any right you have to approach a data-protection authority, board, regulator, court or other lawful forum. Using our grievance process first is not a precondition.',
+    ],
+  },
+  {
+    /*
+     * ADDED 2026-09-30 on owner instruction ("add jurisdiction as Kolkata").
+     *
+     * THE TERMS ALREADY SAID KOLKATA; THIS POLICY SAID NOTHING. Terms section 39 has named the
+     * courts of Kolkata, West Bengal for some time. In this document "Kolkata" appeared exactly
+     * once, in section 24, as the postal address - there was no governing-law or forum clause at
+     * all. So the instruction was already satisfied in one of the two documents and completely
+     * unmet in the other, which is the opposite of how it looked.
+     *
+     * A SUB-CLAUSE OF 23, not a new section 25. Section 24 is the contact clause and belongs
+     * last; governing law sits naturally under "Questions and complaints" because the question a
+     * reader has at that point is where a complaint goes. Additive, so no number moves.
+     *
+     * THE CARVE-OUT IS THE IMPORTANT PART and it is worded to match Terms section 39 rather than
+     * paraphrased. A privacy policy cannot contract a person out of a statutory data-protection
+     * forum, and under the DPDP Act 2023 that forum is the Data Protection Board of India. If
+     * this clause and a statutory route ever point in different directions, the statutory route
+     * wins - stated explicitly rather than left to inference, because a reader who has got this
+     * far is looking for permission to escalate.
+     *
+     * The saver in 23 above already says this. It is repeated here deliberately: this document's
+     * rewrite note records that savers are kept "in the specific places where a reader is most
+     * likely to be talked out of a remedy", and a jurisdiction clause is exactly such a place.
+     */
+    number: '23.1', heading: 'Governing law and where disputes are heard', id: 's23-1',
+    paragraphs: [
+      'This policy is governed by the laws of India.',
+      'Nothing in this policy limits your right to approach the Data Protection Board of India, another data-protection authority, a regulator, a Consumer Commission, a court or any other forum available to you under the law. Using our grievance process first is not a precondition.',
+      'For a dispute about this policy that is not within the jurisdiction of a mandatory statutory, consumer or data-protection forum, the courts of competent jurisdiction in Kolkata, West Bengal have jurisdiction, subject to the law.',
+      'This matches section 39 of our Terms of Service, so one dispute is not directed to two different places. Where a statutory forum is available to you, that route prevails over this one.',
     ],
   },
   {
