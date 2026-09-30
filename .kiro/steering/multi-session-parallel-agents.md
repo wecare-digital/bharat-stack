@@ -117,6 +117,18 @@ workspace missing these hooks unless forced.
    the guarantee independent of timing, which is what 3a was reaching for and could
    not achieve.
 
+   **One limitation, found immediately after writing this rule:** `--only` resolves
+   pathspecs against files git already knows, so it rejects an untracked file with
+   `did not match any file(s) known to git`. A new file therefore needs an explicit
+   `git add` first:
+
+       git add <new paths> && git commit --only <all paths> -F <message-file>
+
+   That is still materially safer than 3a. The `git add` introduces the same window
+   3a describes, but `--only` then bounds what the commit can contain regardless of
+   what arrived during it — so the worst case becomes "another session's file is
+   staged and stays staged", not "it is committed under my message".
+
    Nothing was lost either time — the absorbed files were committed intact and
    their tests passed — and neither was repaired, because a history rewrite plus
    force push is prohibited and the cost exceeds a misleading subject line. Both
