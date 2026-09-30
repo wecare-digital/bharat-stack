@@ -1,6 +1,7 @@
 import React from 'react';
 import Head from 'next/head';
 import { blogPageHref } from './BlogIndexView';
+import { SITE_ENTITIES, ORG_ID, ld } from '../lib/schema';
 import {
   SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SOCIAL_CARD_TYPE, SOCIAL_CARD_ALT, SHARE_CARD_TYPE,
 } from '../config/share';
@@ -153,7 +154,16 @@ const BlogIndexHead: React.FC<BlogIndexHeadProps> = ( { page, totalPages, topic,
         <meta name="twitter:image" content={ SOCIAL_CARD_URL } />
         <meta name="twitter:image:alt" content={ SOCIAL_CARD_ALT } />
         <meta name="robots" content="index, follow, max-image-preview:large" />
-        <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( schema ) } } />
+        {/* THE SITE-LEVEL ENTITIES. The note at the top of this file explains why the graph
+            below is self-contained and why `publisher` used to be inlined: _app.tsx's <Head> is
+            suppressed on every blog route, so #organization did not exist here and an @id
+            reference would have dangled. It is emitted here now, from lib/schema.ts, so the
+            reference resolves and one company is described once instead of three times. */}
+        { SITE_ENTITIES.map( ( entity, index ) => (
+          <script key={ `site-entity-${index}` } type="application/ld+json"
+            dangerouslySetInnerHTML={ ld( entity ) } />
+        ) ) }
+        <script type="application/ld+json" dangerouslySetInnerHTML={ ld( schema ) } />
       </Head>
     );
   }
@@ -180,7 +190,7 @@ const BlogIndexHead: React.FC<BlogIndexHeadProps> = ( { page, totalPages, topic,
           name: 'WECARE.DIGITAL Blog',
           description: DESCRIPTION,
           inLanguage: 'en-IN',
-          publisher: { '@type': 'Organization', name: 'WECARE.DIGITAL', url: ORIGIN },
+          publisher: { '@id': ORG_ID },
           breadcrumb: { '@id': `${canonical}#breadcrumb` },
         }
         : {
@@ -243,7 +253,12 @@ const BlogIndexHead: React.FC<BlogIndexHeadProps> = ( { page, totalPages, topic,
       <meta name="twitter:image" content={ SOCIAL_CARD_URL } />
       <meta name="twitter:image:alt" content={ SOCIAL_CARD_ALT } />
       <meta name="robots" content="index, follow, max-image-preview:large" />
-      <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( schema ) } } />
+      {/* Same two entities as the topic branch above, for the same reason. */}
+      { SITE_ENTITIES.map( ( entity, index ) => (
+        <script key={ `site-entity-${index}` } type="application/ld+json"
+          dangerouslySetInnerHTML={ ld( entity ) } />
+      ) ) }
+      <script type="application/ld+json" dangerouslySetInnerHTML={ ld( schema ) } />
     </Head>
   );
 };

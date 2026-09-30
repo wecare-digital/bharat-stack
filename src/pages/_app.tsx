@@ -35,6 +35,7 @@ import { ToastProvider } from '../contexts/ToastContext';
 import { ConfirmProvider } from '../contexts/ConfirmContext';
 import { initCapacitor, isNative } from '../lib/capacitor';
 import { VERIFICATION } from '../config/analytics';
+import { ORGANIZATION, WEBSITE, ORG_ID, ld } from '../lib/schema';
 
 /**
  * Plain-English labels for the MFA chooser.
@@ -328,46 +329,21 @@ const COMPANY_DESCRIPTION =
   'WECARE.DIGITAL builds everyday AI for consumers, enterprises, climate tech and frontier '
   + 'tech, with transparent pricing and one place to track everything.';
 
-const organizationSchema = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  // Stable @id so other nodes - the WebSite, the per-page WebPage, and the
-  // product-level SoftwareApplication on /grahak-os - can reference this one entity
-  // instead of restating it and risking a conflicting copy.
-  "@id": "https://wecare.digital/#organization",
-  "name": "WECARE.DIGITAL",
-  "alternateName": "WECARE.DIGITAL",
-  "url": "https://wecare.digital",
-  // Both stay on the SQUARE logo rather than moving to the 16:9 social card: Google renders
-  // Organization.logo in the knowledge panel and wants the logo itself, not a banner. What
-  // changed is that LOGO_URL is now the OPAQUE copy - see the note on the constants. A 68%
-  // transparent PNG with a black mark is a logo that vanishes on any dark surface, and a
-  // knowledge panel is not a surface this repo controls.
-  "logo": LOGO_URL,
-  "image": LOGO_URL,
-  "description": COMPANY_DESCRIPTION,
-  // foundingDate REMOVED. It said "2020" on 129 pages and nothing in this repository
-  // supports that date - it is not in the content, the docs or anywhere else, so it was
-  // either a guess or a placeholder that shipped. A wrong date is worse than no date:
-  // schema.org fields are read as facts, and this one is trivially checkable against
-  // incorporation records.
-  // Put it back the moment the real date is known - it is a genuinely useful property for
-  // an Organization node - but with the actual founding date, not an approximation.
-  "sameAs": [
-    "https://www.linkedin.com/company/wecare-digital",
-    "https://twitter.com/wecaredotdigital"
-  ],
-  "contactPoint": {
-    "@type": "ContactPoint",
-    "contactType": "customer service",
-    "url": "https://wecare.digital/contact",
-    "availableLanguage": [ "English", "Hindi" ]
-  },
-  "address": {
-    "@type": "PostalAddress",
-    "addressCountry": "IN"
-  }
-};
+/**
+ * MOVED TO src/lib/schema.ts, and the move is the fix rather than tidying.
+ *
+ * This node used to be defined here and emitted only from this file's <Head> - which is
+ * rendered behind `!isContentPublic`, so it was ABSENT from all 1,279 posts and ~54 blog index
+ * pages, roughly 98% of the indexable site. `post/[slug].tsx` and `BlogIndexHead.tsx` each
+ * inlined their own anonymous `publisher` because of that, giving one company three
+ * representations, two of them blank nodes.
+ *
+ * lib/schema.ts now owns it and all three surfaces emit the same object, so `#organization` is
+ * defined on every public URL and `publisher: { '@id': ... }` resolves everywhere. The node
+ * also gained the full PostalAddress and telephone that this site's own legal pages already
+ * publish, and an ImageObject logo with dimensions.
+ */
+const organizationSchema = ORGANIZATION;
 
 // Structured data for the software application
 const softwareSchema = {
@@ -404,11 +380,12 @@ const softwareSchema = {
   ],
   "screenshot": LOGO_URL,
   "softwareVersion": "1.0.0",
-  "publisher": {
-    "@type": "Organization",
-    "name": "WECARE.DIGITAL",
-    "url": "https://wecare.digital"
-  },
+  // AN @id REFERENCE, not a third anonymous copy of the company. This restated
+  // `{ name, url }` - no @id, no logo - in the same file that defines the real
+  // #organization node, so any page carrying both described one company twice, once fully
+  // and once as a blank node. ORGANIZATION is emitted on every public surface now, so the
+  // reference resolves everywhere.
+  "publisher": { "@id": ORG_ID },
   // aggregateRating REMOVED, and this was the most serious of the four.
   //
   // It declared ratingValue "4.8" over ratingCount "150" - 150 reviews that do not exist,
@@ -429,69 +406,22 @@ const softwareSchema = {
 };
 
 // Structured data for the website
-const websiteSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": "https://wecare.digital/#website",
-  "name": "WECARE.DIGITAL",
-  "alternateName": "WECARE.DIGITAL",
-  "url": "https://wecare.digital",
-  // The same constant the Organization node and the meta tags use. This was the second copy
-  // of the "Enterprise WhatsApp Business API platform" line the hero was rewritten away from.
-  "description": COMPANY_DESCRIPTION,
-  "publisher": {
-    "@type": "Organization",
-    "name": "WECARE.DIGITAL"
-  },
-  // SearchAction REMOVED. It declared the sitelinks search box, which Google removed
-  // from Search on 2024-11-21 and whose documentation was deleted a month later -
-  // Google's own guidance is that the markup does not need removing but will not be
-  // used. It was also pointing at https://wecare.digital/contacts?q=, an
-  // AUTHENTICATED dashboard route, so it advertised a search endpoint that returns a
-  // login wall to anyone not signed in. Wrong on both counts, so it is gone rather
-  // than left as inert weight.
-  "inLanguage": "en-IN"
-};
+/** MOVED TO src/lib/schema.ts - see the note on organizationSchema above. Its `publisher` is
+ *  an @id reference now; it used to restate a second anonymous Organization in the same file
+ *  that defined the real one. SearchAction is still deliberately absent. */
+const websiteSchema = WEBSITE;
 
 // FAQ Schema for AI and search engines
-const faqSchema = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "What is WECARE.DIGITAL?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Stack CRM is an enterprise multi-channel messaging platform that integrates WhatsApp Business API, SMS, Email, and Voice communications. It helps businesses engage customers, send bulk messages, collect payments via Razorpay, and automate responses with AI."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "How can I send bulk WhatsApp messages?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Stack CRM provides bulk WhatsApp messaging through the official WhatsApp Business API. You can upload contacts, create message templates, and send promotional or transactional messages to thousands of customers at once."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Does Stack CRM support WhatsApp payments?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes, Stack CRM integrates with Razorpay to enable WhatsApp payments. You can send payment requests directly through WhatsApp and track payment status in real-time."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "What messaging channels does Stack CRM support?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Stack CRM supports WhatsApp Business API, SMS (with India DLT templates), Email (via Amazon SES), and Voice calls. All channels are unified in a single dashboard."
-      }
-    }
-  ]
-};
+// faqSchema DELETED, not commented out.
+//
+// It was defined here and emitted nowhere - removed from the <Head> when Google stopped
+// showing FAQ rich results on 2026-05-07, and because it was being emitted on /terms,
+// /privacy, /contact and /vayulok, none of which contain an FAQ. Marking up content that is
+// not on the page is a guidelines violation rather than merely useless markup.
+//
+// A dead constant one line away from a <script> tag is a loaded gun: re-adding a single
+// emission line restores four invented WhatsApp questions to a privacy policy. Deleted so
+// that re-introducing it requires writing the content again, deliberately.
 
 // Service Schema
 const serviceSchema = {
@@ -618,11 +548,30 @@ const SITE = 'https://wecare.digital';
 const getPublicPageSchema = ( pathname: string ) => {
   const meta = PUBLIC_PAGE_META[ pathname ];
   if ( !meta ) {
+    /**
+     * THE FALLBACK IS PER-ROUTE NOW. It used to hardcode `@id: ${SITE}/#webpage` and
+     * `url: ${SITE}/` for every route missing from PUBLIC_PAGE_META - and three routes
+     * qualify, not one: `/` (correctly), plus `/get` and `/llm`, which are public but
+     * deliberately not marketing. So all three shipped the SAME @id claiming to be the home
+     * page at the home page's URL, which is a cross-route entity collision: two URLs
+     * defining one node with different content is exactly the conflicting-copy case
+     * Google's guidance is about.
+     *
+     * seocheck.js could not see it. Its @id-clash check is per-route - it looks for the same
+     * @id twice within one page - so a collision ACROSS routes was invisible to it, and
+     * neither /get nor /llm is in its ROUTES list anyway.
+     *
+     * The home page still resolves to `${SITE}/#webpage` and `${SITE}/`, because pathname
+     * is '/' there, so its markup is unchanged. Only /get and /llm move, onto their own
+     * identities. Still no breadcrumb: a trail whose only entry is the page you are on says
+     * nothing, which is the original and correct reasoning for this branch existing.
+     */
+    const url = pathname === '/' ? `${SITE}/` : `${SITE}${pathname}/`;
     return {
       '@context': 'https://schema.org',
       '@type': 'WebPage',
-      '@id': `${SITE}/#webpage`,
-      url: `${SITE}/`,
+      '@id': `${url}#webpage`,
+      url,
       name: 'WECARE.DIGITAL',
       isPartOf: { '@id': `${SITE}/#website` },
       inLanguage: 'en-IN',

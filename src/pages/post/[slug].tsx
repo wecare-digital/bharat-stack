@@ -7,6 +7,7 @@ import ShareLinks from '../../components/ShareLinks';
 import {
   SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SOCIAL_CARD_TYPE, SOCIAL_CARD_ALT, SHARE_CARD_TYPE,
 } from '../../config/share';
+import { ORG_ID, ORIGIN, WEBSITE_ID, SITE_ENTITIES, ld } from '../../lib/schema';
 import { getPublicBlogPost, listPublicBlogPosts, PublicBlogPost } from '../../lib/public-blog';
 import { postContext, type PostLink } from '../../lib/post-neighbours';
 import RotatingHero, { CycleWord } from '../../components/RotatingHero';
@@ -178,22 +179,85 @@ export default function BlogPostPage ( {
   }, [] );
   const richNodes = ( post.richContent?.nodes || [] ) as RicosNode[];
   const blocks = fallbackBlocks( post.content || '' );
+  /**
+   * THE STORED-SCHEMA BRANCH IS NOW VALIDATED RATHER THAN TRUSTED.
+   *
+   * `post.jsonLd` is `{}` for every post on the public surface — `seo-tools/wix.py` hardcodes
+   * it — so this branch is dead today and the fallback below is what actually ships. The guard
+   * matters anyway, because the old test was truthiness of the OBJECT: `{ blogPosting: {} }`
+   * is truthy, so the day that pipeline is wired, a `{}` would have been emitted verbatim as a
+   * JSON-LD block with no `@context` and no `@type`. An empty schema block is worse than none:
+   * a validator reports it against the page rather than ignoring it.
+   */
   const storedSchema = post.jsonLd?.blogPosting;
-  const articleSchema = storedSchema || {
+  const useStored = !!storedSchema
+    && typeof storedSchema === 'object'
+    && typeof ( storedSchema as Record<string, unknown> )[ '@type' ] === 'string';
+  const articleSchema = useStored ? storedSchema : {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
+    '@id': `${canonical}#article`,
     headline: post.title,
     description,
     url: canonical,
+    // `image` WAS ABSENT, ON ALL 1,279 POSTS, and it is the property that gates the Article
+    // rich result — Google documents it as required, so without it every post was ineligible
+    // no matter how complete the rest of the node was. The asset was already in scope on this
+    // page and already used for og:image three lines below; the schema simply never got it.
+    // ImageObject with dimensions rather than a bare URL, for the reason the logo carries
+    // them: the object form is what the guidance documents.
+    image: {
+      '@type': 'ImageObject',
+      url: SOCIAL_CARD_URL,
+      width: Number( SOCIAL_CARD_W ),
+      height: Number( SOCIAL_CARD_H ),
+    },
     datePublished: post.publishedDate || undefined,
     dateModified: post.modifiedDate || post.publishedDate || undefined,
     author: { '@type': 'Organization', name: post.authorName || 'Anew by WECARE.DIGITAL' },
-    publisher: { '@type': 'Organization', name: 'WECARE.DIGITAL', url: 'https://wecare.digital/' },
+    // A REFERENCE now, not a second anonymous Organization. This used to inline
+    // `{ name, url }` — no `@id`, no logo — because the real `#organization` node lives in
+    // _app.tsx's <Head>, which is suppressed on this route. It is no longer suppressed
+    // anywhere: ORGANIZATION is emitted below from lib/schema.ts, so this `@id` resolves.
+    publisher: { '@id': ORG_ID },
+    // Ties the article to the page carrying it. Absent before, and it is what stops the
+    // BlogPosting reading as an entity that merely happens to be on this URL.
+    // A COMPLETE WebPage node, not a typed stub. `{ '@type': 'WebPage', '@id': ... }` carries a
+    // @type, so it asserts an entity rather than referencing one - and schemacheck.js correctly
+    // failed it on all 1,279 posts for having no `name` or `url`. Completing it is the better
+    // answer than removing the @type: a post route otherwise has no WebPage entity at all,
+    // where every marketing route gets one from _app.tsx's graph.
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${canonical}#webpage`,
+      url: canonical,
+      name: post.title,
+      isPartOf: { '@id': WEBSITE_ID },
+      breadcrumb: { '@id': `${canonical}#breadcrumb` },
+    },
+    // INLINE DEFINITION, NOT A BARE REFERENCE. `{ '@id': '…/blog/#blog' }` alone was the first
+    // version of this line and `tools/audit/schemacheck.js` failed it on all 1,279 posts: the
+    // full Blog node is only emitted on /blog/ page 1, so the reference dangled everywhere
+    // else. Carrying @type/url/name makes it a partial restatement with consistent values,
+    // which is exactly what BlogIndexHead.tsx does for the same node and for the same reason.
+    isPartOf: {
+      '@type': 'Blog',
+      '@id': `${ORIGIN}/blog/#blog`,
+      url: `${ORIGIN}/blog/`,
+      name: 'WECARE.DIGITAL Blog',
+    },
     inLanguage: 'en-IN',
   };
-  const breadcrumbSchema = post.jsonLd?.breadcrumbList || {
+  const storedCrumbs = post.jsonLd?.breadcrumbList;
+  const useStoredCrumbs = !!storedCrumbs
+    && typeof storedCrumbs === 'object'
+    && Array.isArray( ( storedCrumbs as Record<string, unknown> ).itemListElement );
+  const breadcrumbSchema = useStoredCrumbs ? storedCrumbs : {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
+    // Addressable, so it is one named node rather than an orphan list. The two @graph
+    // breadcrumbs elsewhere on the site already carry one; this was the odd one out.
+    '@id': `${canonical}#breadcrumb`,
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://wecare.digital/' },
       { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://wecare.digital/blog/' },
@@ -235,10 +299,22 @@ export default function BlogPostPage ( {
         <meta name="twitter:description" content={ description } />
         <meta name="twitter:image" content={ SOCIAL_CARD_URL } />
         <meta name="twitter:image:alt" content={ SOCIAL_CARD_ALT } />
-        <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( articleSchema ) } } />
-        <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( breadcrumbSchema ) } } />
+        {/* THE SITE-LEVEL ENTITIES, which this route did not carry.
+            _app.tsx's <Head> is suppressed for every blog and post route (isContentPublic), so
+            Organization and WebSite were absent from all 1,279 posts and ~54 index pages - about
+            98% of the indexable site. That is also why `publisher` here used to inline an
+            anonymous copy instead of referencing #organization: the node genuinely did not
+            exist on this page. Emitting it from lib/schema.ts fixes both at once, and there is
+            no duplicate risk because the suppression still holds - this is the only Head on
+            this route that carries them. */}
+        { SITE_ENTITIES.map( ( entity, index ) => (
+          <script key={ `site-entity-${index}` } type="application/ld+json"
+            dangerouslySetInnerHTML={ ld( entity ) } />
+        ) ) }
+        <script type="application/ld+json" dangerouslySetInnerHTML={ ld( articleSchema ) } />
+        <script type="application/ld+json" dangerouslySetInnerHTML={ ld( breadcrumbSchema ) } />
         { ( post.jsonLd?.faqSchema?.mainEntity?.length || 0 ) > 0 && (
-          <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( post.jsonLd?.faqSchema ) } } />
+          <script type="application/ld+json" dangerouslySetInnerHTML={ ld( post.jsonLd?.faqSchema ) } />
         ) }
       </Head>
       {/* THE BLOG'S MASTHEAD, ABOVE THE ARTICLE - option B, chosen by the owner from
