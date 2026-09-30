@@ -18,8 +18,12 @@ SOURCE_SCAFFOLD_PATTERNS = [
     r'\bw\s*erner\s+e\s*rhard\b', r'\bw\s*erner\b'
 ]
 PLACEHOLDER_PATTERNS = [
-    r'\bwork in progress\b', r'\bcoming soon\b', r'\bnot yet located\b', r'\bnot yet dated\b'
+    r'\bnot yet located\b.*\bnot yet dated\b.*\bcoming soon\b'
 ]
+PLACEHOLDER_TITLES = {
+    'new one', 'placeholder', 'placeholder ii', 'placeholder iii',
+    'preferred conversations', 'work in progress'
+}
 EVIDENCE_PATTERNS = [
     r'\bfolklore\b', r'\boften told\b', r'\bexperiment(?:s|al)?\b',
     r'\bstud(?:y|ies) (?:show|shows|showed|found|find)\b', r'\bresearch (?:shows|showed|found|finds)\b'
@@ -85,7 +89,7 @@ def classify(row, text):
     source_terms=sorted({term.strip() for term in KNOWN_SOURCE_TERMS if term in lower})
     source_scaffold=any(r.search(text) for r in SRC_RE)
     personal=any(r.search(text) for r in PERS_RE)
-    placeholder=any(r.search(text) for r in PLACEHOLDER_RE)
+    placeholder=(sval(row.get('original_title')).lower() in PLACEHOLDER_TITLES or (len(text) < 1000 and any(r.search(text) for r in PLACEHOLDER_RE)))
     evidence_claim=any(r.search(text) for r in EVIDENCE_RE)
     fresh_risks=[]
     for k, regs in RISK_RE.items():
