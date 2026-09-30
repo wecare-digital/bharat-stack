@@ -1,0 +1,53 @@
+{
+  "qualityVersion": 2,
+  "batch": "CONV-CONT-01-A",
+  "scope": "CONV-CONT-01",
+  "posts": [
+    {
+      "articleClass": "ARCHIVE_DERIVED",
+      "status": "READY_TO_PUBLISH",
+      "sourceReviewedFully": "YES",
+      "sourceFile": "c4t2(1).zip/100wattl.html",
+      "originalSourceTitle": "100 Watt Light Bulb",
+      "sourceType": "archive_html",
+      "sourceHash": "65afb8bbf757a879caadba229f8fbb6955268e64e8b88991649e7969ab6848eb",
+      "sourceId": "65afb8bbf757a879caadba229f8fbb6955268e64e8b88991649e7969ab6848eb",
+      "originalSourceDate": "2010-10-03",
+      "sourceSlug": "100wattl",
+      "title": "Pleasant Feelings Can Be Reactive Too",
+      "slug": "pleasant-feelings-can-be-reactive-too",
+      "category": "Conversations",
+      "author": "Anew by WECARE.DIGITAL",
+      "canonical": "https://wecare.digital/post/pleasant-feelings-can-be-reactive-too/",
+      "tags": [
+        "Emotions",
+        "Awareness"
+      ],
+      "seoTitle": "Pleasant Feelings Can Be Reactive Too | WECARE.DIGITAL",
+      "metaDescription": "Pleasant feelings can arise automatically too. Noticing that helps separate having an experience from letting the experience quietly direct us.",
+      "articleType": "DISTINCTION",
+      "imageStatus": "none",
+      "centralDistinction": "Automatic reactivity is not limited to feelings we dislike. Pleasant states can also arrive before deliberate choice, and noticing that changes how we relate to them.",
+      "distinctPurpose": "Existing Conversations articles examine difficult feelings and identity. This article asks the less obvious question of whether pleasant feelings can also be reactive without treating pleasure as a problem.",
+      "materiallyDifferentInquiry": "YES",
+      "titleOnlyDifference": "NO",
+      "uniqueReaderPromise": "YES",
+      "uniqueIntellectualMovement": "YES",
+      "contentMarkdown": "We usually notice reactivity when the experience is unpleasant. Irritation rises before we have decided to be irritated. Fear appears before a plan has formed. A low mood can color a conversation before we have named what is happening.\n\nPleasant feelings can arrive just as quickly.\n\nA compliment lands and energy rises. Good news changes the room. A familiar song lifts us. Someone we care about walks in and the body responds before any deliberate instruction has been given. None of this makes the experience false or undesirable. It only shows that automatic experience is not limited to what we want to escape.\n\nThat distinction matters because we often treat pleasant states as proof that everything is finally right, while treating unpleasant states as evidence that something has gone wrong. Both conclusions may ask more of a feeling than the feeling can provide.\n\nWe can enjoy what is pleasant without turning it into a verdict. Happiness can be welcomed without becoming a requirement. Excitement can be felt without needing to preserve it. Relief can matter without proving that the underlying situation is settled.\n\nThe same awareness we bring to difficult feelings can be brought to enjoyable ones: this is here now. It has an effect. I do not have to deny it, explain it away, or make it permanent.\n\nPleasure does not become less real when we notice how quickly it arose. It simply becomes part of experience rather than a command about what must happen next.",
+      "gate": {
+        "DISTINCTION": "PASS",
+        "SOURCE_FIDELITY": "PASS",
+        "CLARITY": "PASS",
+        "VALUE": "PASS",
+        "ORIGINAL_EXPRESSION": "PASS",
+        "SUBSTANCE": "PASS",
+        "VOICE": "PASS",
+        "FACTUAL_INTEGRITY": "PASS",
+        "ATTRIBUTION": "PASS",
+        "PRIVACY": "PASS",
+        "HUMAN_QUALITY_TEST": "PASS"
+      }
+    }
+  ],
+  "notes": "First 25-position review slice; only one source survived full-source review and live-corpus distinction-level dedupe."
+}
