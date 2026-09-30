@@ -118,9 +118,16 @@ const BlogSearch: React.FC<BlogSearchProps> = ( { value, onChange, resultCount, 
            the lime halo as decoration. An outline also cannot be cancelled by a border or
            background rule elsewhere, which is what makes it the safer choice on a bare
            element selector that global stylesheets also target. */
+        /* THE LIME HALO IS GONE, WHICH SETTLES AN OPEN QUESTION RATHER THAN LEGISLATING IT.
+           This rule carried box-shadow:0 0 0 3px rgba(209,244,112,.55). That .55 was a fifth
+           lime value in a language the contract says has exactly three, and it was arguably
+           outside the rule's reach because the three are described as FILLS and this was a
+           glow. Rather than decide whether a glow counts, the halo is removed: once this rule
+           states an opaque #1a3a2a outline, the halo was redundant decoration, and deleting a
+           value answers the question more cleanly than adding a fourth entry to the table.
+           The indicator is now the outline at 12.48:1 on white, plus the border darkening. */
         .bs-form input:focus-visible{
           outline:3px solid #1a3a2a;outline-offset:2px;border-color:#1a3a2a;
-          box-shadow:0 0 0 3px rgba(209,244,112,.55);
         }
         /* Lime fill with the dark edge, matching the closing band's button after its border
            was corrected - solid lime on white needs no help, but consistency does. */
