@@ -46,7 +46,19 @@
 
 import type { LegalSection } from './types';
 
-export const TERMS_UPDATED = '2026-09-23';
+/**
+ * Bumped from 2026-09-23 when section 31.1 was added.
+ *
+ * NOT READER-FACING, and it is worth saying so here because the obvious assumption is wrong:
+ * `grep -rn TERMS_UPDATED src/` outside this directory returns nothing. The "Last updated" line
+ * was removed from the rendered document on instruction, and LegalDocument.tsx records that the
+ * dates stay "for engineering". So this is the revision marker for whoever maintains the text,
+ * not a notice to a returning visitor.
+ *
+ * Move it for any change to a clause; do not move it for a comment. If a reader-facing revision
+ * notice is ever wanted back, this is the value it should read from rather than a second date.
+ */
+export const TERMS_UPDATED = '2026-09-30';
 
 export const TERMS_INTRO: string[] = [
   'These Terms of Service govern your use of the websites, apps, products and services offered under the WECARE.DIGITAL name. We call all of it "the Services".',
@@ -479,6 +491,36 @@ export const TERMS_SECTIONS: LegalSection[] = [
       'We do not promise that every feature will be uninterrupted, always available, completely free of errors, or suited to your particular purpose.',
       'We do not promise a particular business, professional, legal, medical, personal, travel or financial outcome because a product, service or provider is reachable through WECARE.DIGITAL.',
       'Nothing here excludes a statutory warranty, obligation, consumer right or remedy that cannot lawfully be excluded.',
+    ],
+  },
+  {
+    /*
+     * ADDED 2026-09-30 on owner instruction ("terms page: add blog risk disclaimer").
+     *
+     * WHY IT IS 31.1 AND NOT A NEW NUMBERED SECTION. Numbers here are load-bearing - see the
+     * note in types.ts - and the contact clause was deliberately moved to the end of the
+     * document, so appending a 48 after "How to contact us" would both read oddly and push the
+     * contact section out of last place. A sub-clause of 31 is additive, breaks no citation,
+     * and lands where a reader already looks for what we do not promise.
+     *
+     * NO inShort: types.ts restricts summaries to top-level sections, because a sub-clause is
+     * short enough that a summary of it would just be a worse copy.
+     *
+     * The blog was the largest piece of published text on the site with no clause covering it
+     * at all: 1279 posts, and "blog" and "article" appeared ZERO times in this document.
+     * It CROSS-REFERENCES rather than restates - 17 for professional services, 27 for outbound
+     * links, 46 for AI-assisted preparation - because this document's own rewrite note records
+     * that the same saver repeated fourteen times is what made the original unreadable.
+     */
+    number: '31.1', heading: 'Published articles and other editorial content', id: 's31-1',
+    paragraphs: [
+      'We publish articles, guides and explainers on WECARE.DIGITAL. All of it is general information about a subject, written for a general reader. None of it is advice about your situation.',
+      'Nothing we publish is legal, medical, financial, tax, immigration, regulatory, investment or other professional advice, and reading it does not create a professional or advisory relationship between us. Where a Service involves a qualified professional, that professional is the source of advice for you - see section 17.',
+      'An article is correct as far as we know on the day it is published, and it is not maintained after that. Rules, fees, eligibility criteria, timelines, government procedures, prices and third-party policies change, sometimes without notice. An older article may describe a position that no longer holds.',
+      'Please do not act on anything we publish without checking it against the current official source, or asking us in writing about your own case. If an article disagrees with a Service-Specific Term, an official rule or something we have told you directly, the article is the one that is wrong.',
+      'Some published material is prepared with the help of automated systems. Section 46 applies to it.',
+      'Articles may mention or link to other websites, organisations and tools. Section 27 applies: a mention is not an endorsement, and we do not control what is on the other side of a link.',
+      'Nothing in this section excludes a statutory warranty, obligation, consumer right or remedy that cannot lawfully be excluded.',
     ],
   },
   {
