@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 /**
- * Generate the PUBLIC sitemap for www.wecare.digital from the static export.
+ * Generate the PUBLIC sitemap for wecare.digital from the static export.
+ *
+ * THE APEX, NOT `www`, and that is not a typo correction. This header said
+ * `www.wecare.digital` until 2026-09-30, while SITE_URL below has always emitted the apex.
+ * The mismatch matters because Search Console's URL Inspection reports the home page as
+ * "Duplicate, Google chose different canonical than user" with Google's canonical set to
+ * `https://www.wecare.digital/` - a URL that 301s to the apex. Google is holding a stale
+ * `www` signal, every current signal we emit says apex (canonical, og:url, this sitemap,
+ * robots.txt, llms.txt - all measured at 0 `www` references), and a comment naming the
+ * wrong host is exactly how somebody "helpfully" reintroduces one.
  *
  * The repository contains many authenticated dashboard pages under the same
  * static export. They must never be emitted into the public sitemap.

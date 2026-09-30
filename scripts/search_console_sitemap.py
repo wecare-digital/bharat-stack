@@ -496,7 +496,22 @@ def cmd_submit(auth: Auth, args) -> int:  # noqa: ANN001
 
 
 def cmd_prune(auth: Auth, args) -> int:  # noqa: ANN001
-    """Remove registered sitemap feeds this site no longer serves."""
+    """Remove registered feeds that are not a sitemap this site serves.
+
+    TWO FAILURE MODES, AND "IS IT SERVED" ONLY CATCHES ONE. This property had three feeds
+    registered and two were wrong in different ways:
+
+      https://wecare.digital/sitemap.xml/   404 - a dead sitemap INDEX registered in
+                                            2024-03, still advertising 44 URLs. Gone.
+      https://wecare.digital/favicon.ico    200 - and it is a real favicon. Somebody
+                                            submitted the site icon as a sitemap in
+                                            2024-09 and it has carried errors=1 ever
+                                            since. Served, and still not a sitemap.
+
+    So a feed is judged on whether it can BE a sitemap, not on whether the URL resolves.
+    A sitemap is XML (or a plain-text URL list); `image/x-icon` cannot be one whatever it
+    answers. Checking only the status code would have kept the favicon forever.
+    """
     import urllib.request as ur
 
     prop, entries, st = pick_property(auth, args.property)
@@ -513,24 +528,34 @@ def cmd_prune(auth: Auth, args) -> int:  # noqa: ANN001
         if path == args.sitemap:
             keep.append((f, 200, "the current sitemap"))
             continue
+        code, ctype = 0, ""
         try:
             with ur.urlopen(ur.Request(
                     path, headers={"User-Agent": "wecare-gsc-prune/1"}),
                     timeout=30) as r:
                 code = r.status
+                ctype = (r.headers.get("Content-Type") or "").split(";")[0].strip()
         except urllib.error.HTTPError as e:
             code = e.code
         except Exception:  # noqa: BLE001
             code = 0
-        (stale if code != 200 else keep).append(
-            (f, code, "not served" if code != 200 else "still served"))
+
+        sitemapish = ctype in ("application/xml", "text/xml", "text/plain") or (
+            ctype == "application/gzip")
+        if code != 200:
+            stale.append((f, code, "not served"))
+        elif not sitemapish:
+            stale.append((f, code, f"served as {ctype or 'unknown'} - cannot be a sitemap"))
+        else:
+            keep.append((f, code, f"served as {ctype}"))
 
     print(f"property: {prop}")
     print(f"registered: {len(feeds)}   keep: {len(keep)}   stale: {len(stale)}")
     for f, code, note in keep:
         print(f"  KEEP   http {code}  {f.get('path')}  ({note})")
     for f, code, note in stale:
-        print(f"  STALE  http {code}  {f.get('path')}  ({note})")
+        print(f"  STALE  http {code}  {f.get('path')}  ({note})"
+              f"  [submitted={f.get('lastSubmitted', '')[:10]} errors={f.get('errors')}]")
     if not stale:
         print("\nnothing to prune.")
         return 0
@@ -621,11 +646,22 @@ def cmd_verify(auth: Auth, args) -> int:  # noqa: ANN001
     print("Reversible: DELETE siteVerification/v1/webResource/<id> un-verifies, and")
     print(f"deleting public/{token_file} removes the proof.")
 
+    # Verifying ownership is NOT the same as having the property in Search Console, and
+    # this caught me out: immediately after a successful verification `sites.list` still
+    # returned 0. Site Verification and Search Console are separate services - the first
+    # records who owns the site, the second keeps a per-account list of properties. The
+    # property has to be added explicitly, which is the one thing `sites.add` is for.
+    st, entries = properties(auth)
+    if not any(e.get("siteUrl") == VERIFY_SITE for e in entries):
+        st, body = call(auth, "PUT", f"/sites/{enc(VERIFY_SITE)}")
+        print(f"\nsites.add {VERIFY_SITE} -> http {st}"
+              + ("" if st in (200, 204) else f"  {why(body)}"))
+
     st, entries = properties(auth)
     print(f"\nsites.list now: http {st}, {len(entries)} property(ies)")
     for e in entries:
         print(f"  {e.get('siteUrl')}  permission={e.get('permissionLevel')}")
-    return 0
+    return 0 if entries else 2
 
 
 def cmd_inspect(auth: Auth, args) -> int:  # noqa: ANN001
