@@ -13,7 +13,16 @@ KNOWN_SOURCE_TERMS = [
 SOURCE_SCAFFOLD_PATTERNS = [
     r'\bsource note\b', r'\badapted from\b', r'\bthe source\b', r'\bsource article\b',
     r'\bsource post\b', r'\bthe book says\b', r'\bthe author says\b', r'\bin this book\b',
-    r'\baccording to the source\b', r'\baccording to the author\b'
+    r'\baccording to the source\b', r'\baccording to the author\b',
+    r'\bi am indebted to\b', r'\bquoted by\b', r'\binspired this conversation\b',
+    r'\bw\s*erner\s+e\s*rhard\b', r'\bw\s*erner\b'
+]
+PLACEHOLDER_PATTERNS = [
+    r'\bwork in progress\b', r'\bcoming soon\b', r'\bnot yet located\b', r'\bnot yet dated\b'
+]
+EVIDENCE_PATTERNS = [
+    r'\bfolklore\b', r'\boften told\b', r'\bexperiment(?:s|al)?\b',
+    r'\bstud(?:y|ies) (?:show|shows|showed|found|find)\b', r'\bresearch (?:shows|showed|found|finds)\b'
 ]
 PERSONAL_PATTERNS = [
     r'\bmy (?:mother|father|mom|dad|parents|wife|husband|spouse|partner|girlfriend|boyfriend|lover|ex|son|daughter|children|brother|sister|siblings|aunt|uncle|friend|teacher|mentor|boss|colleague|family|marriage|home|school|office|childhood|private life)\b',
@@ -49,6 +58,8 @@ def sval(v): return str(v or '').strip()
 def compile_any(patterns): return [re.compile(p, re.I) for p in patterns]
 SRC_RE=compile_any(SOURCE_SCAFFOLD_PATTERNS)
 PERS_RE=compile_any(PERSONAL_PATTERNS)
+PLACEHOLDER_RE=compile_any(PLACEHOLDER_PATTERNS)
+EVIDENCE_RE=compile_any(EVIDENCE_PATTERNS)
 RISK_RE={k:compile_any(v) for k,v in RISK_PATTERNS.items()}
 
 def article_text(row, text):
@@ -74,6 +85,8 @@ def classify(row, text):
     source_terms=sorted({term.strip() for term in KNOWN_SOURCE_TERMS if term in lower})
     source_scaffold=any(r.search(text) for r in SRC_RE)
     personal=any(r.search(text) for r in PERS_RE)
+    placeholder=any(r.search(text) for r in PLACEHOLDER_RE)
+    evidence_claim=any(r.search(text) for r in EVIDENCE_RE)
     fresh_risks=[]
     for k, regs in RISK_RE.items():
         if any(r.search(text) for r in regs): fresh_risks.append(k)
@@ -81,9 +94,11 @@ def classify(row, text):
     overlap_medium = titleopp=='POSSIBLE OVERLAP' or sim >= 0.48
     attribution_risk = pubname or program or bool(source_terms) or source_scaffold
     personal_risk = personal
-    factual_risk = bool(research)
+    factual_risk = bool(research) or evidence_claim
     if overlap_strong:
         bucket='LIKELY_EXISTING_COVERAGE'
+    elif placeholder:
+        bucket='NO_DISTINCT_ARTICLE'
     elif personal_risk:
         bucket='PERSONAL_REFERENCE_REWORK'
     elif attribution_risk:
@@ -96,7 +111,7 @@ def classify(row, text):
         bucket='CANDIDATE_NEW_ARTICLE'
     else:
         bucket='DEEP_REVIEW'
-    return bucket, source_terms, fresh_risks, source_scaffold, personal
+    return bucket, source_terms, fresh_risks, source_scaffold, personal, placeholder, evidence_claim
 
 def main():
     ap=argparse.ArgumentParser()
@@ -119,7 +134,7 @@ def main():
             if sf in names:
                 raw=z.read(sf).decode('utf-8','ignore')
             text=extract_text(raw)
-            bucket, source_terms, fresh_risks, source_scaffold, personal=classify(row,text)
+            bucket, source_terms, fresh_risks, source_scaffold, personal, placeholder, evidence_claim=classify(row,text)
             out.append({
                 'pending_position':p.get('pending_position',''),
                 'archive_index':p.get('archive_index',''),
@@ -141,6 +156,8 @@ def main():
                 'known_source_terms':';'.join(source_terms),
                 'generic_source_scaffold':'YES' if source_scaffold else 'NO',
                 'personal_biography_signal':'YES' if personal else 'NO',
+                'placeholder_signal':'YES' if placeholder else 'NO',
+                'evidence_claim_signal':'YES' if evidence_claim else 'NO',
                 'source_text_chars':len(text),
                 'automation_note':'MECHANICAL TRIAGE ONLY — not editorial approval; never auto-mark READY_TO_PUBLISH.'
             })
