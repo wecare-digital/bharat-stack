@@ -18,6 +18,14 @@
  * to create the customer, then completes sign-in via customerAuth.submitOtp. See the registration
  * handler for the request/verify contract.
  *
+ * TWO CODES, NOT ONE, ON THE REGISTER PATH. The registration handler's docblock is explicit that it
+ * never returns a session credential: "the session credential comes from the Cognito sign-in, not
+ * from here." So once `verify` provisions the login, the shopper still has to complete the ordinary
+ * WhatsApp-OTP CUSTOM_AUTH sign-in, and that Cognito challenge sends its OWN, second code. This page
+ * treats that as its own step (the `signin-code` phase): it starts the Cognito challenge, tells the
+ * shopper a fresh code is on its way, and answers the challenge with THAT code - it never replays
+ * the registration code, which Cognito would reject.
+ *
  * CHROME AND INDEXING. This is a customer-session route registered in the _app.tsx isPublic chain
  * beside /checkout/status and /checkout/success; it is noindex and imports no Layout/Header/Footer/
  * SupportWidget (those are mounted centrally). It is intentionally absent from PUBLIC_PAGE_META,
@@ -43,8 +51,15 @@ function returnPathFromUrl (): string {
   return /^\/[a-zA-Z0-9/_-]*\/?$/.test( raw ) ? raw : '/cart/';
 }
 
-/** The step the form is on. 'register-code' is the unregistered path through the front door. */
-type Phase = 'phone' | 'code' | 'register-code';
+/**
+ * The step the form is on.
+ *   'phone'         collect the number.
+ *   'code'          registered path: answer the live Cognito challenge from requestOtp.
+ *   'register-code' unregistered path: answer the registration front-door OTP (creates the customer).
+ *   'signin-code'   unregistered path, second leg: answer the SECOND, Cognito sign-in code that the
+ *                   CUSTOM_AUTH challenge sends after the customer is provisioned.
+ */
+type Phase = 'phone' | 'code' | 'register-code' | 'signin-code';
 
 export default function CustomerSignIn (): React.ReactElement {
   const [ phase, setPhase ] = useState<Phase>( 'phone' );
@@ -90,6 +105,14 @@ export default function CustomerSignIn (): React.ReactElement {
       {
         // Unknown number. NO code was sent (see customerAuth.ts), so do not pretend one was -
         // register the number through the front door, which sends its own WhatsApp OTP.
+        //
+        // SAFETY CONTRACT: this branch discards `challenge.session` and pushes the shopper into
+        // registration. That is only correct while the CreateAuthChallenge trigger guarantees it
+        // sends NO WhatsApp code when it reports `registered:false` - i.e. `registered:false`
+        // means "no live code is outstanding," never "a code was sent to a real customer." If the
+        // trigger ever changes to send a code alongside `registered:false`, this branch would
+        // strand that real customer (their live Cognito code is thrown away and they are asked to
+        // register instead), and it must switch to honouring `challenge.session` here.
         const response = await fetch( REGISTRATION_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -114,19 +137,6 @@ export default function CustomerSignIn (): React.ReactElement {
     }
   }, [ mobile ] );
 
-  const finishSignIn = useCallback( async (): Promise<void> => {
-    // Complete the CUSTOM_AUTH sign-in. A fresh challenge is requested so the code the customer
-    // just verified through the front door is answered against a live Cognito session.
-    const challenge = await requestOtp( normalised );
-    const result = await submitOtp( normalised, code, challenge.session );
-    if ( !result )
-    {
-      setError( 'That code was not accepted. Please try again.' );
-      return;
-    }
-    window.location.replace( returnPathFromUrl() );
-  }, [ normalised, code ] );
-
   const submitCode = useCallback( async ( event: React.FormEvent ): Promise<void> => {
     event.preventDefault();
     setError( '' );
@@ -135,7 +145,8 @@ export default function CustomerSignIn (): React.ReactElement {
     {
       if ( phase === 'register-code' )
       {
-        // Create the customer (verify the front-door OTP), then sign in.
+        // Leg one of the register path: verify the FRONT-DOOR code, which provisions the login.
+        // This does NOT sign the shopper in - the registration handler never returns a session.
         const response = await fetch( REGISTRATION_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -146,11 +157,18 @@ export default function CustomerSignIn (): React.ReactElement {
           setError( 'That code was not accepted. Please try again.' );
           return;
         }
-        await finishSignIn();
+        // Leg two: start the Cognito CUSTOM_AUTH sign-in, which sends its own, SECOND code. Move to
+        // a fresh code step and clear the input so the shopper enters that new code, not the old one.
+        const challenge = await requestOtp( normalised );
+        setSession( challenge.session );
+        setDestination( challenge.destination );
+        setCode( '' );
+        setPhase( 'signin-code' );
         return;
       }
 
-      // Registered path: answer the live Cognito challenge directly.
+      // Registered path AND the second leg of the register path both answer a live Cognito
+      // challenge with the code the shopper just entered against the session we hold.
       let result;
       try
       {
@@ -180,7 +198,7 @@ export default function CustomerSignIn (): React.ReactElement {
     {
       setBusy( false );
     }
-  }, [ phase, normalised, code, session, finishSignIn ] );
+  }, [ phase, normalised, code, session ] );
 
   return (
     <>
@@ -216,12 +234,16 @@ export default function CustomerSignIn (): React.ReactElement {
             </form>
           )}
 
-          {( phase === 'code' || phase === 'register-code' ) && (
+          {( phase === 'code' || phase === 'register-code' || phase === 'signin-code' ) && (
             <form className="si-form" onSubmit={ submitCode }>
               <p className="si-body">
-                { phase === 'code' && destination
-                  ? `We sent a code over WhatsApp to ${destination}. Enter it below.`
-                  : 'We sent a code over WhatsApp. Enter it below to continue.' }
+                { phase === 'signin-code'
+                  ? ( destination
+                    ? `You're all set up. We've sent a new code over WhatsApp to ${destination} to sign you in. Enter it below.`
+                    : "You're all set up. We've sent a new code over WhatsApp to sign you in. Enter it below." )
+                  : ( phase === 'code' && destination
+                    ? `We sent a code over WhatsApp to ${destination}. Enter it below.`
+                    : 'We sent a code over WhatsApp. Enter it below to continue.' ) }
               </p>
               <label className="si-label" htmlFor="si-code">WhatsApp code</label>
               <input
