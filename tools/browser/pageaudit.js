@@ -127,7 +127,8 @@ const PROBE = () => {
   /* IS THE FIRST REAL CONTENT HIDDEN UNDER THE FIXED HEADER?
      The header is position:fixed and 108px tall, dropping to 96px below 768px, so a page
      whose top padding does not match BOTH heights puts its own first line underneath it.
-     /llm/ shipped that way: it inlined padding:'48px 20px 80px', and a style attribute cannot
+     /llm/ shipped that way - the page has since been retired, so it is a worked example here
+     rather than a route this sweep still visits. It inlined padding:'48px 20px 80px', and a style attribute cannot
      carry a media query, so it could not express the two-height clearance. Its eyebrow sat at
      y=48 with the header's bottom at y=108, and elementFromPoint at the eyebrow's own centre
      returned the header. _app.tsx records the same defect being fixed at .ag-shell.
@@ -233,7 +234,8 @@ const PROBE = () => {
     console.log( `missing header/footer/widget: ${noChrome.length}` );
     console.log( `NO top section after header : ${noTop.length}` );
     /* Reported separately from noTop, because they are different failures. A page can have a
-       perfectly good top section that is simply painted under the header - /llm/ did. */
+       perfectly good top section that is simply painted under the header - /llm/ did, before
+       that page was retired. */
     const buried = results.filter( r => !r.authShell && VPS.some( v => r.vp[ v.k ]?.obscured === true ) );
     console.log( `first line UNDER the fixed header: ${buried.length}`
       + ( buried.length ? ' -> ' + buried.slice( 0, 8 ).map( r => r.route ).join( ', ' ) : '' ) );
