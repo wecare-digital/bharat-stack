@@ -178,6 +178,26 @@ jobs:
       # clicked. It runs after Build because it reads out/.
       - name: Blog export reconciliation
         run: node tools/audit/blogcheck.js
+      # A GATE, alongside blogcheck and for the same class of reason: the defect it catches is
+      # invisible on the page and only shows up as a rich result that never appears.
+      #
+      # seocheck.js already looked at JSON-LD and could not have caught any of this. It asserts
+      # two things - every block parses, and no @id is defined twice on one page - and its own
+      # source says "Neither is a truth check". It also drives a browser over 20 hardcoded
+      # marketing routes, so /blog/ and /post/ were outside it entirely: 1,332 of the 1,353
+      # URLs in the sitemap, i.e. the overwhelming majority of the indexable site.
+      #
+      # What that blind spot cost, measured on the live export: every one of the 1,279 post
+      # pages emitted a BlogPosting with NO `image`, which Google documents as required on
+      # Article - so all of them were ineligible for the rich result while the markup validated
+      # cleanly. The Organization node was absent from those same pages plus ~54 blog index
+      # pages, because _app.tsx renders its <Head> behind `!isContentPublic`.
+      #
+      # This reads out/ directly, so there is no route list to fall out of date, and it checks
+      # required properties per type, @id references that resolve, and the specific self-serving
+      # properties this graph removed on purpose. It runs after Build because it reads out/.
+      - name: Structured data completeness
+        run: node tools/audit/schemacheck.js
       # Three Google controls on the keyless map embed stay reachable without it. The
       # suite is still worth running for its other twelve assertions, so it is printed
       # rather than gated. Make it a gate on the day the key exists.

@@ -9,6 +9,10 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'shared'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'outbound-whatsapp'))
 
+#: The WABA1 sender. A payment send always carries one; _build_payment_settings no longer
+#: substitutes a default when it cannot resolve a configuration.
+PHONE_1 = 'phone-number-id-waba1-direct-1016149501586345'
+
 
 class TestInteractivePaymentPayload:
     """Test interactive payment (order_details) message building."""
@@ -34,8 +38,13 @@ class TestInteractivePaymentPayload:
                 'tax': {'value': 0},
             },
         }
+        # A sender is now REQUIRED. _build_payment_settings used to fall back to
+        # DEFAULT_PAYMENT_CONFIG when it could not resolve one, which meant a payment request
+        # went out naming a configuration nobody had verified. It now refuses, so these tests
+        # pass the phone id a real send always carries.
         payload = self.build('+919330994400', '', None, None, False, None, [],
-                             is_interactive_payment=True, order_details=order)
+                             is_interactive_payment=True, order_details=order,
+                             phone_number_id=PHONE_1)
         assert payload['type'] == 'interactive'
         assert payload['interactive']['type'] == 'order_details'
         assert payload['interactive']['action']['name'] == 'review_and_pay'
@@ -55,10 +64,40 @@ class TestInteractivePaymentPayload:
             },
         }
         payload = self.build('+919330994400', '', None, None, False, None, [],
-                             is_interactive_payment=True, order_details=order)
+                             is_interactive_payment=True, order_details=order,
+                             phone_number_id=PHONE_1)
         params = payload['interactive']['action']['parameters']
         # Items: 10000 * 2 = 20000, GST 18% = 3600, Conv fee on 23600
         assert params['total_amount']['value'] > 20000
+
+    def test_an_unresolvable_payment_configuration_refuses_to_build(self):
+        """The fallback that was removed. It logged a warning and then sent
+        DEFAULT_PAYMENT_CONFIG anyway, so an unverified configuration name reached the
+        customer and failed when they tapped Pay — the most expensive place to find out."""
+        import handler
+        order = {'reference_id': 'WD-TEST-002', 'order': {
+            'items': [{'name': 'X', 'amount': {'value': 100}, 'quantity': 1}],
+            'subtotal': {'value': 100}, 'discount': {'value': 0},
+            'shipping': {'value': 0}, 'tax': {'value': 0}}}
+
+        # No sender resolves to no configuration.
+        with pytest.raises(handler.PaymentConfigurationUnresolved):
+            self.build('+919330994400', '', None, None, False, None, [],
+                       is_interactive_payment=True, order_details=order)
+
+    def test_an_unrecognised_configuration_name_refuses_to_build(self):
+        import handler
+        order = {'reference_id': 'WD-TEST-003',
+                 'payment_configuration': 'WECARE-RAZOR-PAY',  # retired 2026-08-23
+                 'order': {
+                     'items': [{'name': 'X', 'amount': {'value': 100}, 'quantity': 1}],
+                     'subtotal': {'value': 100}, 'discount': {'value': 0},
+                     'shipping': {'value': 0}, 'tax': {'value': 0}}}
+
+        with pytest.raises(handler.PaymentConfigurationUnresolved):
+            self.build('+919330994400', '', None, None, False, None, [],
+                       is_interactive_payment=True, order_details=order,
+                       phone_number_id=PHONE_1)
 
     def test_payment_template_payload(self):
         order = {'reference_id': 'WD-PAY-001', 'total_amount': {'value': 4900, 'offset': 100}, 'currency': 'INR'}

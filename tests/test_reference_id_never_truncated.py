@@ -156,6 +156,80 @@ def test_outbound_preserves_an_already_valid_reference(outbound):
     assert outbound._sanitize_reference_id(minted) == minted
 
 
+# ── §35/§36: the reserved reference reaches Meta byte-for-byte ─────────────────
+
+@pytest.mark.parametrize('canonical', [
+    'WD-PAY-0123456789ABCD',
+    'WD-PAY-abcdefghijklmn',          # lower case
+    'WD-PAY-MiXeDcAsE1234',           # mixed case
+    'WD-PAY-with.dots_and-dashes',    # every permitted punctuation
+    'A',                              # minimal
+    'A' * 35,                         # maximal
+])
+def test_a_canonical_reference_is_never_transformed(outbound, canonical):
+    """§35. Once reserved under PAYREF# the value is a stored fact, not a candidate to tidy.
+
+    Case is the one that matters: Meta's reference_id is case SENSITIVE, and the old code
+    upper-cased every value before its pass-through checks ran. That is a no-op for our current
+    all-uppercase alphabet, which is exactly why it survived — an invisible correctness bug that
+    would start breaking joins the moment the alphabet changed.
+    """
+    assert outbound._sanitize_reference_id(canonical) == canonical
+
+
+def test_a_minted_reference_survives_the_payload_builder_unchanged(outbound):
+    """§36. The assertion that matters: what the payment-send function puts on the wire is the
+    exact value stored on the PaymentAttempt."""
+    stored = order_keys.mint_payment_reference()
+    order = {
+        'reference_id': stored,
+        'type': 'digital-goods',
+        'currency': 'INR',
+        'order': {
+            'items': [{'name': 'Service', 'amount': {'value': 4900}, 'quantity': 1}],
+            'subtotal': {'value': 4900}, 'discount': {'value': 0},
+            'shipping': {'value': 0}, 'tax': {'value': 0},
+        },
+    }
+    payload = outbound._build_message_payload(
+        '+919330994400', '', None, None, False, None, [],
+        is_interactive_payment=True, order_details=order,
+        phone_number_id='phone-number-id-waba1-direct-1016149501586345',
+    )
+    parameters = payload['interactive']['action']['parameters']
+    assert parameters['reference_id'] == stored
+
+    # And the same value reaches Razorpay, since that is the other half of the join.
+    razorpay = parameters['payment_settings'][0]['payment_gateway']['razorpay']
+    assert razorpay['receipt'] == stored
+    assert razorpay['notes']['referenceId'] == stored
+
+
+def test_a_mixed_case_reference_survives_the_payload_builder(outbound):
+    """The regression the pass-through ordering exists to prevent."""
+    stored = 'WD-PAY-MiXeDcAsE1234'
+    order = {
+        'reference_id': stored, 'currency': 'INR',
+        'order': {'items': [{'name': 'X', 'amount': {'value': 100}, 'quantity': 1}],
+                  'subtotal': {'value': 100}, 'discount': {'value': 0},
+                  'shipping': {'value': 0}, 'tax': {'value': 0}},
+    }
+    payload = outbound._build_message_payload(
+        '+919330994400', '', None, None, False, None, [],
+        is_interactive_payment=True, order_details=order,
+        phone_number_id='phone-number-id-waba1-direct-1016149501586345',
+    )
+    assert payload['interactive']['action']['parameters']['reference_id'] == stored
+
+
+def test_an_order_number_is_still_refused_despite_the_pass_through(outbound):
+    """The compact order id is 15 characters of permitted charset, so it IS a Meta-valid
+    string — a pass-through placed before the order-number check would hand it to Meta."""
+    assert order_keys.is_valid_meta_reference_id('WD-ORD-A1B2C3D4')
+    with pytest.raises(outbound.ReferenceIdTooLong):
+        outbound._sanitize_reference_id('WD-ORD-A1B2C3D4')
+
+
 def test_outbound_collapses_a_duplicated_prefix(outbound):
     assert outbound._sanitize_reference_id('WD-PAY-WD-PAY-ABC') == 'WD-PAY-ABC'
 

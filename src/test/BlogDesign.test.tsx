@@ -710,9 +710,37 @@ describe( 'Blog post page', () => {
     expect( container.querySelector( '[datetime]' ) ).toBeNull();
     expect( container.querySelector( '.byline' )?.textContent ).toBe( 'Anew by WECARE.DIGITAL' );
 
-    const ld = container.querySelector( 'script[type="application/ld+json"]' );
-    expect( ld?.textContent ).toContain( 'datePublished' );
-    expect( ld?.textContent ).toContain( 'dateModified' );
+    /*
+     * FINDS THE BlogPosting BLOCK, rather than trusting it to be the first one.
+     *
+     * This used to take `querySelector(...)` - the first JSON-LD block on the page - which was
+     * the article only by accident of ordering. The post page now also emits the site-level
+     * Organization and WebSite nodes, because _app.tsx's <Head> is suppressed on this route and
+     * those entities were previously absent from all 1,279 posts; so the first block is the
+     * Organization and the old assertion looked for `datePublished` in a company description.
+     *
+     * Selecting by @type is what the assertion always meant, and it is strictly stronger: the
+     * dates now have to be on the article node specifically, not merely somewhere in the head.
+     */
+    const blocks = [ ...container.querySelectorAll( 'script[type="application/ld+json"]' ) ]
+      .map( s => JSON.parse( s.textContent || '{}' ) );
+    const article = blocks.find( b => b[ '@type' ] === 'BlogPosting' );
+    expect( article ).toBeDefined();
+    expect( article.datePublished ).toBeTruthy();
+    expect( article.dateModified ).toBeTruthy();
+    /*
+     * `image` IS ASSERTED HERE TOO, because its absence was the defect that made every post
+     * ineligible for the Article rich result. Google documents it as required on Article, the
+     * asset was already in scope on the page for og:image, and the schema simply never received
+     * it - on all 1,279 posts. A test that pins the dates but not the image would let the
+     * expensive half regress silently.
+     */
+    expect( article.image?.url ).toMatch( /^https:\/\// );
+    expect( article.publisher?.[ '@id' ] ).toContain( '#organization' );
+    // And the referenced Organization must actually be defined on the same page, or the
+    // publisher reference dangles. This is the pairing tools/audit/schemacheck.js enforces
+    // across the whole export; asserted here so a unit run catches it first.
+    expect( blocks.some( b => b[ '@type' ] === 'Organization' && b[ '@id' ] === article.publisher[ '@id' ] ) ).toBe( true );
   } );
 
   /**

@@ -35,6 +35,8 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = path.join( __dirname, '..', '..' );
 const APP = fs.readFileSync( path.join( ROOT, 'src', 'pages', '_app.tsx' ), 'utf8' );
+/** The schema.org entity graph. Owns Organization.logo since it moved out of _app.tsx. */
+const SCHEMA = fs.readFileSync( path.join( ROOT, 'src', 'lib', 'schema.ts' ), 'utf8' );
 const SEO = fs.readFileSync( path.join( ROOT, 'src', 'components', 'SEO.tsx' ), 'utf8' );
 const MANIFEST = JSON.parse( fs.readFileSync( path.join( ROOT, 'public', 'manifest.json' ), 'utf8' ) );
 const SW = fs.readFileSync( path.join( ROOT, 'public', 'sw.js' ), 'utf8' );
@@ -195,9 +197,27 @@ describe( 'Brand assets', () => {
   it( 'keeps the square opaque logo for icons and structured data', () => {
     expect( APP ).toContain( `const LOGO_URL = \`\${MEDIA_BASE}/${OPAQUE_SQUARE}\`` );
     expect( APP ).toContain( 'rel="apple-touch-icon" href={ LOGO_URL }' );
-    // Organization.logo stays square: Google renders it in the knowledge panel and wants the
-    // logo, not a banner. The fix there was opacity, not shape.
-    expect( APP ).toContain( '"logo": LOGO_URL' );
+    /*
+     * Organization.logo MOVED TO src/lib/schema.ts, and it is now an ImageObject rather than a
+     * bare URL string - so this assertion follows it rather than being dropped.
+     *
+     * The reason it moved is the point of the assertion, not incidental: the Organization node
+     * used to be defined in _app.tsx and emitted only from the <Head> that renders behind
+     * `!isContentPublic`, so it was absent from all 1,279 posts and ~54 blog index pages. One
+     * shared definition is what lets every surface emit the same node and reference it by @id.
+     *
+     * STILL THE SQUARE OPAQUE MARK, which is the thing this test exists to hold. Google renders
+     * the logo in the knowledge panel and wants a logo, not a 16:9 banner, and the earlier fix
+     * here was opacity rather than shape. Asserted through the shared constant AND the declared
+     * dimensions, so swapping in the wide card or a transparent copy fails.
+     */
+    expect( SCHEMA ).toContain( `export const LOGO_URL = \`\${MEDIA_BASE}/${OPAQUE_SQUARE}\`` );
+    expect( SCHEMA ).toContain( "'@type': 'ImageObject'" );
+    expect( SCHEMA ).toContain( 'url: LOGO_URL' );
+    expect( SCHEMA ).toContain( 'const LOGO_W = 1080' );
+    expect( SCHEMA ).toContain( 'const LOGO_H = 1080' );
+    // The node must reference the shared constant, never restate a URL literal.
+    expect( SCHEMA ).not.toContain( 'logo: \'https://' );
   } );
 
   it( 'does not claim the icon is maskable, and does not lie about its size', () => {
