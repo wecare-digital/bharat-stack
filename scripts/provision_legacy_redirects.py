@@ -126,25 +126,28 @@ RETIRED = {
     # fall through to the catch-all would serve 404.html at HTTP 200 instead, which is the
     # failure mode this whole script exists to avoid.
     "/my-order": "/orders/",
-    # RETIRED 2026-09-30. /llm/ was an HTML page describing the AI-facing surface - the MCP
-    # endpoint at /mcp, the two llms.txt files, and the citation terms. It was deleted because
-    # it was a fifth hand-kept copy of the endpoint URL, the three protocol versions, the five
-    # tool names and the cannot-do list, and a documentation page that drifts from the endpoint
-    # it documents sends an operator to something that answers differently from the description.
+    # /llm IS DELIBERATELY ABSENT, AND THIS ENTRY IS NOT COMING BACK.
     #
-    # THE 301 TARGET IS /llms.txt, NOT /mcp, and that is deliberate rather than lazy. /mcp
-    # answers HTTP 405 to a GET - correctly, it offers no SSE stream - so redirecting a browser
-    # or a crawler there would turn a live page into a method error. /llms.txt is a GET-able
-    # document that now carries everything the page did, including the client config snippet,
-    # the tool list and the limits; scripts/generate-llms-txt.js emits them from
-    # config/public-pages.json.
+    # It was `"/llm": "/llms.txt"` from its retirement on 2026-09-30 until the owner removed
+    # the redirect the same day: "i dont want any redirect llm must go". So /llm now falls
+    # through to the `/<*>` catch-all and answers a real 404.
     #
-    # This is the second PUBLIC entry in this dict, and it needs the 301 for the same reason
-    # /my-order did: the URL was live at HTTP 200, is named in public/robots.txt and in
-    # out/llms.txt, and was linked from the MCP server's own User-Agent string, so it is an
-    # address other people and other machines already hold. Without this rule it falls through
-    # to the `/<*>` catch-all and serves 404.html.
-    "/llm": "/llms.txt",
+    # THE ARGUMENT FOR THE 301 IS RECORDED RATHER THAN DELETED, because it was not a bad
+    # argument and whoever reads this next deserves to see what was traded away. /llm/ was
+    # live at HTTP 200, was named in public/robots.txt and out/llms.txt, and was linked from
+    # the MCP server's own User-Agent string - so it is an address other people and other
+    # machines already hold, and a 301 would have moved its equity to a document that carries
+    # the same content. The owner's call overrides that, and the cost is explicit: anyone
+    # holding the old URL now gets a 404 instead of the replacement document.
+    #
+    # WHAT THE 404 BUYS, so the decision is not only a cost. A 301 keeps a retired URL alive
+    # in Google's index as a redirect for as long as the rule exists; a 404 drops it. Given
+    # /llm/ was one thin page and its content is fully covered by /llms.txt - which robots.txt
+    # advertises directly - there is little equity to preserve and one fewer URL to explain.
+    #
+    # If it is ever restored, the target must be /llms.txt and NOT /mcp: /mcp answers 405 to a
+    # GET because it offers no SSE stream, so pointing a browser URL there turns a retired page
+    # into a method error. That reasoning is about the target and survives the removal.
 }
 
 # Prefix renames: old top-level segment -> new one. `/dm` became `/workspace/engage` on

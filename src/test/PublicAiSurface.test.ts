@@ -247,14 +247,29 @@ describe( 'the /llm page is retired and cannot come back by accident', () => {
     expect( catalogPaths ).not.toContain( '/llm' );
   } );
 
-  it( 'redirects to a document a GET can actually fetch', () => {
+  it( 'has no redirect at all, so the URL answers a real 404', () => {
     /**
-     * The target is /llms.txt and NOT /mcp. /mcp answers 405 to a GET - correctly, it offers
-     * no SSE stream - so pointing a retired browser URL there would turn a live page into a
-     * method error. Asserted because the endpoint is the intuitive target and is the wrong one.
+     * INVERTED ON 2026-09-30 by owner instruction: "i dont want any redirect llm must go".
+     *
+     * This test used to assert the opposite - that `"/llm": "/llms.txt"` was present - and the
+     * reasoning for that 301 was sound: /llm/ was live at HTTP 200, is named in robots.txt and
+     * llms.txt, and was linked from the MCP server's User-Agent, so it is an address others
+     * hold. The owner accepted that cost. A 404 drops the URL from the index where a 301 would
+     * have kept it alive as a redirect indefinitely.
+     *
+     * Asserted as an absence for the same reason the removal above is: the cheap way to undo
+     * this is to re-add one dict entry, and a redirect reappearing silently would give one URL
+     * two answers depending on whether the CDN rule or the export served the request.
+     *
+     * The /mcp-is-the-wrong-target note is kept in the redirect script rather than here,
+     * because it is guidance for a hypothetical restoration, not a property of the current
+     * state - and a test should pin what is true now.
      */
     const redirects = fs.readFileSync( REDIRECTS_PATH, 'utf8' );
-    expect( redirects ).toMatch( /^\s*"\/llm":\s*"\/llms\.txt",/m );
+    expect( redirects ).not.toMatch( /^\s*"\/llm":/m );
+    // Nor may it arrive as a prefix rename, which expands to three rules per entry and would
+    // reintroduce the redirect through a different door.
+    expect( redirects ).not.toMatch( /^\s*"\/llm"\s*:\s*"/m );
   } );
 
   it( 'is not referenced as a live URL anywhere in the shipped surface', () => {
