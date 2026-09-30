@@ -35,6 +35,7 @@ from lambda_utils import wa_status  # monotonic status ordering (no backward tra
 from lambda_utils import wa_internal_event  # typed ingress -> worker contract
 from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
+from lambda_utils.ecommerce import order_keys  # reference_id contract; never truncate a join key
 from botocore.exceptions import ClientError
 try:
     from lambda_utils import partner_billing  # per-tenant prepaid metering (optional)
@@ -626,7 +627,11 @@ PAY_MSG = {
     'send_failed':  '\u274c Could not send payment link. Please try again.',
     'error':        '\u26a0\ufe0f Something went wrong. Please try again.',
     'wa_body':      'Your payment is ready \u2014 tap below to complete it \U0001f4b3',
-    'redirect':     '\U0001f4b3 To make a payment, please send *pay* to +91 9330994400',
+    # `redirect` removed 2026-09-30 with its only caller. It told a customer on WABA2 to go and
+    # message +919330994400 instead, because Phone 1 was believed to be the only payment-capable
+    # number. Both halves were wrong: every phone handles payments directly, and Phone 1 was
+    # never disconnected (measured live, quality GREEN). Sending someone to a different number
+    # also abandons the open 24-hour window on the conversation they are already in.
 }
 
 # Phone number ID that handles payments (Phone 1: +919330994400 / WECARE.DIGITAL)
@@ -3136,43 +3141,69 @@ def _process_status(status: Dict, request_id: str, contacts_map: Dict = None, wa
 
 def _sanitize_reference_id(reference_id: str) -> str:
     """
-    Sanitize reference_id - remove duplicate prefixes and underscores.
-    
-    WhatsApp/Razorpay may return reference_id with extra prefixes or underscores.
-    This ensures clean WD-PAY-<ID> format for display.
-    
+    Normalise an INBOUND reference_id for lookup and display.
+
+    This is the read side: the value arrives from Meta or Razorpay and is used to resolve a
+    payment attempt we created. So the safest possible behaviour is to change it as little as
+    possible, and the first branch below now does exactly nothing to a value that is already
+    valid.
+
+    That ordering is the fix. Previously every value was upper-cased and stripped of
+    non-alphanumerics before the pass-through checks, so a reference containing a dot - which
+    Meta explicitly permits - was rewritten into a different string, and the lookup for the
+    attempt that owns it then missed. Meta's reference_id is case SENSITIVE, so upper-casing
+    is itself a mutation that can break a join.
+
+    Legacy upgrades still run, but only for values that are not already acceptable, which is
+    the only situation they were ever meant for.
+
     Examples:
-    - "WD-PAY-ABC12345" -> "WD-PAY-ABC12345" (keep as-is)
-    - "WD-PAY-WD-PAY-ABC" -> "WD-PAY-ABC" (remove duplicate prefix)
-    - "WD_41BA3534" -> "WD-PAY-41BA3534" (upgrade old format)
-    - "WDABC12345" -> "WD-PAY-ABC12345" (upgrade old format)
-    - "WD+41BA3534" -> "WD-PAY-41BA3534" (remove plus sign)
+    - "WD-PAY-ABC12345"    -> "WD-PAY-ABC12345"  (untouched, valid)
+    - "WD-PAY-a.b_c"       -> "WD-PAY-a.b_c"     (untouched: dots and case preserved)
+    - "WD_41BA3534"        -> "WD-PAY-41BA3534"  (legacy shape upgraded)
+    - "WD+41BA3534"        -> "WD-PAY-41BA3534"  (plus is outside Meta's charset)
     """
     import re
-    
+
     if not reference_id:
         return reference_id
-    
-    stripped = reference_id.strip().upper()
-    
+
+    raw = reference_id.strip()
+
+    # Already something Meta would have accepted, so it is almost certainly the exact value we
+    # minted. Return it byte-for-byte: any normalisation here is a chance to break the join.
+    if order_keys.is_valid_meta_reference_id(raw) and 'WD-PAY-WD-PAY-' not in raw.upper():
+        return raw
+
+    stripped = raw.upper()
+
     # Remove duplicate WD-PAY- prefixes
     while 'WD-PAY-WD-PAY-' in stripped:
         stripped = stripped.replace('WD-PAY-WD-PAY-', 'WD-PAY-')
-    
-    # Already in new format
-    if stripped.startswith('WD-PAY-'):
+
+    if stripped.startswith('WD-PAY-') or stripped.startswith('WD-ORD-'):
         return stripped
-    if stripped.startswith('WD-ORD-'):
-        return stripped
-    
+
     # Old format: strip non-alnum, remove legacy WD prefix(es), add WD-PAY-
     cleaned = re.sub(r'[^A-Za-z0-9]', '', stripped)
     while cleaned.startswith('WD'):
         cleaned = cleaned[2:]
     if not cleaned:
         return stripped  # Return original if nothing left
-    
-    return f'WD-PAY-{cleaned}'
+
+    upgraded = f'WD-PAY-{cleaned}'
+    if len(upgraded) > order_keys.META_REFERENCE_ID_MAX_LENGTH:
+        # Deliberately NOT truncated. Two truncated references are indistinguishable, and this
+        # value is about to be used to resolve which order a payment belongs to. Returning it
+        # over-length means the lookup misses and the event surfaces for staff, which is the
+        # recoverable outcome; truncating means it silently matches the wrong order.
+        logger.warning(json.dumps({
+            'event': 'inbound_reference_id_over_length',
+            'length': len(upgraded),
+            'limit': order_keys.META_REFERENCE_ID_MAX_LENGTH,
+            'note': 'not truncated; lookup will miss rather than match the wrong order',
+        }))
+    return upgraded
 
 
 def _process_payment_status(status: Dict, request_id: str) -> None:
@@ -7639,63 +7670,65 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             # ── Payment flow (hardcoded, LLM-independent  -  edit PAY_MSG at top of file) ──
             customer_phone = ai_response.get('paymentCustomerPhone', sender_phone) if ai_response else sender_phone
 
-            # Handle payments on whichever phone received the message
-            # (Phone 1 is disconnected, so no redirect  -  all phones handle payments directly)
-            if False:  # Redirect disabled  -  Phone 1 (+919330994400) is DISCONNECTED
-                _send_ai_auto_reply(contact_id, PAY_MSG['redirect'], phone_number_id, request_id)
+            # Payments are handled on whichever phone received the message. That is correct
+            # behaviour and it is now the only behaviour: replying from a number the customer
+            # never contacted leaves the 24-hour customer service window and reads as an
+            # unsolicited message from a stranger. See _resolve_meta_phone_id in
+            # outbound-whatsapp for the same rule stated as a fail-closed guard.
+            #
+            # The dead `if False:` branch that used to sit here redirected payments to Phone 1
+            # on the grounds that it was "DISCONNECTED". That claim was wrong. Measured live
+            # 2026-09-30: phone id 1016149501586345 / +919330994400 is quality GREEN, platform
+            # CLOUD_API, an official business account, on a WABA with accountReviewStatus
+            # APPROVED. `codeVerificationStatus` is EXPIRED, which concerns display-name
+            # verification rather than connectivity, and is most likely what the original note
+            # misread. Removed rather than left commented, because a disabled branch carrying a
+            # false explanation is worse than no branch: two separate audits treated it as
+            # evidence that the primary sender was down.
+            _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], phone_number_id, request_id)
+            try:
+                inv_payload = {
+                    'rawPath': '/invoices/send-pending-by-phone',
+                    'requestContext': {'http': {'method': 'POST'}},
+                    'body': json.dumps({
+                        'customerPhone': customer_phone,
+                        'phoneNumberId': phone_number_id,
+                    }),
+                }
+                inv_response = lambda_client.invoke(
+                    FunctionName='wecare-invoice-engine',
+                    InvocationType='RequestResponse',
+                    Payload=json.dumps(inv_payload),
+                )
+                inv_result = json.loads(inv_response['Payload'].read())
+                inv_body = json.loads(inv_result.get('body', '{}'))
+                sent_count = inv_body.get('sent', 0)
+                total_count = inv_body.get('total', 0)
+                invoices_sent = inv_body.get('invoices', [])
+                send_error = inv_body.get('error', '')
+
+                if total_count == 0:
+                    _send_ai_auto_reply(contact_id, PAY_MSG['no_dues'], phone_number_id, request_id)
+                elif sent_count == 0:
+                    _send_ai_auto_reply(contact_id, PAY_MSG['send_failed'], phone_number_id, request_id)
+                    logger.warning(json.dumps({
+                        'event': 'send_pending_payment_link_failed',
+                        'sent': 0, 'total': total_count,
+                        'error': send_error, 'phone': mask_phone(customer_phone),
+                        'requestId': request_id,
+                    }))
+
                 logger.info(json.dumps({
-                    'event': 'payment_redirected_to_phone1',
-                    'phone': mask_phone(customer_phone),
-                    'fromPhoneId': phone_number_id,
-                    'requestId': request_id,
+                    'event': 'send_pending_payments_complete',
+                    'sent': sent_count, 'total': total_count,
+                    'phone': mask_phone(customer_phone), 'requestId': request_id,
                 }))
-            else:
-                # Step 1: Send "pulling" message immediately
-                _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], phone_number_id, request_id)
-
-                try:
-                    inv_payload = {
-                        'rawPath': '/invoices/send-pending-by-phone',
-                        'requestContext': {'http': {'method': 'POST'}},
-                        'body': json.dumps({
-                            'customerPhone': customer_phone,
-                            'phoneNumberId': phone_number_id,
-                        }),
-                    }
-                    inv_response = lambda_client.invoke(
-                        FunctionName='wecare-invoice-engine',
-                        InvocationType='RequestResponse',
-                        Payload=json.dumps(inv_payload),
-                    )
-                    inv_result = json.loads(inv_response['Payload'].read())
-                    inv_body = json.loads(inv_result.get('body', '{}'))
-                    sent_count = inv_body.get('sent', 0)
-                    total_count = inv_body.get('total', 0)
-                    invoices_sent = inv_body.get('invoices', [])
-                    send_error = inv_body.get('error', '')
-
-                    if total_count == 0:
-                        _send_ai_auto_reply(contact_id, PAY_MSG['no_dues'], phone_number_id, request_id)
-                    elif sent_count == 0:
-                        _send_ai_auto_reply(contact_id, PAY_MSG['send_failed'], phone_number_id, request_id)
-                        logger.warning(json.dumps({
-                            'event': 'send_pending_payment_link_failed',
-                            'sent': 0, 'total': total_count,
-                            'error': send_error, 'phone': mask_phone(customer_phone),
-                            'requestId': request_id,
-                        }))
-
-                    logger.info(json.dumps({
-                        'event': 'send_pending_payments_complete',
-                        'sent': sent_count, 'total': total_count,
-                        'phone': mask_phone(customer_phone), 'requestId': request_id,
-                    }))
-                except Exception as e:
-                    logger.error(json.dumps({
-                        'event': 'send_pending_payments_error',
-                        'error': str(e), 'requestId': request_id,
-                    }))
-                    _send_ai_auto_reply(contact_id, PAY_MSG['error'], phone_number_id, request_id)
+            except Exception as e:
+                logger.error(json.dumps({
+                    'event': 'send_pending_payments_error',
+                    'error': str(e), 'requestId': request_id,
+                }))
+                _send_ai_auto_reply(contact_id, PAY_MSG['error'], phone_number_id, request_id)
 
         elif flow_action == 'humanHandoff':
             # Flag conversation for human agent in CRM

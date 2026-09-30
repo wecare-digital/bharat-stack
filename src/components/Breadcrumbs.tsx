@@ -104,8 +104,17 @@ const Breadcrumbs: React.FC<{ items: Crumb[] }> = ( { items } ) => (
          screen - it is now a preference rather than the only constraint.
          Caught by rtlcheck at the fold postures; devicecheck missed it because its route list
          had no /post/ entry, which is fixed alongside this. */
+      /* .72, not .58. The current crumb is quieter than the links before it on purpose - it is
+         where you already are, so it should not invite a click - but .58 composites to
+         rgb(122,141,131) over white and measures 3.53:1, and at 12px that is normal text needing
+         4.5:1. .72 measures 5.26:1 and is still visibly quieter than the .bc a links beside it,
+         so the hierarchy survives the fix.
+         Deliberately not the full #1a3a2a: that would make the crumb you are on look exactly
+         like the ones you can follow, which is the distinction this rule exists to draw.
+         Found by Lighthouse's axe pass rather than by the focus-ring sweep, which measured
+         indicators and named label colours and never walked ordinary text. */
       .bc [aria-current]{
-        color:rgba(26,58,42,.58);
+        color:rgba(26,58,42,.72);
         min-width:0;max-width:46ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
       }
       @media(prefers-reduced-motion:reduce){

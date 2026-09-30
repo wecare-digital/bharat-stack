@@ -614,6 +614,16 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
         .pager :global(.pager-step){border:2px solid rgba(26,58,42,.22)}
         /* The end of the run. Rendered rather than omitted so the row does not reflow as a
            reader pages through, and aria-hidden so it is not announced as a dead control. */
+        /* LIGHTHOUSE FLAGS THIS AT 2.24:1 AND IT IS CORRECT TO LEAVE IT.
+           rgba(0,0,0,.32) composites to rgb(173,173,173) over white. axe reports it as a
+           colour-contrast failure because axe cannot always tell an inactive control from an
+           active one. Two separate exemptions apply here:
+           - WCAG 1.4.3 has no contrast requirement for text that is part of an INACTIVE user
+             interface component, and this is the disabled end of the pager.
+           - the markup renders these as span[aria-hidden="true"], so they are not exposed to
+             assistive technology at all; the real state is carried by the absence of a link.
+           Raising the contrast would make "unavailable" look available, which is the one thing
+           this rule exists to prevent. Do not "fix" it off a Lighthouse report. */
         .pager :global(.pager-step.is-off){color:rgba(0,0,0,.32);border-color:#e5e7eb;cursor:default}
         /* "Page 7" to a screen reader, "7" on screen: a bare number read out of the list
            context is ambiguous. Same clip technique as .bs-label. */

@@ -11,6 +11,7 @@ Emits CloudWatch metrics for delivery success/failure.
 
 import os
 import json
+import secrets
 import uuid
 import time
 import logging
@@ -30,6 +31,9 @@ from lambda_utils import graph_errors  # Meta error subcode + transient classifi
 from lambda_utils import live_smoke  # WA_LIVE_SMOKE_TEST recipient lockdown
 from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
+# One source for Meta's reference_id contract, so the send path and the minter cannot disagree.
+from lambda_utils.ecommerce import order_keys
+REFERENCE_ID_MAX_LENGTH = order_keys.META_REFERENCE_ID_MAX_LENGTH
 
 logger = get_logger(__name__)
 
@@ -2782,39 +2786,73 @@ def _normalize_phone_number(phone: str) -> str:
     return digits_only
 
 
+class ReferenceIdTooLong(ValueError):
+    """A reference_id exceeded Meta's 35-character limit and was NOT truncated.
+
+    A distinct type because the correct response is to fail the send, never to shorten the
+    value. See _sanitize_reference_id.
+    """
+
+
 def _sanitize_reference_id(reference_id: str) -> str:
     """
-    Sanitize reference_id for UPI compatibility.
-    UPI requires: only A-Z, a-z, 0-9, _, - (max 35 chars)
-    Must be unique for each transaction.
-    
-    Format: WD-PAY-<ID> (dash-separated, type-prefixed)
-    
+    Normalise reference_id to the WD-PAY-<ID> shape Meta and Razorpay both accept.
+
+    Meta's Payments (India) reference requires reference_id to be at most 35 characters drawn
+    from letters, numbers, underscores, dashes and dots.
+
+    THIS FUNCTION NO LONGER TRUNCATES, and that is the point of it.
+
+    It used to end with `if len(result) > 35: result = result[:35]`, which is the most
+    dangerous line that can appear on a payment path: reference_id is the join key that ties a
+    WhatsApp payment to an order, and truncation maps two distinct identifiers onto one string.
+    Two orders then reconcile against a single payment, which is the one failure this domain
+    cannot recover from after the fact.
+
+    It was reachable. The legacy WD order number is 46 characters and contains spaces and
+    colons, so passing one in produced `WD-PAY-ORD<hex><date><time>IST` at exactly 35
+    characters - safe only by arithmetic accident, because the date and time are fixed-width.
+    Any other over-long input silently collided.
+
+    Over-long now raises. Callers on the payment path should mint a reference with
+    `order_keys.mint_payment_reference()` rather than deriving one from a display string.
+
     Examples:
-    - "WD-PAY-ABC12345" -> "WD-PAY-ABC12345" (keep as-is)
-    - "WD_ABC12345" -> "WD-PAY-ABC12345" (upgrade old format)
-    - "WDABC12345" -> "WD-PAY-ABC12345" (upgrade old format)
-    - "WD-PAY-WD-PAY-ABC" -> "WD-PAY-ABC" (remove duplicate prefix)
-    - "" -> "WD-PAY-XXXXXXXX" (auto-generated)
+    - "WD-PAY-ABC12345"       -> "WD-PAY-ABC12345"   (unchanged)
+    - "WD_ABC12345"           -> "WD-PAY-ABC12345"   (legacy shape upgraded)
+    - "WD-PAY-WD-PAY-ABC"     -> "WD-PAY-ABC"        (duplicate prefix removed)
+    - ""                      -> "WD-PAY-XXXXXXXX"   (minted)
+    - 40 characters of input  -> raises ReferenceIdTooLong
     """
     import re
-    
+
     if not reference_id or not reference_id.strip():
-        # Generate unique reference if empty
-        unique_id = str(uuid.uuid4()).replace('-', '')[:8].upper()
-        return f"WD-PAY-{unique_id}"
-    
+        # CSPRNG, not a sliced uuid4 hex: this value is a payment join key, and a SnapStart
+        # snapshot would freeze a seeded PRNG across every restored sandbox.
+        return f"WD-PAY-{secrets.token_hex(4).upper()}"
+
+    # An order number is not a payment reference, and must never be turned into one (R2.9).
+    #
+    # Refused rather than converted, because the conversion looked safe by coincidence. The
+    # legacy WD number is 47 characters, and stripping its spaces, dashes and colons produced
+    # `WD-PAY-ORD<8hex><8date><6time>IST` at exactly 35 - passing the length check only because
+    # the date and time are fixed width. Change the format by one character and it silently
+    # truncated instead.
+    if order_keys.is_wd_order_number(reference_id):
+        raise ReferenceIdTooLong(
+            'an order number must not be used as a reference_id: the two identifiers have '
+            'different consumers and different lifetimes, and an order does not exist until '
+            'payment is verified. Mint one with order_keys.mint_payment_reference()'
+        )
+
     stripped = reference_id.strip().upper()
-    
+
     # Remove duplicate WD-PAY- prefixes
     while 'WD-PAY-WD-PAY-' in stripped:
         stripped = stripped.replace('WD-PAY-WD-PAY-', 'WD-PAY-')
-    
+
     # Already in new format
     if stripped.startswith('WD-PAY-'):
-        result = stripped
-    elif stripped.startswith('WD-ORD-'):
-        # Order prefix — leave as-is
         result = stripped
     else:
         # Old format: strip old WD prefix and non-alnum, then add WD-PAY-
@@ -2823,14 +2861,18 @@ def _sanitize_reference_id(reference_id: str) -> str:
         while cleaned.startswith('WD'):
             cleaned = cleaned[2:]
         if not cleaned:
-            unique_id = str(uuid.uuid4()).replace('-', '')[:8].upper()
-            cleaned = unique_id
+            cleaned = secrets.token_hex(4).upper()
         result = f"WD-PAY-{cleaned}"
-    
-    # Truncate to max 35 chars (UPI limit)
-    if len(result) > 35:
-        result = result[:35]
-    
+
+    if len(result) > REFERENCE_ID_MAX_LENGTH:
+        # Fail the send. Do not shorten: two truncated references are indistinguishable, and
+        # the customer would pay against an order this payment is not joined to.
+        raise ReferenceIdTooLong(
+            f'reference_id is {len(result)} characters, over Meta\'s '
+            f'{REFERENCE_ID_MAX_LENGTH}-character limit, and must not be truncated because it '
+            'is the payment join key; mint one with order_keys.mint_payment_reference()'
+        )
+
     return result
 
 

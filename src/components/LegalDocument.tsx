@@ -223,7 +223,14 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, notice 
         /* display:block puts the tag on its own line so the summary text stays a clean
            rectangle - inline, the first line was indented by the tag width and the
            result read as a hanging indent rather than a label. */
-        .lgd-short-tag{display:block;margin-bottom:3px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.42)}
+        /* rgba(0,0,0,.54), not .42. All three of these carry real content - a clause number
+           and a section tag - and .42 composites to rgb(148,148,148) over white, measuring
+           3.04:1 where 4.5:1 is required for normal text. .54 measures 4.59:1 and is the
+           value the design contract already names as the palette's muted level, so this is
+           a correction onto an existing token rather than a new one. Lighthouse's axe pass
+           flagged four instances on /terms/; the focus-ring sweep never looked at these
+           because they are neither indicators nor named labels. */
+        .lgd-short-tag{display:block;margin-bottom:3px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.54)}
 
         .lgd-toc{margin:0 0 48px;padding:22px 24px;border:1px solid #e5e7eb;border-radius:14px}
         .lgd-toc-title{margin:0 0 14px;font-size:14px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:rgba(0,0,0,.54)}
@@ -259,7 +266,7 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, notice 
            Do not re-merge these selectors. */
         .lgd-toc-link:hover{background:rgba(209,244,112,.22)}
         .lgd-toc-link:focus-visible{background:rgba(209,244,112,.22);outline:3px solid #1a3a2a;outline-offset:1px}
-        .lgd-toc-num{flex:0 0 auto;min-width:22px;font-weight:600;color:rgba(0,0,0,.42)}
+        .lgd-toc-num{flex:0 0 auto;min-width:22px;font-weight:600;color:rgba(0,0,0,.54)}
 
         /* scroll-margin-top clears the fixed 108px header. Without it, following a
            contents link puts the heading underneath the header and the reader lands
@@ -273,7 +280,7 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, notice 
         .lgd-h3{margin:0 0 10px;font-size:19px;font-weight:700;line-height:1.3;letter-spacing:-.3px;color:rgba(0,0,0,.95)}
         /* The clause number sits in the left margin on a wide screen so headings align
            on their text rather than stepping right as numbers get wider. */
-        .lgd-num{display:inline-block;min-width:44px;color:rgba(0,0,0,.42);font-weight:600}
+        .lgd-num{display:inline-block;min-width:44px;color:rgba(0,0,0,.54);font-weight:600}
 
         .lgd-p{margin:0 0 12px;font-size:17px;font-weight:400;line-height:1.65;letter-spacing:-.05px;color:rgba(0,0,0,.898)}
         .lgd-p:last-child{margin-bottom:0}

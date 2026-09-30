@@ -789,13 +789,123 @@ describe( 'Blog pills sit on the home page design language', () => {
     const { container } = render( <BlogPostPage post={ samplePost } /> );
     const css = cssOf( container );
 
-    // 1px because a tag is a plain span with no hover - the static half of the weight rule.
+    // 2px, NOT 1px, and the two halves of that rule are the history of this pill. The hairline
+    // weight carries meaning: 2px hoverable, 1px static. These began as spans and were correctly
+    // 1px, because nothing happened when you moused over them. They are links now - each one
+    // navigates to /blog/?q=<tag> - so they are hoverable controls and take the 2px edge that
+    // .pill, .pp-pill and .category-switch carry.
     // #fff rather than #f3f4f6: the palette's grey is #e5e7eb, and this repo has already
     // retired #4b5563 and #9ca3af from that same Tailwind family.
-    expect( css ).toContain( '.tags span{font-size:14px;font-weight:400;letter-spacing:-.125px;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:7px 14px;color:rgba(0,0,0,.54)}' );
     // Weight 400, not 600: these are metadata, so they take the contract's label spec rather
     // than BrandBadge's identity weight.
-    expect( declarationsOnly( styleBlockWith( container, '.tags span' ) ) ).not.toContain( '#f3f4f6' );
+    // :global() because they are next/link - styled-jsx does not scope a composite component.
+    expect( css ).toContain( 'background:#fff;border:2px solid #e5e7eb;border-radius:999px;' );
+    expect( declarationsOnly( styleBlockWith( container, '.tags :global(a)' ) ) ).not.toContain( '#f3f4f6' );
+  } );
+
+  it( 'keeps the tag row on one line and lets it scroll instead of wrapping', () => {
+    const { container } = render( <BlogPostPage post={ samplePost } /> );
+    const css = cssOf( container );
+
+    // THE DEFECT: flex-wrap:wrap. Six tags on a phone grew the row to three lines and pushed
+    // the footer down, and on a landscape phone it wrapped while the width sat there unused.
+    // nowrap + overflow-x:auto is what .category-switch on /blog/ already does, so this is the
+    // site's existing answer to the same problem rather than a new one.
+    expect( css ).toContain( 'display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;' );
+    expect( declarationsOnly( styleBlockWith( container, '.tags{' ) ) ).not.toContain( 'flex-wrap:wrap' );
+
+    // padding-bottom is for the FOCUS RING, not for looks: a scroll container clips its
+    // children, and these carry a 3px outline at 2px offset. Without the room the ring on a
+    // focused tag is sliced off at the container edge.
+    expect( css ).toContain( 'padding:26px 0 6px' );
+
+    // DIRECTION IS NOT HARD-CODED. overflow-x on a flex row follows the document dir, so the
+    // row starts at the right and scrolls leftward under the RTL languages SupportWidget
+    // switches to. A direction or margin-left declaration here would break that.
+    const tagBlock = declarationsOnly( styleBlockWith( container, '.tags{' ) );
+    expect( tagBlock ).not.toContain( 'direction:rtl' );
+    expect( tagBlock ).not.toContain( 'margin-left' );
+  } );
+
+  it( 'gives the tag pills the home page hover, and drops only the lift under reduced motion', () => {
+    const { container } = render( <BlogPostPage post={ samplePost } /> );
+    const css = cssOf( container );
+
+    // The same four properties .category-switch and the home closing CTA move, at the same .2s:
+    // lime border, the .22 state tint, a 2px lift and the one shadow this language uses. The
+    // label also darkens from the muted rgba(0,0,0,.54) to solid #1a3a2a at 12.48:1, because a
+    // control being pointed at should read as active rather than as quiet metadata.
+    expect( css ).toContain( 'border-color:#d1f470;background:rgba(209,244,112,.22);color:#1a3a2a;' );
+    expect( css ).toContain( 'transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12);' );
+
+    // Hover AND focus-visible share the rule, so a keyboard user gets what a mouse user gets.
+    expect( css ).toContain( '.tags :global(a:hover),.tags :global(a:focus-visible)' );
+
+    // Under reduced motion the lift goes and the feedback stays - transform is the part a
+    // reader who asked for less motion should not get; the colour change still answers.
+    expect( css ).toContain( '.tags :global(a:hover),.tags :global(a:focus-visible){transform:none;box-shadow:none}' );
+  } );
+
+  it( 'colours each tag from the contract accents, by tag name rather than by position', () => {
+    const { container } = render( <BlogPostPage post={ samplePost } /> );
+    const css = cssOf( container );
+
+    // Accent for identity, lime for interaction - the split .post-card already uses, where the
+    // inline-start border carries a hue and the hover goes lime. Colour says WHICH tag; lime
+    // says you are pointing at it.
+    expect( css ).toContain( '.tags :global(.tag-h0){border-color:#3da35a}' );
+    expect( css ).toContain( '.tags :global(.tag-h1){border-color:#2563eb}' );
+    expect( css ).toContain( '.tags :global(.tag-h2){border-color:#9849e8}' );
+    expect( css ).toContain( '.tags :global(.tag-h3){border-color:#dc2626}' );
+
+    // FOUR hues, not five. Amber #f0a818 is the one the hero pills use that is excluded here:
+    // 2.04:1 on white, the ratio the contract records as the reason it was rejected for light
+    // surfaces. The other four clear the 3:1 WCAG 1.4.11 asks of an identifying graphic.
+    expect( declarationsOnly( styleBlockWith( container, '.tag-h0' ) ) ).not.toContain( '#f0a818' );
+
+    // The dot is the hero pill's other half. The TINT is deliberately not carried over: the
+    // label is rgba(0,0,0,.54) at 4.61:1 on white, which clears 4.5:1 with almost nothing
+    // spare, and over a pale tint it drops under - these pills were on #f3f4f6 and measured
+    // 4.49:1, failing by 0.01. So the ground stays white and the hue arrives as dot + border.
+    expect( css ).toContain( 'content:\'\';flex:0 0 auto;width:7px;height:7px;border-radius:50%;' );
+    expect( css ).toContain( 'background:#fff;border:2px solid #e5e7eb;border-radius:999px;' );
+
+    // A hue per TAG, not per position. .post-card cycles by nth-child, which is right for a
+    // card in a stream; for a tag it would colour the same word differently on each post and
+    // spend the colour without buying the recognition it is for.
+    const cls = Array.from( container.querySelectorAll( '.tags a' ) ).map( a => a.getAttribute( 'class' ) || '' );
+    expect( cls.length ).toBeGreaterThan( 0 );
+    cls.forEach( c => expect( c ).toMatch( /tag-h[0-3]\b/ ) );
+
+    // AND NO NEGATIVE INDEX. The first version hashed with & 0xffffffff, which in JavaScript is
+    // a SIGNED 32-bit integer, and -5 % 4 is -1 - so tags produced class names like tag-h-1
+    // that match no rule and fell back to neutral grey. Two of three tags on one post were
+    // grey. It passed its own check because that check was written in Python, where the mask is
+    // unsigned. This assertion is the one that would have caught it.
+    cls.forEach( c => expect( c ).not.toMatch( /tag-h-/ ) );
+  } );
+
+  it( 'points each tag at the search that already uses tags, not at a route it invented', () => {
+    const { container } = render( <BlogPostPage post={ samplePost } /> );
+    // There is no /blog/tag/<x>/ route, and the destination does not need inventing:
+    // generate-blog-search-index.js records that `tags` is requested FOR SEARCH rather than for
+    // display. BlogSearch is a form with action="/blog/" method="get" and name="q", so /blog/?q=
+    // is a real target that also works with JavaScript off.
+    const hrefs = Array.from( container.querySelectorAll( '.tags a' ) ).map( a => a.getAttribute( 'href' ) );
+    expect( hrefs.length ).toBeGreaterThan( 0 );
+    // The slash is optional in this assertion ON PURPOSE. next.config.js sets trailingSlash,
+    // so the exported HTML carries /blog/?q=, but next/link under jsdom renders /blog?q= - the
+    // normalisation happens in the router, not in the component. Pinning the built form here
+    // would fail on a correct component, so the assertion covers the part that matters: it is
+    // the blog index with a q parameter, not an invented /blog/tag/ route.
+    hrefs.forEach( h => expect( h ).toMatch( /^\/blog\/?\?q=/ ) );
+    // Encoded, so a tag with a space or an ampersand does not break the query.
+    expect( hrefs.some( h => h && /%20|\+/.test( h ) ) || hrefs.every( h => !/ /.test( h || '' ) ) ).toBe( true );
+    // A landmark with a name, copying .category-switch - not a heading, which would collide with
+    // typecheck.js's assertion that every section h2 sits on the 40px/700 rung.
+    const nav = container.querySelector( 'nav.tags' );
+    expect( nav ).not.toBeNull();
+    expect( nav?.getAttribute( 'aria-label' ) ).toBe( 'Tags on this post' );
   } );
 
   it( 'gives the category badge the full lime voice, because it is identity', () => {

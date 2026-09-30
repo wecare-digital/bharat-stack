@@ -19,10 +19,18 @@ and no redirect URI has ever been exercised.
 
 Shape
 -----
+    customer.py        CUS_<ULID> identity, phone/email normalisation, checkout readiness
     provenance.py      which source may overwrite which Contact field
     oauth_pkce.py      PKCE, state, and the token lifecycle
     google_people.py   sync-token lifecycle and person -> Contact mapping
     truecaller.py      nonce issue/claim and the signed-assertion contract
+
+`customer.py` is the newest and is a different axis from the rest: the others enrich a
+`Contact` from a third party, while it defines the identity a checkout customer is keyed on.
+Contact remains the CRM record; a customer is the person who can hold a verified phone, a
+verified email and an order history. The two are related but not the same, and conflating them
+is what made phone-as-identity look reasonable - a ported number then silently moves an order
+history to whoever received it next.
 
 Every module here is pure or store-backed; none performs network I/O. The HTTP calls
 belong in the Lambda so that the decisions stay testable without credentials, which

@@ -118,6 +118,39 @@ to close unilaterally:
 **So it is an owner decision, not a bug.** If the answer is to move it, change the token in
 `src/content/` rather than the page, or the page and the products grid stop matching.
 
+**Settled further on 2026-09-29 by a tool that had no stake in it.** `tools/browser/lhcheck.js`
+runs Lighthouse's axe-core pass over every public route, and on its first run it found four
+contrast failures that five green suites and a hand-written focus-ring sweep had all walked
+past — `.msg-time`, the breadcrumb's current crumb, and `.lgd-num`/`.lgd-toc-num` on the legal
+pages. It does **not** flag the amber hero dot, and `/grahak-os/` now scores **accessibility
+100**. So the dot is confirmed decorative rather than argued to be: `aria-hidden="true"` with a
+real `.sr-only` channel list beside it. What remains is palette consistency across four files,
+which is a design call and not an accessibility one.
+
+### The logo weight is blocked by a test that exists on purpose
+
+`wecaredigital.png` is 1080×1080 and 30,226 bytes, painted into a 60px box in the header and
+44px in the footer — on **all 23 public routes**. It cannot be fixed from this repository, and
+the reason is worth naming precisely so it stops being re-proposed:
+
+- The CDN serves no derivatives. Measured: `?w=`, `?width=` and `?w=&h=&fit=` all return the
+  same object, and an `Accept: image/webp` request still returns the same 30,226-byte PNG.
+- **`src/test/BrandAssets.test.ts:126` pins `src/components/BrandLockup.tsx` to
+  `${MEDIA_BASE}/${TRANSPARENT}`**, alongside `Layout.tsx` and `FloatingAgent.tsx`. Its comment
+  says why: *"asserted so a later sweep does not 'finish the job' by replacing these too. On a
+  white page the transparent mark is right and the opaque square would render as a visible
+  white tile behind the logo."* Repointing the lockup at a repo-local copy fails that test, and
+  the test is correct to fail it.
+- `width={1080} height={1080}` are **deliberately** the intrinsic size, documented in
+  `BrandLockup.tsx`: the rendered size is 60/54/44/40px across two variants and two
+  breakpoints, and an attribute can hold one pair, so the intrinsic ratio is the only value
+  true in every slot. Do not "fix" those either — without them the browser reserves 0×0 for the
+  first element on every public page.
+
+The remedy is a resized object uploaded to `s3://wecare-digital-get/o/stream/media/m/`, which
+is the same constraint already recorded for `wd-brand-16x9.png` in `_app.tsx`. Until then this
+is a known, measured, accepted cost — not an open defect to keep rediscovering.
+
 Retired, do not reintroduce: `#2f6b52`, `#075e54`, `#f2fbf6`, `#fbfff0`,
 `#1e293b` (as the code panel body). All five are now absent from the page — the
 last holdouts were `#fbfff0` on three `:hover` rules and `#1e293b` on `.api-demo`,

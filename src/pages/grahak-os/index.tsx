@@ -973,7 +973,14 @@ response = requests.post(
              left-msg override that forced them to flex-start, so outgoing messages
              appeared on both sides of the same thread. */
           .msg p{margin:0}
-          .msg-time{font-size:12px;color:#667781;display:block;text-align:right;margin-top:3px}
+          /* #54656f, not #667781. Both are WhatsApp's own greys, and that is the point - this is
+             a simulation of their UI, so the timestamp should look like theirs. But on a lime
+             sent bubble #667781 measures 3.74:1, and at 12px that is normal text needing 4.5:1.
+             #54656f is WhatsApp's DARKER secondary grey and measures 4.87:1 on the same fill, so
+             the simulation stays authentic and the text becomes readable. Found by Lighthouse's
+             axe pass, not by the focus-ring sweep - that sweep measured indicators and specific
+             label colours, and never looked at body text inside the mockup. */
+          .msg-time{font-size:12px;color:#54656f;display:block;text-align:right;margin-top:3px}
           .typing-indicator{background:#fff;padding:10px 14px;border-radius:8px;align-self:flex-start;display:flex;gap:4px}
           .typing-indicator span{width:7px;height:7px;background:#1a3a2a;border-radius:50%;animation:bounce 1.4s infinite}
           .typing-indicator span:nth-child(2){background:#86b817;animation-delay:.2s}
