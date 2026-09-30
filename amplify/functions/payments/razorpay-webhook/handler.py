@@ -608,11 +608,14 @@ def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) 
             return False
         invoice = items[0]
 
-        # The invoice's authoritative total, in integer paise. If it is unparseable we cannot
-        # compare exactly, so we refuse rather than guess.
+        # The invoice's authoritative total, in integer paise. If it is unparseable OR carries
+        # sub-paise noise we cannot compare exactly, so we refuse rather than guess: paise() would
+        # otherwise truncate (599.999 -> 59999) and match against a rounded-down expectation.
         try:
-            expected_paise = payment_status.paise(
-                Decimal(str(invoice.get('total', 0))) * 100)
+            total_minor = Decimal(str(invoice.get('total', 0))) * 100
+            if total_minor != total_minor.to_integral_value():
+                return False
+            expected_paise = payment_status.paise(total_minor)
         except (ValueError, ArithmeticError, TypeError):
             return False
         if expected_paise <= 0:
@@ -1710,7 +1713,8 @@ def _post_payment_handler(payment_id: str, amount: float, currency: str, contact
         # the invoice id and whether an image was produced.
         logger.info(json.dumps({'event': 'invoice_image_generated', 'invoiceId': invoice_id, 'hasImage': bool(image_url), 'requestId': request_id}))
     except Exception as e:
-        logger.error(json.dumps({'event': 'invoice_image_error', 'invoiceId': invoice_id, 'error': str(e), 'requestId': request_id}))
+        # A17: type only. An image-lambda error body can echo a signed URL or request content.
+        logger.error(json.dumps({'event': 'invoice_image_error', 'invoiceId': invoice_id, 'error': type(e).__name__, 'requestId': request_id}))
 
     # ── Step 3: Generate PDF (async, internal reference only) ──
     try:
