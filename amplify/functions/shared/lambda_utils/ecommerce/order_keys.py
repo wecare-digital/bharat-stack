@@ -101,16 +101,59 @@ _REFERENCE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 _REFERENCE_ENTROPY_SYMBOLS = 14
 
 # ── public order number ────────────────────────────────────────────────────────
-#: Exactly 12 characters, uppercase, URL-safe.
-PUBLIC_ORDER_NUMBER_LENGTH = 12
+#: The customer-facing number carries a readable prefix, e.g. `WD-ORD-K4M7PQR9`.
+#:
+#: The prefix is not decoration. This string is read aloud to support, pasted into a tracking
+#: box and quoted in WhatsApp, and a bare `K4M7PQR9` is indistinguishable from a coupon, a
+#: tracking id or a payment reference. `WD-ORD-` says what it is.
+PUBLIC_ORDER_NUMBER_PREFIX = "WD-ORD-"
 
-#: Deliberately excludes 0, O, 1, I and L. This number is read aloud to support and typed into
-#: a tracking box, and those five characters are where transcription errors come from. 27
-#: symbols over 12 positions is ~57 bits, which with a conditional write is ample.
+#: Random symbols after the prefix. EIGHT, and the number was chosen by measurement.
+#:
+#: The alphabet below is 30 symbols, so with a conditional-write reservation:
+#:
+#:     6 symbols  ~29.4 bits   729,000,000   50% chance of a collision by ~33,800 orders
+#:     8 symbols  ~39.3 bits   656.1 billion 50% chance of a collision by ~1,015,000 orders
+#:    12 symbols  ~58.9 bits   5.31e17       50% chance of a collision by ~914,000,000 orders
+#:
+#: A collision is never *wrong* - `reserve_public_order_number` refuses it and regenerates - so
+#: the question is only whether the retry loop becomes the hot path, and whether the number is
+#: guessable. At six symbols a blind guess against a 100,000-order corpus hits 1 in 7,290, which
+#: is enumerable by anything that can make requests. At eight it is 1 in 6,561,000, and the retry
+#: loop stays theoretical past a million orders. Twelve was the previous value and is more than
+#: this business needs; eight keeps the number short enough to read aloud.
+#:
+#: Guessability still must not be the only thing protecting anything. A receipt is authorised by
+#: a signed link or a session, never by knowing an order number - see `receipt_links.py`.
+PUBLIC_ORDER_NUMBER_ENTROPY = 8
+
+#: Total minted length: 7 characters of prefix plus 8 of entropy.
+PUBLIC_ORDER_NUMBER_LENGTH = len(PUBLIC_ORDER_NUMBER_PREFIX) + PUBLIC_ORDER_NUMBER_ENTROPY
+
+#: THIRTY symbols, and the exclusions are the point: 0, 1, I, L, O and U are gone, because they
+#: are where transcription errors come from when a number is read down a phone line. The comment
+#: here previously said "27 symbols ... ~57 bits" and both figures were wrong - the alphabet has
+#: always been 30 characters, which over the old 12 positions was ~58.9 bits rather than 57.
 PUBLIC_ORDER_NUMBER_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ"
 
 _PUBLIC_ORDER_NUMBER_RE = re.compile(
-    r"^[%s]{%d}$" % (PUBLIC_ORDER_NUMBER_ALPHABET, PUBLIC_ORDER_NUMBER_LENGTH)
+    r"^%s[%s]{%d}$" % (re.escape(PUBLIC_ORDER_NUMBER_PREFIX),
+                       PUBLIC_ORDER_NUMBER_ALPHABET,
+                       PUBLIC_ORDER_NUMBER_ENTROPY)
+)
+
+#: The bare 12-character form minted before the prefix existed.
+#:
+#: STILL VALID FOR LOOKUP, and that is not optional. Numbers already issued are printed on
+#: receipts, sitting in customers' WhatsApp history and quoted to support. A validator that
+#: stopped recognising them would break tracking and receipt resolution for every order placed
+#: before this change, which is the one thing `never reused` was written to prevent.
+#:
+#: Nothing MINTS this form any more - `mint_public_order_number` only produces the prefixed one.
+LEGACY_PUBLIC_ORDER_NUMBER_LENGTH = 12
+
+_LEGACY_PUBLIC_ORDER_NUMBER_RE = re.compile(
+    r"^[%s]{%d}$" % (PUBLIC_ORDER_NUMBER_ALPHABET, LEGACY_PUBLIC_ORDER_NUMBER_LENGTH)
 )
 
 _DEFAULT_ATTEMPTS = 5
@@ -165,7 +208,28 @@ def assert_valid_meta_reference_id(value: Any) -> str:
 
 
 def is_public_order_number(value: Any) -> bool:
-    """True for a 12-character public order number in the unambiguous alphabet."""
+    """True for any public order number this system has ever issued.
+
+    Accepts BOTH the current `WD-ORD-XXXXXXXX` form and the bare 12-character form minted before
+    the prefix existed. Use this wherever a customer-supplied number is being resolved - tracking,
+    receipt lookup, support - because refusing a historical number would break every order placed
+    before the change.
+
+    Use `is_current_public_order_number` where the question is "did we just mint this correctly".
+    """
+    if not isinstance(value, str):
+        return False
+    return bool(_PUBLIC_ORDER_NUMBER_RE.match(value)
+                or _LEGACY_PUBLIC_ORDER_NUMBER_RE.match(value))
+
+
+def is_current_public_order_number(value: Any) -> bool:
+    """True only for the current `WD-ORD-` + 8 form.
+
+    Separate from `is_public_order_number` on purpose. A test that asserts the minter produces the
+    current format must not pass just because the legacy shape is still accepted for lookup, which
+    is exactly how a format migration quietly fails to happen.
+    """
     return isinstance(value, str) and bool(_PUBLIC_ORDER_NUMBER_RE.match(value))
 
 
@@ -208,19 +272,23 @@ def mint_payment_reference(prefix: str = REFERENCE_ID_PREFIX,
 
 
 def mint_public_order_number() -> str:
-    """Mint a candidate 12-character public order number.
+    """Mint a candidate public order number: `WD-ORD-` plus 8 CSPRNG symbols.
 
     Unordered and carrying no timestamp, unlike `orderId`. Two reasons: a time-ordered public
     number leaks order volume to anyone holding two of them, and a customer-facing number must
     not imply anything about when the business is busy. It encodes no phone number, no email
-    and no customer id - it is 12 symbols of CSPRNG output and nothing else.
+    and no customer id - the tail is 8 symbols of CSPRNG output and nothing else.
+
+    The ENTROPY is generated, the prefix is a constant. A reader should never have to wonder
+    whether `WD-ORD-` came out of the random source.
 
     A candidate is not an order number until `reserve_public_order_number` has committed it.
     """
-    return "".join(
+    tail = "".join(
         secrets.choice(PUBLIC_ORDER_NUMBER_ALPHABET)
-        for _ in range(PUBLIC_ORDER_NUMBER_LENGTH)
+        for _ in range(PUBLIC_ORDER_NUMBER_ENTROPY)
     )
+    return PUBLIC_ORDER_NUMBER_PREFIX + tail
 
 
 #: Superseded name, kept so existing callers on the send path keep working.
@@ -590,8 +658,11 @@ def reserve_order_number(table: Any,
 __all__ = [
     "META_REFERENCE_ID_MAX_LENGTH",
     "RAZORPAY_RECEIPT_MAX_LENGTH",
+    "PUBLIC_ORDER_NUMBER_PREFIX",
+    "PUBLIC_ORDER_NUMBER_ENTROPY",
     "PUBLIC_ORDER_NUMBER_LENGTH",
     "PUBLIC_ORDER_NUMBER_ALPHABET",
+    "LEGACY_PUBLIC_ORDER_NUMBER_LENGTH",
     "PAYMENT_REFERENCE_PREFIX",
     "PAYMENT_ATTEMPT_PREFIX",
     "PROVIDER_PAYMENT_PREFIX",
@@ -602,6 +673,7 @@ __all__ = [
     "is_valid_meta_reference_id",
     "assert_valid_meta_reference_id",
     "is_public_order_number",
+    "is_current_public_order_number",
     "is_wd_order_number",
     "new_payment_attempt_id",
     "new_order_id",
