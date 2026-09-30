@@ -55,10 +55,32 @@ def isolate_handler_imports():
     We also clean stale handler paths so only the current test file's path remains.
     """
     # Clear handler module cache
+    _evict_cross_file_modules()
+    yield
+    _evict_cross_file_modules()
+
+
+# The seo-tools handler directory lays its modules out as bare-name siblings on sys.path -
+# storage.py, blog_sources.py, seo_engine.py, wix.py and so on - and several test files import
+# them under those bare names (`import storage`, `import blog_sources as bs`) or force-load them
+# with importlib.util + `sys.modules[name] = mod` (see tests/test_seo_engine.py._load). Because the
+# names are bare, the FIRST file to load one wins the sys.modules slot for the whole session, and a
+# later file importing the same bare name silently gets the earlier file's object. The blog tests
+# monkeypatch `storage.table`, but `blog_sources` was compiled against a different `storage`
+# instance left behind by the seo tests, so the patch lands on the wrong object and the call
+# reaches real AWS - NoCredentialsError, 281 failures, order-dependent.
+#
+# Clearing them at both ends of every test forces each file to re-import its own consistent set.
+_SEO_TOOLS_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'operations', 'seo-tools'))
+
+
+def _evict_cross_file_modules():
     for mod_name in list(sys.modules.keys()):
         if mod_name == 'handler' or mod_name.startswith('handler.'):
             del sys.modules[mod_name]
-    yield
-    for mod_name in list(sys.modules.keys()):
-        if mod_name == 'handler' or mod_name.startswith('handler.'):
+            continue
+        mod = sys.modules.get(mod_name)
+        mod_file = getattr(mod, '__file__', None) or ''
+        if mod_file and os.path.abspath(mod_file).startswith(_SEO_TOOLS_DIR):
             del sys.modules[mod_name]
