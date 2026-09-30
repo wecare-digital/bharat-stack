@@ -54,7 +54,7 @@ const InternalChatTab = lazyTab( () => import( '../../../components/dashboard/ta
 const AppBuilderTab = lazyTab( () => import( '../../../components/dashboard/tabs/AppBuilderTab' ) );
 const SystemTab = lazyTab( () => import( '../../../components/dashboard/tabs/SystemTab' ) );
 import { AppBuilderIcon } from '../../../lib/icons';
-import { PUBLIC_ROOT } from '../../../lib/media-paths';
+import { PUBLIC_ROOT, SECURE_ROOT } from '../../../lib/media-paths';
 
 const PAYMENT_PHONE = PAYMENT_CONFIG.phoneDisplay;
 const PAYMENT_NAME = PAYMENT_CONFIG.phoneName;
@@ -704,12 +704,16 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
     { id: 'razorpay_webhook_log', label: 'Razorpay Webhook Log', category: 'Invoices & Payments', type: 'dynamodb', table: 'RazorpayWebhookLogTable', count: -1 },
     { id: 'bulk_jobs', label: 'Bulk Jobs', category: 'Bulk', type: 'dynamodb', table: 'BulkJobsTable', count: -1 },
     { id: 'bulk_recipients', label: 'Bulk Recipients', category: 'Bulk', type: 'dynamodb', table: 'BulkRecipientsTable', count: -1 },
-    // Rooted via PUBLIC_ROOT to match what the backend actually deletes: system-cleanup
-    // builds these with media_paths.public(...), which yields `o/stack/...`. These rows
-    // read `stack/...` until 2026-09-29 — one level above the data, and this list is the
-    // fallback shown when the live preview is unreachable, so there was nothing to
-    // cross-check the wrong path against.
-    { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: `${PUBLIC_ROOT}stack/invoices/`, count: -1 },
+    // Rooted to match what the backend actually deletes: system-cleanup builds these with
+    // media_paths.public(...) / .secure(...), which yield `o/stack/...` and `secure/stack/...`.
+    // These rows read `stack/...` until 2026-09-29 — one level above the data, and this list is
+    // the fallback shown when the live preview is unreachable, so there was nothing to
+    // cross-check the wrong path against. Same hazard applies to the root: a row naming the
+    // wrong root reports 0 objects, and 0 reads as "nothing to clean" rather than as an error.
+    //
+    // Invoices are SECURE_ROOT, not PUBLIC_ROOT — a rendered invoice carries the customer's
+    // name, address, amount and GST breakdown, so it moved off the unauthenticated `o/` tree.
+    { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: `${SECURE_ROOT}stack/invoices/`, count: -1 },
     { id: 's3_whatsapp_media', label: 'S3: WhatsApp Media', category: 'S3 Storage', type: 's3', prefix: `${PUBLIC_ROOT}stack/whatsapp-media/`, count: -1 },
     { id: 's3_voice_recordings', label: 'S3: Voice Recordings', category: 'S3 Storage', type: 's3', prefix: `${PUBLIC_ROOT}stack/voice/`, count: -1 },
     { id: 's3_whatsapp_voice', label: 'S3: WhatsApp Voice (TTS)', category: 'S3 Storage', type: 's3', prefix: `${PUBLIC_ROOT}stack/whatsapp-media/voice/`, count: -1 },

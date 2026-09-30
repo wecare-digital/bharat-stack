@@ -297,7 +297,10 @@ def analytics(tok: str) -> None:
 
 def google_ads(tok: str) -> None:
     head("GOOGLE ADS")
-    print(f"  customer {ADS_CUSTOMER} (836-758-9699), manager {ADS_LOGIN_CUSTOMER} (427-041-2231)")
+    print(f"  customer {ADS_CUSTOMER} (836-758-9699) - queried DIRECTLY.")
+    print(f"  manager {ADS_LOGIN_CUSTOMER} (427-041-2231) exists but is NOT used: a manager")
+    print("  account is required only to manage MULTIPLE accounts via the API, and all three")
+    print("  access paths were measured returning the same error, so it changes nothing here.")
     print("  DEVELOPER TOKENS WERE SUNSET ON 2026-09-09. They may still be sent and are ignored")
     print("  by the API servers; access levels now attach to the Google Cloud project that owns")
     print("  the credentials - for a service-account workflow, the project owning the service")
@@ -329,12 +332,24 @@ def google_ads(tok: str) -> None:
     #       needs Explorer or Basic from the Google Ads API Overview page in Cloud Console.
     #   USER_PERMISSION_DENIED                    -> access levels are fine; the principal is
     #       simply not a user on the Ads account.
+    # DIRECT, WITH NO login-customer-id. A manager account is only needed to link and manage
+    # MULTIPLE accounts through the API - Google's own policy doc says so since the developer
+    # token sunset - and this deployment reads one account. Measured 2026-09-30, all three paths
+    # return the IDENTICAL error, so the manager adds nothing here:
+    #
+    #   direct on 836-758-9699, no header   CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION
+    #   via login-customer-id 427-041-2231  CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION
+    #   direct on the manager itself        CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION
+    #
+    # That identity is itself the finding: the Cloud project's access tier is evaluated BEFORE
+    # anything account-level, so it blocks every customer equally and no header can route around
+    # it. Sending the manager id would only have made a project problem look like a linkage one.
     st, body = call(
         tok,
         f"https://googleads.googleapis.com/{version}/customers/{ADS_CUSTOMER}/googleAds:search",
         method="POST",
-        body={"query": "SELECT customer.id, customer.descriptive_name FROM customer LIMIT 1"},
-        extra={"login-customer-id": ADS_LOGIN_CUSTOMER},
+        body={"query": "SELECT customer.id, customer.descriptive_name, customer.manager, "
+                       "customer.test_account, customer.currency_code FROM customer"},
     )
     print(f"\n  query customer {ADS_CUSTOMER}: http {st}")
     codes = []
@@ -364,10 +379,14 @@ def google_ads(tok: str) -> None:
 
     if "CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION" in joined or "ACTION_NOT_PERMITTED" in joined:
         print("\n  BLOCKER = the Cloud project's API access level (Test).")
-        print("  Apply for Explorer or Basic access on the Google Ads API Overview page in")
-        print("  Cloud Console. Basic is automated and reviewed in minutes AFTER brand")
-        print("  verification. Known issue: a project on Free Trial, or with suspended or")
-        print("  disabled billing, is rejected - check billing state first.")
+        print("  Apply for EXPLORER on the Google Ads API Overview page in Cloud Console; the")
+        print("  five-step procedure and the direct link are in the summary below. Brand")
+        print("  verification gates Basic and Standard, not Explorer. Review time is not")
+        print("  stated for Explorer - the policy doc quotes a duration for Standard only")
+        print("  (10 business days) and says Google MAY upgrade Explorer automatically on")
+        print("  submission, so re-run this script rather than assuming a wait.")
+        print("  Known rejection cause worth pre-checking: a project on Free Trial, or with")
+        print("  suspended or disabled billing. Billing here is enabled and open.")
     elif "USER_PERMISSION_DENIED" in joined:
         print("\n  BLOCKER = account access. The principal is not a user on the Ads account,")
         print("  which puts Ads in the same category as Tag Manager and Analytics.")
@@ -376,10 +395,15 @@ def google_ads(tok: str) -> None:
         print("  PRODUCTION SUGGESTS the Cloud project has production access, but it does not")
         print("  prove it - the order in which the API evaluates those two failures is not")
         print("  documented, so a Test-access project with no user link could plausibly report")
-        print("  the user error first. The access level itself is NOT readable from the API:")
-        print("  serviceusage exposes the four *_access_granted metrics for this project and")
-        print("  every quotaBucket comes back empty, so the tier is visible only on the Google")
-        print("  Ads API Overview page in Cloud Console, exactly as the policy doc says.")
+        print("  the user error first. The GRANTED tier is still not readable from the API,")
+        print("  but that is a narrower statement than an earlier version of this script made.")
+        print("  serviceusage does return populated buckets for the *_access_level_operations")
+        print("  limits - they are the tier DEFINITIONS, present whichever tier you hold, so")
+        print("  they cannot tell you which one is active. What they do reveal is structural:")
+        print("  there is no `test_access_level_operations` production metric at all, only the")
+        print("  `_test` variant, so Test tier has no production allowance to spend. The active")
+        print("  tier itself is visible only on the Google Ads API Overview page in Cloud")
+        print("  Console - and NOT in the Ads UI API Center, which now says so itself.")
         print("\n  TWO THINGS PRE-CHECKED so an application does not bounce:")
         print("  - Billing: enabled, account 016A1E-FB34AB-ABFE41, open, INR, not a")
         print("    sub-account. That rules out the doc's 'suspended or disabled billing'")
@@ -419,11 +443,89 @@ def main() -> int:
             print("                 CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION. That second error")
             print("                 PROVES what could only be guessed before: the Cloud project")
             print("                 sits on Test access, which cannot call a production account.")
-            print("                 Cloud Console > Google Ads API Overview > apply for Explorer")
-            print("                 or Basic. Basic is automated and reviewed in minutes after")
-            print("                 brand verification. Needs Owner/Editor/Quota Admin, which")
-            print("                 wecare.digital.bw@gmail.com has and this service account")
-            print("                 does not - so it is a browser action.")
+            print("                 USE THE EXISTING PROJECT: wecaredigitalbw (756034744787),")
+            print("                 and do not create a new one. For a service-account workflow")
+            print("                 the governing project is the one that OWNS the service")
+            print("                 account, and that is wecaredigitalbw; measured, not assumed.")
+            print("                 It carries the OAuth brand 'WECARE.DIGITAL' and sits under")
+            print("                 organization 470921486845.")
+            print("                 It is now the ONLY project in the account. A second one,")
+            print("                 gmp-demo-project-567757500 'Maps Platform Demo Project',")
+            print("                 was deleted on 2026-09-30 on owner instruction - it was")
+            print("                 auto-created 2026-09-22, had billing disabled, held one")
+            print("                 demo API key and no service accounts, and sat OUTSIDE the")
+            print("                 organization. Recoverable until roughly 2026-10-30 with")
+            print("                 `gcloud projects undelete gmp-demo-project-567757500`.")
+            print("")
+            print("                 APPLY FOR EXPLORER, NOT BASIC, AS THE FIRST STEP. The tier")
+            print("                 quotas below are read live off this project from")
+            print("                 serviceusage consumerQuotaMetrics, not from the doc:")
+            print("                                      production        test accounts")
+            print("                     test             (no such metric)   15,000 /day  <- now")
+            print("                     explorer          2,880 /day        15,000 /day")
+            print("                     basic            15,000 /day        15,000 /day")
+            print("                     standard          unlimited          unlimited")
+            print("")
+            print("                 THE SHAPE OF THAT TABLE IS THE DIAGNOSIS. Every tier has a")
+            print("                 *_operations_test metric, but `test_access_level_operations`")
+            print("                 - the PRODUCTION variant - does not exist at all, while the")
+            print("                 explorer/basic/standard ones do. Test tier therefore has no")
+            print("                 production allowance to spend rather than a small one, which")
+            print("                 is exactly what CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION")
+            print("                 reports. Corrects an earlier note here that said test access")
+            print("                 grants 'none': it grants 15,000/day, against TEST accounts.")
+            print("")
+            print("                 2,880/day is ample for reading reports, and the policy doc")
+            print("                 requires brand verification for BASIC and STANDARD - not")
+            print("                 Explorer. That matters here because this project's OAuth")
+            print("                 brand is orgInternalOnly=True, i.e. an Internal consent")
+            print("                 screen, which is not the thing a public brand verification")
+            print("                 applies to. Explorer sidesteps the question entirely.")
+            print("")
+            print("                 Explorer withholds account creation, user management, the")
+            print("                 KeywordPlan/ReachPlan/AudienceInsights planning services and")
+            print("                 the billing services. This script only reads customers and")
+            print("                 runs GoogleAdsService.Search, so none of that binds.")
+            print("")
+            print("                 DO NOT GO TO THE ADS UI. The Google Ads API Center page under")
+            print("                 Ads > Tools > API Center now carries a banner saying access")
+            print("                 levels are managed exclusively in the Cloud console, that the")
+            print("                 levels it shows may be inaccurate, and that they cannot be")
+            print("                 upgraded from that page. Confirmed by the owner on screen")
+            print("                 2026-09-30. It is a read-only relic; the control moved.")
+            print("")
+            print("                 THE EXACT PROCEDURE, from the access-levels policy doc:")
+            print("                   1. open the link below (project pre-selected)")
+            print("                   2. check the page reports current access level = Test")
+            print("                   3. expand 'Upgrade access level'")
+            print("                   4. check 'Next access level' reads Explorer")
+            print("                   5. click 'Apply for access'")
+            print("                 Google may upgrade the project automatically on submission,")
+            print("                 so re-run this script straight afterwards rather than waiting")
+            print("                 for a mail.")
+            print("")
+            print("                 DIRECT LINK (project pre-selected):")
+            print("                   https://console.cloud.google.com/apis/api/"
+                  "googleads.googleapis.com/overview?project=wecaredigitalbw")
+            print("")
+            print("                 THE QUOTA ROUTE DOES NOT WORK - tried, so nobody repeats it.")
+            print("                 Access levels ARE modelled as quota, and serviceusage will")
+            print("                 happily accept a consumerOverride: POSTing overrideValue")
+            print("                 2880 to the explorer_access_level_operations limit as the")
+            print("                 project OWNER returned http 200 and a real operation, and")
+            print("                 the override appeared. Ads then returned the SAME")
+            print("                 CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION. An override caps")
+            print("                 a limit you already hold; it cannot grant the tier. The")
+            print("                 override was deleted afterwards - a stray quota override on")
+            print("                 a production project is debris someone later has to explain.")
+            print("                 Needs Owner/Editor/Quota Admin: wecare.digital.bw@gmail.com")
+            print("                 holds roles/owner, this service account does not - so it is")
+            print("                 a browser action. Billing is already enabled and open, which")
+            print("                 rules out the doc's suspended-billing rejection.")
+            print("                 The manager account is NOT part of this: direct access,")
+            print("                 the manager header and the manager itself all return the")
+            print("                 same project-level error, because the tier is checked")
+            print("                 before anything account-level.")
         elif product == "Tag Manager":
             print("    Tag Manager  Admin > Account > User Management > + , account + container")
             print("                 Read. Or accounts.user_permissions.create called by an")

@@ -126,6 +126,108 @@ RETIRED = {
     # fall through to the catch-all would serve 404.html at HTTP 200 instead, which is the
     # failure mode this whole script exists to avoid.
     "/my-order": "/orders/",
+    # ── URLs WITH PROVEN SEARCH EQUITY ON THE OLD www SITE ──────────────────────
+    #
+    # These are not guesses. Search Console's `https://www.wecare.digital/` property holds
+    # 480 days of history that the apex property does not - 313 clicks and 7,411 impressions -
+    # because the site moved from the www Wix site to this apex export and Google's index still
+    # points at the old map. Measured 2026-09-30 via searchAnalytics, and every number below is
+    # that property's own figure for the URL.
+    #
+    # WHAT MADE THIS INVISIBLE: the apex property reports ZERO impressions, so every earlier
+    # reading here concluded the site had no search presence at all. It has presence; it is
+    # filed under the other host, against URLs that no longer exist.
+    #
+    # /swdhya CONTRADICTS A COMMENT IN THIS REPOSITORY, which is why it leads.
+    # src/content/products.ts said of the Swdhya -> Open Possibility -> Anew renames: "Neither
+    # earlier address was ever published - this page exists only on an unmerged branch - so
+    # there is no external link or search equity to keep and no redirect to write. If this page
+    # HAD shipped, /swdhya/ and /open-possibility/ would both need 301s." It shipped:
+    # 531 impressions, 3 clicks, average position 6.0. So by that comment's own test the
+    # redirect is owed, and the comment has been corrected to say so.
+    "/swdhya": "/anew/",              # 531 impressions, pos 6.0
+    # Same rename chain. No impressions measured for this one, but it is the same page under
+    # its second name and the rule costs nothing - and the premise that neither name shipped
+    # has now been shown false once already.
+    "/open-possibility": "/anew/",
+    # 127 impressions, pos 4.4. The FAQ page was deleted on owner instruction; /contact/ is
+    # where the self-service routes now live, so it is the honest destination for someone who
+    # arrived looking for answers.
+    "/faq": "/contact/",
+    # ── SECOND PASS, 2026-09-30: ten more, and a MEASUREMENT LESSON ─────────────
+    #
+    # The entries above came from one reading of the www property. A second reading found ten
+    # more URLs with equity, and the reason the first pass missed them is worth writing down
+    # because it will recur: the first query used a 90-DAY window. On a site that migrated
+    # hosts months ago, a recent window measures the post-migration COLLAPSE, not the equity
+    # at stake. Over 90 days the www property reports 412 impressions; over its full 480 days
+    # it reports 17,115 across 156 URLs - a 40x difference, all of it equity that still exists
+    # in Google's index and still points at URLs that now 404.
+    #
+    # So: when sizing a migration loss, always query the maximum window Search Console
+    # retains. A short window on a migrated property systematically under-reports the damage,
+    # and it under-reported it here by enough to change which URLs looked worth a rule.
+    #
+    # Every figure below is that property's own, measured over 2025-06-07 .. 2026-09-28, and
+    # every destination was confirmed to answer 200 before being written here. A redirect to a
+    # 404 is worse than no redirect: it converts a clean drop into a soft-404 signal.
+    "/no-fault": "/clear-closure/",          # 497 impr, pos 4.5 - online dispute resolution
+    "/legal-stuff": "/terms/",               # 379 impr, pos 6.3
+    "/expoweek": "/expo-week/",              # 292 impr, pos 5.7 - same page, hyphen added
+    "/legal-stuffs": "/terms/",              # 239 impr, pos 5.4 - the plural also ranked
+    "/ritual-store": "/ritual-guru/",        # 226 impr, pos 12.9 - temple-grade puja kits
+    "/swdhya-store": "/anew/",               # 212 impr, pos 6.9 - same rename chain as /swdhya
+    "/request-tracking": "/orders/",         # 201 impr, pos 8.1 - order/request status
+    "/rx-slot": "/bharat-rx/",               # 188 impr, pos 6.5 - consults and appointments
+    "/bring-friends": "/refer-and-earn/",    # 132 impr, pos 10.4 - the referral programme
+    "/home": "/",                            # 8 impr - Wix's index alias
+    #
+    # DELIBERATELY NOT REDIRECTED, despite carrying more equity than several entries above.
+    # Each one has real impressions and NO honest destination on the current site, and an
+    # irrelevant redirect is read as a soft 404 - so it damages the target page rather than
+    # rescuing the source. Left to 404 so Google drops them cleanly. Listed rather than
+    # omitted, so nobody has to re-measure to discover they were considered:
+    #
+    #     /bnb                    872 impr, pos 6.2    no equivalent service
+    #     /bnb-club               622 impr, pos 7.2    no equivalent service
+    #     /careers-plus-culture   569 impr, pos 19.1   no careers page exists
+    #     /partner-up             413 impr, pos 6.6    "Partner Up" is named in terms.ts s6.3
+    #                                                  but has no public page; /refer-and-earn/
+    #                                                  is a CUSTOMER referral, not a B2B
+    #                                                  partner programme, so it is the wrong
+    #                                                  destination rather than an approximate
+    #                                                  one
+    #     /one                    342 impr, pos 6.5    unidentified
+    #     /legal-champ            301 impr, pos 5.2    a legal SERVICE, not the terms page;
+    #                                                  /clear-closure/ is dispute resolution
+    #                                                  specifically, which may or may not be
+    #                                                  what this was
+    #     /gift-card              221 impr, pos 9.1    gift cards survive only as terms s21,
+    #                                                  not as a purchasable page
+    #
+    # These need an owner decision, not a guess. If any of those services still exists under a
+    # new name, add the rule; the equity is there to reclaim.
+    #
+    # /_functions/llms (337), /_functions-dev/llms (337), /_functions/aiindex (254),
+    # /_functions/smextra (170), /_functions/smtxt (159) are Wix BACKEND function endpoints,
+    # 1,257 impressions between them. They are not pages and were never meant to rank. The
+    # apex equivalent of the first two is /llms.txt, which is a file rather than a route; a
+    # rule for them belongs with the AI-surface work, not here, and is left out on purpose so
+    # it gets decided rather than absorbed.
+    # /product-page is NOT in this dict - it needs a wildcard, so it is in RETIRED_TREES below.
+    # It WAS here briefly and that was measurably not enough: RETIRED emits only the exact path
+    # and its slash form, so the rule fixed /product-page and /product-page/ while
+    # /product-page/partner - the one actually carrying 665 impressions - kept 404ing.
+    #
+    # NOT ADDED, because the destination is a guess and a 301 to the wrong page is worse for a
+    # reader than a 404:
+    #   /bnb-club   644 impressions, pos 7.4 - appears NOWHERE in this repository. Unknown
+    #               what the page was, so there is no defensible target. Needs the owner.
+    #   /rx-slot    188 impressions, pos 6.5 - probably /bharat-rx/ (consults, appointments,
+    #               reminders), and `rx-slots` survives as an authenticated workspace feature
+    #               at /workspace/engage/rx-slots. Probably is not good enough to point 188
+    #               impressions at. Needs confirming.
+
     # /llm IS DELIBERATELY ABSENT, AND THIS ENTRY IS NOT COMING BACK.
     #
     # It was `"/llm": "/llms.txt"` from its retirement on 2026-09-30 until the owner removed
@@ -168,6 +270,31 @@ RETIRED = {
     # The only way to drop the hop is turning trailingSlash off, which rewrites all 1,353
     # canonicals, the sitemap and every internal link to remove one redirect from a dead path.
     # Do not do that.
+}
+
+# Retired SUBTREES: an old path whose every descendant collapses to ONE destination.
+#
+# Distinct from RENAMED_PREFIXES below, which maps a tree onto a matching tree and PRESERVES the
+# tail (`/dm/<*>` -> `/workspace/engage/<*>`). Here the tail is discarded, because the
+# destination is a single page - there is no `/contact/partner` to land on.
+#
+# WHY THIS NEEDED ITS OWN SHAPE rather than one more RETIRED entry: RETIRED emits the exact path
+# and its slash form and nothing else. `"/product-page": "/contact/"` was tried there first and
+# measured afterwards - /product-page and /product-page/ started working while
+# /product-page/partner, the URL actually carrying the impressions, was still 404. The wildcard
+# IS the requirement, so encoding it in the data beats a comment asking the next person to
+# remember.
+RETIRED_TREES = {
+    # Wix product URLs from the old www site. src/content/wix-catalog.json still shows the
+    # shape - xout.wecare.digital/product-page/<slug> - and /product-page/partner alone carries
+    # 665 impressions at position 7.0 on the www Search Console property.
+    #
+    # tools/browser/seocheck.js already names /contact/ as the intended target and records that
+    # the 301 was "expected at the CDN (Amplify Console)" and "is not visible to this harness".
+    # It was never actually configured, which is exactly the kind of gap a harness that cannot
+    # see the CDN will not catch - so these URLs 404ed for as long as anyone had been assuming
+    # they redirected.
+    "/product-page": "/contact/",
 }
 
 # Prefix renames: old top-level segment -> new one. `/dm` became `/workspace/engage` on
@@ -303,6 +430,14 @@ def desired_redirects() -> list[dict]:
     for source, target in RETIRED.items():
         rules.append({"source": source, "target": target, "status": "301"})
         rules.append({"source": source + "/", "target": target, "status": "301"})
+
+    # Retired subtrees. The `<*>` form goes AFTER the two exact forms, for the same reason the
+    # prefix renames order theirs that way: a wildcard placed before a specific rule matches
+    # first and the specific rule becomes unreachable.
+    for source, target in RETIRED_TREES.items():
+        rules.append({"source": source, "target": target, "status": "301"})
+        rules.append({"source": source + "/", "target": target, "status": "301"})
+        rules.append({"source": f"{source}/<*>", "target": target, "status": "301"})
 
     # Prefix renames. Ordering inside this list is load-bearing: the one-hop rules for
     # specific retired routes must precede the `<*>` wildcard, or the wildcard matches

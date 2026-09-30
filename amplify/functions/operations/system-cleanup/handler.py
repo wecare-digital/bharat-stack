@@ -198,8 +198,12 @@ CLEANUP_RESOURCES = {
     's3_invoices': {
         'label': 'S3: Invoice Files',
         'category': 'S3 Storage',
+        # `secure`, matching where invoice-engine and inbound-whatsapp-handler now write. A
+        # rendered invoice carries customer PII, so it moved off the unauthenticated `o/` root.
+        # This entry has to move with it or cleanup silently sweeps an empty prefix and the real
+        # objects accumulate forever — a counter reading zero looks like success.
         'type': 's3',
-        'prefix': media_paths.public('stack/invoices/'),
+        'prefix': media_paths.secure('stack/invoices/'),
     },
     's3_whatsapp_media': {
         'label': 'S3: WhatsApp Media',

@@ -2,9 +2,18 @@
 
 The exposure this addresses
 --------------------------
-`payments/invoice-engine` writes receipts under `media_paths.public('stack/invoices/')` and hands
-back `https://{CDN_DOMAIN}/{s3_key}`. That prefix is served by CloudFront **without
-authentication**, so every receipt ever generated is fetchable forever by anyone holding its URL.
+**Closed 2026-09-30.** `payments/invoice-engine` used to write receipts under
+`media_paths.public('stack/invoices/')` and hand back `https://{CDN_DOMAIN}/{s3_key}`. That prefix
+is served by CloudFront **without authentication**, so every receipt ever generated was fetchable
+forever by anyone holding its URL. It now writes under `media_paths.secure(...)` and returns a
+presigned URL from `signed_url` below; `inbound-whatsapp-handler`, `system-cleanup` and the
+dashboard's cleanup-prefix mirror moved in the same change, because two writers and a sweeper that
+disagree about the root are worse than one that is wrong consistently.
+
+The description below is kept in the past tense rather than deleted: it is the reasoning that
+decided the urgency, and it is what makes the ordering defensible — the move happened while
+`o/stack/invoices/` held **0 objects** and `InvoicesTable` held **0 rows**, so there was nothing
+to migrate and no already-sent URL to strand.
 
 The exposure is bounded rather than absent, and the bound is worth stating precisely because it
 decides how urgent this is. The key is `wecare-digital-{reference_id}.{png,pdf}`, and a reference

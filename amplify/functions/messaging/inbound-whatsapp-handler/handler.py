@@ -6156,13 +6156,22 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
 
         png_bytes = _render_text_to_png(lines, scale=3, logo_pixels=logo_pixels, logo_w=logo_w, logo_h=logo_h)
 
-        s3_key = media_paths.public(f'stack/invoices/wecare-digital-{inv_ref}.png')
+        # Gated, not public, and it must stay in step with `invoice-engine.INVOICE_PREFIX` —
+        # these are TWO writers to one prefix, and a disagreement between them means an invoice
+        # rendered on this path is readable by URL while one rendered on the other is not.
+        #
+        # A rendered invoice carries the customer's name, address, amount and GST breakdown, and
+        # `o/` is served by CloudFront with no authentication. Delivery does not need a public
+        # URL: the bytes are read from S3 and uploaded to Meta, so Meta never fetches by URL.
+        s3_key = media_paths.secure(f'stack/invoices/wecare-digital-{inv_ref}.png')
         s3.put_object(
             Bucket=MEDIA_BUCKET,
             Key=s3_key,
             Body=png_bytes,
             ContentType='image/png',
-            CacheControl='public, max-age=31536000',
+            # `private`, not `public`: the year-long public directive was harmless only because
+            # nothing revalidates, and it contradicted the object's actual reachability.
+            CacheControl='private, max-age=31536000',
         )
 
         logger.info(json.dumps({

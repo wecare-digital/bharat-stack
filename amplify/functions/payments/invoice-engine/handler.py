@@ -15,7 +15,10 @@ DynamoDB Tables:
 - stack-wecare-digital-InvoiceDeliveryLogTable
 
 S3 Bucket: wecare-digital-get  (was app.wecare.digital until it was deleted 2026-09-28)
-Prefix: stack/invoices/
+Prefix: secure/stack/invoices/  (GATED - moved off the public `o/` root 2026-09-30, because a
+        rendered invoice carries the customer's name, address, amount and GST breakdown.
+        Rendered invoices are handed out as short-lived presigned URLs; WhatsApp delivery does
+        not use a URL at all, it uploads the bytes to Meta.)
 """
 
 import os
@@ -57,10 +60,23 @@ PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'stack-wecare-digital-Payments
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
-# Every key in this handler is rooted in the public tree. See lambda_utils/media_paths:
-# the merge moved `<X>` to `o/<X>`, so an un-rooted key here read one level above the
-# data and returned NoSuchKey — which is exactly what happened to the logo and the font.
-INVOICE_PREFIX = media_paths.public('stack/invoices/')
+# Keys in this handler are rooted, never bare. See lambda_utils/media_paths: the merge moved
+# `<X>` to `o/<X>`, so an un-rooted key read one level above the data and returned NoSuchKey —
+# which is exactly what happened to the logo and the font. Those shared assets stay PUBLIC and
+# are still composed with `media_paths.public` at their call sites.
+#
+# The invoice output does not. A rendered invoice carries the customer's name, address, the
+# amount and the GST breakdown, and `o/` is served by CloudFront with no authentication — so a
+# public key here is an unlisted-but-public disclosure: safe from enumeration, not safe once a
+# URL leaks. It moved to the gated root, and the timing is the reason it was cheap: measured at
+# the time of the change, `o/stack/invoices/` held **0 objects** and `InvoicesTable` held **0
+# rows**, so there was nothing to migrate. Once an invoice URL has been sent, it cannot be
+# retracted — the same argument media_paths records for the 61 approved WhatsApp template URLs.
+#
+# Delivery is unaffected: `send_invoice_whatsapp` passes `mediaFile: s3_key` to
+# outbound-whatsapp, which reads the object and uploads the bytes to Meta. Meta never fetches
+# an invoice by URL, so the gated prefix costs nothing on the path that matters.
+INVOICE_PREFIX = media_paths.secure('stack/invoices/')
 CDN_DOMAIN = os.environ.get('CDN_DOMAIN', media_paths.CDN_DOMAIN)
 
 # Module-level origin for CORS (set per-invocation in handler)
@@ -1074,22 +1090,57 @@ def generate_invoice_image(invoice_id: str, request_id: str) -> Dict:
         CacheControl='max-age=86400',
     )
 
-    image_url = f"https://{CDN_DOMAIN}/{s3_key}"
+    # Signed and expiring, not `https://{CDN_DOMAIN}/{s3_key}`. The key is now under the gated
+    # root, so a CDN URL would be a dead link rather than a disclosure — but a dead link is its
+    # own bug, and the correct answer is the one that works AND expires.
+    image_url = _signed_invoice_url(s3_key, invoice_id, request_id)
 
-    # Store asset record
+    # Store asset record.
+    #
+    # `s3Key` is the source of truth and `url` is deliberately NOT stored. A presigned URL
+    # expires, so persisting one produces a record that is correct when written and quietly
+    # broken later — and `send_invoice_whatsapp` reads this row on its second call, so it would
+    # have handed out an expired link. The key is permanent; the URL is minted per response.
     assets_table = dynamodb.Table(INVOICE_ASSETS_TABLE)
     assets_table.put_item(Item={
         'invoiceId': invoice_id,
         'assetType': 'image',
         's3Key': s3_key,
-        'url': image_url,
         'contentType': 'image/png',
         'version': int(time.time()),
         'generatedAt': int(time.time()),
     })
 
-    logger.info(json.dumps({'event': 'invoice_image_generated', 'invoiceId': invoice_id, 'url': image_url, 'requestId': request_id}))
+    # The URL is a bearer grant, so the key is logged and the URL is not.
+    logger.info(json.dumps({'event': 'invoice_image_generated', 'invoiceId': invoice_id,
+                            's3Key': s3_key, 'signed': bool(image_url),
+                            'requestId': request_id}))
     return _resp(200, {'invoiceId': invoice_id, 'imageUrl': image_url, 's3Key': s3_key})
+
+
+def _signed_invoice_url(s3_key: str, invoice_id: str, request_id: str) -> str:
+    """A short-lived presigned GET for a rendered invoice, or `''`.
+
+    A presigned URL addresses S3 directly, so it works even though CloudFront denies the gated
+    root wholesale — which is what makes moving the prefix possible without losing the ability to
+    show an invoice to the staff member who asked for it.
+
+    Returns `''` rather than falling back to a CDN URL. `receipt_links` raises instead of
+    returning a public fallback for exactly this reason: an invoice that cannot be linked securely
+    is an inconvenience, and one served over a permanent public URL is a disclosure.
+    """
+    if not s3_key:
+        return ''
+    try:
+        from lambda_utils import receipt_links
+        return receipt_links.signed_url(s3, bucket=MEDIA_BUCKET, key=s3_key,
+                                        filename=f"invoice-{invoice_id}.png")
+    except Exception as error:  # noqa: BLE001
+        # Type only: a presign failure message can echo the key and the bucket.
+        logger.warning(json.dumps({'event': 'invoice_link_sign_failed',
+                                   'error': type(error).__name__,
+                                   'invoiceId': invoice_id, 'requestId': request_id}))
+        return ''
 
 
 # ─── Receipt PNG Rendering ───
@@ -1739,15 +1790,17 @@ def generate_invoice_pdf(invoice_id: str, request_id: str) -> Dict:
         CacheControl='max-age=86400',
     )
 
-    pdf_url = f"https://{CDN_DOMAIN}/{s3_key}"
+    # Signed and expiring, for the same reason as the PNG above: `s3_key` is under
+    # `INVOICE_PREFIX`, which is now the gated root, so a CDN URL would be a dead link.
+    pdf_url = _signed_invoice_url(s3_key, invoice_id, request_id)
 
-    # Store asset record
+    # Store asset record. `url` is deliberately not persisted — a presigned URL expires, and a
+    # stored one is correct when written and silently broken afterwards.
     assets_table = dynamodb.Table(INVOICE_ASSETS_TABLE)
     assets_table.put_item(Item={
         'invoiceId': invoice_id,
         'assetType': 'pdf',
         's3Key': s3_key,
-        'url': pdf_url,
         'contentType': 'application/pdf',
         'version': int(time.time()),
         'generatedAt': int(time.time()),
@@ -2532,10 +2585,17 @@ def send_invoice_whatsapp(invoice_id: str, to_phone: str, phone_number_id: str, 
         image_url = gen_body.get('imageUrl', '')
         s3_key = gen_body.get('s3Key', '')
     else:
-        image_url = asset.get('url', '')
+        # A previously rendered asset. `url` is no longer stored, because a presigned one expires
+        # and this is the read that would have served the stale copy - so the link is re-signed
+        # from the key on every send.
         s3_key = asset.get('s3Key', '')
+        image_url = _signed_invoice_url(s3_key, invoice_id, request_id)
 
-    if not image_url:
+    # Guard on `s3_key`, which is what delivery actually needs. It used to guard on `image_url`
+    # and then send `mediaFile: s3_key`, so it tested one variable and used another: a row with a
+    # URL but no key passed the check and sent a message with no media, and a row with a key but
+    # no URL was refused despite being perfectly deliverable.
+    if not s3_key:
         return _resp(500, {'error': 'No invoice image available'})
 
     # Fetch invoice for caption
@@ -2739,12 +2799,27 @@ def _normalize_item(item: Dict) -> Dict:
 
 
 def _normalize_asset(item: Dict) -> Dict:
-    """Normalize invoice asset for API response."""
+    """Normalize invoice asset for API response.
+
+    `url` is minted from `s3Key` rather than read from the row. Two reasons, and the first is
+    why this function had to change at all: the row no longer carries a `url`, so reading one
+    would return `''` for every asset — an API that silently answers "no link" rather than
+    erroring. And a stored presigned URL would be worse than absent, since it is correct when
+    written and quietly expired afterwards.
+
+    Presigning is a local signature computation, not an S3 call, so doing it per row in a list
+    response costs nothing on the wire.
+    """
+    s3_key = item.get('s3Key', '')
+    invoice_id = item.get('invoiceId', '')
     return {
-        'invoiceId': item.get('invoiceId', ''),
+        'invoiceId': invoice_id,
         'assetType': item.get('assetType', ''),
-        's3Key': item.get('s3Key', ''),
-        'url': item.get('url', ''),
+        's3Key': s3_key,
+        # Falls back to a legacy stored value only if signing yields nothing, so rows written
+        # before the gated move still render. Those legacy URLs point at the public root and
+        # will 404 there now, which is the correct failure: a dead link, not a disclosure.
+        'url': _signed_invoice_url(s3_key, invoice_id, 'normalize') or item.get('url', ''),
         'contentType': item.get('contentType', ''),
         'version': int(item.get('version', 0)),
         'generatedAt': int(item.get('generatedAt', 0)),

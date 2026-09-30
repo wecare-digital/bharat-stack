@@ -338,7 +338,7 @@ const STORAGE_PATHS: StoragePath[] = [
   { path: 'o/stack/whatsapp-media/calling-ai/', purpose: 'WhatsApp calling recordings', readBy: 'whatsapp-calling', writtenBy: 'whatsapp-calling' },
   { path: 'o/stack/whatsapp-media/template-headers/', purpose: 'Template header media', readBy: 'whatsapp-templates', writtenBy: 'whatsapp-template-management' },
   { path: 'o/stack/whatsapp-media/downloads/', purpose: 'User-initiated media downloads', readBy: 'Frontend', writtenBy: 'messages-read' },
-  { path: 'o/stack/invoices/', purpose: 'Invoice PNGs and PDFs', readBy: 'invoice-engine, Frontend', writtenBy: 'invoice-engine' },
+  { path: 'secure/stack/invoices/', purpose: 'Invoice PNGs and PDFs — gated: a rendered invoice carries the customer name, address, amount and GST breakdown, so it is served by presigned URL rather than from the unauthenticated o/ tree', readBy: 'invoice-engine (presigned), system-cleanup', writtenBy: 'invoice-engine, inbound-whatsapp-handler' },
   { path: 'o/stack/voice/', purpose: 'Voice recordings', readBy: 'voice-cdr-read', writtenBy: 'voice-in' },
   { path: 'o/stack/reports/', purpose: 'Bulk job reports and exports', readBy: 'Frontend', writtenBy: 'bulk-worker' },
   { path: 'o/stack/store/products/', purpose: 'Product images', readBy: 'catalog-management, Frontend', writtenBy: 'product-image-gen' },
@@ -376,7 +376,18 @@ const ENV_VARS: EnvVar[] = [
   { key: 'NEXT_PUBLIC_PAYMENT_PHONE_DISPLAY', value: '+91 93309 94400', sensitive: false, category: 'Payment' },
   { key: 'NEXT_PUBLIC_PAYMENT_PHONE_NAME', value: 'WECARE.DIGITAL', sensitive: false, category: 'Payment' },
   // Analytics (empty)
-  { key: 'NEXT_PUBLIC_GA_MEASUREMENT_ID', value: 'G-S3G6REP6Q7', sensitive: false, category: 'Analytics' },
+  // CORRECTED 2026-09-30. This row read `G-S3G6REP6Q7` and presented it as live config on a
+  // staff dashboard. It is not live and is not set anywhere: the Amplify branch env vars have
+  // no NEXT_PUBLIC_GA_MEASUREMENT_ID at all, and the live GTM container (GTM-TXZ8JT78, version
+  // 6, read through the Tag Manager API) serves only G-GNRPFFBXMF and AW-18396505964. Fetching
+  // the live container JS agrees - zero occurrences of G-S3G6REP6Q7.
+  //
+  // The id was real once. `_app.tsx` records a direct gtag.js snippet that fired it alongside
+  // the container, double-counting every pageview; the snippet was removed and the id went with
+  // it. This row survived and kept asserting a value the platform had stopped using, which is
+  // the specific failure this dashboard causes when it hardcodes config: a reader trusts it
+  // instead of measuring, and then looks for analytics data in a property that receives none.
+  { key: 'NEXT_PUBLIC_GA_MEASUREMENT_ID', value: '(unset — GA4 is fired by GTM-TXZ8JT78 as G-GNRPFFBXMF)', sensitive: false, category: 'Analytics', risk: 'Was listed as G-S3G6REP6Q7, which is retired and in no container' },
   { key: 'NEXT_PUBLIC_FB_APP_ID', value: '(empty — SDK still loads)', sensitive: false, category: 'Analytics', risk: 'FB SDK loads but sends no data' },
   // ⚠️ SECRETS IN SOURCE CODE (not env vars — hardcoded)
   { key: 'Razorpay MID (hardcoded)', value: 'acc_HDfub6wOfQybuH', sensitive: true, category: 'Payments — Hardcoded', risk: 'Razorpay account ID in whatsapp-business-api handler' },

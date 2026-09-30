@@ -132,14 +132,38 @@ New secrets this build needs:
 | `wecare/otp/pepper` | HMAC pepper for OTP challenges | `OtpService` |
 | `wecare/session/signing` | session and CSRF signing material | customer API functions |
 | `wecare/tracking/token-pepper` | tracking-token hashing pepper | tracking and billing readers |
-| `wecare/google-maps-server` | ✅ **exists** — server-restricted Maps key, 4 `apiTargets` | `AddressService`, and the Places proxy once repointed |
+| `wecare/google-maps-server` | ❌ **BROKEN as of 2026-09-30** — the secret still holds a key, but that key was DELETED in Google Cloud the same day, so it is expired. See the note below before relying on any of it | `AddressService`, and the Places proxy once repointed |
 | `wecare/google-maps-browser` | ⏳ restricted **browser** Maps key | frontend build injection |
 
 `wecare/google-maps-server` was minted on 2026-09-26 by
-`scripts/provision_maps_server_key.py --create` and is proven live. Do **not** extend the
-existing unified key to cover server use — it is a browser key, and Google refuses
+`scripts/provision_maps_server_key.py --create` and was proven live at the time. Do **not**
+extend the existing unified key to cover server use — it is a browser key, and Google refuses
 referrer-restricted keys for server-side calls whatever their `apiTargets` say. That was tried
 first and it does not work.
+
+> **BROKEN 2026-09-30, and the break is invisible from the secret.** The key that secret holds
+> — Google Cloud API key `WECARE Address Capture Server Key`, uid `d936bd15-...`, created
+> 2026-09-26 — was **deleted on 2026-09-30**. `gcloud services api-keys list --show-deleted`
+> shows the deletion; `scripts/check_secrets_live.py` reports the consequence:
+>
+> ```
+> wecare/google-maps-server   INVALID   REQUEST_DENIED: The provided API key is expired.
+> ```
+>
+> It is the ONLY INVALID credential in the account (VALID 7, INVALID 1, UNTESTABLE 14).
+>
+> **Why this is worth a callout rather than a line edit.** Nothing about the secret looks
+> wrong: it exists, it parses, it holds an `api_key` of the correct 39-character shape. Only a
+> live call reveals it. So the failure mode is a server-side Maps call that fails in
+> production while every piece of configuration inspects as healthy — which is precisely the
+> situation the checklist below was written to diagnose, and it would previously have sent a
+> reader to item 1 ("which key is the caller reading?") when the answer is "the right one, and
+> it is dead".
+>
+> **Re-mint with `scripts/provision_maps_server_key.py --create`.** Deliberately NOT done when
+> found: minting a provider credential is reserved to the owner, and the owner has deferred
+> all key work until project completion. Until then, treat every server-side Maps and Places
+> path as unavailable rather than merely unbuilt.
 
 ```bash
 .venv/bin/python scripts/provision_maps_server_key.py --status   # key + secret + live probe
@@ -214,9 +238,15 @@ and it masquerades as every other cause.
    ```bash
    .venv/bin/python scripts/check_secrets_live.py --only google-maps
    ```
-   Expect `wecare/google-maps-server` VALID on both probes, and `wecare/google-maps`
-   UNTESTABLE — a browser key genuinely cannot be validated from a server, which is a
-   statement about the test, not a fault in the key.
+   Expect `wecare/google-maps` UNTESTABLE — a browser key genuinely cannot be validated from a
+   server, which is a statement about the test, not a fault in the key.
+
+   `wecare/google-maps-server` **used** to be the VALID half of that pair and is not any more:
+   since 2026-09-30 it reports `INVALID — REQUEST_DENIED: The provided API key is expired`,
+   because the underlying Google Cloud key was deleted. So if you reach this step and find the
+   caller IS reading `wecare/google-maps-server`, item 1 is satisfied and the fault is further
+   down: the key itself is dead and needs re-minting. Do not read an INVALID here as "wrong
+   secret".
 2. Is `places.googleapis.com` in that key's `apiTargets`?
    `gcloud services api-keys list --format='json(displayName,restrictions)'`. Being enabled on
    the project is **not** sufficient; the key restriction is separate.
