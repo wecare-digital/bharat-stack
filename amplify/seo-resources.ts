@@ -44,6 +44,14 @@ export function addSeoResources ( stack: Stack ) {
             WIX_CLIENT_ID: '197cd718-e4ec-4e2e-b380-46c297eb18a2',
             WIX_BLOG_AUTHOR_NAME: 'Anew by WECARE.DIGITAL',
             BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-sonnet-4-6',
+            // Derived-SEO cost/AI posture. FREE + AI off is the fail-safe default the brief
+            // mandates: the deterministic engine and the scheduled freshness check need none of
+            // these to be on, and a public read path must never be one typo away from a model
+            // call. AI is gated by seo_config.ai_enabled(), which additionally requires the
+            // pre-existing ENABLE_BEDROCK_ASSIST flag, so turning either off is sufficient.
+            COST_MODE: process.env.COST_MODE || 'FREE',
+            AI_ENABLED: process.env.AI_ENABLED || 'false',
+            FAQ_AI_GENERATION: process.env.FAQ_AI_GENERATION || 'false',
         },
     } );
 

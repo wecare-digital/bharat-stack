@@ -89,6 +89,14 @@ ENV_VARS = {
     # new one. Turn it off in the SystemConfig cost_flags item without a deploy; the route
     # then answers 409 with the reason instead of silently doing nothing.
     "ENABLE_BEDROCK_ASSIST": "true",
+    # Derived-SEO cost/AI posture (seo_config.py). FREE + AI off is the fail-safe default the
+    # brief mandates: the deterministic engine and the scheduled freshness check need none of
+    # these on, and a public read path must never be one typo from a model call. seo_config
+    # additionally requires ENABLE_BEDROCK_ASSIST for AI, so either flag off is sufficient to
+    # force deterministic behaviour. Change COST_MODE/AI_ENABLED here to opt in deliberately.
+    "COST_MODE": "FREE",
+    "AI_ENABLED": "false",
+    "FAQ_AI_GENERATION": "false",
 }
 
 
@@ -500,6 +508,119 @@ def ensure_event_source(queue_arn: str) -> None:
           f"(batch={CONSUME_BATCH}, maxConcurrency={MAX_CONCURRENCY})")
 
 
+# ── Scheduled derived-SEO freshness check ────────────────────────────────────────
+#
+# A single EventBridge Scheduler schedule invokes this function once a day with the payload
+# `{"seoFreshness": true}`. The handler recognises that shape (a top-level key, no
+# requestContext) and runs `seo_freshness.run`, which reads the blog corpus and re-derives ONLY
+# the records whose sourceHash changed. Unchanged posts cost nothing, so the steady-state daily
+# run is a cached corpus read plus a handful of writes at most.
+#
+# WHY EventBridge Scheduler AND NOT a Lambda self-loop or a 1-minute rule: Scheduler has no idle
+# cost, bills per invocation at a rate that is free at one-per-day, and cannot become a tight
+# poll. Daily is the lowest reasonable frequency for a blog that publishes at most a few times a
+# day; raise it only with a reason.
+#
+# IAM: a dedicated execution role scoped to invoke EXACTLY this one function - not the shared
+# fleet role, and not a wildcard. Creating it is why this step is OPT-IN behind --with-schedule:
+# the code path works without the schedule (invoke the function with {"seoFreshness":true} by
+# hand, or wire the schedule later), so deploying code never forces an IAM role creation.
+SCHEDULE_NAME = "wecare-seo-freshness-daily"
+SCHEDULE_ROLE_NAME = "wecare-seo-scheduler-role"
+#: Once a day, early UTC. cron rather than rate() so the time of day is explicit and stable.
+SCHEDULE_EXPRESSION = "cron(15 2 * * ? *)"
+
+
+def ensure_freshness_schedule() -> None:
+    """Create/update the daily freshness schedule and its narrowly-scoped role. Idempotent.
+
+    Provisions:
+      1. An execution role assumable ONLY by scheduler.amazonaws.com, whose single inline
+         policy allows lambda:InvokeFunction on THIS function alone.
+      2. An EventBridge Scheduler schedule invoking the function daily with
+         {"seoFreshness": true}, FLEXIBLE off (exact time), retries bounded.
+    """
+    iam = boto3.client("iam")
+    scheduler = boto3.client("scheduler", region_name=REGION)
+    fn_arn = f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{FUNCTION_NAME}"
+
+    trust = {
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Principal": {"Service": "scheduler.amazonaws.com"},
+            "Action": "sts:AssumeRole",
+            #: Confused-deputy guard: only THIS account's scheduler may assume the role.
+            "Condition": {"StringEquals": {"aws:SourceAccount": ACCOUNT}},
+        }],
+    }
+    try:
+        iam.create_role(
+            RoleName=SCHEDULE_ROLE_NAME,
+            AssumeRolePolicyDocument=json.dumps(trust),
+            Description="Invoke wecare-seo-tools for the daily derived-SEO freshness check.",
+        )
+        print(f"[schedule] created role {SCHEDULE_ROLE_NAME}")
+    except iam.exceptions.EntityAlreadyExistsException:
+        iam.update_assume_role_policy(
+            RoleName=SCHEDULE_ROLE_NAME, PolicyDocument=json.dumps(trust))
+        print(f"[schedule] role {SCHEDULE_ROLE_NAME} exists — trust refreshed")
+
+    iam.put_role_policy(
+        RoleName=SCHEDULE_ROLE_NAME,
+        PolicyName="invoke-seo-tools",
+        PolicyDocument=json.dumps({
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Sid": "InvokeSeoTools",
+                "Effect": "Allow",
+                "Action": "lambda:InvokeFunction",
+                "Resource": fn_arn,
+            }],
+        }),
+    )
+    role_arn = f"arn:aws:iam::{ACCOUNT}:role/{SCHEDULE_ROLE_NAME}"
+    print(f"[schedule] scoped invoke policy on {SCHEDULE_ROLE_NAME} -> {FUNCTION_NAME} only")
+
+    target = {
+        "Arn": fn_arn,
+        "RoleArn": role_arn,
+        "Input": json.dumps({"seoFreshness": True}),
+        #: A daily maintenance sweep that fails should wait for tomorrow, not hammer retries.
+        "RetryPolicy": {"MaximumRetryAttempts": 2},
+    }
+    common = dict(
+        ScheduleExpression=SCHEDULE_EXPRESSION,
+        ScheduleExpressionTimezone="UTC",
+        FlexibleTimeWindow={"Mode": "OFF"},
+        State="ENABLED",
+        Description="Daily derived-SEO freshness check (sourceHash-gated, deterministic).",
+        Target=target,
+    )
+    #: IAM role creation is eventually consistent, and Scheduler VALIDATES the trust
+    #: relationship at create/update time - so a schedule created in the same breath as its role
+    #: fails with "must allow AWS EventBridge Scheduler to assume the role" until the role has
+    #: propagated. Retry that specific ValidationException with backoff; anything else raises.
+    def _put_schedule(op):
+        for attempt in range(6):
+            try:
+                op(Name=SCHEDULE_NAME, **common)
+                return
+            except scheduler.exceptions.ValidationException as exc:
+                if "assume the role" not in str(exc) or attempt == 5:
+                    raise
+                wait = 2 ** attempt
+                print(f"[schedule] role not yet propagated, retrying in {wait}s")
+                time.sleep(wait)
+
+    try:
+        _put_schedule(scheduler.create_schedule)
+        print(f"[schedule] created {SCHEDULE_NAME} ({SCHEDULE_EXPRESSION} UTC)")
+    except scheduler.exceptions.ConflictException:
+        _put_schedule(scheduler.update_schedule)
+        print(f"[schedule] updated {SCHEDULE_NAME} ({SCHEDULE_EXPRESSION} UTC)")
+
+
 # ── Monitoring ──────────────────────────────────────────────────────────────────
 #
 # WHAT THE EXISTING ALARMS CANNOT SEE.
@@ -821,6 +942,8 @@ def ensure_api_route() -> None:
 
 
 def main() -> None:
+    import sys as _sys
+    with_schedule = "--with-schedule" in _sys.argv[1:]
     print("=== deploy wecare-seo-tools ===")
     ensure_table()
     ensure_bedrock_inference_profile_perms()
@@ -841,6 +964,15 @@ def main() -> None:
     #: group is a ResourceNotFoundException rather than a no-op.
     provision_alarms(queues["url"])
     ensure_api_route()
+    #: OPT-IN. Creating the scheduler's IAM role is the one step here that creates IAM, so it is
+    #: gated: `python scripts/deploy_seo_tools.py --with-schedule`. Without the flag the code is
+    #: deployed and the freshness check is reachable (invoke with {"seoFreshness": true}); the
+    #: daily automation is simply not wired until someone opts in.
+    if with_schedule:
+        ensure_freshness_schedule()
+    else:
+        print("[schedule] skipped (pass --with-schedule to create the daily freshness schedule "
+              "and its scoped IAM role)")
     print("=== done ===")
     print(f"Endpoint: https://wecare.digital/api/seo-tools/  (stage prod, auto-deploy)")
 
