@@ -126,16 +126,34 @@ describe( 'Header', () => {
      * RGB move of 15 out of a possible 441. The test was pinning a state change that was not
      * perceptible, which is how it survived a report of "no hover effect".
      *
-     * Lime cannot fix it either: lime is a LIGHT colour, so measured against #f4f7ee the solid
-     * #d1f470 still only reaches 1.15:1. Only an inversion gives a luminance step - #1a3a2a is
-     * 11.52:1 - so hover, focus-visible and expanded now share one dark fill with the chevron
-     * flipping to lime at 10.04:1 on it.
+     * Lime cannot carry it as a FILL either: lime is a LIGHT colour, so measured against #f4f7ee
+     * the solid #d1f470 still only reaches 1.15:1. That measurement has not changed and is why
+     * the state is never a lime tint.
      *
-     * Asserted as one rule covering all three states, because the defect was partly that they
-     * were separate declarations drifting apart.
+     * WHAT DID CHANGE, AND WHY THIS NO LONGER PINS #1a3a2a AS THE FILL. The first fix inverted
+     * the whole chip, and the owner reported the result as "on select too much green" - filling
+     * all 2116px² of a 46x46 chip with dark green made this the heaviest element in a header
+     * that otherwise holds a wordmark and some text. Correct about the measurement, wrong about
+     * the mass.
+     *
+     * So the luminance step moved to the EDGE and the fill was freed to be lime. #1a3a2a against
+     * the resting #cfe0a6 border is 8.84:1, at 2px; dark area falls to 352px², 16.6% of what the
+     * inversion painted. Three signals now carry "open" - the border darkens, the fill brightens,
+     * and the chevron rotates - so the hue-only objection to a lime fill is answered by the two
+     * that are not hue. The five options and their computed numbers are in
+     * docs/menu-icon-options.md; this is G4.
+     *
+     * Asserted as one rule covering all three states, because the original defect was partly
+     * that they were separate declarations drifting apart.
      */
     expect( css ).toContain( ".nav-trigger:hover,.nav-trigger:focus-visible,.nav-trigger[aria-expanded='true']" );
-    expect( css ).toContain( 'background:#1a3a2a;border-color:#1a3a2a' );
+    expect( css ).toContain( 'background:#d1f470;border-color:#1a3a2a;border-width:2px' );
+    // The dark fill is GONE as a declaration, not merely overridden. Comments stripped first:
+    // the rule above cites #1a3a2a as the border colour and documents the fill it replaced, and
+    // a substring search cannot tell a citation from a declaration.
+    expect( css.replace( /\/\*[\s\S]*?\*\//g, '' ) ).not.toContain( 'background:#1a3a2a' );
+    // border-width is transitioned, or the 1px -> 2px step snaps while the colours glide.
+    expect( css ).toContain( 'border-width .18s ease' );
 
     /*
      * THE FOCUS RING IS TWO-TONE, AND BOTH STOPS ARE LOAD-BEARING.
@@ -145,11 +163,12 @@ describe( 'Header', () => {
      * focus indicator. The rule above also sets outline:none, so that faint shadow was the
      * entire ring.
      *
-     * Opaque #1a3a2a on its own does not fix it, which is the part worth pinning: the rule
-     * above fills this chip with #1a3a2a on focus, so a dark green ring drawn tight against
-     * a dark green chip has no edge - it reads as a slightly larger chip, not as a ring.
-     * The 2px white spacer is what gives it one, and the 3px of dark green outside measures
-     * 12.48:1 against the white header.
+     * Opaque #1a3a2a on its own did not fix it when the chip inverted, and the two-tone ring is
+     * kept now that the chip goes LIME rather than dark - because it has to work against both.
+     * A dark green ring drawn tight against a lime chip does have an edge, so the white spacer is
+     * less critical than it was; but the same pair is what makes the ring survive whichever fill
+     * this control ends up with, which is exactly the durability that earned it. The 3px of dark
+     * green outside measures 12.48:1 against the white header.
      *
      * Do not collapse this to one stop in either direction.
      */
@@ -158,8 +177,11 @@ describe( 'Header', () => {
     // replaced, and a substring search cannot tell a citation from a declaration. Banning
     // the string outright would mean deleting the measurement that justifies the fix.
     expect( css.replace( /\/\*[\s\S]*?\*\//g, '' ) ).not.toContain( 'rgba(26,58,42,.2)' );
-    // And the chevron inverts with it, or it would be dark-on-dark.
-    expect( css ).toContain( 'border-right-color:#d1f470;border-bottom-color:#d1f470;opacity:1' );
+    // THE CHEVRON NO LONGER RECOLOURS, and the absence is asserted. It had to flip to lime when
+    // the chip went dark underneath it; on a lime chip the same #1a3a2a glyph is 10.04:1, so the
+    // rule is deleted rather than left setting a colour to the colour it already has.
+    expect( css.replace( /\/\*[\s\S]*?\*\//g, '' ) )
+      .not.toContain( 'border-right-color:#d1f470' );
 
     // The dropdown control is a CSS-drawn chevron, not a text triangle. The old
     // literal glyph rendered nothing but a font character, so its shape and
@@ -171,14 +193,26 @@ describe( 'Header', () => {
     expect( arrow ).not.toBeNull();
     expect( arrow?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
 
-    // Drawn with two 2.5px WECARE.DIGITAL dark-green borders on an 8px border-box,
-    // rotated 45deg, at .85 opacity. margin:0 defeats the global
-    // .nav-arrow{margin-left:auto} in Layout.css, which would otherwise push it off
-    // centre. Sizes were bumped from 7px/2px to 8px/2.5px so the chevron reads as a
-    // solid arrow rather than a thin hairline that vanished on some displays.
+    // Drawn with two 3px WECARE.DIGITAL dark-green borders on an 8px border-box, rotated 45deg,
+    // at full opacity. margin:0 defeats the global .nav-arrow{margin-left:auto} in Layout.css,
+    // which would otherwise push it off centre.
+    //
+    // 3px, NOT 2.5px, AND THE FRACTION IS THE WHOLE POINT. This previously asserted 2.5px, with
+    // a comment saying the strokes had been bumped from 2px so the chevron would stop reading as
+    // a hairline. Measured on the built page at devicePixelRatio 1,
+    // getComputedStyle('.nav-arrow').borderRightWidth was 2px: a 2.5px border rounds down on a
+    // 1x display, so the thickening existed in the stylesheet and nowhere else, and the test
+    // pinned it as though it had worked. That is the same defect as the imperceptible hover tint
+    // above - an assertion on a declared value that never reached a pixel.
+    //
+    // A whole 3px cannot be rounded away, which is why the fix is not another fraction. The
+    // .85 opacity is gone too: it was softening the one element that carries the meaning.
     expect( css ).toContain( '.nav-arrow{width:8px;height:8px;box-sizing:border-box;margin:0' );
-    expect( css ).toContain( 'border-right:2.5px solid #1a3a2a' );
-    expect( css ).toContain( 'border-bottom:2.5px solid #1a3a2a' );
+    expect( css ).toContain( 'border-right:3px solid #1a3a2a' );
+    expect( css ).toContain( 'border-bottom:3px solid #1a3a2a' );
+    expect( css ).toContain( 'opacity:1;transform:translateY(-2px) rotate(45deg)' );
+    // No fractional stroke anywhere on this glyph, or the rounding trap comes back.
+    expect( css.replace( /\/\*[\s\S]*?\*\//g, '' ) ).not.toContain( '2.5px solid' );
     expect( css ).toContain( 'transform:translateY(-2px) rotate(45deg)' );
 
     // Open state is an exact 180deg flip of the shape (45 -> 225), on the same

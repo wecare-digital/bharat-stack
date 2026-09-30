@@ -482,7 +482,7 @@ const Header: React.FC = () => {
            lime hover state below it. Hover/focus/expanded still brighten to the lime
            tint, so the interaction feedback is unchanged. */
         .nav-trigger{min-width:46px;min-height:46px;background:#f4f7ee;border:1px solid #e3ecc9;border-radius:10px;cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center;
-          transition:background-color .18s ease,border-color .18s ease}
+          transition:background-color .18s ease,border-color .18s ease,border-width .18s ease}
         /* THE HOVER STATE INVERTS NOW, because the old one was not a state change at all.
            rgba(209,244,112,.22) over the white header composites to rgb(245,253,224), which
            measures 1.032:1 against this chip's own #f4f7ee - an RGB move of 15 out of a possible
@@ -511,8 +511,34 @@ const Header: React.FC = () => {
            NOTHING ABOUT THE PANEL CHANGES. Its radius, fill and shadow are untouched: the owner's
            instruction was the icon only. */
         .nav-trigger{border-color:#cfe0a6}
+        /* ROUND TWO: LIME FILL WITH A DARK EDGE, not a solid dark-green block.
+           The inversion above was correct about the measurement and wrong about the mass. The
+           owner's words on the shipped result were "on select too much green": filling all
+           2116px² of a 46x46 chip with #1a3a2a makes the control the heaviest thing in a header
+           whose other elements are a wordmark and text.
+
+           Everything round one measured still holds and is why this is not a return to a tint.
+           Against the #f4f7ee rest fill: rgba(209,244,112,.22) is 1.03:1 (RGB move 21/441) and
+           solid #d1f470 is 1.15:1. A lime FILL cannot carry the state on its own.
+
+           So the state is carried by the EDGE instead, and the fill is free to be lime - which is
+           what "on" looks like everywhere else on this site. #1a3a2a against the resting #cfe0a6
+           border measures 8.84:1, and it goes to 2px so the edge has weight to match the brighter
+           fill. Three independent signals now say "open": the border darkens, the fill brightens,
+           and the chevron rotates 45deg -> 225deg. Round one's objection to a hue-only move was
+           that it says nothing to a visitor with reduced colour discrimination; a 8.84:1 edge and
+           a rotation both survive that.
+
+           Dark area drops from 2116px² to 352px², 16.6% of what shipped. The five options and
+           their computed numbers are in docs/menu-icon-options.md, rendered by
+           tools/browser/menuiconshots.js - this is G4.
+
+           border-width IS transitioned. Without it the 1px -> 2px step snaps while the colours
+           glide, which reads as two events. box-sizing is border-box (measured, not assumed:
+           computed 46x46 outer at rest, hover and open), so the thicker border changes nothing
+           outside the chip - the header stays 108px and the chip stays at x=210.34. */
         .nav-trigger:hover,.nav-trigger:focus-visible,.nav-trigger[aria-expanded='true']{
-          background:#1a3a2a;border-color:#1a3a2a;outline:none;
+          background:#d1f470;border-color:#1a3a2a;border-width:2px;outline:none;
         }
         /* A TWO-TONE RING, because this control inverts on focus and a single-colour ring
            cannot work against both of its states.
@@ -530,22 +556,28 @@ const Header: React.FC = () => {
            The chip's own inversion still carries the state; this makes the ring carry it
            too, rather than relying on a colour change a low-vision visitor may not catch. */
         .nav-trigger:focus-visible{box-shadow:0 0 0 2px #fff,0 0 0 5px #1a3a2a}
-        /* The chevron flips to lime so it stays legible on the inverted chip: 10.04:1 there,
-           against 7.43:1 for the dark green on the pale chip. Full opacity rather than .85 -
-           the .85 existed to soften a dark glyph on a light ground and works against it here. */
-        .nav-trigger:hover .nav-arrow,
-        .nav-trigger:focus-visible .nav-arrow,
-        .nav-trigger[aria-expanded='true'] .nav-arrow{
-          border-right-color:#d1f470;border-bottom-color:#d1f470;opacity:1;
-        }
-        /* Chunkier chevron: 8px box with 2.5px strokes (was 7px / 2px), at .85 opacity
-           so it reads as a solid arrow rather than a thin hairline that vanished on
-           some displays. */
-        /* transition now covers the border colours too, not just transform - the chevron flips to
-           lime on hover and an untransitioned colour swap under a transitioned fill reads as two
-           separate events. NO LINES HERE, deliberately: a three-line burger was mocked as an
-           option and the owner kept the chevron. */
-        .nav-arrow{width:8px;height:8px;box-sizing:border-box;margin:0;border-right:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;opacity:.85;transform:translateY(-2px) rotate(45deg);transition:transform .2s,border-color .18s ease,opacity .18s ease}
+        /* THE CHEVRON NO LONGER CHANGES COLOUR, and that is the simplification the lime fill
+           buys. It had to flip to lime because the chip went dark underneath it; on a lime chip
+           #1a3a2a measures 10.04:1, so the same dark glyph works in both states and there is one
+           less thing moving. The rule that used to flip it to #d1f470 is gone rather than
+           neutralised - a rule that sets a colour to the colour it already has is a thing the
+           next reader has to work out. */
+        /* 3px STROKES AND FULL OPACITY, because the previous "chunkier" change never rendered.
+           The comment here used to say the strokes went from 2px to 2.5px so the arrow would stop
+           reading as a hairline. MEASURED on the built page at devicePixelRatio 1:
+           getComputedStyle(.nav-arrow).borderRightWidth was **2px**. A 2.5px border is rounded
+           down to 2px on a 1x display, so the thickening existed only in the stylesheet and the
+           glyph was still exactly the hairline it was meant to stop being. That is the likeliest
+           reading of the owner's "menu icon is looking dull", and it is why this goes to a whole
+           3px rather than nudging the fraction again - 3px cannot be rounded away.
+
+           opacity:.85 is also gone. It was there to soften a dark glyph on a light ground, but it
+           was softening the one element that carries the meaning; at full strength the chevron is
+           11.52:1 on the resting chip and 10.04:1 on the lime one.
+
+           NO LINES HERE, deliberately: a three-line burger was mocked in round one
+           (docs/menu-mock/a4-three-lines.png) and the owner kept the chevron. */
+        .nav-arrow{width:8px;height:8px;box-sizing:border-box;margin:0;border-right:3px solid #1a3a2a;border-bottom:3px solid #1a3a2a;opacity:1;transform:translateY(-2px) rotate(45deg);transition:transform .2s,border-color .18s ease,opacity .18s ease}
         .nav-trigger[aria-expanded='true'] .nav-arrow{transform:translateY(2px) rotate(225deg)}
 
         /* MEGA PANEL.
