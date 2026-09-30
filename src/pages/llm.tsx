@@ -97,7 +97,18 @@ const LlmPage: React.FC = () => (
             description="How AI assistants can read WECARE.DIGITAL: a read-only Model Context Protocol server over Streamable HTTP, llms.txt and llms-full.txt, and the terms for citing this content."
             path="/llm/"
         />
-        <main style={ { maxWidth: 880, margin: '0 auto', padding: '48px 20px 80px' } }>
+        {/* THE PADDING MOVED OUT OF THE STYLE ATTRIBUTE, and the reason is the same one
+            _app.tsx records at .ag-shell: a style attribute cannot carry a media query, so a
+            header that is two different heights is not expressible inline.
+            This page inlined padding:'48px 20px 80px'. The public header is position:fixed and
+            108px tall, so 48px left the first 60px of this page UNDERNEATH it. Measured before
+            the fix: the eyebrow "For AI assistants and agents" sat at y=48 with the header's
+            bottom edge at y=108, and elementFromPoint at the eyebrow's own centre returned
+            DIV.hdr-in - the header, not the text. The h1 below it lost its top 8px the same way.
+            Every other public page already clears it: / and /terms/ and RotatingHero all use
+            padding-top:108px with a 96px override below 768px, which is where the header drops
+            to 96px. This now matches them rather than being the one page that guessed. */}
+        <main className="llm-shell" style={ { maxWidth: 880, margin: '0 auto' } }>
             <p style={ {
                 display: 'inline-block', background: LIME, color: INK, fontWeight: 700,
                 fontSize: 13, letterSpacing: '.02em', textTransform: 'uppercase',
@@ -221,6 +232,18 @@ const LlmPage: React.FC = () => (
                     ) ) }
                 </ul>
             </section>
+            <style jsx>{ `
+              /* Matched to BOTH of the header's heights, not one of them. .hdr-in is
+                 height:108px, dropping to 96px at max-width:767px, so a single value is wrong
+                 at one end or the other - a flat 96px pulls the block 12px under the header on
+                 every desktop, which is the mistake .ag-shell in _app.tsx records making.
+                 NOTE: no backticks in this comment. The block is a template literal and one
+                 backtick ends it, which breaks the build pointing at a brace far from the
+                 cause - StyledJsxIntegrity.test.ts guards it now, but writing it correctly is
+                 cheaper than reading the failure. */
+              .llm-shell{padding:108px 20px 80px}
+              @media(max-width:767px){.llm-shell{padding:96px 20px 80px}}
+            ` }</style>
         </main>
     </>
 );
