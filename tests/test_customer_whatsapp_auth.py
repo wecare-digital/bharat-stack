@@ -115,6 +115,8 @@ def test_correct_waba_sends_six_digit_otp(monkeypatch):
         "_send_otp",
         lambda phone, otp: sent.append((phone, otp)),
     )
+    # Within budget: let the send proceed. The throttle itself is exercised below.
+    monkeypatch.setattr(auth, "_consume_send_budget", lambda digits: None)
     event = _event(
         "CreateAuthChallenge_Authentication",
         {
@@ -212,3 +214,88 @@ def test_sender_payload_uses_approved_authentication_template(monkeypatch):
     # live round trip 2026-09-25: copy_code fails, url succeeds.
     assert body["components"][1]["sub_type"] == "url"
     assert body["components"][1]["parameters"][0] == {"type": "text", "text": "123456"}
+
+
+# ── send throttle (G5): a REGISTERED number is bounded, fail-closed ──────────────
+#
+# The gap this closes: the browser calls Cognito's public InitiateAuth directly
+# (src/lib/customerAuth.ts), so before this a registered number had NO send limit and a
+# loop drove unbounded WhatsApp messages to a real handset. The trigger is the one place
+# that can bound the send regardless of how the flow was entered.
+
+import sys as _sys  # noqa: E402
+
+_sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
+                                                'amplify', 'functions', 'shared')))
+_sys.path.insert(0, os.path.dirname(__file__))
+
+from crm_fake_dynamo import FakeClientError, FakeDynamo  # noqa: E402
+
+SEND_TABLE = 'stack-wecare-digital-DownloadGrantsTable'
+
+
+def _registered_event():
+    return _event(
+        "CreateAuthChallenge_Authentication",
+        {"userAttributes": {"phone_number": "+919876543210",
+                            "custom:partner_waba_id": "2094615664435155"}},
+    )
+
+
+def _wire_fake_table(monkeypatch):
+    fake = FakeDynamo(keys={SEND_TABLE: 'grantId'})
+    monkeypatch.setattr(auth, "_ddb", fake)
+    return fake
+
+
+def test_send_is_bounded_and_then_suppressed(monkeypatch):
+    sent = []
+    monkeypatch.setattr(auth, "_send_otp", lambda phone, otp: sent.append((phone, otp)))
+    monkeypatch.setattr(auth.time, "time", lambda: 1_700_000_000)
+    _wire_fake_table(monkeypatch)
+
+    # SEND_MAX_PER_WINDOW defaults to 5: the first five sends go, the sixth is suppressed.
+    for _ in range(auth.SEND_MAX_PER_WINDOW):
+        result = auth.handler(_registered_event(), None)
+        # A code is always issued regardless, so the Cognito flow is unchanged.
+        assert result["response"]["privateChallengeParameters"]["answer"].isdigit()
+    assert len(sent) == auth.SEND_MAX_PER_WINDOW
+
+    suppressed = auth.handler(_registered_event(), None)
+    # No sixth message, but the response is indistinguishable from a normal issue.
+    assert len(sent) == auth.SEND_MAX_PER_WINDOW
+    assert suppressed["response"]["publicChallengeParameters"]["registered"] == "true"
+    assert suppressed["response"]["privateChallengeParameters"]["answer"].isdigit()
+
+
+def test_send_throttle_fails_closed_on_storage_error(monkeypatch):
+    sent = []
+    monkeypatch.setattr(auth, "_send_otp", lambda phone, otp: sent.append((phone, otp)))
+    monkeypatch.setattr(auth.time, "time", lambda: 1_700_000_000)
+    fake = _wire_fake_table(monkeypatch)
+    fake.arm_failure(SEND_TABLE, "update_item", FakeClientError("InternalServerError"))
+
+    result = auth.handler(_registered_event(), None)
+    # Fail closed: the message is NOT sent when the counter cannot be read.
+    assert sent == []
+    # But the challenge is still issued, so the flow does not break.
+    assert result["response"]["privateChallengeParameters"]["answer"].isdigit()
+
+
+def test_send_budget_resets_after_the_window(monkeypatch):
+    sent = []
+    monkeypatch.setattr(auth, "_send_otp", lambda phone, otp: sent.append((phone, otp)))
+    _wire_fake_table(monkeypatch)
+
+    base = 1_700_000_000
+    monkeypatch.setattr(auth.time, "time", lambda: base)
+    for _ in range(auth.SEND_MAX_PER_WINDOW):
+        auth.handler(_registered_event(), None)
+    # Sixth in-window is suppressed.
+    auth.handler(_registered_event(), None)
+    assert len(sent) == auth.SEND_MAX_PER_WINDOW
+
+    # Past the window, the counter resets and a send goes again.
+    monkeypatch.setattr(auth.time, "time", lambda: base + auth.SEND_WINDOW_SECONDS + 1)
+    auth.handler(_registered_event(), None)
+    assert len(sent) == auth.SEND_MAX_PER_WINDOW + 1

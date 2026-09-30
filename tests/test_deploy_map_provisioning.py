@@ -63,7 +63,10 @@ def test_exactly_one_spec_is_awaiting_provisioning(deploy_module):
     look expected, so the set is small and explicit on purpose.
     """
     waiting = [s.name for s in deploy_module.SPECS if s.provisioned_by]
-    assert waiting == ["wecare-customer-whatsapp-auth"]
+    # wecare-email-verification added 2026-09-30: a genuinely new function that does not yet
+    # exist in AWS, so it is legitimately awaiting its first provisioning deploy. A deliberate
+    # addition to this list, which is exactly the "conscious decision" this count guards.
+    assert waiting == ["wecare-customer-whatsapp-auth", "wecare-email-verification"]
 
 
 def test_the_summary_line_reports_the_new_state(deploy_module):

@@ -176,6 +176,17 @@ SPECS: List[Spec] = [
         standalone=True,
         provisioned_by="python scripts/provision_customer_whatsapp_auth.py",
     ),
+    # Email verification for checkout. Wires otp_challenge + otp_throttle +
+    # comms.verification_email into request/verify endpoints. First creation is owned
+    # by scripts/provision_email_verification.py, which also creates the OTP pepper
+    # secret name (value set separately by the owner, never on a command line) and a
+    # least-privilege role. NOT standalone: it imports lambda_utils.otp_challenge,
+    # otp_throttle, comms.verification_email, identity.customer, response and logging.
+    Spec(
+        "wecare-email-verification",
+        "auth/email-verification",
+        provisioned_by="python scripts/provision_email_verification.py",
+    ),
     # Cognito CustomMessage trigger: branded HTML for MFA, verification and
     # recovery email. First creation is owned by
     # scripts/provision_cognito_custom_message.py, which also gives it a

@@ -60,7 +60,31 @@ PROBE_TABLE = os.environ.get("OTP_PROBE_TABLE", "stack-wecare-digital-DownloadGr
 PROBE_WINDOW_SECONDS = int(os.environ.get("OTP_PROBE_WINDOW_SECONDS", "3600"))
 PROBE_MAX_PER_WINDOW = int(os.environ.get("OTP_PROBE_MAX_PER_WINDOW", "5"))
 
+# Send throttle for REGISTERED numbers — the G5 fix.
+#
+# The probe counter above only runs on the userNotFound branch, so a *registered* number
+# had no send limit at all: because the browser calls Cognito's public InitiateAuth
+# directly (src/lib/customerAuth.ts), an attacker could loop it and drive unbounded
+# WhatsApp messages to a real customer's handset. This counter bounds that.
+#
+# It is deliberately SEPARATE from the probe counter and fails in the OPPOSITE direction.
+# The probe counter fails OPEN (a DynamoDB blip must not lock a customer out of files).
+# This one fails CLOSED: it guards a path that sends a message and spends money to a real
+# handset, so an unreadable counter must refuse the send. Same table, distinct key prefix.
+#
+# Per-phone only. A Cognito trigger event carries no client IP, so per-IP limiting is
+# structurally impossible here — that axis belongs at an HTTP front door
+# (lambda_utils.otp_throttle). Per-phone is the axis that protects the *person* whose
+# handset would ring, and it is the one this trigger can enforce regardless of entry path.
+SEND_TABLE = os.environ.get("OTP_SEND_TABLE", PROBE_TABLE)
+SEND_WINDOW_SECONDS = int(os.environ.get("OTP_SEND_WINDOW_SECONDS", "3600"))
+SEND_MAX_PER_WINDOW = int(os.environ.get("OTP_SEND_MAX_PER_WINDOW", "5"))
+
 _ddb = None
+
+
+class OtpSendThrottled(RuntimeError):
+    """Too many OTP sends to this number in the window. Fails the challenge closed."""
 
 
 def _probe_table():
@@ -96,6 +120,53 @@ def _probe_budget_exhausted(phone_digits: str) -> bool:
         print(json.dumps({"event": "otp_probe_check_failed", "error": type(exc).__name__}))
         return False
     return count > PROBE_MAX_PER_WINDOW
+
+
+def _consume_send_budget(phone_digits: str) -> None:
+    """Count one OTP send for this number, or raise `OtpSendThrottled` when over budget.
+
+    Fails CLOSED: any storage error raises `OtpSendThrottled` too, because this guards a
+    path that messages a real handset and an unreadable counter must refuse rather than
+    send. That is the deliberate opposite of `_probe_budget_exhausted`, which fails open.
+
+    A window that has rolled over resets, so a legitimate customer is not locked out for
+    the rest of the hour — the counter bounds bursts, it does not permanently cap a number.
+    """
+    now = int(time.time())
+    try:
+        result = _probe_table().update_item(  # same DownloadGrantsTable, distinct key
+            Key={"grantId": f"otpsend#{phone_digits}"},
+            UpdateExpression=(
+                "ADD sends :one "
+                "SET windowStartedAt = if_not_exists(windowStartedAt, :now), "
+                "expiresAt = if_not_exists(expiresAt, :exp)"
+            ),
+            ExpressionAttributeValues={
+                ":one": 1, ":now": now, ":exp": now + SEND_WINDOW_SECONDS},
+            ReturnValues="ALL_NEW",
+        )
+        attrs = result.get("Attributes", {})
+        count = int(attrs.get("sends") or 0)
+        started = int(attrs.get("windowStartedAt") or now)
+    except Exception as exc:  # noqa: BLE001
+        # Fail CLOSED — see the docstring. Refuse the send rather than risk flooding a handset.
+        print(json.dumps({"event": "otp_send_budget_check_failed",
+                          "error": type(exc).__name__}))
+        raise OtpSendThrottled("send budget could not be verified") from exc
+
+    if now - started >= SEND_WINDOW_SECONDS:
+        # Window rolled over: reset to a fresh count of 1 rather than staying locked.
+        try:
+            _probe_table().put_item(Item={
+                "grantId": f"otpsend#{phone_digits}", "sends": 1,
+                "windowStartedAt": now, "expiresAt": now + SEND_WINDOW_SECONDS})
+        except Exception as exc:  # noqa: BLE001
+            raise OtpSendThrottled("send budget could not be rolled") from exc
+        return
+
+    if count > SEND_MAX_PER_WINDOW:
+        print(json.dumps({"event": "otp_send_budget_exhausted", "sends": count}))
+        raise OtpSendThrottled(f"{count} sends already in the current window")
 
 
 def _normalise_phone(phone: str) -> str:
@@ -258,6 +329,24 @@ def _create_auth_challenge(event: dict) -> dict:
         phone
     )
     event["response"]["publicChallengeParameters"]["registered"] = "true"
+
+    # Send throttle, per phone, fail-closed. This is the G5 fix: without it a registered
+    # number had no send limit, so looping the browser's direct InitiateAuth call flooded a
+    # real handset. Over budget, the challenge is still issued so the Cognito flow is
+    # unchanged and the endpoint stays non-enumerable — the customer simply keeps using the
+    # code they were already sent moments ago. Only the outbound MESSAGE is suppressed.
+    digits = _normalise_phone(phone)
+    try:
+        _consume_send_budget(digits)
+    except OtpSendThrottled:
+        # No send. Do not reveal throttling to the caller — the public parameters are
+        # identical to a normal issue, so this is invisible from outside and cannot be used
+        # to probe the limit. The private challenge answer is still set, so a code the
+        # customer already holds continues to verify.
+        print(json.dumps({"event": "customer_whatsapp_otp_send_suppressed",
+                          "reason": "send_budget"}))
+        return event
+
     _send_otp(phone, otp)
 
     # Metadata only. Do not log the OTP or unmasked number.
