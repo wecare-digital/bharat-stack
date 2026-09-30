@@ -8,6 +8,7 @@ import {
   SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SOCIAL_CARD_TYPE, SOCIAL_CARD_ALT, SHARE_CARD_TYPE,
 } from '../../config/share';
 import { ORG_ID, ORIGIN, WEBSITE_ID, SITE_ENTITIES, ld } from '../../lib/schema';
+import { extractRecipe, recipeSchema } from '../../lib/recipe-schema';
 import { getPublicBlogPost, listPublicBlogPosts, PublicBlogPost } from '../../lib/public-blog';
 import { postContext, type PostLink } from '../../lib/post-neighbours';
 import RotatingHero, { CycleWord } from '../../components/RotatingHero';
@@ -293,6 +294,41 @@ export default function BlogPostPage ( {
     },
     inLanguage: 'en-IN',
   };
+  /**
+   * RECIPE STRUCTURED DATA, DERIVED RATHER THAN AUTHORED.
+   *
+   * 448 of the 1279 posts are recipes - every one with an "Ingredients" heading and a "Method"
+   * heading, counted in the built export - and none of them was eligible for Google's Recipe
+   * rich result, because all 1279 emitted BlogPosting and nothing else.
+   *
+   * extractRecipe() reads the same Ricos nodes this page renders, so this is automatic: a new
+   * recipe post becomes eligible the moment it is published, with no field to remember and no
+   * step for an author. A post without both lists gets nothing, which is what keeps the 831
+   * essays out of the recipe index.
+   *
+   * It runs on `richNodes`, so posts that arrive through the markdown fallback are not covered.
+   * That is the honest boundary and not an oversight: every recipe in the corpus renders through
+   * the Ricos path, and inferring a recipe from loose lines of markdown would be guessing.
+   */
+  const recipeParts = extractRecipe( richNodes );
+  const recipeJsonLd = recipeParts ? recipeSchema( {
+    parts: recipeParts,
+    name: post.title,
+    description,
+    canonical,
+    // The same ImageObject the article node uses. Google documents image as REQUIRED for
+    // Recipe, and one source for it means the two nodes cannot disagree.
+    image: {
+      '@type': 'ImageObject',
+      url: SOCIAL_CARD_URL,
+      width: Number( SOCIAL_CARD_W ),
+      height: Number( SOCIAL_CARD_H ),
+    },
+    datePublished: post.publishedDate || undefined,
+    authorName: post.authorName || undefined,
+    publisherId: ORG_ID,
+  } ) : null;
+
   const storedCrumbs = post.jsonLd?.breadcrumbList;
   const useStoredCrumbs = !!storedCrumbs
     && typeof storedCrumbs === 'object'
@@ -358,6 +394,12 @@ export default function BlogPostPage ( {
         ) ) }
         <script type="application/ld+json" dangerouslySetInnerHTML={ ld( articleSchema ) } />
         <script type="application/ld+json" dangerouslySetInnerHTML={ ld( breadcrumbSchema ) } />
+        {/* Emitted only when the post actually has both an ingredient list and a step list -
+            see extractRecipe(). A separate script tag rather than a member of one @graph,
+            matching how articleSchema and breadcrumbSchema are already emitted here. */}
+        { recipeJsonLd
+          ? <script type="application/ld+json" dangerouslySetInnerHTML={ ld( recipeJsonLd ) } />
+          : null }
         { ( post.jsonLd?.faqSchema?.mainEntity?.length || 0 ) > 0 && (
           <script type="application/ld+json" dangerouslySetInnerHTML={ ld( post.jsonLd?.faqSchema ) } />
         ) }
