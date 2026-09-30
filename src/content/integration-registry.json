@@ -67,7 +67,7 @@
       "writeScopeMitigation": null,
       "maxAgeSeconds": 21600,
       "adapterBuilt": false,
-      "unblock": "No adapter exists. Google Ads offers only one coarse scope, which grants writes as well as reads, so an adapter must be confined to report endpoints and reviewed before it is built. Confirm the developer token is approved for the account, then build the report-only adapter.",
+      "unblock": "No adapter exists. Google Ads offers only one coarse scope, which grants writes as well as reads, so an adapter must be confined to report endpoints and reviewed before it is built. Developer tokens were SUNSET 2026-09-09 and are ignored by the API servers, so the previously recorded missing developer_token is no longer a blocker. Measured 2026-09-30: OAuth alone reaches v22-v25, listAccessibleCustomers returns HTTP 200 with 0 customers, and a customer query returns USER_PERMISSION_DENIED rather than CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION - so the Cloud project's access level is fine and the only gap is that the principal is not a user on the Ads account. Grant automation@wecaredigitalbw.iam.gserviceaccount.com read access, then build the report-only adapter.",
       "notes": "Scope list deliberately empty: the only Google Ads scope is read/write, and declaring it here would put a write capability in a read-only registry.",
       "key": "google_ads"
     },

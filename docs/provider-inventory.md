@@ -271,7 +271,47 @@ tests enforce that. Do not add TTS to it.
 | `wecare/plivo/api`, `wecare/plivo`, `wecare/plivo-answer` | Plivo | KEEP |
 | `wecare/google/cloud`, `wecare/google-api-key`, `wecare/google-maps` | Google | KEEP — all three hold the same unified key `sha256:0bd4beb6496a` |
 | `wecare/seo/google-oauth` | Google OAuth | KEEP |
-| `wecare/google/ads` | Google Ads | KEEP — **missing `developer_token`** |
+| `wecare/google/ads` | Google Ads | KEEP — ~~missing `developer_token`~~ **no longer a blocker, see below** |
+
+### ⛔ Correction, 2026-09-30 — the Google Ads `developer_token` gap is obsolete
+
+`wecare/google/ads` missing a `developer_token` was recorded here as the reason the Ads API
+"cannot authenticate without it". That was true when written and is not true now.
+
+**Google sunset developer tokens on 2026-09-09.** They may still be sent and are *ignored by
+the API servers*; API access levels now attach to the **Google Cloud project** that owns the
+credentials — for a service-account workflow, the project owning the service account. Signup
+and access management moved from the Ads manager account's API Center to the Google Ads API
+Overview page in Cloud Console, and a manager account is no longer required at all unless you
+manage multiple accounts.
+<https://developers.google.com/google-ads/api/docs/api-policy/developer-token>
+
+Measured today against the live API with an impersonated service-account token and **no
+developer token sent at all** (`scripts/google_products_pull.py`):
+
+```
+live API versions                     v22, v23, v24, v25   (v17-v21 are gone and answer an
+                                                            HTML 404, which reads like a dead
+                                                            endpoint rather than a retired one)
+listAccessibleCustomers  (v25)        HTTP 200, 0 customers
+query customer 8367589699 (v25)       HTTP 403
+                                      authorizationError: USER_PERMISSION_DENIED
+```
+
+Read the error precisely, because two different ones mean two different fixes.
+`CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION` would mean the Cloud project sits on **Test**
+access and needs Explorer or Basic from the Cloud Console page. We get
+**`USER_PERMISSION_DENIED`** instead — so OAuth succeeds, the project is *not* refused for
+production, and the only thing missing is that the principal is not a user on the Ads account.
+
+So Ads is now in exactly the same category as Tag Manager and Analytics: authentication is
+solved, product-level access is not, and none of the three offers an API to grant it. The
+unblock for all three is one action:
+
+    add automation@wecaredigitalbw.iam.gserviceaccount.com as a read-only user
+
+**Do not re-add the developer token as a required credential.** A future reader finding this
+row should not go hunting for a value that the provider stopped honouring.
 | `wecare/truecaller` | Truecaller | KEEP — no consumer yet |
 
 Deleting a secret requires pointwise confirmation

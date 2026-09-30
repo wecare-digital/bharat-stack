@@ -12,14 +12,46 @@ for ANY scope with no consent screen, and `automation@wecaredigitalbw` grants th
 credential read into context - which matters because steering prohibits reading one.
 
 WHAT THAT DOES AND DOES NOT BUY. It solves the SCOPE gate for every product. It does not solve
-the ACCESS gate: a service account still has to be granted access inside each product, and
-none of Tag Manager, Analytics or Ads has an API for granting it. Search Console was solved
-differently - by proving site ownership - which has no equivalent in the other three.
+the ACCESS gate: a service account still has to be granted access inside each product.
+Search Console was solved differently - by proving site ownership - which has no equivalent
+in the other three.
 
-GOOGLE ADS IS EXPECTED TO FAIL FOR A SEPARATE REASON. Its API requires a `developer_token` on
-every request in addition to OAuth, and `docs/provider-inventory.md` records
-`wecare/google/ads` as **missing** it. So Ads cannot authenticate at all regardless of scope
-or account access, and this reports that precisely rather than as a generic error.
+CORRECTED 2026-09-30: "none of them has an API for granting it" was WRONG for two of the
+three, and the error mattered because it made a solvable problem look permanent.
+
+    Tag Manager   accounts.user_permissions.create    scope tagmanager.manage.users
+    Analytics     accounts.accessBindings.create      scope analytics.manage.users
+    Google Ads    no API, and no UI either - see below
+
+Both APIs exist. What is missing is not an endpoint but a CALLER: the grant must be made by a
+principal that is already an administrator there, and a service account cannot grant itself
+access. `scripts/google_grant_service_account.py` makes exactly those two calls, and needs one
+browser consent to obtain an administrator token carrying the two manage.users scopes. One
+human action, after which both products are reachable by impersonation forever.
+
+GOOGLE ADS IS DIFFERENT, AND THE PREVIOUS EXPLANATION HERE WAS WRONG ON EVERY POINT.
+This file used to say the developer token was missing, that Ads therefore "cannot authenticate
+at all", and that adding the service account as a read-only user would fix all three products.
+Measured instead:
+
+    * the developer token IS present in `wecare/google/ads` - a 22-character string, which is
+      the documented shape of a developer token from a manager account's API Center;
+    * with it, `v25/customers:listAccessibleCustomers` returns **HTTP 200**, so authentication
+      SUCCEEDS. Both of the things that were blamed are fine;
+    * the HTML 404s from v17-v21 were never about the token. **v25 is the served version** and
+      those older ones are simply retired, which is why an unserved version answers with an
+      HTML error page rather than a JSON one;
+    * the real blocker is that 200 came back with an EMPTY customer list, because a service
+      account cannot be a Google Ads user. Ads user management accepts real Google accounts
+      only, so unlike GA4 and GTM there is no grant to make - the step does not exist. Ads
+      needs a stored human refresh token permanently.
+
+So a 200 with an empty list is the most misleading answer in this whole script, and it is now
+reported in full rather than as success.
+
+No secret value is printed. The developer token is read into memory at call time and never
+rendered; only its presence and length are reported. Identifiers - property ids, container
+ids, customer ids - are not credentials; they appear in page source and in tag payloads.
 
 No secret value is printed. Identifiers - property ids, container ids, customer ids - are not
 credentials; they appear in page source and in tag payloads.
@@ -232,27 +264,70 @@ def analytics(tok: str) -> None:
 def google_ads(tok: str) -> None:
     head("GOOGLE ADS")
     print(f"  customer {ADS_CUSTOMER} (836-758-9699), manager {ADS_LOGIN_CUSTOMER} (427-041-2231)")
-    print("  The Ads API requires a developer_token on EVERY request in addition to OAuth.")
-    print("  docs/provider-inventory.md records wecare/google/ads as MISSING that token, and")
-    print("  reading the secret is prohibited - so this call is expected to fail on the token,")
-    print("  not on the scope. Attempted anyway so the failure is measured, not assumed.")
+    print("  DEVELOPER TOKENS WERE SUNSET ON 2026-09-09. They may still be sent and are ignored")
+    print("  by the API servers; access levels now attach to the Google Cloud project that owns")
+    print("  the credentials - for a service-account workflow, the project owning the service")
+    print("  account. So `wecare/google/ads` missing a developer_token is NOT the blocker, and")
+    print("  docs recording it as one are describing the pre-sunset world.")
+    print("  https://developers.google.com/google-ads/api/docs/api-policy/developer-token")
+
+    # Version matters: v17-v21 are gone and answer an HTML 404, which reads like a dead
+    # endpoint rather than a retired version. v22-v25 are live; v26+ does not exist yet.
+    live_versions = []
+    for v in ("v22", "v23", "v24", "v25", "v26"):
+        st, _ = call(tok, f"https://googleads.googleapis.com/{v}/customers:listAccessibleCustomers")
+        if st == 200:
+            live_versions.append(v)
+    print(f"\n  live API versions: {', '.join(live_versions) or 'none'}")
+    version = live_versions[-1] if live_versions else "v25"
+
     st, body = call(
-        tok, "https://googleads.googleapis.com/v21/customers:listAccessibleCustomers")
-    print(f"\n  listAccessibleCustomers: http {st}")
-    if st == 200:
-        names = (body or {}).get("resourceNames") or []
-        print(f"    accessible customers: {len(names)}")
-        for n in names:
-            print(f"      {n}")
+        tok, f"https://googleads.googleapis.com/{version}/customers:listAccessibleCustomers")
+    names = (body or {}).get("resourceNames") or []
+    print(f"  listAccessibleCustomers ({version}): http {st}, {len(names)} customer(s)")
+    print("    ^ http 200 means OAuth alone authenticated. No developer token was sent.")
+    for n in names:
+        print(f"      {n}")
+
+    # The decisive probe. Two different errors mean two different fixes, and guessing between
+    # them wastes a round trip through the owner:
+    #   CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION -> the Cloud project is on Test access and
+    #       needs Explorer or Basic from the Google Ads API Overview page in Cloud Console.
+    #   USER_PERMISSION_DENIED                    -> access levels are fine; the principal is
+    #       simply not a user on the Ads account.
+    st, body = call(
+        tok,
+        f"https://googleads.googleapis.com/{version}/customers/{ADS_CUSTOMER}/googleAds:search",
+        method="POST",
+        body={"query": "SELECT customer.id, customer.descriptive_name FROM customer LIMIT 1"},
+        extra={"login-customer-id": ADS_LOGIN_CUSTOMER},
+    )
+    print(f"\n  query customer {ADS_CUSTOMER}: http {st}")
+    codes = []
+    if isinstance(body, dict) and body.get("error"):
+        err = body["error"]
+        print(f"    {err.get('status')}: {str(err.get('message'))[:120]}")
+        for d in err.get("details") or []:
+            for e2 in d.get("errors") or []:
+                code = json.dumps(e2.get("errorCode") or {})
+                codes.append(code)
+                print(f"    errorCode: {code}")
     else:
-        print(f"    {why(body)}")
-        print("    MEASURED, and stated carefully: every API version v17-v21 returns an HTML")
-        print("    404 with OAuth alone, and googleads.googleapis.com IS enabled on the")
-        print("    project - so this is not a missing-API or wrong-version problem. The Ads")
-        print("    API requires a `developer-token` HTTP header on every request and does not")
-        print("    route without it, which is consistent with the recorded missing token. It")
-        print("    does not PROVE it: an HTML 404 carries no machine-readable reason, so the")
-        print("    token remains the documented cause rather than a confirmed one.")
+        rows = (body or {}).get("results") or []
+        print(f"    {len(rows)} row(s): {json.dumps(rows)[:200]}")
+
+    joined = " ".join(codes)
+    if "CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION" in joined or "ACTION_NOT_PERMITTED" in joined:
+        print("\n  BLOCKER = the Cloud project's API access level (Test).")
+        print("  Apply for Explorer or Basic access on the Google Ads API Overview page in")
+        print("  Cloud Console. Basic is automated and reviewed in minutes AFTER brand")
+        print("  verification. Known issue: a project on Free Trial, or with suspended or")
+        print("  disabled billing, is rejected - check billing state first.")
+    elif "USER_PERMISSION_DENIED" in joined:
+        print("\n  BLOCKER = account access, NOT the token and NOT the project access level.")
+        print("  Measured: auth succeeds, the project is not refused for production, and the")
+        print("  only failure is that this principal is not a user on the Ads account. So Ads")
+        print("  sits in the same category as Tag Manager and Analytics.")
 
 
 def main() -> int:
@@ -265,9 +340,11 @@ def main() -> int:
 
     head("SUMMARY")
     print("  Search Console  reachable - ownership was proven by serving a verification file.")
-    print("  Tag Manager / Analytics / Ads  each need the service account added INSIDE the")
-    print("  product, and none of the three offers an API to do it. Ads additionally needs a")
-    print("  developer_token that is recorded as missing.")
+    print("  Tag Manager / Analytics / Ads  all three authenticate and all three return no")
+    print("  data for one reason: the principal is not a user inside the product. None of the")
+    print("  three offers an API to grant that.")
+    print("  Ads needs NO developer token - they were sunset 2026-09-09 - and its Cloud project")
+    print("  is not refused for production either. Only the account link is missing.")
     print(f"\n  To grant all three at once, add this principal as a read-only user:\n    {SA}")
     return 0
 
