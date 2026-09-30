@@ -33,28 +33,51 @@ clean, and no history rewrite was needed - but that was luck, not design.
 
 **Correction, 2026-09-29: git history is not clean, and the original sentence here
 claimed it was.** `scripts/txt_source_healthcheck.py` scans every blob ever
-committed, and it reports one hit:
+committed, and it reports one hit: the **Plivo AUTH ID**, added by `3eaead21`
+(2026-09-19) in `tests/test_pstn_browser_token.py`, replaced by `55ba7844`
+(2026-09-20) with a placeholder, still reachable in the blob `3eaead21` added.
 
-| | |
-|---|---|
-| Value | the **Plivo AUTH ID** |
-| Added by | `3eaead21` (2026-09-19), in `tests/test_pstn_browser_token.py` |
-| Replaced by | `55ba7844` (2026-09-20), with a placeholder and the note "account identifier, not a secret, but a test has no need of the real one" |
-| Still reachable | yes, in the blob `3eaead21` added |
+**Correction, 2026-10-01: the footprint is far larger than one auth id, and the
+"the token has never been committed" claim above is FALSE.** The healthcheck only
+compares against a narrow value set; the deeper `scripts/scan_repo_secrets.py`
+loads every field of every `wecare/*` secret from live Secrets Manager and
+compares it against the working tree and every blob ever committed. Run
+2026-10-01 (10,149 blobs, 447 MB scanned, 0 errors), it reports **80 credential
+occurrences across six distinct live secret values in git history**, plus one in
+the current working tree. Values are never printed; only paths, counts and commit
+ids:
 
-Read that precisely, in both directions. It **is** a real value from the retained
-plaintext source appearing in the git object database, so the earlier "history is
-clean" claim was wrong and the healthcheck's scan is the thing to trust over this
-file. It is **not** a token exposure: an auth id is the account identifier that
-pairs with the auth token, the token has never been committed, and Plivo SMS is a
-prohibited provider with no live consumer. So it implies **no rotation** - and the
-standing refusal on reading or rotating provider credentials applies regardless.
+| Secret : field | In history (blobs) | Commits |
+|---|---:|---|
+| `wecare/razorpay-webhook:webhook_secret` | 69 | adfaaa8c 514ec02c d3907404 fb838fb1 8f4329dd 48959f81 92097f8c |
+| `wecare/plivo:auth_token` | 3 | 12c97747 8f2b6823 |
+| `wecare/plivo/api:auth_token` | 3 | 12c97747 8f2b6823 |
+| `wecare/plivo:sip_auth_credential_uuid` | 3 | c665c596 12c97747 f2f0a788 |
+| `wecare/meta-system-user-token:client_token` | 1 | d3907404 0a01933d |
+| `wecare/meta-system-user-token:client_token_waba2` | 1 | d3907404 0a01933d |
+
+Working tree, 2026-10-01: `wecare/plivo:sip_auth_credential_uuid` appears once in
+the committed file `docs/execution/snapshots/plivo-application-before-api-path.json`.
+
+Read this precisely: the Plivo **auth token** (not just the auth id), the Razorpay
+**webhook_secret** and the Meta **client_token(s)** are real, current Secrets
+Manager values sitting in the git object database. The earlier statement that "the
+token has never been committed" is contradicted by direct measurement — trust the
+scanner over the prose. So unlike the lone auth id, this **does** imply rotation:
+treat all six as exposed. Rotation is deferred to project completion by owner
+decision and is a standing refusal for the agent regardless; it is owner-only work
+tracked in `docs/CREDENTIAL-ROTATION-RUNBOOK.md`.
 
 Do not "fix" this with a history rewrite. A rewrite plus force push is explicitly
-prohibited, the value does not warrant it, and the cost of the rewrite exceeds the
-exposure. The correct state is: recorded, understood, not escalated. What matters
-is that the scanner keeps reporting it rather than being taught to ignore it, so
-that a *token* landing in a blob is still distinguishable from this.
+prohibited, and — decisively — scrubbing history **before** rotating is theatre:
+the values must be rotated first, and rotation is deferred, so history cleanup is
+correctly blocked until then. The correct state is: recorded, understood, rotation
+pending at project close. What matters is that the scanner keeps reporting all six
+rather than being taught to ignore them — do **not** allowlist these fingerprints,
+so that any *new* secret landing in a blob is still distinguishable from this known
+set. Re-measure with `python scripts/scan_repo_secrets.py` (needs the `.venv`
+interpreter for `boto3`); do not rely on the narrower healthcheck for the history
+verdict.
 
 ## The rule
 
