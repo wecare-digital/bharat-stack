@@ -7,6 +7,19 @@
     "  out/llms-full.txt   same generator, with the descriptions inlined",
     "  /mcp                amplify/functions/ai/mcp-server reads it from its own zip",
     "",
+    "THE `pages` ARRAY IS GENERATED. DO NOT HAND-EDIT IT.",
+    "  node scripts/generate-public-pages.js          rewrites it from the tree",
+    "  node scripts/generate-public-pages.js --check   fails if it is stale (runs in CI)",
+    "It is derived from PUBLIC_EXACT in scripts/generate-sitemap.js, PUBLIC_PAGE_META and the",
+    "render chains in src/pages/_app.tsx, src/content/products.ts, src/content/selfservice.ts and",
+    "src/content/legal/, plus the presence of a real file under src/pages/. Add a page, delete a",
+    "page or reword its description and this array follows on the next build. The one field no",
+    "scan can infer is `group` - that is a positioning decision - so a new public route with no",
+    "group is a hard build failure naming the line to add rather than a guess.",
+    "",
+    "Everything ELSE in this file is hand-written and the generator preserves it untouched:",
+    "site, groups, ai_surface, usage_terms.",
+    "",
     "IT IS DERIVED, NOT AUTHORITATIVE, AND THAT DISTINCTION IS LOAD-BEARING.",
     "The render allowlist is PUBLIC_PAGE_META plus the isPublic chain in src/pages/_app.tsx;",
     "the crawl allowlist is PUBLIC_EXACT in scripts/generate-sitemap.js. Those two decide what",
@@ -24,7 +37,6 @@
     "change, and the generator fetches them from /api/seo-tools/blog-public exactly as",
     "generate-sitemap.js already does."
   ],
-
   "site": {
     "name": "WECARE.DIGITAL",
     "url": "https://wecare.digital",
@@ -34,7 +46,6 @@
     "country": "IN",
     "sitemap": "https://wecare.digital/sitemap.xml"
   },
-
   "groups": [
     {
       "id": "start",
@@ -62,7 +73,6 @@
       "note": "Published terms and the data-handling policy."
     }
   ],
-
   "pages": [
     {
       "path": "/",
@@ -88,7 +98,6 @@
       "name": "Orders",
       "description": "Check the status of an order, delivery, request or booking."
     },
-
     {
       "path": "/grahak-os",
       "group": "platform",
@@ -101,7 +110,6 @@
       "name": "VayuLok",
       "description": "Bharat air and weather intelligence."
     },
-
     {
       "path": "/bharat-rx",
       "group": "services",
@@ -150,7 +158,6 @@
       "name": "Niji Setu",
       "description": "A QR code people scan to reach you on a masked call."
     },
-
     {
       "path": "/submit-request",
       "group": "selfservice",
@@ -181,31 +188,94 @@
       "name": "Refer & Earn",
       "description": "Introduce someone who would find this useful."
     },
-
-    {
-      "path": "/terms",
-      "group": "legal",
-      "name": "Terms",
-      "description": "Terms of service."
-    },
     {
       "path": "/privacy",
       "group": "legal",
       "name": "Privacy",
       "description": "How WECARE.DIGITAL handles your data."
+    },
+    {
+      "path": "/terms",
+      "group": "legal",
+      "name": "Terms",
+      "description": "Terms of service."
     }
   ],
-
   "ai_surface": {
+    "_comment": [
+      "THERE IS NO human_page KEY ANY MORE, and its absence is a decision rather than an omission.",
+      "",
+      "/llm/ was an HTML page that described this endpoint in prose. It was retired on 2026-09-30:",
+      "a documentation page for a machine interface is a fifth place the tool list, the protocol",
+      "versions and the limits had to be kept in step, and the audience that needed it can get a",
+      "better answer from the endpoint itself. `initialize` returns an `instructions` string,",
+      "`tools/list` returns the tools with their schemas, and get_site_summary returns this whole",
+      "block. Everything the page said now lives here and in /llms.txt, which is where a reader",
+      "arriving from robots.txt actually lands. /llm and /llm/ 301 to /llms.txt - see RETIRED in",
+      "scripts/provision_legacy_redirects.py.",
+      "",
+      "mcp_tools MUST equal READ_ONLY_TOOLS in amplify/functions/ai/mcp/handler.py, asserted in",
+      "both directions by src/test/PublicAiSurface.test.ts. `summary` is prose for a reader and is",
+      "deliberately not the handler's `description`, which is written to instruct a model."
+    ],
     "llms_txt": "https://wecare.digital/llms.txt",
     "llms_full_txt": "https://wecare.digital/llms-full.txt",
     "mcp_endpoint": "https://wecare.digital/mcp",
     "mcp_transport": "streamable-http",
-    "mcp_protocol_versions": ["2025-11-25", "2025-06-18", "2025-03-26"],
-    "human_page": "https://wecare.digital/llm/",
-    "note": "The MCP endpoint is read-only and unauthenticated. It exposes the public pages and the published blog corpus, and nothing else. It cannot send a message, create a request, take a payment or read a customer record."
+    "mcp_protocol_versions": [
+      "2025-11-25",
+      "2025-06-18",
+      "2025-03-26"
+    ],
+    "mcp_client_config": {
+      "mcpServers": {
+        "wecare-digital": {
+          "type": "http",
+          "url": "https://wecare.digital/mcp"
+        }
+      }
+    },
+    "mcp_tools": [
+      {
+        "name": "get_site_summary",
+        "summary": "who this business is, how to start a request, and these citation terms"
+      },
+      {
+        "name": "list_pages",
+        "summary": "the full public page catalogue, grouped, with canonical URLs"
+      },
+      {
+        "name": "search_pages",
+        "summary": "find the page that covers a topic"
+      },
+      {
+        "name": "search_blog",
+        "summary": "search the published articles by title, summary and category"
+      },
+      {
+        "name": "get_blog_post",
+        "summary": "one article by its slug"
+      }
+    ],
+    "mcp_resources": [
+      {
+        "uri": "wecare://site/summary",
+        "summary": "this block, plus who the business is and how to start a request"
+      },
+      {
+        "uri": "wecare://pages/catalog",
+        "summary": "every public page with its canonical URL, name and description"
+      }
+    ],
+    "mcp_cannot": [
+      "Send a WhatsApp message, SMS or email.",
+      "Create, amend or cancel a request.",
+      "Take, capture or refund a payment.",
+      "Read any contact, order or message record.",
+      "Reach anything behind a sign-in."
+    ],
+    "note": "The MCP endpoint is read-only and unauthenticated. It exposes the public pages and the published blog corpus, and nothing else. That is not a permission setting: the capability to act is absent from the handler, and its test suite asserts the tool list against a frozen allowlist so a tool with a side effect cannot be added quietly. A GET returns 405 by design - the server is stateless and offers no SSE stream, which the specification names as the explicit alternative."
   },
-
   "usage_terms": [
     "The public pages and published blog posts on this site may be read, quoted with attribution, and cited by AI assistants and answer engines.",
     "Attribute to WECARE.DIGITAL and link the page you drew from.",

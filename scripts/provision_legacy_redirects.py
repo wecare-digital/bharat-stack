@@ -126,6 +126,25 @@ RETIRED = {
     # fall through to the catch-all would serve 404.html at HTTP 200 instead, which is the
     # failure mode this whole script exists to avoid.
     "/my-order": "/orders/",
+    # RETIRED 2026-09-30. /llm/ was an HTML page describing the AI-facing surface - the MCP
+    # endpoint at /mcp, the two llms.txt files, and the citation terms. It was deleted because
+    # it was a fifth hand-kept copy of the endpoint URL, the three protocol versions, the five
+    # tool names and the cannot-do list, and a documentation page that drifts from the endpoint
+    # it documents sends an operator to something that answers differently from the description.
+    #
+    # THE 301 TARGET IS /llms.txt, NOT /mcp, and that is deliberate rather than lazy. /mcp
+    # answers HTTP 405 to a GET - correctly, it offers no SSE stream - so redirecting a browser
+    # or a crawler there would turn a live page into a method error. /llms.txt is a GET-able
+    # document that now carries everything the page did, including the client config snippet,
+    # the tool list and the limits; scripts/generate-llms-txt.js emits them from
+    # config/public-pages.json.
+    #
+    # This is the second PUBLIC entry in this dict, and it needs the 301 for the same reason
+    # /my-order did: the URL was live at HTTP 200, is named in public/robots.txt and in
+    # out/llms.txt, and was linked from the MCP server's own User-Agent string, so it is an
+    # address other people and other machines already hold. Without this rule it falls through
+    # to the `/<*>` catch-all and serves 404.html.
+    "/llm": "/llms.txt",
 }
 
 # Prefix renames: old top-level segment -> new one. `/dm` became `/workspace/engage` on

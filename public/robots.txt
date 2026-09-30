@@ -111,4 +111,9 @@ Sitemap: https://wecare.digital/sitemap.xml
 # either file, because it can search on demand instead of reading a snapshot:
 #
 #   https://wecare.digital/mcp             read-only MCP server, Streamable HTTP
-#   https://wecare.digital/llm/            what it exposes, and the citation terms
+#
+# The endpoint describes itself: `initialize` returns an instructions string, `tools/list`
+# returns the five tools with their schemas, and get_site_summary returns the citation terms.
+# /llms.txt above repeats all of it in prose, including the client config snippet. There was
+# an HTML page at /llm/ for that job until 2026-09-30; it is retired and 301s to /llms.txt,
+# because a page describing a machine interface is one more copy to keep in step.

@@ -32,6 +32,10 @@
  * src/test/PublicAiSurface.test.ts fails the build when it drifts from the two allowlists
  * that decide what is actually public.
  *
+ * Its `pages` array is itself generated, by scripts/generate-public-pages.js, which runs
+ * FIRST in the build chain. So the path from "a page was added" to "llms.txt and /mcp know
+ * about it" needs no hand edit at all: the scan picks the route up, this file publishes it.
+ *
  * RUN ORDER MATTERS: after generate-blog-search-index.js
  * -----------------------------------------------------
  * The 889 posts are not in this repository. They come from /api/seo-tools/blog-public,
@@ -156,6 +160,13 @@ function buildIndex ( catalog, pages, posts ) {
   // The MCP endpoint goes near the top on purpose. An agent that can speak MCP should use
   // it rather than this file: it can ask a question and get a scoped answer, where this can
   // only hand over a fixed list.
+  //
+  // THIS SECTION IS ALSO WHERE THE RETIRED /llm PAGE WENT. That page described the endpoint
+  // in prose for an operator wiring up a client; it was deleted on 2026-09-30 because it was
+  // a fifth copy of the endpoint URL, the protocol versions and the tool list, and /llm now
+  // 301s here. So this section carries what it carried - the config snippet, the tool list,
+  // and the cannot-do list - which puts it in front of the reader who arrives from
+  // robots.txt rather than behind one more hop.
   lines.push( '## For agents: a live query interface' );
   lines.push( '' );
   lines.push( `This site runs a read-only Model Context Protocol server at ${ai.mcp_endpoint} over` );
@@ -164,9 +175,31 @@ function buildIndex ( catalog, pages, posts ) {
   lines.push( 'rather than handing over a fixed snapshot. It needs no credentials.' );
   lines.push( '' );
   lines.push( linkLine( 'MCP endpoint', ai.mcp_endpoint,
-    'POST JSON-RPC. GET returns 405 by design; this server is stateless and offers no SSE stream.' ) );
-  lines.push( linkLine( 'What the endpoint does and does not do', ai.human_page,
-    'Human-readable description of the tools, the limits, and the citation terms.' ) );
+    'POST JSON-RPC and you get one JSON object back. GET returns 405 by design; this server is stateless and offers no SSE stream.' ) );
+  lines.push( '' );
+  lines.push( 'Add it to an MCP client like this:' );
+  lines.push( '' );
+  // A fenced block, so a consumer that renders this as markdown does not reflow the JSON
+  // into prose. `type: "http"` is the Streamable HTTP transport; the older `sse` type would
+  // attempt the deprecated HTTP+SSE transport, which this server does not implement and
+  // which would fail at the GET.
+  lines.push( '```json' );
+  for ( const line of JSON.stringify( ai.mcp_client_config, null, 2 ).split( '\n' ) ) lines.push( line );
+  lines.push( '```' );
+  lines.push( '' );
+  lines.push( `It exposes ${ai.mcp_tools.length} tools, every one of them a read of content that is already public:` );
+  lines.push( '' );
+  for ( const tool of ai.mcp_tools ) lines.push( `- \`${tool.name}\` — ${tool.summary}` );
+  lines.push( '' );
+  lines.push( `Plus ${ai.mcp_resources.length} resources, both as JSON:` );
+  lines.push( '' );
+  for ( const resource of ai.mcp_resources ) lines.push( `- \`${resource.uri}\` — ${resource.summary}` );
+  lines.push( '' );
+  // Stated plainly rather than left to inference. An agent that assumes a tool endpoint can
+  // act will try, and a refusal it did not expect reads as a fault rather than as a limit.
+  lines.push( 'What it cannot do:' );
+  lines.push( '' );
+  for ( const limit of ai.mcp_cannot ) lines.push( `- ${limit}` );
   lines.push( '' );
   lines.push( `${ai.note}` );
   lines.push( '' );

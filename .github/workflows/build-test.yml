@@ -106,8 +106,44 @@ jobs:
           fi
           echo "package-lock.json unchanged by npm ci."
 
+      # BEFORE THE BUILD, AND THAT ORDER IS THE WHOLE POINT.
+      #
+      # `npm run build` now starts by running this same generator WITHOUT --check, so it
+      # rewrites config/public-pages.json in place. Run the check after the build and it can
+      # never fail: the build has already repaired whatever drift existed, and the commit
+      # stays stale while CI reports green.
+      #
+      # Stale matters here in a way it does not for most generated files, because the
+      # catalogue is the one artifact that is COPIED rather than read: /mcp carries it inside
+      # its deployment zip, so a stale commit means the endpoint keeps describing the old page
+      # set until someone redeploys. That exact failure already happened once, when /my-order
+      # became /orders.
+      #
+      # src/test/PublicAiSurface.test.ts asserts the same thing, and also runs after the build
+      # for the same reason. Both are kept: this one names the fix in the failure annotation, and
+      # the test keeps it true for anyone running `npx vitest` on a clean tree locally.
+      - name: Gate - the public page catalogue matches the tree
+        run: |
+          if ! node scripts/generate-public-pages.js --check; then
+            echo "::error::config/public-pages.json is stale. Run 'node scripts/generate-public-pages.js' and commit it, then redeploy /mcp with 'python scripts/deploy_mcp_server.py' so the endpoint stops describing the old page set."
+            exit 1
+          fi
+
       - name: Build
         run: npm run build
+
+      # THE BUILD MUST NOT HAVE CHANGED IT EITHER. The gate above proves the committed
+      # catalogue was current before the build; this proves the build agreed, which is the
+      # only way to catch a generator whose output depends on something `next build` produces.
+      # It should not - the scan reads src/ and config/ only - and this is how that stays true.
+      - name: Gate - the build did not rewrite the catalogue
+        run: |
+          if ! git diff --quiet config/public-pages.json; then
+            echo "::error::npm run build modified config/public-pages.json, so the generator depends on build output. It is meant to read src/ and config/ only."
+            git --no-pager diff config/public-pages.json
+            exit 1
+          fi
+          echo "config/public-pages.json unchanged by the build."
 
       # A BACKSTOP, NOT THE REAL GATE, and the distinction matters enough to spell out.
       # output:'export' inlines every NEXT_PUBLIC_* value into a JS chunk served to

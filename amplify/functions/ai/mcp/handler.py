@@ -208,7 +208,10 @@ _BLOG_FIELDS = ("slug", "title", "excerpt", "category", "publishedDate", "author
 def _fetch_blog() -> List[Dict[str, Any]]:
     req = urllib.request.Request(BLOG_API, headers={
         "Accept": "application/json",
-        "User-Agent": f"{SERVER_NAME}/{SERVER_VERSION} (+{SITE_URL}/llm/)",
+        # Points at this endpoint, not at a page describing it. It named /llm/ until
+        # 2026-09-30, when that page was retired; a User-Agent URL that 301s is a URL
+        # someone reading an access log has to follow twice to learn who called them.
+        "User-Agent": f"{SERVER_NAME}/{SERVER_VERSION} (+{SITE_URL}/mcp)",
     })
     with urllib.request.urlopen(req, timeout=BLOG_TIMEOUT_SECONDS) as resp:
         payload = json.loads(resp.read().decode("utf-8"))
