@@ -129,35 +129,72 @@ hard-coded module constant with no override (7 files), and a literal inside a UR
 
 ---
 
-## R2 — Exactly one immutable business order number
+## R2 — An order exists only after payment is verified as paid
 
-**User story.** As the business, I need every order to carry a globally unique,
-never-reused, never-changing customer-facing number that survives retries and duplicate
-webhooks.
+**Superseded 2026-09-30, and the change is a reversal.** This requirement previously asked for
+an order number to be reserved as part of building the payment request. That is now prohibited.
 
-An order-number generator already exists (`WD-ORD - <UUID8> - <DD-MM-YYYY> - <HH:MM:SS> -
-IST`) but it has two defects for this purpose: it is **generated per call with no
-uniqueness marker**, so a retry produces a different number, and its fallback path returns
-an unstored number on DynamoDB failure — the one case where collision protection matters
-most.
+**The rule.** A cart is not an order. A checkout is not an order. A payment attempt is not an
+order. A pending, failed, cancelled or expired transaction is not an order. A successful Meta
+webhook is not on its own sufficient proof to create one. An order comes into existence only
+after the backend has independently verified with the provider that the money was captured, and
+every amount, currency and customer check has passed.
+
+**Why the reversal.** A pre-payment order number is a promise the business cannot keep. It shows
+the customer an order that does not exist, it puts a row in order history for a payment that may
+never happen, and it makes "how many orders did we take" unanswerable without also knowing which
+of them were paid. Order history should contain only real orders, and the cheapest way to
+guarantee that is for the identifier not to exist yet.
+
+**Two identifiers before payment, two after.**
+
+| Phase | Identifier | Shape | Purpose |
+|---|---|---|---|
+| before | `paymentAttemptId` | UUIDv7 | internal, never shown to a customer |
+| before | `reference_id` | `WD-PAY-` + 14 CSPRNG symbols | the Meta/Razorpay join key |
+| after PAID | `orderId` | UUIDv7 | the permanent database identity |
+| after PAID | `orderNumber` | 12 characters, `23456789ABCDEFGHJKMNPQRSTVWXYZ` | customer-facing |
 
 **Acceptance criteria**
 
-1. The order number SHALL be globally unique, immutable and never reused.
-2. It SHALL NOT be derived from phone number alone, nor timestamp alone.
-3. WHEN a candidate is generated THEN a uniqueness marker `PK=ORDERNO#<number>`,
-   `SK=UNIQUE` SHALL be written with `ConditionExpression: attribute_not_exists(PK)`
-   **before** the number is accepted.
-4. WHEN that conditional write fails THEN a new candidate SHALL be generated and retried,
-   and the existing number SHALL NOT be overwritten.
-5. WHEN DynamoDB is unavailable THEN order creation SHALL fail; the system SHALL NOT return
-   an unreserved order number.
-6. WHEN the same Meta payment notification is delivered more than once THEN all deliveries
-   SHALL resolve to the same existing order and the same number.
-7. WHEN order creation is retried after a Lambda timeout THEN the number SHALL be unchanged.
-8. 10,000 generated numbers SHALL contain no duplicate.
-9. The Meta `reference_id` SHALL be a distinct identifier mapped to the order, never the
-   order number itself.
+1. A payment attempt SHALL be created before a payment request is sent, and it SHALL NOT carry
+   an order id or an order number.
+2. `reference_id` SHALL be generated server-side, SHALL be stable for one payment attempt, and
+   SHALL NOT be derived from any other identifier by truncation. Meta limits it to 35
+   characters of `[A-Za-z0-9._-]`; an over-long value SHALL be rejected, never shortened.
+3. WHEN the provider reports a payment as failed, cancelled, expired or still pending THEN the
+   system SHALL create **zero** orders, zero order numbers, zero Wix orders and zero receipts.
+4. WHEN a payment is authoritatively verified as paid THEN the system SHALL create **exactly
+   one** order, guarded by conditional markers on both `PAYMENTATTEMPT#<id>` and
+   `PROVIDERPAYMENT#<transactionId>`.
+5. One provider transaction SHALL fund at most one order, even across two payment attempts.
+6. The 12-character order number SHALL be reserved under `ORDERNO#<number>` with
+   `ConditionExpression: attribute_not_exists(...)` **before** it is returned to any caller.
+7. WHEN that conditional write fails THEN a new candidate SHALL be generated and retried, and
+   the existing reservation SHALL NOT be overwritten.
+8. WHEN DynamoDB is unavailable THEN the operation SHALL fail; the system SHALL NOT return an
+   unreserved identifier of any kind.
+9. The order number SHALL be immutable, never reused, non-sequential, not timestamp-derived and
+   SHALL encode no phone number, email address or customer id.
+10. WHEN the same payment notification is delivered more than once THEN every delivery SHALL
+    resolve to the same order and the same number.
+11. WHEN reconciliation is retried after a timeout THEN the order and its number SHALL be
+    unchanged.
+12. 10,000 reserved order numbers SHALL contain no duplicate.
+13. A failed payment attempt SHALL remain visible in payment history, SHALL be labelled as
+    having created no order, and SHALL NOT be given an order number.
+14. A genuine retry after a failed payment SHALL create a new payment attempt with a new
+    `reference_id` and SHALL record `retryOf` pointing at the previous attempt. A retry of the
+    *message delivery* SHALL reuse the same attempt and the same reference.
+
+### Note on the legacy order-number format
+
+The `WD-ORD - <UUID8> - <DD-MM-YYYY> - <HH:MM:SS> - IST` format is retained for orders synced
+**from** Wix, which already exist and are already paid, and which live surfaces read. It is not
+used for orders this checkout creates, for two reasons: it is 47 characters where the
+customer-facing number wants 12, and it cannot be a `reference_id` at all — stripping its spaces
+and colons happened to land on exactly 35 characters only because the embedded date and time are
+fixed width.
 
 ---
 

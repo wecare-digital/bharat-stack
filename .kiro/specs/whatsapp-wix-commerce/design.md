@@ -160,39 +160,95 @@ creation date, by payment status, by reconciliation status, by fulfillment statu
 
 ---
 
-## Order number algorithm
+## Identifier algorithm
+
+**Revised 2026-09-30 for the order-after-payment rule (R2).** Nothing below mints an order
+identifier while a payment is being requested.
+
+### Before payment
 
 ```
-candidate  = WD-ORD - <UUID8> - <DD-MM-YYYY> - <HH:MM:SS> - IST
-reserve    = PutItem  PK=ORDERNO#<candidate>  SK=UNIQUE
-             ConditionExpression: attribute_not_exists(PK)
-
-ConditionalCheckFailed  →  regenerate, retry, bounded attempts
-any other error         →  FAIL CLOSED, return no number
-exhausted attempts      →  FAIL CLOSED, alarm
+paymentAttemptId = UUIDv7                       local, free, no storage
+reference_id     = WD-PAY- + 14 CSPRNG symbols  validated against Meta's 35-char charset
+reserve          = PutItem  PAYREF#<reference_id>  ->  paymentAttemptId
+                   ConditionExpression: attribute_not_exists(...)
 ```
 
-The reservation is written **before** the number is returned to any caller. Order creation
-then uses `TransactWriteItems` to write the order metadata and the reference/checkout
-mappings together, so a partially-created order is not observable.
+The `PAYREF#` row deliberately holds no order id and no order number. That is the rule expressed
+in the data rather than in a comment.
 
-Idempotent re-entry is a lookup, not a generation: given a Meta `reference_id`, resolve
-`REFERENCE#<id>` first and return the existing order if present. Generation happens only
-when no mapping exists.
+### After the provider confirms capture
+
+```
+orderId = UUIDv7                                minted FIRST, locally, costs nothing
+
+claim   = PutItem  PROVIDERPAYMENT#<txnId>   -> orderId     provider uniqueness, claimed first
+          PutItem  PAYMENTATTEMPT#<attempt>  -> orderId     the idempotency anchor
+          both ConditionExpression: attribute_not_exists(...)
+
+          lost either claim  ->  read the winner's orderId, return it, create nothing
+
+reserve = PutItem  ORDERNO#<12-char candidate>  ConditionExpression: attribute_not_exists(...)
+          ConditionalCheckFailed  ->  regenerate, retry, bounded attempts
+          any other error         ->  FAIL CLOSED, no number returned
+          exhausted attempts      ->  FAIL CLOSED, alarm
+
+record  = UpdateItem PAYMENTATTEMPT#<attempt>  SET orderNumber
+```
+
+**Why `orderId` is minted before the claim.** It costs nothing and touches no storage, so it can
+be used *as* the claim value. That gets the ordering right: the claim decides who may create the
+order, and only the winner then reserves a number — so a loser never burns one. Reserving first
+and claiming second would consume a number per concurrent worker.
+
+**Why the number is recorded separately.** It does not exist at claim time. The gap between
+claiming and reserving is therefore real, and re-entry is what closes it: `PAYMENTATTEMPT#` with
+no `orderNumber` means the previous run died in between, so the caller reserves one and records
+it. That is recoverable; a number handed out before it was committed is not.
+
+Idempotent re-entry is a lookup, not a generation. A payment event carrying an unknown
+`reference_id` resolves to nothing, and the correct response is to fail the event for staff
+attention — never to create an order from a payment event.
 
 ---
 
 ## State machine
 
-```
-CART_ACTIVE → CHECKOUT_CREATED → PAYMENT_REQUESTED → PAYMENT_PENDING
-   → PAYMENT_CONFIRMED → WIX_ORDER_PENDING → WIX_ORDER_CREATED
-   → WIX_PAYMENT_PENDING → WIX_PAYMENT_CONFIRMED
-   → BILLING_DOCUMENT_PENDING → BILLING_DOCUMENT_READY
-   → CONFIRMED → FULFILLMENT_PENDING → SHIPPED → DELIVERED
+Two machines, not one, because payment state and order state answer different questions and
+conflating them is what allowed a pre-payment order to exist at all.
 
-side exits: CANCELLED · REFUNDED · RECONCILIATION_FAILED
+### Payment attempt
+
 ```
+CREATED → PAYMENT_CONFIG_CHECK → PAYMENT_REQUEST_BUILDING
+        → PAYMENT_REQUEST_SENT → PAYMENT_PENDING
+
+then exactly one of:
+   PAYMENT_PAID · PAYMENT_FAILED · PAYMENT_CANCELLED · PAYMENT_EXPIRED
+```
+
+Only `PAYMENT_PAID` may proceed, and only after an independent provider readback — a webhook is a
+trigger to verify, not proof. The three terminal failures create nothing and stay in payment
+history.
+
+### Order — reachable only from PAYMENT_PAID
+
+```
+ORDER_ID_RESERVING → ORDER_CREATING → ORDER_CREATED
+   → WIX_ORDER_CREATING → WIX_ORDER_CREATED
+   → WIX_PAYMENT_RECORDING → WIX_PAYMENT_RECORDED
+   → RECEIPT_GENERATING → RECEIPT_READY
+   → WHATSAPP_CONFIRMATION_SENDING → CONFIRMED
+   → FULFILLMENT_PENDING → SHIPPED → DELIVERED
+
+side exits: REFUNDED · RECONCILIATION_FAILED
+```
+
+Note what is absent from the order machine: there is no `CANCELLED`, because an order that could
+be cancelled before payment would be an order that existed before payment. A customer abandoning
+checkout leaves a payment attempt, not a cancelled order.
+
+Every failure after capture is recoverable and none of them may ask the customer to pay again.
 
 Transitions are applied with `ConditionExpression` on the current state, so a concurrent or
 replayed worker attempting the same transition fails harmlessly rather than double-applying

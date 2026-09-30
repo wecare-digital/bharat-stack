@@ -41,11 +41,54 @@ Node.js 24 also dropped callback-style handlers, so any vendored sample using
 |---|---|---|---|
 | Graph version in use | `v25.0` | `REPO` | ⚠️ sourced inconsistently, see below |
 | `v26.0` | deliberately not adopted | `REPO` `meta-business-agent/handler.py:231-235` records that v26.0 "blocked a batch of commerce" calls | ⚠️ the prompt's `v26.0` baseline is **rejected** until re-tested |
-| Business sender | `+919330994400`, phone id `1016149501586345`, WABA `2094615664435155` | `REPO` `notifications/events.py:95-98` | ⚠️ `inbound-whatsapp-handler:7309` carries `if False: # Phone 1 DISCONNECTED` |
+| Business sender | `+919330994400`, phone id `1016149501586345`, WABA `2094615664435155` | `LIVE` re-measured 2026-09-30 | ✅ **healthy** — quality GREEN, `CLOUD_API`, official business account, WABA `APPROVED`. The `if False: # Phone 1 DISCONNECTED` comment was **stale and wrong** |
 | Secondary sender | `+919903300044`, phone id `1055232054343117`, WABA `2513394156072604` | `REPO` | ✅ |
-| Payment configurations | `WECAREDIGITAL` (Razorpay, MID `acc_TTFSyolquKEZEy`), `WECAREUPI` (UPI VPA); MCC 7392, purpose code 03, on both WABAs | `REPO` verified live 2026-08-23 via `/{waba}/payment_configurations` | ⚠️ not re-measured |
+| Payment configurations | historically `WECAREDIGITAL` (Razorpay, MID `acc_TTFSyolquKEZEy`), `WECAREUPI` | `REPO` verified live 2026-08-23 | ⛔ **NOT currently present** — see the correction below |
 | Payments India surface | `order_details`, `review_and_pay`, `reference_id`, per-WABA payment configuration, payment lookup `GET /{phone_id}/payments/{config}/{reference_id}`, webhook status notifications | `DOC` Meta Payments-in (PG + UPI intent) | ✅ matches the implemented payload |
 | Live re-measurement | not possible this session | `BLOCKED` `wecare-whatsapp-business-api` returned `No authorization token provided`; minting an admin token to probe is out of scope | ⛔ |
+
+### ⛔ Correction, 2026-09-30 — the payment configurations are not live
+
+The row above records a reading taken on **2026-08-23**, and it was almost certainly true then.
+It is not true now. Re-measured today through `wecare-whatsapp-business-api:live`:
+
+```
+GET /2094615664435155/payment_configurations   ->   HTTP 200, ZERO configurations
+```
+
+This is not a failed call. `_check_payment_gateway` populates `metaApiResponse` only when the
+Graph result carries an `error`, and it came back `null` — so Meta answered, and answered "none".
+Both names report `status: local_only`, `canReceivePayments: false`.
+
+**So `WECAREDIGITAL` and `WECAREUPI` currently exist only as Python constants.** Read the 2026-08-23
+row as *historically verified*, not *currently verified*; that distinction is the whole reason this
+document exists. Meta's own reference warns that when `configuration_name` is invalid the customer
+is simply unable to pay, so nothing may send an `order_details` message until it is restored —
+which is owner-administrative work in WhatsApp Manager, not something application code may do.
+
+Two more names survive from before the 2026-08-23 rebuild, in
+`.kiro/steering/META-BETA-REQUEST-EMAIL.md`: `WECARE-RAZOR-PAY` (WABA1) and
+`Razorpay_ManishAgarwal` (WABA2). Four configuration names across three files; none at Meta.
+
+### ⚠️ Correction, 2026-09-30 — the Razorpay MID and UPI VPA both conflict
+
+Neither value may be hard-coded until a restored configuration can be read back and compared.
+They are not symmetric, though, and the asymmetry is the useful part:
+
+| Value | Evidence | Weight |
+|---|---|---|
+| `acc_HDfub6wOfQybuH` | live env `RAZORPAY_MID` on `wecare-whatsapp-business-api`; `config/lambda-env-manifest.json:466`; **the `account_id` carried by real Razorpay webhook payloads** (`docs/execution/phase-04d-payment-audit.md:46`, `tests/test_payment_status.py` fixtures) | strong — this is the account that talks to us |
+| `acc_TTFSyolquKEZEy` | prose and comments only: this file, `bw-crm.md`, `protected-resource-register.md`, `whatsapp-experience-structure.md`, `outbound-whatsapp:373,380`, `whatsapp-business-api:3150` | weak — no live artefact |
+
+They are also different *fields*: one is the Razorpay merchant account, the other was only ever
+claimed as the Meta configuration's `provider_mid`. `lambda_utils/payment_readiness.py` refuses
+to enable payments unless the two agree.
+
+The same shape applies to the UPI VPA: live env says `wecaredigital83.rzp@icici`, the code's
+documented fallback says `wecaredigitalbh511413.rzp@rxairtel` — a different handle **and** a
+different PSP suffix.
+
+---
 
 **Graph version sourcing is the real defect**, not the version number. `v25.0` reaches the
 runtime three different ways: an env var with a default (9 files), a hard-coded module
