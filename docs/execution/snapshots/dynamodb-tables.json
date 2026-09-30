@@ -1,6 +1,6 @@
 {
   "note": "Refresh with scripts/check_data_model_drift.py --snapshot",
-  "count": 77,
+  "count": 80,
   "tables": [
     "stack-wecare-digital-AIInteractionsTable",
     "stack-wecare-digital-AIProviderPolicyTable",
@@ -26,6 +26,7 @@
     "stack-wecare-digital-DLTTemplates",
     "stack-wecare-digital-DocumentHistoryTable",
     "stack-wecare-digital-DocumentTable",
+    "stack-wecare-digital-DownloadGrantsTable",
     "stack-wecare-digital-EnterpriseAssistTable",
     "stack-wecare-digital-FaqTable",
     "stack-wecare-digital-FlowDraftTable",
@@ -48,6 +49,7 @@
     "stack-wecare-digital-OrderTable",
     "stack-wecare-digital-PartnerLedger",
     "stack-wecare-digital-PartnerWallet",
+    "stack-wecare-digital-PaymentAttemptsTable",
     "stack-wecare-digital-PaymentsTable",
     "stack-wecare-digital-PstnSoftphoneSessions",
     "stack-wecare-digital-PushTokensTable",
@@ -57,6 +59,7 @@
     "stack-wecare-digital-ReviewTable",
     "stack-wecare-digital-RxSlotTable",
     "stack-wecare-digital-ScheduledMessagesTable",
+    "stack-wecare-digital-SecureFilesTable",
     "stack-wecare-digital-SeoToolsTable",
     "stack-wecare-digital-ShortLinksTable",
     "stack-wecare-digital-SiteLanguageCache",
