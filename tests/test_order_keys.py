@@ -138,22 +138,65 @@ def test_mint_does_not_use_the_random_module():
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# the 12-character public order number
+# the public order number: WD-ORD- + 8
 # ════════════════════════════════════════════════════════════════════════════
 
-def test_public_order_number_is_exactly_twelve_chars_in_the_safe_alphabet():
+def test_public_order_number_is_the_prefix_plus_eight_safe_symbols():
+    """WD-ORD-XXXXXXXX. Was a bare 12 characters until the owner chose the readable prefix.
+
+    Eight symbols of entropy, not six, and the decision was measured: over this 30-symbol
+    alphabet six symbols is ~29.4 bits, giving a 50% chance of a collision by ~33,800 orders and
+    a 1-in-7,290 blind guess against a 100,000-order corpus. Eight is ~39.3 bits - 1 in 6,561,000
+    - and keeps the retry loop theoretical past a million orders. A collision is never *wrong*
+    (the conditional write refuses it) but it must not become the hot path, and the number must
+    not be enumerable.
+    """
     for _ in range(500):
         number = order_keys.mint_public_order_number()
-        assert len(number) == 12
+        assert number.startswith(order_keys.PUBLIC_ORDER_NUMBER_PREFIX)
+        assert len(number) == order_keys.PUBLIC_ORDER_NUMBER_LENGTH == 15
+        tail = number[len(order_keys.PUBLIC_ORDER_NUMBER_PREFIX):]
+        assert len(tail) == order_keys.PUBLIC_ORDER_NUMBER_ENTROPY == 8
         assert number == number.upper()
-        assert all(c in order_keys.PUBLIC_ORDER_NUMBER_ALPHABET for c in number)
+        assert all(c in order_keys.PUBLIC_ORDER_NUMBER_ALPHABET for c in tail)
         assert order_keys.is_public_order_number(number)
+        assert order_keys.is_current_public_order_number(number)
+
+
+def test_only_the_tail_is_random():
+    """A reader must never have to wonder whether the prefix came out of the random source."""
+    tails = {order_keys.mint_public_order_number()[7:] for _ in range(200)}
+    assert len(tails) > 190, 'the tail is not varying, so the entropy is not where it should be'
+    prefixes = {order_keys.mint_public_order_number()[:7] for _ in range(200)}
+    assert prefixes == {'WD-ORD-'}
+
+
+def test_historical_twelve_character_numbers_still_resolve():
+    """NOT optional. Numbers already issued are printed on receipts, sitting in customers'
+    WhatsApp history and quoted to support. A validator that stopped recognising them would break
+    tracking and receipt lookup for every order placed before the prefix existed."""
+    legacy = 'KMP4X9Q2DTR7'
+    assert len(legacy) == order_keys.LEGACY_PUBLIC_ORDER_NUMBER_LENGTH == 12
+    assert order_keys.is_public_order_number(legacy)
+    # ...but nothing mints that shape any more, and the stricter predicate says so.
+    assert not order_keys.is_current_public_order_number(legacy)
+
+
+def test_the_minter_never_produces_the_legacy_shape():
+    """Otherwise the migration silently has not happened."""
+    for _ in range(300):
+        assert order_keys.is_current_public_order_number(order_keys.mint_public_order_number())
 
 
 def test_public_order_number_alphabet_excludes_confusable_characters():
-    """It gets read aloud to support and typed into a tracking box."""
-    for forbidden in '01OIL':
+    """It gets read aloud to support and typed into a tracking box.
+
+    Six exclusions, not five: U goes as well as 0, 1, I, L and O, because U and V are the pair
+    that gets confused when a number is spoken rather than read.
+    """
+    for forbidden in '01OILU':
         assert forbidden not in order_keys.PUBLIC_ORDER_NUMBER_ALPHABET
+    assert len(order_keys.PUBLIC_ORDER_NUMBER_ALPHABET) == 30
 
 
 def test_public_order_number_is_not_time_ordered():
@@ -166,10 +209,22 @@ def test_public_order_numbers_are_unique_at_volume():
     assert len({order_keys.mint_public_order_number() for _ in range(20000)}) == 20000
 
 
-@pytest.mark.parametrize('value', ['', 'SHORT', 'A' * 13, '0KMP4X9Q2DTR',
-                                   'IKMP4X9Q2DTR', '7kmp4x9q2dtr', None])
+@pytest.mark.parametrize('value', [
+    '', 'SHORT', 'A' * 13, None, 12345,
+    '0KMP4X9Q2DTR',            # 0 is outside the alphabet
+    'IKMP4X9Q2DTR',            # I is outside the alphabet
+    '7kmp4x9q2dtr',            # lowercase
+    'WD-ORD-ABC',              # prefixed but too short
+    'WD-ORD-ABCDEFGHJ',        # prefixed but too long
+    'WD-ORD-ABCDEF0H',         # 0 in the tail
+    'WD-ORD-abcdefgh',         # lowercase tail
+    'WDORD-ABCDEFGH',          # prefix mangled
+    'wd-ord-ABCDEFGH',         # prefix lowercase
+    ' WD-ORD-ABCDEFGH',        # leading space - not trimmed, deliberately
+])
 def test_invalid_public_order_numbers_are_rejected(value):
     assert not order_keys.is_public_order_number(value)
+    assert not order_keys.is_current_public_order_number(value)
 
 
 # ════════════════════════════════════════════════════════════════════════════
