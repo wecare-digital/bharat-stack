@@ -254,18 +254,39 @@ export const PRODUCTS: ProductDef[] = [
      * HUNAR - hunar is skill, the thing a person actually has, which is the whole argument of
      * the page: a CV is a claim about skill and most of them make it badly.
      *
+     * "SKILLS" LEADS THE CYCLE because hunar IS skill, so the word the brand is named after
+     * should be the first one the pill says. It replaced "story", which was the vaguest of
+     * the four and the only one that named nothing a visitor could ask for. The order then
+     * walks outward from the thing itself to how it is presented: skills -> résumé ->
+     * profile -> pitch.
+     *
      * THE WORDS ARE CLOSE IN LENGTH FOR TRAVEL, NOT FOR REFLOW. The note at the top of this
      * file says a long word makes the headline reflow, and that is true of the two INLINE
      * hero copies but not of RotatingHero, which reserves the pill its own line - see the
-     * guarantee recorded in RotatingHero.tsx. Measured here across 21 viewports (320-1920) on
-     * /hunar/, /vault/, /contact/, /leave-review/ and /refer-and-earn/: the h1 height is
-     * constant for every word on every route, and the per-viewport ladder is identical on all
-     * five - 69.59px at 320 through 142.55px at 1440+ - even on /contact/, whose widest word
-     * is 449px. So length here is a movement-feel choice: résumé 203px, profile 170px, pitch
-     * 133px, story 138px at 1920px is a 70px tail travel, the same spread /contact/ ships and
-     * the widest on the site. A word longer than these would not break the layout; it would
-     * make the tail swing further than anywhere else, which is why the sub-line carries the
-     * full "curriculum vitae" idea instead of the pill.
+     * guarantee recorded in RotatingHero.tsx. Measured across 21 viewports (320-1920) on
+     * /hunar/, /vault/, /contact/ and /leave-review/, 84 readings: the h1 height is constant
+     * for every word on every route, and the per-viewport ladder is identical on all four -
+     * 69.59px at 320 through 142.55px at 1440+ - even on /contact/, whose widest word is
+     * 449px. So length here is a movement-feel choice, not a layout constraint.
+     *
+     * At 1920px: skills 133px, résumé 203px, profile 170px, pitch 133px. That is a 70px tail
+     * travel, the same spread /contact/ ships. Swapping "story" (138px) for "skills" (133px)
+     * left it unchanged. A longer word would not break the layout - it would only make the
+     * pill swing further, which is why the sub-line carries the full "curriculum vitae" idea
+     * instead of the pill.
+     *
+     * THE PAGE DIVIDES THE SKILL FROM THE THINGS THAT CARRY IT, on owner instruction, and the
+     * division is stated rather than implied. The skill is what a person actually has; the CV,
+     * the profile and the pitch are three places it has to come across. Everything below is
+     * ordered on that split - the sub-line names it, the lead explains it, and the points run
+     * skill first, then the two artefacts, instead of opening on the CV.
+     *
+     * It is worth being clear about WHY the split is content rather than colour. The obvious
+     * way to set "skills" apart is to give it a distinct pill hue, and that is exactly what
+     * the note at the top of this file forbids: the four tint/dot pairs are reused verbatim
+     * from the Grahak OS hero with no new colours, and the one lime surface a page is allowed
+     * is already spent on the call to action. A fifth hue invented for one word would break
+     * both rules to make a point the words can make on their own.
      */
     slug: 'hunar',
     name: 'Hunar',
@@ -274,23 +295,23 @@ export const PRODUCTS: ProductDef[] = [
     description:
       'Hunar by WECARE.DIGITAL — sharpen a CV, build a skills profile, and get the short pitch that introduces you. Written to be read by a person in under a minute.',
     frame: 'Sharpen your',
-    words: cycle( 'résumé', 'profile', 'pitch', 'story' ),
-    sub: 'A CV is a claim about what you can do. This is about making the claim well.',
+    words: cycle( 'skills', 'résumé', 'profile', 'pitch' ),
+    sub: 'The skill is yours. The CV, the profile and the pitch are only how it travels.',
     sectionHeading: 'What Hunar does',
     lead:
-      'Hunar is the WECARE.DIGITAL brand for professional identity — the CV, the skills profile behind it, and the two-line pitch you give when someone asks what you do. Most CVs are not short of achievements; they are short of a reader who can find them.',
+      'Hunar means skill, and that is the division this page works to: the skill is what you have, while the CV, the profile and the pitch are the three places it has to come across. Most CVs are not short of achievements; they are short of a reader who can find them.',
     points: [
       {
-        heading: 'A CV read the way it is read',
+        heading: 'The skill itself, stated as evidence',
+        body: 'First, what you can actually do and what shows it — not a list of words anyone could type. Where a claim has no evidence behind it yet, that is said plainly so you can go and get it rather than dress it up.',
+      },
+      {
+        heading: 'Then a CV read the way it is read',
         body: 'Reviewed for what a hiring reader does in the first twenty seconds: what you did, where the evidence is, and whether the claim survives a second glance. Vague lines are named, not quietly rewritten.',
       },
       {
-        heading: 'Skills stated as evidence',
-        body: 'A skills profile that says what you can do and what shows it, rather than a list of words anyone could type. Where a claim has no evidence behind it yet, that is said plainly so you can go and get it.',
-      },
-      {
-        heading: 'The pitch, in two lines',
-        body: 'The answer to "what do you do" that works in a message, a call and a room. Built from the CV so the three agree, because a pitch that contradicts the document is worse than no pitch.',
+        heading: 'And a pitch, in two lines',
+        body: 'The answer to "what do you do" that works in a message, a call and a room. Built from the same evidence so all three agree, because a pitch that contradicts the document is worse than no pitch.',
       },
     ],
     note:

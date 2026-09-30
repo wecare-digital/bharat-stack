@@ -150,6 +150,24 @@ export const SELFSERVICE: ProductDef[] = [
      * everything is kept forever and can be downloaded on demand, and neither is true - the
      * privacy policy sets retention, and a copy is released to the person it belongs to after
      * the same identity check the rest of the service uses.
+     *
+     * "DOCUMENTS" LEADS THE CYCLE on the owner's instruction, and it makes this page the
+     * widest tail travel on the site. Measured at 1920px: documents 304px, copies 179px,
+     * records 206px, reports 194px - a 125px spread, where /contact/'s 70px was the previous
+     * maximum. It is NOT a layout defect and that is measured, not assumed: the 21-viewport
+     * sweep (320-1920, 84 readings) shows the h1 height constant for every word here and on
+     * /contact/, /hunar/ and /leave-review/, because RotatingHero gives the pill its own line.
+     * What it is, is a livelier swing than anywhere else, which is a judgement the owner is
+     * entitled to make - so it is recorded rather than quietly tuned away.
+     *
+     * If it ever reads as too elastic, the fix is one word and the numbers are already
+     * measured at the same 1920px metrics: copies -> receipts (216px) gives 110px, and
+     * receipts plus records -> statements (301px) gives 98px. "copies" is kept because it is
+     * the page's own language - the CTA says "Request a copy" and the section heading is
+     * "Getting a copy" - and dropping it to chase a feel metric would cost more than it buys.
+     *
+     * The sub-line says "paperwork" rather than "documents" deliberately: with "documents" now
+     * in the pill, repeating it one line below put the same noun twice in the same breath.
      */
     slug: 'vault',
     name: 'Vault',
@@ -158,8 +176,8 @@ export const SELFSERVICE: ProductDef[] = [
     description:
       'Ask WECARE.DIGITAL for a copy of a document held against one of your requests - what is kept, how long it is kept, and how a copy is released to you.',
     frame: 'Get back your',
-    words: cycle( 'copies', 'letters', 'records', 'reports' ),
-    sub: 'The documents a request produced, available to the person they belong to.',
+    words: cycle( 'documents', 'copies', 'records', 'reports' ),
+    sub: 'The paperwork a request produced, available to the person it belongs to.',
     sectionHeading: 'Getting a copy',
     lead:
       'A request usually leaves something behind - a filed document, a letter, a receipt, an outcome in writing. Vault is how you ask for a copy of it. Drop Docs is the same door in the other direction.',
