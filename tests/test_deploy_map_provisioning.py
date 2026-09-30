@@ -68,8 +68,11 @@ def test_exactly_one_spec_is_awaiting_provisioning(deploy_module):
     # addition to this list, which is exactly the "conscious decision" this count guards.
     # wecare-customer-registration added 2026-09-30: the registration front door (the WhatsApp-OTP
     # HTTP door that provisions the Cognito login), also genuinely new and awaiting first provision.
+    # wecare-checkout added 2026-10-01: the headless checkout front door (authoritative Wix total,
+    # readiness gate, PaymentAttempt, in-chat handoff; initiation off), also new and awaiting first
+    # provision.
     assert waiting == ["wecare-customer-whatsapp-auth", "wecare-email-verification",
-                       "wecare-customer-registration"]
+                       "wecare-customer-registration", "wecare-checkout"]
 
 
 def test_the_summary_line_reports_the_new_state(deploy_module):
