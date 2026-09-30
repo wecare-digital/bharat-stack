@@ -17,20 +17,34 @@ The lesson is narrow and worth stating plainly: **a constant in source code is n
 state.** Nothing in this module will report readiness because a name appears in a file. Every
 answer is derived from a live readback, and the absence of a readback is itself a refusal.
 
-The MID question, stated precisely
-----------------------------------
-Two Razorpay merchant ids appear in the repo and they are not symmetric:
+The MID question — RESOLVED 2026-09-30 by the owner, and the resolution reversed the guess
+------------------------------------------------------------------------------------------
+Two Razorpay merchant ids appeared in the repo. Earlier prose here reasoned that
+`acc_HDfub6wOfQybuH` was authoritative because it was in live env and carried by Razorpay
+webhook payloads, and dismissed `acc_TTFSyolquKEZEy` as "prose and code comments only, no live
+artefact". **That reasoning was wrong, and the owner confirmed it against the live Meta dashboard.**
 
-  `acc_HDfub6wOfQybuH`   live env `RAZORPAY_MID`, and the `account_id` carried by real
-                         Razorpay webhook payloads. Strong evidence - this is the account that
-                         actually talks to us.
-  `acc_TTFSyolquKEZEy`   prose and code comments only. No live artefact anywhere.
+  `acc_TTFSyolquKEZEy`   AUTHORITATIVE. It is the `Payment gateway MID` shown on both live Meta
+                         payment configurations (`WECAREDIGITAL` on WABA 2094615664435155, and the
+                         same on WABA 2513394156072604). This is the `provider_mid` Meta will
+                         report, so it is what `expected_provider_mid` must equal.
+  `acc_HDfub6wOfQybuH`   STALE. It was the `RAZORPAY_MID` env value and appears as `account_id` in
+                         older webhook fixtures, but it is NOT what Meta's configuration points at.
+                         `config/lambda-env-manifest.json` was corrected to `acc_TTFSyolquKEZEy`.
 
-They are also different *fields*: one is the Razorpay merchant account, the other was only ever
-claimed as the Meta configuration's `provider_mid`. This module therefore compares the MID Meta
-reports against the MID configured for the account we hold credentials for, and refuses when
-they disagree - rather than picking a winner from a file. A mismatch means the payment
-configuration points at a different merchant, and money would land somewhere unexpected.
+The lesson the module keeps: a webhook `account_id` is evidence of which account *sent* an event,
+not proof of which account the *Meta configuration* settles into. This module still compares the
+MID Meta reports against `expected_provider_mid` and refuses on disagreement — it does not pick a
+winner from a file. What changed is only which value the deployment supplies as expected. A
+mismatch still means the configuration points at a different merchant and money would land
+somewhere unexpected.
+
+The UPI VPA question — RESOLVED the same way
+--------------------------------------------
+`wecaredigitalbh511413.rzp@rxairtel` (the code fallback in `constants.ts`, and the `WECAREUPI`
+handle on both live configs) is AUTHORITATIVE. The live-env `wecaredigital83.rzp@icici` was stale
+and was corrected in the manifest. A stale VPA does not error — it silently collects elsewhere —
+which is exactly why it is pinned to the value Meta reports.
 
 Fail closed, and say why
 ------------------------

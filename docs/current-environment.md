@@ -312,7 +312,7 @@ owning session's §R0.
 | RESOURCE | REGION | NAME | PURPOSE | REUSABLE? | ACTION REQUIRED |
 |---|---|---|---|---|---|
 | Wix account | n/a | `15f02319-40ff-4288-b8e6-69c791adae5e` | commerce backend | YES | none |
-| Wix site (configured) | n/a | `fcd82f0c-9572-49c7-acfb-88fb05042ece` | catalog/orders target | UNVERIFIED | **validate before production** |
+| Wix site (configured) | n/a | `fcd82f0c-9572-49c7-acfb-88fb05042ece` | catalog/orders target | YES | **owner-confirmed 2026-09-30** (headless client `197cd718-…`); R0.10 closed |
 | Wix Lambda | `us-east-1` | `wecare-wix-store` (`live`) | Catalog V3 + eCom V1 bridge | YES | credential + kill switch |
 | Wix caches | `us-east-1` | `WixProductsCache`, `WixOrdersCache`, `WixOrderIds` | read cache | YES | none |
 
@@ -330,9 +330,14 @@ owning session's §R0.
   `POST /site-list/v2/sites/query` would settle that, and it needs the credential that does
   not exist.
 
-Correct state for that row is therefore `⛔ BLOCKED` /
-**`WIX_SITE_REQUIRES_RUNTIME_VERIFICATION`**, alongside catalog version, installed apps and
-Invoices availability, which the other document already has as `BLOCKED`.
+That row was `⛔ BLOCKED` / **`WIX_SITE_REQUIRES_RUNTIME_VERIFICATION`** at the time of
+writing, because no credential existed to run `site-list/v2` and a self-consistent config is
+not proof. **Resolved 2026-09-30:** the owner confirmed in the Wix dashboard that
+`fcd82f0c-9572-49c7-acfb-88fb05042ece` is the live headless project (headless client
+`197cd718-e4ec-4e2e-b380-46c297eb18a2`), and `scripts/resolve_wix_site_id.py` independently
+showed an order written with this credential can only land on `fcd82f0c` (matrix row 427). R0.10
+is closed. Catalog version, installed apps and Invoices availability remain as separately
+recorded.
 
 Absent from the Wix integration, by grep: Wix **Blog** API, Wix **Invoices** API, Wix
 **Cart**, Wix **Checkout**, `redirect-session`, and any OAuth `client_credentials` exchange

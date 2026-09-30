@@ -4,32 +4,38 @@ Derived from [`requirements.md`](requirements.md) and [`design.md`](design.md).
 
 ---
 
-## ⛔ CURRENT PRODUCTION GATE — no payment can be initiated
+## ⚠️ PRODUCTION GATE — payment config RESTORED by owner (2026-09-30), credential load still owner-pending
 
-Measured live on 2026-09-30:
+A probe on 2026-09-30 returned `GET /2094615664435155/payment_configurations -> HTTP 200, ZERO
+configurations`, and the earlier text below was written against that empty state. **The owner has
+since restored the configurations in WhatsApp Manager and reported them Active** on both WABAs.
+Recorded from the owner's dashboard readout, not re-probed by this session — a live
+`payment_readiness.evaluate()` should be run to confirm before the first real send:
 
-```
-GET /2094615664435155/payment_configurations   ->   HTTP 200, ZERO configurations
-```
+| Config | WABA | Type | Value | Status |
+|---|---|---|---|---|
+| `WECAREDIGITAL` | `2094615664435155` | payment_gateway (razorpay) | MID `acc_TTFSyolquKEZEy` | Active |
+| `WECAREUPI` | `2094615664435155` | upi | `wecaredigitalbh511413.rzp@rxairtel` | Active |
+| `WECAREDIGITAL` | `2513394156072604` | payment_gateway (razorpay) | MID `acc_TTFSyolquKEZEy` | Active |
+| `WECAREUPI` | `2513394156072604` | upi | `wecaredigitalbh511413.rzp@rxairtel` | Active |
 
-The call succeeded; Meta returned an empty edge. So `WECAREDIGITAL` and `WECAREUPI` exist **only
-as constants in this repository**, and Meta's documentation states that an invalid
-`configuration_name` leaves the customer unable to pay. Two further names,
-`WECARE-RAZOR-PAY` and `Razorpay_ManishAgarwal`, survive in
-`.kiro/steering/META-BETA-REQUEST-EMAIL.md` from before the 2026-08-23 rebuild — four names in
-the repo, none at Meta.
+MCC `7392`, purpose code `03` on all four. No application code created these; they are owner
+work. `payment_readiness.py` still refuses if a live readback disagrees.
 
-**Restoring it is owner-administrative work** in WhatsApp Manager → Payments. No application code
-may create or mutate a payment configuration. `lambda_utils/payment_readiness.py` detects the
-absence and refuses, so the checkout degrades rather than sending a message that cannot be paid.
+**Both readiness conflicts are RESOLVED, and the resolution reversed the repo's earlier guess:**
 
-Two related conflicts must be resolved at the same time, because the readiness gate compares them:
+- **Razorpay MID** is `acc_TTFSyolquKEZEy` (the value Meta reports as the config's `provider_mid`).
+  The repo had assumed `acc_HDfub6wOfQybuH` — that was the stale env value and the webhook
+  `account_id`, not what the configuration points at. `config/lambda-env-manifest.json` and
+  `payment_readiness.py` corrected; the manifest env is **not yet pushed live** — it rides with the
+  credential-load step.
+- **UPI VPA** is `wecaredigitalbh511413.rzp@rxairtel` (the `constants.ts` fallback was right).
+  Live env `wecaredigital83.rzp@icici` was stale and is corrected in the manifest.
 
-- **Razorpay MID.** `acc_HDfub6wOfQybuH` is live env and is the `account_id` in real Razorpay
-  webhook payloads; `acc_TTFSyolquKEZEy` appears only in prose and comments. They are different
-  *fields* — merchant account versus Meta's `provider_mid` — and the gate requires them to agree.
-- **UPI VPA.** Live env says `wecaredigital83.rzp@icici`; the code's fallback says
-  `wecaredigitalbh511413.rzp@rxairtel`. Different handle and different PSP.
+**Still owner-pending, so no live payment yet:** the Razorpay live key + secret and the Wix admin
+token must be (re)loaded into Secrets Manager via the owner-run helpers
+(`set_wix_credential.py --verify`, `refresh_secret_consumers.py`, `check_secrets_live.py`). Both
+were disclosed in a chat transcript on 2026-09-30 and must be **rotated**, not merely stored.
 
 **Not blocked by this gate**, and therefore the work that proceeds: customer identity, phone and
 email verification, the address model, the checkout UI, the authoritative Wix total, the payment
@@ -201,7 +207,11 @@ mechanism was kept and re-pointed, not thrown away.
 - [x] R0.7 Live proof: `wecare-wix-store:live` returned real products
 - [x] R0.8 Encrypted local + S3 recovery copies refreshed and verified
 - [ ] R0.9 **Rotate the key** — it was pasted into a chat transcript
-- [ ] R0.10 **Confirm the site id** in the Wix dashboard before Phase 8 writes an order
+- [x] R0.10 **Confirm the site id** in the Wix dashboard before Phase 8 writes an order
+  - Owner-confirmed 2026-09-30: Headless Site ID `fcd82f0c-9572-49c7-acfb-88fb05042ece`
+    (Wix account `15f02319-40ff-4288-b8e6-69c791adae5e`, headless client id
+    `197cd718-e4ec-4e2e-b380-46c297eb18a2`). This is the id the repo already configures, so the
+    write-back path may target it once enabled.
 - [ ] R0.11 Probe installed apps and Invoices/Receipts availability
 - [ ] R0.12 Migrate to the `client_credentials` grant, then drop the API key field
 

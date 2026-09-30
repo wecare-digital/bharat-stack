@@ -28,6 +28,7 @@ import blog_templates
 import blog_verify
 import faq
 import seo_freshness
+import seo_refresh
 import storage
 import wix
 
@@ -939,6 +940,25 @@ def handler(event: Dict[str, Any], context: Optional[Any]):
     # The return value is the `batchItemFailures` shape, so ReportBatchItemFailures retries
     # only the messages that actually need it. Exceptions are caught inside `consume`: letting
     # one escape here would redeliver the whole batch, including the documents that succeeded.
+    # ── The scheduled derived-SEO freshness check ────────────────────────────────
+    #
+    # Checked among the non-HTTP branches for the same reason the blog worker is: it arrives
+    # from an EventBridge Scheduler target via InvocationType='Event' and carries no
+    # requestContext. NOT AN UNAUTHENTICATED HOLE - an API Gateway request delivers its payload
+    # as a JSON string under `body`, never as a top-level `seoFreshness` key, and the guard also
+    # requires the requestContext to be absent, so the only way in is lambda:InvokeFunction,
+    # which is IAM-gated. The refresh is read-only against source content and writes only
+    # derived recordType='seo' records.
+    if seo_refresh.is_freshness_event(event):
+        try:
+            return seo_refresh.run(event)
+        except Exception:
+            logger.exception('seo refresh sweep failed')
+            # Returned, not raised: an async invoke that raises is retried by Lambda, and a
+            # deterministic failure (e.g. upstream down) would just retry into the same wall.
+            # The next scheduled run picks it up.
+            return {'event': 'seo_freshness_run', 'error': 'sweep failed', 'refreshed': 0}
+
     if blog_queue.is_queue_event(event):
         try:
             return blog_queue.consume(event)

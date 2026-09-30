@@ -389,9 +389,12 @@ const ENV_VARS: EnvVar[] = [
   // instead of measuring, and then looks for analytics data in a property that receives none.
   { key: 'NEXT_PUBLIC_GA_MEASUREMENT_ID', value: '(unset — GA4 is fired by GTM-TXZ8JT78 as G-GNRPFFBXMF)', sensitive: false, category: 'Analytics', risk: 'Was listed as G-S3G6REP6Q7, which is retired and in no container' },
   { key: 'NEXT_PUBLIC_FB_APP_ID', value: '(empty — SDK still loads)', sensitive: false, category: 'Analytics', risk: 'FB SDK loads but sends no data' },
-  // ⚠️ SECRETS IN SOURCE CODE (not env vars — hardcoded)
-  { key: 'Razorpay MID (hardcoded)', value: 'acc_HDfub6wOfQybuH', sensitive: true, category: 'Payments — Hardcoded', risk: 'Razorpay account ID in whatsapp-business-api handler' },
-  { key: 'Razorpay UPI VPA (hardcoded)', value: '(retired @icici address; see git history)', sensitive: true, category: 'Payments — Hardcoded', risk: 'UPI VPA in source code' },
+  // Payment identifiers — env-sourced (RAZORPAY_MID / RAZORPAY_UPI_ID), not secrets. A merchant
+  // id and a UPI payee address are public by construction (they appear in every deep link and QR).
+  // Authoritative values owner-confirmed 2026-09-30 against the live Meta config; the earlier
+  // acc_HDfub6wOfQybuH / @icici pair was stale and has been retired.
+  { key: 'Razorpay MID (env RAZORPAY_MID)', value: 'acc_TTFSyolquKEZEy', sensitive: false, category: 'Payments — Identifier', risk: 'Non-secret merchant id; matched against Meta config by payment_readiness' },
+  { key: 'Razorpay UPI VPA (env RAZORPAY_UPI_ID)', value: 'wecaredigitalbh511413.rzp@rxairtel', sensitive: false, category: 'Payments — Identifier', risk: 'Non-secret UPI payee address (public in deep links/QR)' },
   { key: 'Airtel API Key (in comment)', value: '(visible in c2c/handler.py comment)', sensitive: true, category: 'Voice — Hardcoded', risk: 'CRITICAL: Airtel HMAC key in code comment' },
   { key: 'Airtel App ID (hardcoded)', value: '(in c2c handler + data schema)', sensitive: true, category: 'Voice — Hardcoded', risk: 'Airtel App ID in multiple files' },
   { key: 'WIX_ACCOUNT_ID (current Headless account)', value: '15f02319-40ff-4288-b8e6-69c791adae5e', sensitive: false, category: 'Ecommerce — Identifier', risk: 'Current non-secret Wix Headless account identifier' },
