@@ -1,5 +1,12 @@
 # Implementation plan
 
+## Owner architecture decision — 2026-10-01
+
+Use the existing self-managed Next.js/AWS headless application. WhatsApp/Razorpay collects payment externally; create the internal order and Wix order only after authoritative verification, then record the external payment without charging again. Velo and external PSP onboarding are not dependencies. Retain admin-only Cognito and WhatsApp-only receipts. Historical provider configuration claims below require live verification. See `docs/execution/headless-checkout-20261001.md` for the current partial audit and implementation gaps.
+
+Payment safety before wiring: reject unbound provider payments; enforce customer ownership before duplicate shortcuts; accept exact DynamoDB Decimal integers but no float coercion; pending/unknown is never retryable; prevent competing number assignments and repeating ambiguous Wix writes.
+
+
 Derived from [`requirements.md`](requirements.md) and [`design.md`](design.md).
 
 ---
@@ -212,7 +219,12 @@ mechanism was kept and re-pointed, not thrown away.
     (Wix account `15f02319-40ff-4288-b8e6-69c791adae5e`, headless client id
     `197cd718-e4ec-4e2e-b380-46c297eb18a2`). This is the id the repo already configures, so the
     write-back path may target it once enabled.
-- [ ] R0.11 Probe installed apps and Invoices/Receipts availability
+- [x] R0.11 Probe installed apps and Invoices/Receipts availability
+  - **2026-10-01** (`scripts/probe_wix_capabilities.py`, public client id, no secret):
+    `wixStores` INSTALLED, `wixEcommerce` INSTALLED (admin scope), `wixBlog` INSTALLED,
+    `wixInvoices` **NOT AVAILABLE**, `checkoutRedirect` REACHABLE, Cart **V2** route LIVE
+    (`/ecom/v2/carts/{id}` → 404 CART_NOT_FOUND). Site resolves to `xout.wecare.digital`,
+    7 products.
 - [ ] R0.12 Migrate to the `client_credentials` grant, then drop the API key field
 
 Everything below requires R0 closed.
@@ -228,26 +240,41 @@ Everything below requires R0 closed.
 
 ## Phase 7 — Catalog
 
-- [ ] 7.1 Confirm the site's catalog version, then bind the adapter to it
+- [x] 7.1 Confirm the site's catalog version, then bind the adapter to it
+  - **CATALOG_V3 confirmed live 2026-10-01** (`scripts/probe_wix_capabilities.py`: stores/v1
+    → `501 UNIMPLEMENTED`, stores/v3 responds). The adapter already calls V3.
   - _Requirements: R5.1_
 - [ ] 7.2 Search, query, get product, get variant, check inventory
+  - Read paths largely exist in `wix-store/handler.py` (`/stores/v3/products/*`, inventory).
+    Confirm the variant/`catalogReference` fields needed to add a V2 line item are surfaced.
 - [ ] 7.3 Reject any client-supplied price
   - _Requirements: R5.2_ · _Verify: test that a tampered client price is ignored_
 
-## Phase 8 — Cart and checkout
+## Phase 8 — Cart (Wix Cart V2)
 
-- [ ] 8.1 Backend cart keyed on phone, with revision and TTL
+**Revised 2026-10-01 for Cart V2.** Cart V1/Checkout V1 are removed by Wix on 2027-02-01;
+`/ecom/v2/carts` confirmed live. There is no "create checkout" step — the cart is the
+checkout, the authoritative total is **Calculate Cart**, and an order exists only after
+payment (Phase 10/11). This is an in-chat flow; the Wix checkout page is not used. See D7.
+
+- [ ] 8.1 Backend cart keyed on phone, with the Wix cart id + revision and a TTL
+  - `USER#<phone> / CART#ACTIVE`; the customer never holds a Wix identifier
   - _Requirements: R5.3, R5.5_
-- [ ] 8.2 Add, update, remove, recalculate, create checkout
-  - _Requirements: R5.4_
+- [ ] 8.2 Cart V2 adapter in `wix-store`: create cart, add / update / remove line items
+      (`catalogReference {appId, catalogItemId, options.variantId}`), Calculate Cart for the
+      authoritative total and price verification token, read `summary.violations`
+  - _Requirements: R5.4_ · _Verify: contract test against the live V2 boundary (read/calc
+    only) before any order-writing call_
 - [ ] 8.3 Integer-minor-unit money type; no float arithmetic anywhere in the path
   - _Requirements: R6.1_ · _Verify: test asserting no float in the money path_
 
 ## Phase 9 — WhatsApp payment request
 
-- [ ] 9.1 Build `order_details` from the live Wix checkout
+- [ ] 9.1 Build `order_details` from a live Wix **Calculate Cart** (`summary.priceSummary`),
+      carrying the price verification token forward to order creation
   - _Requirements: R6.5_
-- [ ] 9.2 Enforce exact total equality against the Wix checkout; reject on any difference
+- [ ] 9.2 Enforce exact total equality against the Wix Calculate-Cart total; reject on any
+      difference
   - _Requirements: R6.2, R6.3_ · _Verify: one-paise mismatch is rejected_
 - [ ] 9.3 Explicit currency comparison
   - _Requirements: R6.4_
@@ -256,9 +283,11 @@ Everything below requires R0 closed.
 
 ## Phase 10 — Reconciliation
 
-- [ ] 10.1 Ordered pipeline exactly as `design.md` specifies
+- [ ] 10.1 Ordered pipeline exactly as `design.md` specifies (Cart V2: authoritative total
+      from Calculate Cart, order from the bound cart)
   - _Requirements: R7.1_
-- [ ] 10.2 Create-or-resolve Wix order once, guarded by `WIXORDER#<id>`
+- [ ] 10.2 Create-or-resolve Wix order once from the bound Wix cart, guarded by
+      `WIXORDER#<id>` (V2 `Place Order` or create + `Mark Cart As Completed`)
   - _Requirements: R7.2_
 - [ ] 10.3 Await Wix payment reconciliation with bounded backoff
   - _Requirements: R7.6_
@@ -267,12 +296,19 @@ Everything below requires R0 closed.
 - [ ] 10.5 Fail closed on amount or currency mismatch
   - _Requirements: R7.8_
 
-## Phase 11 — Wix order transactions
+## Phase 11 — Wix order creation and external payment record (Cart V2)
 
-- [ ] 11.1 Record the externally collected payment
+**Settle the exact V2 order-creation call here**, against the live admin contract: `Place
+Order` with the payment marked external, versus create the order and `Mark Cart As
+Completed`. This is the first phase that writes to the live site, and no order-writing call
+runs until 11.2's enumeration test passes.
+
+- [ ] 11.1 Record the externally collected payment against the created order (external
+      payment, not a collection)
   - _Requirements: R7.3_
-- [ ] 11.2 Assert no reachable Wix call can charge again
-  - _Requirements: R7.4_ · _Verify: an explicit test enumerating the calls this path can make_
+- [ ] 11.2 Assert no reachable Wix V2 call can charge again
+  - _Requirements: R7.4_ · _Verify: an explicit test enumerating every Wix call this path can
+    make and asserting none collects payment_
 - [ ] 11.3 Unique `providerTransactionId`
   - _Requirements: R7.5_
 - [ ] 11.4 Determine and document the inventory strategy; prove single decrement
