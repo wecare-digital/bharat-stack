@@ -23,44 +23,92 @@ when the block lapses. So:
     URL answers 200. The Removals tool only ever hides a URL that is still live, which
     is a different problem from the one we have.
 
-AUTHORIZATION IS THE REAL BLOCKER, and it cannot be solved from here.
+AUTHORIZATION: THE SCOPE IS SOLVED, THE PROPERTY GRANT IS NOT.
 
-Submitting requires the read/WRITE scope https://www.googleapis.com/auth/webmasters
-(the .readonly scope cannot submit), and the principal holding it must be a user on the
-Search Console property. Measured on this machine:
+These are two separate gates and conflating them is what makes this look unfixable when
+only half of it is. Submitting needs the read/WRITE scope
+https://www.googleapis.com/auth/webmasters (`.readonly` cannot submit) AND the principal
+holding it must be a user on the Search Console property.
 
-    gcloud identity  wecare.digital.bw@gmail.com
-    token scopes     cloud-platform, compute, appengine.admin, sqlservice.login,
-                     userinfo.email, openid, accounts.reauth
-    webmasters       ABSENT  ->  sites.list returns 403 PERMISSION_DENIED,
-                                 "Request had insufficient authentication scopes"
+GATE 1 - THE SCOPE. Solved, with no browser and no key file. This machine's gcloud user
+credential carries cloud-platform but not webmasters, so as `wecare.digital.bw@gmail.com`
+every call is 403 `PERMISSION_DENIED` "Request had insufficient authentication scopes".
+A service account, however, can be issued a token for ANY scope with no consent screen,
+and `automation@wecaredigitalbw.iam.gserviceaccount.com` is impersonatable from here
+(`roles/iam.serviceAccountTokenCreator` is already granted; the other three service
+accounts in the project are not). Measured:
 
-`wecare/seo/google-oauth` holds a client id and secret but no refresh token, and
-src/content/integration-registry.json records it as `access: SCOPE_UNVERIFIED`,
-`adapterBuilt: false`, with only `webmasters.readonly` requested. So there is no stored
-credential that can submit either.
+    impersonate automation@   ->  scopes: webmasters, userinfo.email, openid, email
+                              ->  GET /webmasters/v3/sites  =  HTTP 200
 
-Both routes out require a human once, and neither has an API:
+200, not 403. `resolve_auth` below does this automatically when the primary credential
+lacks the scope, so no argument is needed. Nothing is written to disk: impersonation goes
+through the IAM Credentials API, so no service-account KEY is created - which also keeps
+this clear of the standing prohibition on minting provider credentials.
 
-  1. Re-consent this machine's ADC with the write scope (one browser round trip):
+GATE 2 - THE PROPERTY. There is no API to add a principal to somebody else's property,
+and that is the dead end everyone stops at. But it is not the only way in: a principal
+that can prove it owns the site does not need to be granted anything. The Site
+Verification API (`siteverification.googleapis.com`) does exactly that, and it is fully
+automatable. Measured with the impersonated service account:
 
-         gcloud auth application-default login \
-             --scopes=https://www.googleapis.com/auth/webmasters,\
-https://www.googleapis.com/auth/cloud-platform
+    siteVerification/v1/webResource        ->  200, 0 resources owned
+    getToken FILE    https://wecare.digital/  ->  200, google907ae7b9233a31c5.html
+    getToken META    https://wecare.digital/  ->  200
+    getToken DNS_TXT wecare.digital           ->  200
 
-     The signed-in Google account must already be a user on the property.
+FILE was chosen over the other two, for one reason each.
 
-  2. Or grant a service account. Create a key, then add its email under
-     Search Console > Settings > Users and permissions as Full (Restricted cannot
-     submit). scripts/google-language-relay.sh already documents that this step is
-     irreducibly manual - there is no API for granting Search Console access - and it
-     currently reports 0 properties visible for the relay service account.
+  Not DNS_TXT, even though it is the only method that yields a *Domain* property. The
+  token would go in the apex TXT record set, and that record set also carries the SPF
+  string. DMARC here is `p=reject; sp=reject` and MTA-STS is `mode: enforce`, so email on
+  this domain is fail-closed - a mistake in that record set rejects mail outright rather
+  than filtering it, and `.kiro/steering/email-auth-dns.md` makes exactly one SPF record a
+  hard rule. A sitemap submission is not worth putting a hand into that record.
 
-Until one of those is done every write here reports BLOCKED rather than pretending.
+  Not META, because the tag is rendered from `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION`
+  (`src/config/analytics.ts`), that variable already carries the OWNER's token in the DNS
+  record, and next/head de-duplicates `meta[name]` - so a second token would have to
+  replace the first rather than sit beside it.
+
+  FILE touches neither. `public/google907ae7b9233a31c5.html` is a single-line file that
+  Next copies to the export root, and Amplify serves root-level files directly (verified
+  against `/offline.html`, `/manifest.json`, `/sw.js`, all 200 with their own content).
+  Its whole contents are the token line, unchanged, because Google's checker compares them
+  literally - which is why that file has no explanatory header and this paragraph exists
+  instead.
+
+FILE verifies the URL-prefix property `https://wecare.digital/`, which is the exact origin
+the sitemap is served from, so it is sufficient. What it is NOT is a grant on the owner's
+existing property: the sitemap gets registered against the service account's own verified
+property. Google processes the file for the site either way - and `robots.txt` already
+advertises it - so this buys the registration plus the `sitemaps.get` telemetry
+(lastDownloaded, errors, warnings), not discovery that was missing. Adding the service
+account under Settings > Users and permissions as Full is still the tidier end state, and
+it is the one thing here with no API:
+
+    automation@wecaredigitalbw.iam.gserviceaccount.com
+
+`check` re-measures both gates rather than trusting any of this prose.
+
+WHAT IS *NOT* A ROUTE, so nobody spends another pass on it. `wecare/seo/google-oauth`
+cannot do this, and not for a permissions reason - for a protocol one. It holds exactly
+two fields, `client_id` and `client_secret` (`docs/execution/phase-04e-contact-identity.md`,
+`scripts/store_provider_secret.py`), and an OAuth *client* identifies an application, not
+a user. The Search Console API accepts only OAuth 2.0 user tokens, and minting one from a
+client id and secret requires an authorization code from a browser consent screen
+exchanged for a refresh token. No Google refresh token is stored anywhere in this account:
+`lambda_utils/identity/oauth_pkce.py` is the module that would obtain one, it has no Lambda
+consumer, and it is scoped to `contacts.readonly` rather than webmasters.
+`scripts/check_secrets_live.py` says the same thing in one line - the client secret "is
+only exercised by a full auth flow". So reading that secret would not help, which is
+convenient, because reading it is prohibited.
 
 USAGE
 
-    python scripts/search_console_sitemap.py check          # auth + property state
+    python scripts/search_console_sitemap.py check          # both gates, re-measured
+    python scripts/search_console_sitemap.py verify         # dry run: FILE ownership
+    python scripts/search_console_sitemap.py verify --apply # closes GATE 2
     python scripts/search_console_sitemap.py list           # registered sitemaps
     python scripts/search_console_sitemap.py submit         # dry run
     python scripts/search_console_sitemap.py submit --apply
@@ -70,11 +118,12 @@ USAGE
 
     --property sc-domain:wecare.digital   # override the property to act on
     --sitemap  https://.../sitemap.xml    # override the feed
+    --impersonate <sa-email>              # override the service account
+    --no-impersonate                      # use only the primary credential
 
 SECRET DISCIPLINE. The access token is held in memory only. It is never printed, never
 written to a file, and never placed on a command line or in an environment assignment -
-see .kiro/steering/secret-handling.md, and note that this script deliberately does not
-read anything out of Secrets Manager.
+see .kiro/steering/secret-handling.md. This script reads nothing out of Secrets Manager.
 """
 from __future__ import annotations
 
@@ -99,18 +148,40 @@ CANDIDATE_PROPERTIES = [
 ]
 
 API = "https://searchconsole.googleapis.com/webmasters/v3"
+SV_API = "https://www.googleapis.com/siteVerification/v1"
 WRITE_SCOPE = "https://www.googleapis.com/auth/webmasters"
 READ_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
+VERIFY_SCOPE = "https://www.googleapis.com/auth/siteverification"
 
-UNBLOCK = (
-    "  Re-consent ADC with the write scope (one browser round trip, as the Google\n"
-    "  account that owns the Search Console property):\n\n"
-    "    gcloud auth application-default login \\\n"
-    f"        --scopes={WRITE_SCOPE},https://www.googleapis.com/auth/cloud-platform\n\n"
-    "  Or point GOOGLE_APPLICATION_CREDENTIALS at a service-account key whose email\n"
-    "  has been added under Search Console > Settings > Users and permissions as\n"
-    "  Full. That grant has no API and must be done in the UI."
-)
+#: The URL-prefix property the FILE method verifies. Not `sc-domain:` - that needs DNS.
+VERIFY_SITE = f"{SITE}/"
+
+# Service accounts to try impersonating, in order. Only `automation@` currently grants
+# this user `roles/iam.serviceAccountTokenCreator`; the rest are listed so a future
+# grant is picked up without a code change, and so a reader can see they were tried.
+IMPERSONATION_CANDIDATES = [
+    "automation@wecaredigitalbw.iam.gserviceaccount.com",
+    "wecare-translate@wecaredigitalbw.iam.gserviceaccount.com",
+    "wecaredigitalbw@appspot.gserviceaccount.com",
+]
+
+
+def unblock_text(principal: str | None = None) -> str:
+    who = principal or IMPERSONATION_CANDIDATES[0]
+    return (
+        "  The SCOPE is not the problem any more. What remains is one UI action that has\n"
+        "  no API: add the principal as a user on the Search Console property.\n\n"
+        "    Search Console -> Settings -> Users and permissions -> Add user\n"
+        f"      {who}\n"
+        "      permission: Full        <- Restricted CANNOT submit a sitemap\n\n"
+        "  Then re-run `check`. Nothing else here needs changing.\n\n"
+        "  Alternative, if you would rather not add a service account: re-consent this\n"
+        "  machine as the Google account that already owns the property -\n\n"
+        "    gcloud auth application-default login \\\n"
+        f"        --scopes={WRITE_SCOPE},https://www.googleapis.com/auth/cloud-platform\n\n"
+        "  That needs a browser, which is why the service-account route is preferred for\n"
+        "  unattended runs."
+    )
 
 
 # --------------------------------------------------------------------------- auth
@@ -154,15 +225,44 @@ def _tokeninfo(token: str) -> list[str] | None:
     return scope.split() if scope else None
 
 
-def resolve_auth() -> Auth | None:
-    """Service-account key, then ADC, then the gcloud user credential."""
+def _impersonate(sa: str, scopes: str | None = None) -> Auth | None:
+    """Mint a webmasters-scoped token for a service account by impersonation.
+
+    This is the route that removes the browser from the loop. A service account can be
+    issued a token for any scope with no consent screen, and impersonation goes through
+    the IAM Credentials API - so NO service-account key file is created and nothing
+    lands on disk. Needs `roles/iam.serviceAccountTokenCreator` on the target.
+    """
+    try:
+        p = subprocess.run(
+            ["gcloud", "auth", "print-access-token",
+             f"--impersonate-service-account={sa}",
+             f"--scopes={scopes or WRITE_SCOPE}"],
+            capture_output=True, text=True, timeout=120,
+        )
+    except Exception:  # noqa: BLE001
+        return None
+    if p.returncode != 0 or not p.stdout.strip():
+        return None
+    tok = p.stdout.strip()
+    return Auth(tok, f"impersonated {sa}", _tokeninfo(tok))
+
+
+def resolve_auth(impersonate: str | None = None,
+                 allow_impersonation: bool = True) -> Auth | None:
+    """Explicit key, then ADC, then impersonation, then the bare gcloud user token.
+
+    Impersonation is tried BEFORE falling back to the user token, because the user token
+    is known to lack the webmasters scope on this machine and a 403 from it is a dead end,
+    whereas an impersonated token reaches the API and can report the real remaining gap.
+    """
+    import os
+
     # 1. An explicit service-account key, scoped to webmasters.
     try:
         import google.auth  # type: ignore
         import google.auth.transport.requests  # type: ignore
         from google.oauth2 import service_account  # type: ignore
-
-        import os
 
         key = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
         if key and os.path.exists(key):
@@ -170,17 +270,38 @@ def resolve_auth() -> Auth | None:
                 key, scopes=[WRITE_SCOPE])
             creds.refresh(google.auth.transport.requests.Request())
             return Auth(creds.token, f"service account key ({key})", [WRITE_SCOPE])
-
-        # 2. Application Default Credentials.
-        creds, _ = google.auth.default(scopes=[WRITE_SCOPE])
-        creds.refresh(google.auth.transport.requests.Request())
-        return Auth(creds.token, "application default credentials",
-                    _tokeninfo(creds.token))
     except Exception:  # noqa: BLE001
         pass
 
-    # 3. The gcloud user credential. Almost certainly lacks the webmasters scope, but
-    #    reporting that precisely is more useful than reporting "no credentials".
+    # 2. Application Default Credentials, but only if they actually carry the scope.
+    #    ADC on a developer machine is a user credential, so asking for [WRITE_SCOPE]
+    #    does not grant it - the request is silently satisfied with whatever the user
+    #    consented to. Checking is the only way to tell, and accepting an unscoped ADC
+    #    here would shadow the impersonation route below.
+    try:
+        import google.auth  # type: ignore
+        import google.auth.transport.requests  # type: ignore
+
+        creds, _ = google.auth.default(scopes=[WRITE_SCOPE])
+        creds.refresh(google.auth.transport.requests.Request())
+        adc = Auth(creds.token, "application default credentials",
+                   _tokeninfo(creds.token))
+        if adc.has_write() is not False:
+            return adc
+    except Exception:  # noqa: BLE001
+        pass
+
+    # 3. Impersonation - the no-browser route. Both scopes are requested together so
+    #    `verify` and `submit` can run back to back on one token.
+    if allow_impersonation:
+        scopes = f"{WRITE_SCOPE},{VERIFY_SCOPE}"
+        for sa in ([impersonate] if impersonate else IMPERSONATION_CANDIDATES):
+            got = _impersonate(sa, scopes)
+            if got is not None:
+                return got
+
+    # 4. The bare gcloud user credential. Almost certainly lacks the webmasters scope,
+    #    but reporting that precisely beats reporting "no credentials".
     for args in (["gcloud", "auth", "application-default", "print-access-token"],
                  ["gcloud", "auth", "print-access-token"]):
         try:
@@ -263,6 +384,13 @@ def pick_property(auth: Auth, override: str | None) -> tuple[str | None, list[di
     return (entries[0]["siteUrl"] if entries else None), entries, st
 
 
+def principal_of(auth: Auth) -> str | None:
+    """The service-account email, when the credential is an impersonated one."""
+    if auth.source.startswith("impersonated "):
+        return auth.source.split(" ", 1)[1]
+    return None
+
+
 def cmd_check(auth: Auth, args) -> int:  # noqa: ANN001
     print(f"credential source : {auth.source}")
     if auth.scopes is None:
@@ -273,25 +401,42 @@ def cmd_check(auth: Auth, args) -> int:  # noqa: ANN001
             mark = " <-- write" if s == WRITE_SCOPE else (
                 " <-- read only" if s == READ_SCOPE else "")
             print(f"                    {s}{mark}")
-    print(f"write scope       : {auth.has_write()}")
+
+    # Gate 1: the scope. Gate 2: the property grant. Reported separately on purpose -
+    # they fail for unrelated reasons and only one of them still needs a human.
+    print(f"\nGATE 1 scope      : {'PASS' if auth.has_write() else 'FAIL'} "
+          f"({WRITE_SCOPE})")
 
     st, entries = properties(auth)
-    print(f"sites.list        : http {st}")
+    print(f"       sites.list : http {st}")
     if st != 200:
         _, body = call(auth, "GET", "/sites")
         print(f"                    {why(body)}")
-        print("\nBLOCKED - no usable Search Console credential.\n")
-        print(UNBLOCK)
+        print("\nBLOCKED at GATE 1 - the token cannot reach the API at all.\n")
+        print(unblock_text(principal_of(auth)))
         return 2
-    print(f"properties        : {len(entries)}")
+
+    print(f"GATE 2 properties : {len(entries)} visible")
     for e in entries:
         print(f"                    {e.get('siteUrl')}  "
               f"permission={e.get('permissionLevel')}")
     if not entries:
-        print("\nBLOCKED - authentication works, but this principal is not a user on")
-        print("any Search Console property. There is no API for granting that.\n")
-        print(UNBLOCK)
+        print("                    FAIL - authentication works (http 200), but this")
+        print("                    principal is not a user on any property. Search")
+        print("                    Console has no API for granting that.")
+        print("\nBLOCKED at GATE 2 only. One UI action remains:\n")
+        print(unblock_text(principal_of(auth)))
         return 2
+
+    # A property can be visible with a permission level that still cannot submit.
+    weak = [e for e in entries
+            if e.get("permissionLevel") in ("siteRestrictedUser", "siteUnverifiedUser")]
+    if weak and len(weak) == len(entries):
+        print("\nBLOCKED - every visible property is Restricted or Unverified, and")
+        print("neither can submit a sitemap. Raise the grant to Full.\n")
+        print(unblock_text(principal_of(auth)))
+        return 2
+    print("\nGATE 1 and GATE 2 both PASS - `submit --apply` will work.")
     return 0
 
 
@@ -324,7 +469,7 @@ def cmd_submit(auth: Auth, args) -> int:  # noqa: ANN001
         return cmd_check(auth, args)
     if auth.has_write() is False:
         print("BLOCKED - the token carries no write scope, so submit would 403.\n")
-        print(UNBLOCK)
+        print(unblock_text(principal_of(auth)))
         return 2
     feed = args.sitemap
     print(f"property : {prop}")
@@ -391,7 +536,7 @@ def cmd_prune(auth: Auth, args) -> int:  # noqa: ANN001
         return 0
     if auth.has_write() is False:
         print("\nBLOCKED - no write scope, so delete would 403.\n")
-        print(UNBLOCK)
+        print(unblock_text(principal_of(auth)))
         return 2
     if not args.apply:
         print("\nDRY RUN - nothing deleted. Re-run with --apply.")
@@ -407,6 +552,80 @@ def cmd_prune(auth: Auth, args) -> int:  # noqa: ANN001
             rc = 2
     print("\nReversible: re-register any of these with `submit --sitemap <url>`.")
     return rc
+
+
+def cmd_verify(auth: Auth, args) -> int:  # noqa: ANN001
+    """Prove site ownership with the FILE method, which closes GATE 2 with no UI action.
+
+    Order matters and the checks are not decoration. Google fetches the token file itself
+    and an `insert` against a missing file consumes an attempt and returns a generic
+    failure, so the file is confirmed live from here first - that turns "verification
+    failed" into either "the deploy has not landed yet" or a real problem, which are very
+    different next steps.
+    """
+    import urllib.request as ur
+
+    print(f"principal : {principal_of(auth) or auth.source}")
+    print(f"site      : {VERIFY_SITE}  (URL-prefix property)")
+
+    st, body = post_json(auth, f"{SV_API}/token", {
+        "verificationMethod": "FILE",
+        "site": {"type": "SITE", "identifier": VERIFY_SITE},
+    })
+    if st != 200:
+        print(f"getToken FAILED http {st}  {why(body)}")
+        return 2
+    token_file = body.get("token") or ""
+    print(f"token file: /{token_file}")
+
+    # Is it live? The file is a PUBLIC verification token by design, so printing its
+    # name and body is not a disclosure - it grants nothing on its own.
+    url = f"{SITE}/{token_file}"
+    try:
+        with ur.urlopen(ur.Request(url, headers={"User-Agent": "wecare-gsc-verify/1"}),
+                        timeout=30) as r:
+            served, text = r.status, r.read().decode(errors="replace").strip()
+    except urllib.error.HTTPError as e:
+        served, text = e.code, ""
+    except Exception as e:  # noqa: BLE001
+        served, text = 0, type(e).__name__
+
+    expected = f"google-site-verification: {token_file}"
+    print(f"live check: http {served} at {url}")
+    if served != 200:
+        print(f"\nBLOCKED - the token file is not being served yet.")
+        print(f"  Add it at `public/{token_file}` containing exactly:\n    {expected}")
+        print("  then deploy. Google fetches this file itself, so verifying before it is")
+        print("  live burns an attempt and reports a misleading reason.")
+        return 2
+    if text != expected:
+        print(f"\nBLOCKED - the file is served but its contents are wrong.")
+        print(f"  expected: {expected}\n  found:    {text[:120]}")
+        print("  Google compares the body literally; no header or extra line is tolerated.")
+        return 2
+    print("           contents match exactly")
+
+    if not args.apply:
+        print("\nDRY RUN - nothing verified. Re-run with --apply.")
+        print(f"would POST {SV_API}/webResource?verificationMethod=FILE")
+        return 0
+
+    st, body = post_json(
+        auth, f"{SV_API}/webResource?verificationMethod=FILE",
+        {"site": {"type": "SITE", "identifier": VERIFY_SITE}},
+    )
+    if st not in (200, 201):
+        print(f"\nverification FAILED http {st}  {why(body)}")
+        return 2
+    print(f"\nVERIFIED - id={body.get('id')} owners={body.get('owners')}")
+    print("Reversible: DELETE siteVerification/v1/webResource/<id> un-verifies, and")
+    print(f"deleting public/{token_file} removes the proof.")
+
+    st, entries = properties(auth)
+    print(f"\nsites.list now: http {st}, {len(entries)} property(ies)")
+    for e in entries:
+        print(f"  {e.get('siteUrl')}  permission={e.get('permissionLevel')}")
+    return 0
 
 
 def cmd_inspect(auth: Auth, args) -> int:  # noqa: ANN001
@@ -440,7 +659,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("action",
-                    choices=["check", "list", "submit", "prune", "inspect"])
+                    choices=["check", "verify", "list", "submit", "prune", "inspect"])
     ap.add_argument("url", nargs="?", default="/",
                     help="for `inspect`: the URL or path to inspect")
     ap.add_argument("--property", default=None,
@@ -448,17 +667,22 @@ def main() -> int:
     ap.add_argument("--sitemap", default=DEFAULT_SITEMAP)
     ap.add_argument("--apply", action="store_true",
                     help="perform writes; without it every write is a dry run")
+    ap.add_argument("--impersonate", default=None,
+                    help="service account to impersonate for the webmasters scope")
+    ap.add_argument("--no-impersonate", action="store_true",
+                    help="do not impersonate; use only the primary credential")
     args = ap.parse_args()
 
-    auth = resolve_auth()
+    auth = resolve_auth(impersonate=args.impersonate,
+                        allow_impersonation=not args.no_impersonate)
     if auth is None:
         print("BLOCKED - no Google credential available at all.\n")
-        print(UNBLOCK)
+        print(unblock_text(args.impersonate))
         return 2
 
     return {
-        "check": cmd_check, "list": cmd_list, "submit": cmd_submit,
-        "prune": cmd_prune, "inspect": cmd_inspect,
+        "check": cmd_check, "verify": cmd_verify, "list": cmd_list,
+        "submit": cmd_submit, "prune": cmd_prune, "inspect": cmd_inspect,
     }[args.action](auth, args)
 
 
