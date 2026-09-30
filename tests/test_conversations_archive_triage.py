@@ -29,6 +29,11 @@ def test_program_dependency_routes_to_attribution():
     bucket, *_ = triage.classify(base(program_dependency="YES"), "Example Ordinary text")
     assert bucket == "ATTRIBUTION_REVIEW"
 
+def test_public_name_dependency_routes_to_attribution():
+    bucket, *_ = triage.classify(base(public_name_dependency="YES"), "Example Ordinary text")
+    assert bucket == "ATTRIBUTION_REVIEW"
+
+
 def test_research_routes_to_fact_check():
     bucket, *_ = triage.classify(base(research_requirement="health"), "Example Ordinary text")
     assert bucket == "FACT_CHECK_REQUIRED"
