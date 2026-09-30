@@ -124,8 +124,30 @@ const PROBE = () => {
   const authShell = !!document.querySelector( '[data-amplify-authenticator], .amplify-authenticator' )
     || /sign in|signin/i.test( ( document.querySelector( 'button' )?.textContent || '' ) );
 
+  /* IS THE FIRST REAL CONTENT HIDDEN UNDER THE FIXED HEADER?
+     The header is position:fixed and 108px tall, dropping to 96px below 768px, so a page
+     whose top padding does not match BOTH heights puts its own first line underneath it.
+     /llm/ shipped that way: it inlined padding:'48px 20px 80px', and a style attribute cannot
+     carry a media query, so it could not express the two-height clearance. Its eyebrow sat at
+     y=48 with the header's bottom at y=108, and elementFromPoint at the eyebrow's own centre
+     returned the header. _app.tsx records the same defect being fixed at .ag-shell.
+     elementFromPoint rather than a rect comparison, because the question is what a visitor
+     actually sees painted, not whether two boxes overlap - the rects can overlap while the
+     header is transparent there, and they can fail to overlap while a shadow still covers the
+     text. Scrolled to the top first, since the coordinates are viewport-relative. */
+  let obscured = null;
+  if ( header && main ) {
+    const firstText = Array.from( main.querySelectorAll( 'p,h1,h2,h3,li' ) )
+      .find( el => el.getBoundingClientRect().height > 0 && ( el.textContent || '' ).trim().length > 10 );
+    if ( firstText ) {
+      const r = firstText.getBoundingClientRect();
+      const hit = document.elementFromPoint( Math.round( r.left + r.width / 2 ), Math.round( r.top + r.height / 2 ) );
+      obscured = !!( hit && header.contains( hit ) );
+    }
+  }
+
   return {
-    translated, skipped, samples, attrs,
+    translated, skipped, samples, attrs, obscured,
     attrTotal: Object.values( attrs ).reduce( ( a, b ) => a + b, 0 ),
     header: !!header, footer: !!footer, widget: !!widget, main: !!main,
     h1Count: h1s.length,
@@ -166,7 +188,7 @@ const PROBE = () => {
           await page.waitForTimeout( 250 );
           const data = await page.evaluate( PROBE );
           rec.status = res ? res.status() : null;
-          rec.vp[ vp.k ] = { overflow: data.overflow, topSection: data.topSection };
+          rec.vp[ vp.k ] = { overflow: data.overflow, topSection: data.topSection, obscured: data.obscured };
           if ( vp.k === 'desk' ) Object.assign( rec, data );
         } catch ( e ) {
           rec.vp[ vp.k ] = { error: e.message.slice( 0, 60 ) };
@@ -210,6 +232,11 @@ const PROBE = () => {
     console.log( `auth shell (no real content): ${auth.length}` );
     console.log( `missing header/footer/widget: ${noChrome.length}` );
     console.log( `NO top section after header : ${noTop.length}` );
+    /* Reported separately from noTop, because they are different failures. A page can have a
+       perfectly good top section that is simply painted under the header - /llm/ did. */
+    const buried = results.filter( r => !r.authShell && VPS.some( v => r.vp[ v.k ]?.obscured === true ) );
+    console.log( `first line UNDER the fixed header: ${buried.length}`
+      + ( buried.length ? ' -> ' + buried.slice( 0, 8 ).map( r => r.route ).join( ', ' ) : '' ) );
     console.log( `horizontal overflow somewhere: ${overflowing.length}${overflowing.length ? ' -> ' + overflowing.slice( 0, 8 ).map( r => r.route ).join( ', ' ) : ''}` );
     console.log( `routes with skipped text     : ${withSkips.length}` );
     console.log( `skip reasons (nodes)         : ${Object.entries( skipTotals ).map( ( [ k, v ] ) => `${k}=${v}` ).join( ' · ' ) || 'none'}` );
