@@ -5,6 +5,7 @@
   "description": "Browser measurement harness for the public pages. Deliberately NOT part of the app's package.json - see README.md.",
   "type": "commonjs",
   "dependencies": {
+    "lighthouse": "^13.5.0",
     "playwright-core": "^1.49.0"
   }
 }

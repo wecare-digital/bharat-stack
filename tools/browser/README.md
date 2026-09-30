@@ -95,6 +95,7 @@ recorded here (12/12 and 28/28) were stale — both suites have grown since.
 | `uicheck.js` | **96/96** |
 | `contactcheck.js` | **12/13** — the one failure is blocked on a Google Maps API key |
 | `homeprobe.js` | **11/11** — was 5/12 with seven open defects; re-measured 2026-09-29 |
+| `lhcheck.js` | **20 routes, no unexplained findings** — a11y 100 on 19, `/blog/` 96 by documented exemption, seo 100 throughout |
 | `rtlcheck.js` | **6883/6883** |
 | `pageaudit.js` | 180 routes, **0** horizontal overflow |
 | `sectioncheck.js`, `devicecheck.js`, `closeprobe.js` | run clean; `closeprobe` leaves its band findings red on purpose |
@@ -422,3 +423,73 @@ The check had looked at `aria-label`, `aria-labelledby`, `title`, text content a
 - `value` on `input[type=submit|button]`, and `alt` on `input[type=image]`
 
 Miss the first two and every properly-labelled form field on the site reports as a violation.
+
+## Lighthouse, and what PageSpeed Insights can and cannot tell you from here
+
+`lhcheck.js` runs Lighthouse over the public routes. It earns its place by asking a different
+question from every other suite here: the rest assert something already decided — a rung, a
+rect, a ratio on a control someone knew about — whereas Lighthouse runs **axe-core over the
+whole document** and finds the text nobody thought to measure.
+
+On its first run it found four real contrast failures that five green suites and a hand-written
+focus-ring sweep had all missed:
+
+| Element | Measured | Where |
+|---|---|---|
+| `.msg-time` | `#667781` on `#d1f470` — **3.74:1** | the mockup's message timestamp |
+| `.bc [aria-current]` | `rgba(26,58,42,.58)` — **3.53:1** | the breadcrumb you are on |
+| `.lgd-toc-num` | `rgba(0,0,0,.42)` — **3.04:1** | clause numbers, ×4 on `/terms/` |
+| `.lgd-num` | `rgba(0,0,0,.42)` — **3.04:1** | the clause number in the margin |
+
+None is a focus indicator or a named label, which is exactly why a sweep built around those
+walked past all four. `/grahak-os/` went 95 → **100** on the first fix.
+
+### The PSI API is not usable from here, and that is not a configuration problem
+
+[PageSpeed Insights](https://pagespeed.web.dev/) needs the URL to be publicly crawlable, and the
+[v5 API](https://developers.google.com/speed/docs/insights/v5/about) is quota-limited per Google
+Cloud project. From this sandbox it returns:
+
+```
+429 Quota exceeded for quota metric 'Queries' and limit 'Queries per day'
+    of service 'pagespeedonline.googleapis.com'
+```
+
+PSI's **lab** half *is* Lighthouse, so `lhcheck.js` gets the same audits with no quota. Its
+**field** half cannot be reproduced locally at any quota: CrUX real-user FCP, LCP, CLS and INP
+come from opted-in Chrome traffic on the live origin over a trailing 28-day window. For those,
+open pagespeed.web.dev against production. PSI's own thresholds, for reference when you do —
+LCP good ≤ 2500ms, CLS ≤ 0.1, INP ≤ 200ms, FCP ≤ 1800ms, TTFB ≤ 800ms, and a Lighthouse
+category score is "good" at 90+.
+
+*Content was rephrased for compliance with licensing restrictions.*
+
+### Which of its scores to trust
+
+- **accessibility, seo, best-practices — trustworthy.** Static, document-shaped, unaffected by
+  being served from localhost.
+- **performance — not trustworthy from here.** The export is local while
+  `fonts.googleapis.com`, the media CDN, GTM and `connect.facebook.net` come over the runner's
+  egress. Measured from this sandbox that produced FCP 4.7s and LCP ~11s, which describes the
+  runner, not the site. The *opportunities* it lists are still real — `unused-css-rules` and
+  `unused-javascript` both flag against ~527 kB of CSS and the JS bundle — but the millisecond
+  savings attached to them are not. Run `LH_PERF=1` if you want them, and read them as a list
+  rather than as a budget.
+- **best-practices 96 everywhere is one local artefact.** `errors-in-console` fires because
+  `SupportWidget` fetches `/api/site-language/languages`, same-origin in production and
+  cross-origin from `127.0.0.1`.
+
+### Two audits are red on purpose
+
+Both are recorded in `EXPECTED` / `JUSTIFIED_CONTRAST` in the script, and the rule is the same
+one `typecheck.js` applies to its rung exceptions: an exception with no justification is drift
+with a comment on it.
+
+- **`/blog/` a11y 96** — `.pager-step.is-off` at 2.24:1. WCAG 1.4.3 has no contrast requirement
+  for text in an **inactive** component, and the span is `aria-hidden`. Raising it would make
+  "unavailable" look available; axe cannot tell the two apart.
+- **`bf-cache`** — blocked by third-party tags, not by anything this export controls.
+
+Lighthouse is in this directory's `package.json`, not the app's, for the same reason
+`playwright-core` is: the app's dependency tree and its fragile lockfile stay untouched, and the
+browser is resolved through `lib/browser.js` rather than downloaded.
