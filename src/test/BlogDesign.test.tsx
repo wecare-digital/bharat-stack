@@ -878,13 +878,22 @@ describe( 'Blog pills sit on the home page design language', () => {
     const { container } = render( <BlogPostPage post={ samplePost } /> );
     const css = cssOf( container );
 
-    // Accent for identity, lime for interaction - the split .post-card already uses, where the
-    // inline-start border carries a hue and the hover goes lime. Colour says WHICH tag; lime
-    // says you are pointing at it.
-    expect( css ).toContain( '.tags :global(.tag-h0){border-color:#3da35a}' );
-    expect( css ).toContain( '.tags :global(.tag-h1){border-color:#2563eb}' );
-    expect( css ).toContain( '.tags :global(.tag-h2){border-color:#9849e8}' );
-    expect( css ).toContain( '.tags :global(.tag-h3){border-color:#dc2626}' );
+    // THE HUE IS IN THE DOT ONLY, and the border stays the neutral hairline.
+    // An earlier pass coloured the border too and it was too loud - a 2px saturated edge runs
+    // the whole perimeter, so several tags in different hues competed with the post rather than
+    // labelling it. The 7px dot carries the same information for a fraction of the ink.
+    // The consistency argument is the stronger one: .pill, .pp-pill and .category-switch all
+    // rest on 2px #e5e7eb, so a coloured resting edge made tags the ONLY pill on the site with
+    // one - the opposite of matching the home page.
+    expect( css ).toContain( '.tags :global(.tag-h0)::before{background:#3da35a}' );
+    expect( css ).toContain( '.tags :global(.tag-h1)::before{background:#2563eb}' );
+    expect( css ).toContain( '.tags :global(.tag-h2)::before{background:#9849e8}' );
+    expect( css ).toContain( '.tags :global(.tag-h3)::before{background:#dc2626}' );
+    // No accent on the resting border. Comments stripped, since the note above names the
+    // treatment it replaced.
+    const tagDecls = declarationsOnly( styleBlockWith( container, '.tag-h0' ) );
+    expect( tagDecls ).not.toContain( '.tag-h0){border-color' );
+    expect( tagDecls ).not.toContain( '.tag-h3){border-color' );
 
     // FOUR hues, not five. Amber #f0a818 is the one the hero pills use that is excluded here:
     // 2.04:1 on white, the ratio the contract records as the reason it was rejected for light
