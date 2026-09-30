@@ -491,9 +491,32 @@ const serviceSchema = {
  * is correct for the home page: a breadcrumb whose only entry is the page you are on
  * says nothing.
  */
-const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description: string }> = {
-  '/grahak-os': { name: 'Grahak OS', type: 'WebPage', description: 'Customer engagement across WhatsApp, SMS, Email and Voice.' },
-  '/vayulok': { name: 'VayuLok', type: 'WebPage', description: 'Bharat air and weather intelligence.' },
+/**
+ * `serviceType` IS OPTIONAL AND ITS ABSENCE IS A STATEMENT.
+ *
+ * Every entry here already produces a WebPage, and a WebPage says "this URL exists" without
+ * saying what it is ABOUT. Where the page describes something the business actually offers, the
+ * entry names it and getPublicPageSchema emits a schema.org Service alongside, with the WebPage
+ * pointing at it through mainEntity. That is the difference between a crawler knowing we have a
+ * page called Dastavez and knowing Dastavez is business documentation offered in India by this
+ * organisation.
+ *
+ * IT IS NOT SET ON THE REQUESTS PAGES, deliberately. /submit-request, /drop-docs, /vault,
+ * /leave-review, /refer-and-earn and /request-amendment are ways to interact with us, not
+ * services we sell - "Leave Review" is not an offering, and typing it as a Service to get a
+ * richer graph would be describing the site we wish we had. Nor on /terms, /privacy, /contact
+ * or /orders, which are page kinds rather than products.
+ *
+ * There is no rich result for Service, so this buys entity understanding rather than a search
+ * appearance. That is the honest expectation to set: Google's structured-data guidance treats
+ * Service as a supported type for describing an offering, and nothing here should be read as
+ * promising a carousel.
+ */
+const PUBLIC_PAGE_META: Record<string, {
+  name: string; type: string; description: string; serviceType?: string;
+}> = {
+  '/grahak-os': { name: 'Grahak OS', type: 'WebPage', description: 'Customer engagement across WhatsApp, SMS, Email and Voice.', serviceType: 'Customer engagement platform' },
+  '/vayulok': { name: 'VayuLok', type: 'WebPage', description: 'Bharat air and weather intelligence.', serviceType: 'Air quality and weather intelligence' },
   '/contact': { name: 'Contact', type: 'ContactPage', description: 'Submit, amend or track a request, drop documents, or leave a review.' },
   '/terms': { name: 'Terms', type: 'WebPage', description: 'Terms of service.' },
   '/privacy': { name: 'Privacy', type: 'WebPage', description: 'How WECARE.DIGITAL handles your data.' },
@@ -501,25 +524,25 @@ const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description
   // Bharat Rx does NOT do medicine retail - the owner confirmed that, and the description
   // said "Medicines, consults, reminders and records" until then. Structured data that
   // promises a product the page does not offer is worse than none.
-  '/bharat-rx': { name: 'Bharat Rx', type: 'WebPage', description: 'Consults, appointments, reminders and records in one place.' },
+  '/bharat-rx': { name: 'Bharat Rx', type: 'WebPage', description: 'Consults, appointments, reminders and records in one place.', serviceType: 'Health consultations, appointments and records' },
   // The eight product pages. Descriptions are shorter than the pages' own meta descriptions
   // on purpose: this feeds WebPage.description in the schema graph, where a sentence is
   // enough, while the <title>/<meta> pair in ProductPage.tsx does the search-result work.
-  '/elsewhere': { name: 'Elsewhere', type: 'WebPage', description: 'End-to-end travel: visas, bookings and journeys.' },
-  '/expo-week': { name: 'Expo Week', type: 'WebPage', description: 'A virtual travel fair and immersive digital expo.' },
-  '/dastavez': { name: 'Dastavez', type: 'WebPage', description: 'Business documentation and registrations in India.' },
-  '/clear-closure': { name: 'Clear Closure', type: 'WebPage', description: 'Online dispute resolution, fully online.' },
-  '/ritual-guru': { name: 'Ritual Guru', type: 'WebPage', description: 'Curated, temple-grade puja kits.' },
+  '/elsewhere': { name: 'Elsewhere', type: 'WebPage', description: 'End-to-end travel: visas, bookings and journeys.', serviceType: 'Travel services: visas, bookings and journeys' },
+  '/expo-week': { name: 'Expo Week', type: 'WebPage', description: 'A virtual travel fair and immersive digital expo.', serviceType: 'Virtual travel fair and digital expo' },
+  '/dastavez': { name: 'Dastavez', type: 'WebPage', description: 'Business documentation and registrations in India.', serviceType: 'Business documentation and company registration' },
+  '/clear-closure': { name: 'Clear Closure', type: 'WebPage', description: 'Online dispute resolution, fully online.', serviceType: 'Online dispute resolution' },
+  '/ritual-guru': { name: 'Ritual Guru', type: 'WebPage', description: 'Curated, temple-grade puja kits.', serviceType: 'Puja kit supply' },
   // Renamed twice: '/swdhya' -> '/open-possibility' -> '/anew'. The route moved with the
   // brand name each time; neither earlier address was ever published, so there is nothing
   // to redirect from.
-  '/anew': { name: 'Anew', type: 'WebPage', description: 'Reflection-led conversations that create clarity and action.' },
+  '/anew': { name: 'Anew', type: 'WebPage', description: 'Reflection-led conversations that create clarity and action.', serviceType: 'Reflective conversation and coaching' },
   // Hunar is Hindi/Urdu for skill. The description says CV and skills profile and stops
   // there: it must not imply placement or hiring, which the page itself is careful to
   // disclaim, because a WebPage.description promising a service the page declines to offer
   // is the same defect the Bharat Rx line above was corrected for.
-  '/hunar': { name: 'Hunar', type: 'WebPage', description: 'CV review, skills profiles and the pitch that introduces you.' },
-  '/niji-setu': { name: 'Niji Setu', type: 'WebPage', description: 'A QR code people scan to reach you on a masked call.' },
+  '/hunar': { name: 'Hunar', type: 'WebPage', description: 'CV review, skills profiles and the pitch that introduces you.', serviceType: 'CV review and professional profile writing' },
+  '/niji-setu': { name: 'Niji Setu', type: 'WebPage', description: 'A QR code people scan to reach you on a masked call.', serviceType: 'Number masking and call connection' },
   // The Selfservice pages. They exist because the header's Selfservice column offered
   // six labels and every one resolved to /contact/ - six promises, one destination, on every
   // page of the site. Header.tsx recorded that as a placeholder and named this as the fix.
@@ -592,6 +615,31 @@ const getPublicPageSchema = ( pathname: string ) => {
   // trailingSlash is set, so the canonical URL carries the slash. Breadcrumb items
   // must match the canonical or they describe a URL that redirects.
   const url = `${SITE}${pathname}/`;
+  /**
+   * The Service node, only where PUBLIC_PAGE_META names a serviceType - see the note there for
+   * which routes do and, more importantly, which deliberately do not.
+   *
+   * `provider` REFERENCES the Organization by @id rather than restating it. A second inline copy
+   * of the company's name, logo and address per page would be eleven more places for it to drift
+   * from the one in websiteSchema, and Google resolves @id references within the same page.
+   *
+   * name and description are the SAME STRINGS the WebPage uses, on purpose: they come from one
+   * entry, so the page's own description and the Service's cannot disagree. The eleven
+   * serviceType values are the only new prose, and each is close to the description beside it.
+   *
+   * areaServed is India, which is where the service is offered - not where a service might take
+   * you. Elsewhere arranges travel abroad and is still offered to people in India.
+   */
+  const service = meta.serviceType ? {
+    '@type': 'Service',
+    '@id': `${url}#service`,
+    name: meta.name,
+    description: meta.description,
+    serviceType: meta.serviceType,
+    provider: { '@id': `${SITE}/#organization` },
+    areaServed: { '@type': 'Country', name: 'India' },
+    url,
+  } : null;
   return {
     '@context': 'https://schema.org',
     '@graph': [
@@ -604,6 +652,10 @@ const getPublicPageSchema = ( pathname: string ) => {
         isPartOf: { '@id': `${SITE}/#website` },
         inLanguage: 'en-IN',
         breadcrumb: { '@id': `${url}#breadcrumb` },
+        // Spread, not a conditional property set to undefined: JSON.stringify would drop an
+        // undefined value anyway, but an explicit absent key keeps the emitted graph identical
+        // to what it was on the routes that have no Service.
+        ...( service ? { mainEntity: { '@id': `${url}#service` } } : {} ),
       },
       {
         '@type': 'BreadcrumbList',
@@ -613,6 +665,9 @@ const getPublicPageSchema = ( pathname: string ) => {
           { '@type': 'ListItem', position: 2, name: meta.name, item: url },
         ],
       },
+      // Filtered rather than conditionally spread into the array, so the routes with no
+      // serviceType emit exactly the two nodes they emitted before and nothing is reordered.
+      ...( service ? [ service ] : [] ),
     ],
   };
 };
