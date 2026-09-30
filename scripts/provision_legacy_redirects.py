@@ -126,6 +126,48 @@ RETIRED = {
     # fall through to the catch-all would serve 404.html at HTTP 200 instead, which is the
     # failure mode this whole script exists to avoid.
     "/my-order": "/orders/",
+    # ── URLs WITH PROVEN SEARCH EQUITY ON THE OLD www SITE ──────────────────────
+    #
+    # These are not guesses. Search Console's `https://www.wecare.digital/` property holds
+    # 480 days of history that the apex property does not - 313 clicks and 7,411 impressions -
+    # because the site moved from the www Wix site to this apex export and Google's index still
+    # points at the old map. Measured 2026-09-30 via searchAnalytics, and every number below is
+    # that property's own figure for the URL.
+    #
+    # WHAT MADE THIS INVISIBLE: the apex property reports ZERO impressions, so every earlier
+    # reading here concluded the site had no search presence at all. It has presence; it is
+    # filed under the other host, against URLs that no longer exist.
+    #
+    # /swdhya CONTRADICTS A COMMENT IN THIS REPOSITORY, which is why it leads.
+    # src/content/products.ts said of the Swdhya -> Open Possibility -> Anew renames: "Neither
+    # earlier address was ever published - this page exists only on an unmerged branch - so
+    # there is no external link or search equity to keep and no redirect to write. If this page
+    # HAD shipped, /swdhya/ and /open-possibility/ would both need 301s." It shipped:
+    # 531 impressions, 3 clicks, average position 6.0. So by that comment's own test the
+    # redirect is owed, and the comment has been corrected to say so.
+    "/swdhya": "/anew/",              # 531 impressions, pos 6.0
+    # Same rename chain. No impressions measured for this one, but it is the same page under
+    # its second name and the rule costs nothing - and the premise that neither name shipped
+    # has now been shown false once already.
+    "/open-possibility": "/anew/",
+    # 127 impressions, pos 4.4. The FAQ page was deleted on owner instruction; /contact/ is
+    # where the self-service routes now live, so it is the honest destination for someone who
+    # arrived looking for answers.
+    "/faq": "/contact/",
+    # /product-page is NOT in this dict - it needs a wildcard, so it is in RETIRED_TREES below.
+    # It WAS here briefly and that was measurably not enough: RETIRED emits only the exact path
+    # and its slash form, so the rule fixed /product-page and /product-page/ while
+    # /product-page/partner - the one actually carrying 665 impressions - kept 404ing.
+    #
+    # NOT ADDED, because the destination is a guess and a 301 to the wrong page is worse for a
+    # reader than a 404:
+    #   /bnb-club   644 impressions, pos 7.4 - appears NOWHERE in this repository. Unknown
+    #               what the page was, so there is no defensible target. Needs the owner.
+    #   /rx-slot    188 impressions, pos 6.5 - probably /bharat-rx/ (consults, appointments,
+    #               reminders), and `rx-slots` survives as an authenticated workspace feature
+    #               at /workspace/engage/rx-slots. Probably is not good enough to point 188
+    #               impressions at. Needs confirming.
+
     # /llm IS DELIBERATELY ABSENT, AND THIS ENTRY IS NOT COMING BACK.
     #
     # It was `"/llm": "/llms.txt"` from its retirement on 2026-09-30 until the owner removed
@@ -168,6 +210,31 @@ RETIRED = {
     # The only way to drop the hop is turning trailingSlash off, which rewrites all 1,353
     # canonicals, the sitemap and every internal link to remove one redirect from a dead path.
     # Do not do that.
+}
+
+# Retired SUBTREES: an old path whose every descendant collapses to ONE destination.
+#
+# Distinct from RENAMED_PREFIXES below, which maps a tree onto a matching tree and PRESERVES the
+# tail (`/dm/<*>` -> `/workspace/engage/<*>`). Here the tail is discarded, because the
+# destination is a single page - there is no `/contact/partner` to land on.
+#
+# WHY THIS NEEDED ITS OWN SHAPE rather than one more RETIRED entry: RETIRED emits the exact path
+# and its slash form and nothing else. `"/product-page": "/contact/"` was tried there first and
+# measured afterwards - /product-page and /product-page/ started working while
+# /product-page/partner, the URL actually carrying the impressions, was still 404. The wildcard
+# IS the requirement, so encoding it in the data beats a comment asking the next person to
+# remember.
+RETIRED_TREES = {
+    # Wix product URLs from the old www site. src/content/wix-catalog.json still shows the
+    # shape - xout.wecare.digital/product-page/<slug> - and /product-page/partner alone carries
+    # 665 impressions at position 7.0 on the www Search Console property.
+    #
+    # tools/browser/seocheck.js already names /contact/ as the intended target and records that
+    # the 301 was "expected at the CDN (Amplify Console)" and "is not visible to this harness".
+    # It was never actually configured, which is exactly the kind of gap a harness that cannot
+    # see the CDN will not catch - so these URLs 404ed for as long as anyone had been assuming
+    # they redirected.
+    "/product-page": "/contact/",
 }
 
 # Prefix renames: old top-level segment -> new one. `/dm` became `/workspace/engage` on
@@ -303,6 +370,14 @@ def desired_redirects() -> list[dict]:
     for source, target in RETIRED.items():
         rules.append({"source": source, "target": target, "status": "301"})
         rules.append({"source": source + "/", "target": target, "status": "301"})
+
+    # Retired subtrees. The `<*>` form goes AFTER the two exact forms, for the same reason the
+    # prefix renames order theirs that way: a wildcard placed before a specific rule matches
+    # first and the specific rule becomes unreachable.
+    for source, target in RETIRED_TREES.items():
+        rules.append({"source": source, "target": target, "status": "301"})
+        rules.append({"source": source + "/", "target": target, "status": "301"})
+        rules.append({"source": f"{source}/<*>", "target": target, "status": "301"})
 
     # Prefix renames. Ordering inside this list is load-bearing: the one-hop rules for
     # specific retired routes must precede the `<*>` wildcard, or the wildcard matches
