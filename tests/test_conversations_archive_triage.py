@@ -81,7 +81,7 @@ def test_indebted_to_routes_to_attribution():
     assert bucket == "ATTRIBUTION_REVIEW"
 
 def test_placeholder_routes_to_no_distinct_article():
-    bucket, *_ = triage.classify(base(), "Example Work in progress. Coming soon.")
+    bucket, *_ = triage.classify(base(original_title="New One"), "Example Work in progress. Coming soon.")
     assert bucket == "NO_DISTINCT_ARTICLE"
 
 def test_folklore_claim_routes_to_fact_check():
