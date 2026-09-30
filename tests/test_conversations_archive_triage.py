@@ -54,3 +54,36 @@ def test_common_archive_header_is_not_attribution_signal():
     )
     bucket, *_ = triage.classify(base(), text)
     assert bucket == "CANDIDATE_NEW_ARTICLE"
+
+
+def test_private_first_person_routes_to_personal_rework_even_without_inventory_name_flag():
+    bucket, *_ = triage.classify(base(), "Example My daughter and I talked about school and our relationship.")
+    assert bucket == "PERSONAL_REFERENCE_REWORK"
+
+def test_private_life_routes_to_personal_rework():
+    bucket, *_ = triage.classify(base(), "Example In my private life I had a relationship that changed over time.")
+    assert bucket == "PERSONAL_REFERENCE_REWORK"
+
+def test_werner_first_name_in_article_routes_to_attribution():
+    bucket, *_ = triage.classify(base(), "Example Werner described this as a distinction worth practicing.")
+    assert bucket == "ATTRIBUTION_REVIEW"
+
+def test_spaced_werner_name_routes_to_attribution():
+    bucket, *_ = triage.classify(base(), "Example W erner E rhard described this as a distinction worth practicing.")
+    assert bucket == "ATTRIBUTION_REVIEW"
+
+def test_work_of_transformation_phrase_routes_to_attribution():
+    bucket, *_ = triage.classify(base(), "Example The work of transformation begins from this premise.")
+    assert bucket == "ATTRIBUTION_REVIEW"
+
+def test_indebted_to_routes_to_attribution():
+    bucket, *_ = triage.classify(base(), "Example I am indebted to Jane Smith who inspired this conversation.")
+    assert bucket == "ATTRIBUTION_REVIEW"
+
+def test_placeholder_routes_to_no_distinct_article():
+    bucket, *_ = triage.classify(base(), "Example Work in progress. Coming soon.")
+    assert bucket == "NO_DISTINCT_ARTICLE"
+
+def test_folklore_claim_routes_to_fact_check():
+    bucket, *_ = triage.classify(base(), "Example This story is often told as folklore about an experiment.")
+    assert bucket == "FACT_CHECK_REQUIRED"
