@@ -664,20 +664,24 @@ export default function BlogPostPage ( {
           content:'';flex:0 0 auto;width:7px;height:7px;border-radius:50%;
           background:#e5e7eb;transition:background-color .2s;
         }
-        /* ACCENT FOR IDENTITY, LIME FOR INTERACTION - the split .post-card already uses, where
-           the inline-start border carries one of these three hues and the hover goes lime.
-           Colour here says WHICH tag; lime says you are pointing at it. Mixing the two would
-           break the rule the contract states outright: lime marks our own surfaces and
-           interaction state, accents categorise.
-           Border and dot take the same hue so the pill reads as one object rather than as a
-           bordered box with an unrelated dot in it. */
-        .tags :global(.tag-h0){border-color:#3da35a}
+        /* THE HUE IS IN THE DOT ONLY. THE BORDER STAYS THE NEUTRAL HAIRLINE.
+           An earlier pass put the accent on the border as well, and it was too loud: a 2px
+           saturated edge runs the whole perimeter, so three or four tags in different hues
+           sitting side by side competed with the post they belong to instead of labelling it.
+           The dot is 7px and carries the same information for a fraction of the ink.
+           There is a consistency argument too, and it is the stronger one. Every other pill in
+           this design language rests on 2px #e5e7eb - .pill, .pp-pill and .category-switch all
+           do. A coloured resting edge made the tags the only pill on the site with one, which
+           is the opposite of matching the home page. Neutral border, coloured dot: quieter AND
+           more consistent, rather than a trade between the two.
+           What does not change is the split the contract cares about - accent for identity,
+           lime for interaction. Hover still swaps the border to lime, and because the resting
+           border is now neutral that swap reads more clearly than it did against a saturated
+           hue. .post-card keeps its accent on the border because there it is a single 3px
+           inline-start edge on a large card, not a ring around a 34px pill. */
         .tags :global(.tag-h0)::before{background:#3da35a}
-        .tags :global(.tag-h1){border-color:#2563eb}
         .tags :global(.tag-h1)::before{background:#2563eb}
-        .tags :global(.tag-h2){border-color:#9849e8}
         .tags :global(.tag-h2)::before{background:#9849e8}
-        .tags :global(.tag-h3){border-color:#dc2626}
         .tags :global(.tag-h3)::before{background:#dc2626}
         /* THE HOME PAGE'S HOVER, EXACTLY. Lime border, the .22 state tint, a 2px lift and the one
            shadow this design language uses - the same four properties .category-switch and the
