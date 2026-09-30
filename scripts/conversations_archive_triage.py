@@ -79,8 +79,8 @@ def classify(row, text):
         if any(r.search(text) for r in regs): fresh_risks.append(k)
     overlap_strong = hist=='MERGE' or revised.startswith('MERGE') or route=='MERGE' or titleopp=='HIGH OVERLAP' or sim >= 0.62
     overlap_medium = titleopp=='POSSIBLE OVERLAP' or sim >= 0.48
-    attribution_risk = program or bool(source_terms) or source_scaffold
-    personal_risk = personal and pubname
+    attribution_risk = pubname or program or bool(source_terms) or source_scaffold
+    personal_risk = personal
     factual_risk = bool(research)
     if overlap_strong:
         bucket='LIKELY_EXISTING_COVERAGE'
