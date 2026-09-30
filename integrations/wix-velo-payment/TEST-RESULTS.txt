@@ -1,0 +1,55 @@
+Local Node tests; mocked bridge; no Wix platform or live payment test.
+
+> test
+> node --test tests/*.test.js
+
+✔ hosted checkout returns only Wix response and stable retry key (1.733625ms)
+✔ reject invalid paise 0 (0.103125ms)
+✔ reject invalid paise -1 (0.049584ms)
+✔ reject invalid paise 1.1 (0.034875ms)
+✔ reject invalid paise 1e3 (0.031875ms)
+✔ reject invalid paise 001 (0.027458ms)
+✔ reject invalid paise 9007199254740992 (0.028958ms)
+✔ reject invalid paise 1.2 (0.029625ms)
+✔ reject invalid paise null (0.034291ms)
+✔ reject merchant before bridge (0.117541ms)
+✔ reject account before bridge (0.057458ms)
+✔ reject currency before bridge (0.054084ms)
+✔ reject return URL before bridge (0.049708ms)
+✔ reject missing order before bridge (0.032834ms)
+✔ reject bridge readiness (0.058916ms)
+✔ reject bridge one paise (0.040083ms)
+✔ reject bridge wrong transaction (0.047ms)
+✔ reject bridge wrong order (0.030667ms)
+✔ reject bridge wrong account (0.025458ms)
+✔ reject bridge redirect (0.02925ms)
+✔ reject bridge missing redirect (0.028958ms)
+✔ network errors do not leak credentials or imply approval (0.075541ms)
+✔ connect requires backend confirmation and verified account binding (0.061083ms)
+✔ refund accepted is not refund completed; uses independent refund key (0.07675ms)
+✔ only verified terminal states produce Wix events (0.100209ms)
+✔ verified refund maps paise to Wix amount string (0.026916ms)
+✔ callback signature binds timestamp and exact raw bytes (0.389417ms)
+✔ initiation is disabled unless explicitly enabled (0.052042ms)
+✔ signed callback claims, submits verified event, then acknowledges lease (1.003583ms)
+✔ bad signature never reaches bridge or Wix (0.7215ms)
+✔ callback cannot inject a status even with valid signature (0.113834ms)
+✔ already-ACKed duplicate does not submit twice (0.088ms)
+✔ busy lease refuses Wix mutation and ACK (0.0955ms)
+✔ wrong event refuses Wix mutation and ACK (0.081167ms)
+✔ unverified refuses Wix mutation and ACK (0.062375ms)
+✔ wrong account refuses Wix mutation and ACK (0.055458ms)
+✔ pending refuses Wix mutation and ACK (0.0695ms)
+✔ invalid lease refuses Wix mutation and ACK (0.097ms)
+✔ Wix failure leaves lease unacknowledged for reconciliation (0.140583ms)
+✔ lost ACK is retryable, not a claim of exactly-once completion (0.088666ms)
+✔ bridge or secret outage fails closed (0.233833ms)
+✔ verified refund callback uses stored refund ID and amount (0.092042ms)
+ℹ tests 42
+ℹ suites 0
+ℹ pass 42
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44.799
