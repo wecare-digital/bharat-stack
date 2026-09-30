@@ -404,7 +404,14 @@ export default function BlogPostPage ( {
         .article-shell{max-width:1300px;margin:0 auto;padding:40px 24px 96px;color:#1a1a1a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
         article{max-width:700px;margin:0 auto}
         /* .back rules removed with the link - Breadcrumbs replaced it. */
-        .category{display:inline-block;background:rgba(209,244,112,.28);color:#1a3a2a;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;margin-bottom:18px}
+        /* THE SAME BADGE AS THE INDEX CARD'S, SO IT GETS THE SAME TREATMENT.
+           A reader meets this category on the listing card and again at the top of the post;
+           they were the same component in two different styles, which is the kind of gap that
+           reads as a rendering bug rather than a design. Both are now BrandBadge's rung:
+           14px/600/-.125px, #d1f470 fill, #1a3a2a type, no border. See the longer note at
+           .category in BlogIndexView.tsx for why identity takes the fill and not the .22
+           tint - the short version is that .22 composites to a barely-not-white wash. */
+        .category{display:inline-block;background:#d1f470;color:#1a3a2a;border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;letter-spacing:-.125px;margin-bottom:18px}
         h1{font-size:clamp(36px,4.3vw,60px);line-height:1.04;letter-spacing:-0.04em;color:rgba(0,0,0,.95);margin:0 0 20px;font-weight:600;text-wrap:balance;max-width:20ch}
         /* AUTHOR ONLY NOW, so the row is no longer a row. The flex, the gap and the wrap all
            existed to lay out two children - the author and the date - and with the date gone
@@ -431,8 +438,28 @@ export default function BlogPostPage ( {
         .content :global(a:hover){text-decoration-thickness:2px}
         .content :global(a:focus-visible){outline:3px solid #1a3a2a;outline-offset:3px;border-radius:2px}
         .content :global(strong){font-weight:700}
+        /* TAG PILLS, ON THE HOME PAGE'S PILL LANGUAGE.
+           These were 11px on a #f3f4f6 fill with no border, which made them the only pill on
+           the site that did not look like one. Measured against the design contract, four
+           things were off:
+           1. #f3f4f6 is off-palette. The palette's grey is #e5e7eb, and this repo has already
+              retired #4b5563 and #9ca3af from the same Tailwind family for reading cooler than
+              the neutrals beside them.
+           2. No border at all, where every pill in this language carries a hairline. The rule
+              is weight-as-meaning: 2px means hoverable, 1px means static. A tag is a plain
+              span with no hover, so 1px is the correct half of that rule - the same weight
+              .trust-card uses.
+           3. 11px is below every documented rung. The label rung is 14px, which is also what
+              BrandBadge uses, so 14px lands them on an existing level rather than inventing a
+              fifth one. Tracking -.125px matches that rung; weight stays 400 because these are
+              metadata, not identity - the contract's label spec is plain 14px/400.
+           4. It was the one contrast miss on the page. rgba(0,0,0,.54) over #f3f4f6 measured
+              4.49:1, which fails the 4.5:1 AA minimum for normal text by 0.01. The same label
+              colour over #fff measures 4.59:1 and passes, so moving to the palette fixed the
+              contrast as a side effect rather than needing a darker grey.
+           The wrapper already used the palette hairline and is unchanged. */
         .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:52px;padding-top:24px;border-top:1px solid #e5e7eb}
-        .tags span{font-size:11px;background:#f3f4f6;border-radius:999px;padding:6px 10px;color:rgba(0,0,0,.54)}
+        .tags span{font-size:14px;font-weight:400;letter-spacing:-.125px;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:7px 14px;color:rgba(0,0,0,.54)}
         /* The share row sits in the same hairline rhythm as the tags above it and the pager below
            - 24px of air under a 1px e5e7eb rule - so the tail of the page reads as three bands of
            one object rather than three unrelated blocks. The controls style themselves; see
@@ -497,7 +524,9 @@ export default function BlogPostPage ( {
           border:2px solid rgba(26,58,42,.22);border-radius:12px;
           color:#1a3a2a;text-decoration:none;
         }
-        .post-nav :global(.post-nav-step:hover){background:rgba(209,244,112,.28)}
+        /* .22, not .28 - hover is transient state, which is precisely the role the .22 tint
+           exists for. .28 was an alpha the language does not contain. */
+        .post-nav :global(.post-nav-step:hover){background:rgba(209,244,112,.22)}
         .post-nav :global(.post-nav-step:focus-visible){outline:3px solid #1a3a2a;outline-offset:2px}
         .post-nav :global(.post-nav-step.is-off){border-color:#e5e7eb;color:rgba(0,0,0,.32);cursor:default}
         .post-nav :global(.post-nav-step.is-next){align-items:flex-end;text-align:end}
