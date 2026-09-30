@@ -297,7 +297,10 @@ def analytics(tok: str) -> None:
 
 def google_ads(tok: str) -> None:
     head("GOOGLE ADS")
-    print(f"  customer {ADS_CUSTOMER} (836-758-9699), manager {ADS_LOGIN_CUSTOMER} (427-041-2231)")
+    print(f"  customer {ADS_CUSTOMER} (836-758-9699) - queried DIRECTLY.")
+    print(f"  manager {ADS_LOGIN_CUSTOMER} (427-041-2231) exists but is NOT used: a manager")
+    print("  account is required only to manage MULTIPLE accounts via the API, and all three")
+    print("  access paths were measured returning the same error, so it changes nothing here.")
     print("  DEVELOPER TOKENS WERE SUNSET ON 2026-09-09. They may still be sent and are ignored")
     print("  by the API servers; access levels now attach to the Google Cloud project that owns")
     print("  the credentials - for a service-account workflow, the project owning the service")
@@ -329,12 +332,24 @@ def google_ads(tok: str) -> None:
     #       needs Explorer or Basic from the Google Ads API Overview page in Cloud Console.
     #   USER_PERMISSION_DENIED                    -> access levels are fine; the principal is
     #       simply not a user on the Ads account.
+    # DIRECT, WITH NO login-customer-id. A manager account is only needed to link and manage
+    # MULTIPLE accounts through the API - Google's own policy doc says so since the developer
+    # token sunset - and this deployment reads one account. Measured 2026-09-30, all three paths
+    # return the IDENTICAL error, so the manager adds nothing here:
+    #
+    #   direct on 836-758-9699, no header   CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION
+    #   via login-customer-id 427-041-2231  CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION
+    #   direct on the manager itself        CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION
+    #
+    # That identity is itself the finding: the Cloud project's access tier is evaluated BEFORE
+    # anything account-level, so it blocks every customer equally and no header can route around
+    # it. Sending the manager id would only have made a project problem look like a linkage one.
     st, body = call(
         tok,
         f"https://googleads.googleapis.com/{version}/customers/{ADS_CUSTOMER}/googleAds:search",
         method="POST",
-        body={"query": "SELECT customer.id, customer.descriptive_name FROM customer LIMIT 1"},
-        extra={"login-customer-id": ADS_LOGIN_CUSTOMER},
+        body={"query": "SELECT customer.id, customer.descriptive_name, customer.manager, "
+                       "customer.test_account, customer.currency_code FROM customer"},
     )
     print(f"\n  query customer {ADS_CUSTOMER}: http {st}")
     codes = []
@@ -419,11 +434,36 @@ def main() -> int:
             print("                 CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION. That second error")
             print("                 PROVES what could only be guessed before: the Cloud project")
             print("                 sits on Test access, which cannot call a production account.")
-            print("                 Cloud Console > Google Ads API Overview > apply for Explorer")
-            print("                 or Basic. Basic is automated and reviewed in minutes after")
-            print("                 brand verification. Needs Owner/Editor/Quota Admin, which")
-            print("                 wecare.digital.bw@gmail.com has and this service account")
-            print("                 does not - so it is a browser action.")
+            print("                 USE THE EXISTING PROJECT: wecaredigitalbw (756034744787).")
+            print("                 Not a new one, and not the other project in the account -")
+            print("                 gmp-demo-project-567757500 is a Maps Platform demo. For a")
+            print("                 service-account workflow the governing project is the one")
+            print("                 that OWNS the service account, and that is wecaredigitalbw;")
+            print("                 measured, not assumed. It already carries the OAuth brand")
+            print("                 'WECARE.DIGITAL' and sits under organization 470921486845.")
+            print("")
+            print("                 APPLY FOR EXPLORER, NOT BASIC, AS THE FIRST STEP. The tier")
+            print("                 quotas read live off this project:")
+            print("                     test      no production access   <- current")
+            print("                     explorer   2,880 operations/day")
+            print("                     basic     15,000 operations/day")
+            print("                     standard  unlimited")
+            print("                 2,880/day is ample for reading reports, and the policy doc")
+            print("                 requires brand verification for BASIC and STANDARD - not")
+            print("                 Explorer. That matters here because this project's OAuth")
+            print("                 brand is orgInternalOnly=True, i.e. an Internal consent")
+            print("                 screen, which is not the thing a public brand verification")
+            print("                 applies to. Explorer sidesteps the question entirely.")
+            print("")
+            print("                 Cloud Console > APIs & Services > Google Ads API > Overview.")
+            print("                 Needs Owner/Editor/Quota Admin: wecare.digital.bw@gmail.com")
+            print("                 holds roles/owner, this service account does not - so it is")
+            print("                 a browser action. Billing is already enabled and open, which")
+            print("                 rules out the doc's suspended-billing rejection.")
+            print("                 The manager account is NOT part of this: direct access,")
+            print("                 the manager header and the manager itself all return the")
+            print("                 same project-level error, because the tier is checked")
+            print("                 before anything account-level.")
         elif product == "Tag Manager":
             print("    Tag Manager  Admin > Account > User Management > + , account + container")
             print("                 Read. Or accounts.user_permissions.create called by an")
