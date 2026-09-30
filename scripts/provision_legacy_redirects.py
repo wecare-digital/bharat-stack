@@ -154,6 +154,66 @@ RETIRED = {
     # where the self-service routes now live, so it is the honest destination for someone who
     # arrived looking for answers.
     "/faq": "/contact/",
+    # ── SECOND PASS, 2026-09-30: ten more, and a MEASUREMENT LESSON ─────────────
+    #
+    # The entries above came from one reading of the www property. A second reading found ten
+    # more URLs with equity, and the reason the first pass missed them is worth writing down
+    # because it will recur: the first query used a 90-DAY window. On a site that migrated
+    # hosts months ago, a recent window measures the post-migration COLLAPSE, not the equity
+    # at stake. Over 90 days the www property reports 412 impressions; over its full 480 days
+    # it reports 17,115 across 156 URLs - a 40x difference, all of it equity that still exists
+    # in Google's index and still points at URLs that now 404.
+    #
+    # So: when sizing a migration loss, always query the maximum window Search Console
+    # retains. A short window on a migrated property systematically under-reports the damage,
+    # and it under-reported it here by enough to change which URLs looked worth a rule.
+    #
+    # Every figure below is that property's own, measured over 2025-06-07 .. 2026-09-28, and
+    # every destination was confirmed to answer 200 before being written here. A redirect to a
+    # 404 is worse than no redirect: it converts a clean drop into a soft-404 signal.
+    "/no-fault": "/clear-closure/",          # 497 impr, pos 4.5 - online dispute resolution
+    "/legal-stuff": "/terms/",               # 379 impr, pos 6.3
+    "/expoweek": "/expo-week/",              # 292 impr, pos 5.7 - same page, hyphen added
+    "/legal-stuffs": "/terms/",              # 239 impr, pos 5.4 - the plural also ranked
+    "/ritual-store": "/ritual-guru/",        # 226 impr, pos 12.9 - temple-grade puja kits
+    "/swdhya-store": "/anew/",               # 212 impr, pos 6.9 - same rename chain as /swdhya
+    "/request-tracking": "/orders/",         # 201 impr, pos 8.1 - order/request status
+    "/rx-slot": "/bharat-rx/",               # 188 impr, pos 6.5 - consults and appointments
+    "/bring-friends": "/refer-and-earn/",    # 132 impr, pos 10.4 - the referral programme
+    "/home": "/",                            # 8 impr - Wix's index alias
+    #
+    # DELIBERATELY NOT REDIRECTED, despite carrying more equity than several entries above.
+    # Each one has real impressions and NO honest destination on the current site, and an
+    # irrelevant redirect is read as a soft 404 - so it damages the target page rather than
+    # rescuing the source. Left to 404 so Google drops them cleanly. Listed rather than
+    # omitted, so nobody has to re-measure to discover they were considered:
+    #
+    #     /bnb                    872 impr, pos 6.2    no equivalent service
+    #     /bnb-club               622 impr, pos 7.2    no equivalent service
+    #     /careers-plus-culture   569 impr, pos 19.1   no careers page exists
+    #     /partner-up             413 impr, pos 6.6    "Partner Up" is named in terms.ts s6.3
+    #                                                  but has no public page; /refer-and-earn/
+    #                                                  is a CUSTOMER referral, not a B2B
+    #                                                  partner programme, so it is the wrong
+    #                                                  destination rather than an approximate
+    #                                                  one
+    #     /one                    342 impr, pos 6.5    unidentified
+    #     /legal-champ            301 impr, pos 5.2    a legal SERVICE, not the terms page;
+    #                                                  /clear-closure/ is dispute resolution
+    #                                                  specifically, which may or may not be
+    #                                                  what this was
+    #     /gift-card              221 impr, pos 9.1    gift cards survive only as terms s21,
+    #                                                  not as a purchasable page
+    #
+    # These need an owner decision, not a guess. If any of those services still exists under a
+    # new name, add the rule; the equity is there to reclaim.
+    #
+    # /_functions/llms (337), /_functions-dev/llms (337), /_functions/aiindex (254),
+    # /_functions/smextra (170), /_functions/smtxt (159) are Wix BACKEND function endpoints,
+    # 1,257 impressions between them. They are not pages and were never meant to rank. The
+    # apex equivalent of the first two is /llms.txt, which is a file rather than a route; a
+    # rule for them belongs with the AI-surface work, not here, and is left out on purpose so
+    # it gets decided rather than absorbed.
     # /product-page is NOT in this dict - it needs a wildcard, so it is in RETIRED_TREES below.
     # It WAS here briefly and that was measurably not enough: RETIRED emits only the exact path
     # and its slash form, so the rule fixed /product-page and /product-page/ while
