@@ -1,5 +1,12 @@
 # Requirements — WhatsApp + Wix Headless conversational commerce
 
+## Owner architecture decision — 2026-10-01
+
+Use the existing self-managed Next.js/AWS headless application. WhatsApp/Razorpay collects payment externally; create the internal order and Wix order only after authoritative verification, then record the external payment without charging again. Velo and external PSP onboarding are not dependencies. Retain admin-only Cognito and WhatsApp-only receipts. Historical provider configuration claims below require live verification. See `docs/execution/headless-checkout-20261001.md` for the current partial audit and implementation gaps.
+
+Payment safety before wiring: reject unbound provider payments; enforce customer ownership before duplicate shortcuts; accept exact DynamoDB Decimal integers but no float coercion; pending/unknown is never retryable; prevent competing number assignments and repeating ambiguous Wix writes.
+
+
 Spec-Driven Development artifact. This is the document the prompt calls `spec.md`; it uses
 Kiro's canonical spec filename so the spec is drivable from the IDE.
 
@@ -265,12 +272,15 @@ fixed width.
 
 **Acceptance criteria**
 
-1. Product data SHALL come from Wix Stores Catalog V3, subject to R0 confirming the site's
-   catalog version.
+1. Product data SHALL come from Wix Stores Catalog V3 (confirmed live 2026-10-01).
 2. Price SHALL NEVER be taken from a WhatsApp or browser client; it SHALL be read from Wix.
 3. The cart SHALL be backend-managed and keyed to the customer's phone, not to a browser
    session — WhatsApp customers have no cookie jar, so `currentCart` semantics do not apply.
-4. The system SHALL support add, update quantity, remove, recalculate, and create checkout.
+4. The system SHALL support add, update quantity, remove, and recalculate on a Wix **Cart
+   V2** entity. There is no separate "create checkout" step: Cart V2 unifies cart and
+   checkout, so the authoritative total comes from **Calculate Cart** and an order is created
+   only after payment (see R7). The Wix-hosted checkout page is not used — this is an in-chat
+   flow. (Cart V1 / Checkout V1 are removed by Wix on 2027-02-01; see design D7.)
 5. WHEN a cart is idle beyond its TTL THEN it SHALL expire without creating an order.
 
 ---
@@ -281,11 +291,16 @@ fixed width.
 
 1. All monetary values SHALL be integer minor units. Floating-point money is prohibited.
 2. WHEN a payment request is built THEN `items + tax + shipping + fees − discounts` SHALL
-   equal the authoritative Wix checkout total exactly.
-3. WHEN the computed total and the Wix checkout total differ by any amount THEN the payment
-   request SHALL be rejected and no `order_details` message SHALL be sent.
-4. Currency SHALL be compared explicitly, not assumed to be INR.
-5. The payment payload SHALL be built from the live Wix checkout, never from cached prices.
+   equal the authoritative Wix total exactly. The authoritative total is Wix **Calculate
+   Cart** `summary.priceSummary` (Cart V2 does not store totals on the cart entity).
+3. WHEN the computed total and the Wix Calculate-Cart total differ by any amount THEN the
+   payment request SHALL be rejected and no `order_details` message SHALL be sent.
+4. Currency SHALL be compared explicitly (Wix `businessInfo.currencyCode`), not assumed to
+   be INR and not inferred from the amount.
+5. The payment payload SHALL be built from a live Wix **Calculate Cart**, never from cached
+   prices. The Calculate-Cart **price verification token**, cart revision and calculation ID SHALL be
+   stored privately with the immutable payment-attempt snapshot. Create Order does not validate
+   the Place Order token; payment reconciliation SHALL explicitly verify amount and cart binding.
 
 ---
 
@@ -294,13 +309,17 @@ fixed width.
 **Acceptance criteria**
 
 1. WHEN Meta reports a confirmed payment THEN the system SHALL verify the signature, check
-   idempotency, resolve `reference_id`, load the internal order and the authoritative
-   checkout, and compare currency, amount and customer before mutating anything.
-2. A Wix order SHALL be created or resolved **exactly once** per business order.
-3. The externally collected payment SHALL be recorded against that order via the Wix Order
-   Transactions API.
+   idempotency, resolve `reference_id`, load the immutable PaymentAttempt and its bound Cart V2
+   calculation, and confirm the provider payment belongs to that attempt. Currency, integer
+   amount and customer must match before creating any internal or Wix order.
+2. A Wix order SHALL be created or resolved **exactly once** per business order, from the
+   bound Cart V2 snapshot using Create Order after verified capture. Place Order is excluded
+   from this external-payment path. Cart completion and inventory behavior require the Phase 11 contract.
+3. The externally collected payment SHALL be recorded against that order as an external
+   payment. Recording SHALL NOT collect.
 4. The system SHALL NOT call any Wix API that would charge the customer again. Recording a
-   payment is not collecting one.
+   payment is not collecting one. A Phase 11 test SHALL enumerate every reachable Wix call
+   on this path and assert none can charge.
 5. `providerTransactionId` SHALL be treated as unique.
 6. WHEN Wix has not yet reconciled the payment state THEN the flow SHALL wait and retry
    rather than proceeding.

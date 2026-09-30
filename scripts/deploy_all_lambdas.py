@@ -199,6 +199,18 @@ SPECS: List[Spec] = [
         "auth/customer-registration",
         provisioned_by="python scripts/provision_customer_registration.py",
     ),
+    # Customer checkout for the headless WhatsApp/Razorpay flow. Resolves the authoritative Wix
+    # eCom total (integer paise), gates on a live payment-readiness readback, reserves a
+    # PaymentAttempt, and hands off to the in-chat order_details path — creating NO order and NO
+    # charge (an order exists only after the razorpay-webhook reconciliation verifies a capture).
+    # Initiation is off by default. First creation is owned by scripts/provision_checkout.py. NOT
+    # standalone: it imports lambda_utils.customer_auth, payment_readiness, ecommerce.order_keys,
+    # ecommerce.payment_attempt, wix_ecom, response and logging.
+    Spec(
+        "wecare-checkout",
+        "ecommerce/checkout",
+        provisioned_by="python scripts/provision_checkout.py",
+    ),
     # Cognito CustomMessage trigger: branded HTML for MFA, verification and
     # recovery email. First creation is owned by
     # scripts/provision_cognito_custom_message.py, which also gives it a

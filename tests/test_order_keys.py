@@ -546,3 +546,23 @@ def test_legacy_reservation_still_fails_closed(table):
     with pytest.raises(order_keys.OrderIdentityUnavailable):
         order_keys.reserve_order_number(table, '2026-02-22T18:00:00Z')
     assert table.parent.count(TABLE) == 0
+
+
+def test_recover_crash_between_provider_claim_and_attempt_claim(table):
+    provider_key = order_keys.PROVIDER_PAYMENT_PREFIX + 'pay-recovery'
+    table.put_item(Item={'orderId': provider_key, 'orderIdRef': 'committed-order',
+                        'paymentAttemptId': 'attempt-recovery', 'providerTransactionId': 'pay-recovery'})
+    order_id, won = order_keys.claim_order_for_payment(
+        table, payment_attempt_id='attempt-recovery', order_id='discard-this-new-id',
+        provider_transaction_id='pay-recovery')
+    assert won and order_id == 'committed-order'
+    assert order_keys.resolve_order_for_payment(table, 'attempt-recovery')['orderIdRef'] == 'committed-order'
+
+
+def test_concurrent_numbering_preserves_the_first_public_number(table):
+    order_keys.claim_order_for_payment(table, payment_attempt_id='attempt-number', order_id='order-number')
+    first = order_keys.record_order_number_on_claim(
+        table, payment_attempt_id='attempt-number', order_number='ABCDEFGHJKMN')
+    second = order_keys.record_order_number_on_claim(
+        table, payment_attempt_id='attempt-number', order_number='PQRSTVWXYZ23')
+    assert first == second == 'ABCDEFGHJKMN'

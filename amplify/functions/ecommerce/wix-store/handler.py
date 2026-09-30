@@ -268,6 +268,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         path = event.get('path', event.get('rawPath', '/'))
         params = event.get('queryStringParameters', {}) or {}
 
+        if path.rstrip('/') == '/wix-store/cart':
+            return _customer_cart(event, http_method)
+
         from lambda_utils.middleware import require_auth
         required_role = 'Admin' if http_method != 'GET' else None
         auth_result = require_auth(event, required_role=required_role)
@@ -354,6 +357,39 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # note at the top of this function: the execution environment is reused, and the
         # two scheduled sync paths return through `_response` without ever setting it.
         origin = ''
+
+def _customer_cart(event, method):
+    from lambda_utils import customer_auth
+    from lambda_utils.ecommerce.cart_v2 import CartV2
+    from lambda_utils.ecommerce.customer_cart import CustomerCart, CartBusy, CartMissing
+
+    if method == 'OPTIONS':
+        return _response(200, {})
+    identity, denied = customer_auth.require_customer(event)
+    if denied:
+        return denied
+    if os.environ.get('WIX_CART_V2_ENABLED', '').lower() != 'true':
+        return _response(503, {'error': 'CART_UNAVAILABLE'})
+    if method not in ('GET', 'POST'):
+        return _response(405, {'error': 'METHOD_NOT_ALLOWED'})
+    try:
+        command = {'action': 'get'} if method == 'GET' else _parse_body(event)
+        table = boto3.resource('dynamodb').Table(order_keys.commerce_keys_table_name())
+        result = CustomerCart(table, CartV2(_wix_request)).execute(identity, command)
+        return _response(200, result)
+    except customer_auth.CustomerNotAuthorized:
+        return customer_auth.denied_response(event)
+    except CartMissing:
+        return _response(404, {'error': 'CART_NOT_FOUND'})
+    except CartBusy:
+        return _response(409, {'error': 'CART_RECONCILIATION_REQUIRED'})
+    except ValueError:
+        return _response(422, {'error': 'CART_VALIDATION_FAILED'})
+    except Exception:
+        # Provider errors may contain customer information or internal identifiers.
+        logger.error('{"event":"customer_cart_unavailable"}')
+        return _response(503, {'error': 'CART_UNAVAILABLE'})
+
 
 def _wix_request(endpoint: str, method: str = 'GET', body: dict = None,
                  level: str = 'site') -> Dict[str, Any]:

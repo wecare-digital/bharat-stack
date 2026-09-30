@@ -5,9 +5,8 @@ Status: INERT until switched on
 This module is the write-back half of reconciliation (design.md steps 5-6, R7.2-R7.5). It is
 written, tested and guarded, but it is **not wired to run**: `is_enabled()` is false unless the
 site's capability probe has confirmed the eCommerce write scope AND `WIX_WRITEBACK_ENABLED` is
-set. Two open blockers keep it inert regardless — the Wix site id is unconfirmed (R0.10: reading a
-catalog from the wrong site is recoverable, creating an order against it is not) and the Meta
-payment configuration is absent, so no order has been paid to write back yet. The module exists
+set. Current readiness and credentials must be verified before enabling it;
+historical configuration claims are not activation evidence. The module exists
 now so it is ready and reviewed; enabling it is a later, deliberate step.
 
 The one rule this module exists to guarantee: it cannot charge
@@ -35,7 +34,7 @@ Idempotency
 Each side effect is claimed through `side_effect_guard` before it runs and confirmed after, so a
 duplicate reconciliation converges: the Wix order is created once (`WIX_ORDER`), the payment is
 recorded once (`WIX_PAYMENT`). A crash between claim and the Wix call leaves a `pending` marker
-that a retry finishes rather than re-running.
+that requires provider readback; it must never trigger an automatic repeat write.
 
 Injected client
 ---------------
@@ -48,9 +47,11 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Any, Callable, Dict, Optional
 
 from lambda_utils.ecommerce import side_effect_guard
+from lambda_utils.ecommerce.money import Money, positive_paise
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,8 @@ ADD_PAYMENT = ("POST", "/ecom/v1/payments/orders/{orderId}/add-payment")
 
 #: The ONLY endpoints reachable from this module. Enumerated so R7.4's test can assert the set.
 ALLOWED_ENDPOINTS = frozenset({CREATE_ORDER, ADD_PAYMENT})
+CONFIRMED_SITE_ID = "fcd82f0c-9572-49c7-acfb-88fb05042ece"
+WRITE_CONTRACT = "cart-v2-external-v1"
 
 #: Substrings that identify a charging/collecting endpoint. A call whose path contains any of
 #: these raises before a request is built. The allowlist already excludes them; this is the loud
@@ -86,6 +89,10 @@ class WixWritebackDisabled(RuntimeError):
     """The write-back path is not enabled for this site. The order stays recoverable."""
 
 
+class WixWritebackPending(RuntimeError):
+    """An ambiguous write must be reconciled through readback, not repeated."""
+
+
 class WixWouldCharge(RuntimeError):
     """A call was attempted against an endpoint that could charge the customer. Refused."""
 
@@ -105,7 +112,8 @@ def is_enabled() -> bool:
         "1", "true", "yes", "on")
     probed = str(os.environ.get("WIX_ECOM_WRITE_CONFIRMED", "")).strip().lower() in (
         "1", "true", "yes", "on")
-    return flag and probed
+    return (flag and probed and os.environ.get("WIX_SITE_ID") == CONFIRMED_SITE_ID
+            and os.environ.get("WIX_CART_V2_WRITE_CONTRACT") == WRITE_CONTRACT)
 
 
 def _endpoint_would_charge(path: str) -> bool:
@@ -122,7 +130,8 @@ def _matches_allowed(method: str, path: str) -> bool:
             prefix, _, suffix = template.partition("{orderId}")
             if path.startswith(prefix) and path.endswith(suffix) and \
                     len(path) > len(prefix) + len(suffix):
-                return True
+                if re.fullmatch(r"[A-Za-z0-9_-]{1,100}", path[len(prefix):-len(suffix)]):
+                    return True
         elif path == template:
             return True
     return False
@@ -170,20 +179,18 @@ def create_wix_order(table: Any, wix_request: Callable[..., Dict[str, Any]], *,
         return {"wixOrderId": (existing.get("result") or {}).get("wixOrderId", ""),
                 "created": False}
 
-    if not existing:
-        if not side_effect_guard.claim(
-                table, order_id=order_id, effect=side_effect_guard.WIX_ORDER,
-                key_attr=key_attr):
-            # Lost the claim to a concurrent worker; re-resolve and adopt its result.
-            existing = side_effect_guard.resolve(
-                table, order_id=order_id, effect=side_effect_guard.WIX_ORDER,
-                key_attr=key_attr) or {}
-            return {"wixOrderId": (existing.get("result") or {}).get("wixOrderId", ""),
-                    "created": False}
+    if existing or not side_effect_guard.claim(
+            table, order_id=order_id, effect=side_effect_guard.WIX_ORDER,
+            key_attr=key_attr):
+        # The other worker may still be calling Wix, or may have succeeded before
+        # losing its response. A pending marker is NEVER permission to create again.
+        raise WixWritebackPending("Wix order outcome needs readback before retry")
 
     response = _guarded_call(wix_request, method="POST", path="/ecom/v1/orders",
                              body={"order": order_payload})
     wix_order_id = str((response.get("order") or {}).get("id") or "")
+    if not wix_order_id:
+        raise WixWritebackPending("Wix order response has no order id")
     side_effect_guard.confirm(
         table, order_id=order_id, effect=side_effect_guard.WIX_ORDER,
         result={"wixOrderId": wix_order_id}, key_attr=key_attr)
@@ -208,32 +215,53 @@ def record_external_payment(table: Any, wix_request: Callable[..., Dict[str, Any
                         ("provider_transaction_id", provider_transaction_id)):
         if not value:
             raise ValueError(f"{name} is required")
-    if isinstance(amount_paise, bool) or not isinstance(amount_paise, int):
+    if isinstance(amount_paise, float):
         raise TypeError("amount_paise must be an int of minor units")
+    amount_paise = positive_paise(amount_paise)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", wix_order_id):
+        raise ValueError("invalid Wix order id")
     if currency != "INR":
         raise ValueError(f"only INR is supported, got {currency!r}")
 
-    if side_effect_guard.is_done(
-            table, order_id=order_id, effect=side_effect_guard.WIX_PAYMENT, key_attr=key_attr):
+    binding = {"providerTransactionId": provider_transaction_id,
+               "wixOrderId": wix_order_id, "amountPaise": amount_paise, "currency": currency}
+    existing = side_effect_guard.resolve(
+        table, order_id=order_id, effect=side_effect_guard.WIX_PAYMENT, key_attr=key_attr)
+    if existing and existing.get("state") == side_effect_guard.DONE:
+        if existing.get("result") != binding:
+            raise WixWritebackPending("recorded payment binding differs; readback required")
         return {"recorded": False}
 
     if not side_effect_guard.claim(
             table, order_id=order_id, effect=side_effect_guard.WIX_PAYMENT, key_attr=key_attr):
-        return {"recorded": False}
+        raise WixWritebackPending("Wix payment outcome needs readback before retry")
 
     path = f"/ecom/v1/payments/orders/{wix_order_id}/add-payment"
     payload = {
         "payments": [{
             # An external payment record: money collected outside Wix (Razorpay via WhatsApp).
-            "amount": {"amount": _paise_to_decimal_string(amount_paise), "currency": currency},
-            "externalTransactionId": provider_transaction_id,
-            "offlinePayment": False,
+            "amount": {"amount": _paise_to_decimal_string(amount_paise)},
+            "status": "APPROVED",
+            "refundDisabled": True,
+            "regularPaymentDetails": {
+                "providerTransactionId": provider_transaction_id,
+                "offlinePayment": False,
+                "paymentMethodName": {"buyerLanguageName": "Razorpay via WhatsApp"},
+            },
         }]
     }
-    _guarded_call(wix_request, method="POST", path=path, body=payload)
+    response = _guarded_call(wix_request, method="POST", path=path, body=payload)
+    transactions = response.get("orderTransactions") or {}
+    payments = transactions.get("payments") or []
+    matching = [p for p in payments if
+                (p.get("regularPaymentDetails") or {}).get("providerTransactionId") == provider_transaction_id
+                and p.get("status") == "APPROVED"
+                and Money.from_wix((p.get("amount") or {}).get("amount")).paise == amount_paise]
+    if transactions.get("orderId") != wix_order_id or len(matching) != 1:
+        raise WixWritebackPending("Wix payment response requires reconciliation")
     side_effect_guard.confirm(
         table, order_id=order_id, effect=side_effect_guard.WIX_PAYMENT,
-        result={"providerTransactionId": provider_transaction_id}, key_attr=key_attr)
+        result=binding, key_attr=key_attr)
     logger.info('{"event":"wix_payment_recorded"}')
     return {"recorded": True}
 
@@ -244,8 +272,7 @@ def _paise_to_decimal_string(amount_paise: int) -> str:
     Wix wants a money string. Integer division keeps the paise exact — `0.1 + 0.2` never enters
     the payment path.
     """
-    rupees, paise = divmod(int(amount_paise), 100)
-    return f"{rupees}.{paise:02d}"
+    return Money(amount_paise).to_wix()
 
 
 __all__ = [
@@ -254,6 +281,7 @@ __all__ = [
     "ALLOWED_ENDPOINTS",
     "FORBIDDEN_ENDPOINT_MARKERS",
     "WixWritebackDisabled",
+    "WixWritebackPending",
     "WixWouldCharge",
     "WixEndpointNotAllowed",
     "is_enabled",

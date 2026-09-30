@@ -964,6 +964,13 @@ export default function App ( { Component, pageProps }: AppProps ) {
   const isPublic = router.pathname === '/'
     || router.pathname === '/404'
     || router.pathname === '/get'
+    // Checkout status + success are customer-session screens, not marketing pages: they carry the
+    // public chrome (header/footer/support widget) but are deliberately kept OUT of
+    // PUBLIC_PAGE_META so they are not treated as indexable marketing surfaces. Each page sets
+    // robots:noindex itself. They render for a signed-in customer returning from an in-chat
+    // payment; the per-route fallback WebPage schema above is the correct, minimal markup for them.
+    || router.pathname === '/checkout/status'
+    || router.pathname === '/checkout/success'
     || Object.prototype.hasOwnProperty.call( PUBLIC_PAGE_META, router.pathname )
     || isContentPublic;
 

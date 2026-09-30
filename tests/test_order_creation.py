@@ -104,7 +104,7 @@ def test_a_forged_webhook_creates_nothing(table):
     the provider is asked either way and both answers mean no order."""
     outcome = _reconcile(table, verify=_unpaid())
     assert _order_count(table) == 0
-    assert outcome.customer_may_retry
+    assert not outcome.customer_may_retry  # No capture is not proof of final failure.
 
 
 @pytest.mark.parametrize('state', [
@@ -206,8 +206,10 @@ def test_one_provider_payment_cannot_fund_two_orders(table):
         table=table, reference_id='WD-PAY-ZZZZZZZZZZZZZZ',
         verify_payment=_paid(), load_attempt=lambda _r: other)
 
-    assert second.outcome == oc.ORDER_ALREADY_EXISTS
-    assert second.order_id == first.order_id
+    assert second.outcome == oc.PROVIDER_PAYMENT_CONFLICT
+    assert not second.has_order
+    assert first.has_order
+    assert _order_count(table) == 1
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -387,7 +389,7 @@ _PERMITTED_CALLS = {
     'order_keys.resolve_order_for_payment', 'order_keys.resolve_order_for_provider_payment',
     'payment_attempt.may_create_order',
     # local helpers and stdlib
-    'ReconciliationOutcome', '_blocked', '_finish_numbering',
+    'ReconciliationOutcome', '_blocked', '_finish_numbering', 'positive_paise',
     'logger.info', 'logging.getLogger', 'level', 'frozenset',
     'int', 'str', 'type', 'isinstance',
     'attempt.get', 'existing.get', 'adopted.get', 'claim.get',
@@ -439,3 +441,25 @@ def test_the_module_constructs_no_aws_or_provider_client():
     signature = inspect.signature(oc.reconcile_payment)
     assert 'verify_payment' in signature.parameters
     assert 'load_attempt' in signature.parameters
+
+
+def test_duplicate_order_is_not_disclosed_to_another_customer(table):
+    attempt = _attempt()
+    first = _reconcile(table, attempt)
+    assert first.has_order
+    second = _reconcile(table, attempt, expected_customer_id='another-customer')
+    assert second.outcome == oc.CUSTOMER_MISMATCH
+    assert not second.has_order
+
+
+def test_dynamodb_decimal_paise_is_accepted_without_rounding(table):
+    from decimal import Decimal
+    attempt = _attempt()
+    attempt['amountPaise'] = Decimal(AMOUNT)
+    assert _reconcile(table, attempt).has_order
+
+
+@pytest.mark.parametrize('bad_amount', [59900.9, True, '59900'])
+def test_provider_amount_must_be_exact_integer_paise(table, bad_amount):
+    assert not _reconcile(table, verify=_paid(amount=bad_amount)).has_order
+    assert _order_count(table) == 0

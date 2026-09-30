@@ -48,6 +48,7 @@ import logging
 from typing import Any, Callable, Dict, Optional, Tuple
 
 from lambda_utils.ecommerce import order_keys, payment_attempt
+from lambda_utils.ecommerce.money import positive_paise
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ UNKNOWN_REFERENCE = "UNKNOWN_REFERENCE"
 ATTEMPT_NOT_PAYABLE = "ATTEMPT_NOT_PAYABLE"
 PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
 IDENTITY_UNAVAILABLE = "IDENTITY_UNAVAILABLE"
+PROVIDER_PAYMENT_CONFLICT = "PROVIDER_PAYMENT_CONFLICT"
 
 #: Outcomes where the money did NOT move, so nothing was created and nothing is owed.
 NO_ORDER_OUTCOMES = frozenset({
@@ -73,6 +75,7 @@ NO_ORDER_OUTCOMES = frozenset({
 #: Separated from the set above because the operational response is completely different.
 PAID_BUT_BLOCKED_OUTCOMES = frozenset({
     AMOUNT_MISMATCH, CURRENCY_MISMATCH, CUSTOMER_MISMATCH, IDENTITY_UNAVAILABLE,
+    PROVIDER_PAYMENT_CONFLICT,
 })
 
 
@@ -111,7 +114,9 @@ class ReconciliationOutcome:
         there would charge twice — and false for `PROVIDER_UNAVAILABLE` too, because an
         unreachable provider means we do not know whether it was taken.
         """
-        return self.outcome in (NOT_PAID, ATTEMPT_NOT_PAYABLE)
+        # This verifier reports only captured/not captured. Not captured includes
+        # authorized and pending, so it cannot establish a definitive failure.
+        return False
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -178,6 +183,11 @@ def reconcile_payment(*,
     if not attempt_id:
         return _blocked(UNKNOWN_REFERENCE, "the stored attempt carries no id")
 
+    # Authorization precedes the idempotent shortcut: an existing order does not
+    # give a different customer permission to read it.
+    if expected_customer_id and str(attempt.get("customerId") or "") != expected_customer_id:
+        return _blocked(CUSTOMER_MISMATCH, "the attempt belongs to another customer")
+
     # ── has this already produced an order? Answered BEFORE contacting the provider ──
     #
     # Deliberate: a redelivered webhook is the common case, and a provider round trip per
@@ -198,12 +208,14 @@ def reconcile_payment(*,
                 ORDER_ALREADY_EXISTS, "an order already exists for this payment attempt",
                 order_id=str(existing["orderIdRef"]), order_number=order_number,
                 payment_attempt_id=attempt_id,
+                provider_payment_id=str(existing.get("providerTransactionId") or ""),
             )
         # Claimed but unnumbered: a previous run died between claiming and reserving. Finish it
         # rather than starting again — the order id is already committed.
         return _finish_numbering(
             table, attempt_id=attempt_id,
             order_id=str(existing["orderIdRef"]), key_attr=key_attr,
+            provider_payment_id=str(existing.get("providerTransactionId") or ""),
         )
 
     # ── ask the provider. This is the only thing that may assert the money moved ──
@@ -229,29 +241,25 @@ def reconcile_payment(*,
 
     # Currency before amount. A single equality, and a mismatch makes comparing the numbers
     # meaningless rather than merely wrong.
-    expected_currency = str(attempt.get("currency") or "INR")
-    if str(provider_currency or "") != expected_currency:
+    expected_currency = str(attempt.get("currency") or "")
+    if expected_currency != "INR" or str(provider_currency or "") != expected_currency:
         return _blocked(CURRENCY_MISMATCH,
                         "the captured currency does not match the attempt",
                         payment_attempt_id=attempt_id,
                         provider_payment_id=provider_payment_id)
 
-    expected_amount = attempt.get("amountPaise")
-    if isinstance(expected_amount, bool) or not isinstance(expected_amount, int):
+    try:
+        expected_amount = positive_paise(attempt.get("amountPaise"))
+        provider_amount = positive_paise(provider_amount)
+    except ValueError:
         return _blocked(AMOUNT_MISMATCH,
                         "the stored amount is not integer paise and cannot be compared exactly",
                         payment_attempt_id=attempt_id,
                         provider_payment_id=provider_payment_id)
-    if int(provider_amount) != expected_amount:
+    if provider_amount != expected_amount:
         # Exact equality, both sides integers. One paise is a mismatch.
         return _blocked(AMOUNT_MISMATCH,
                         "the captured amount does not equal the authoritative total",
-                        payment_attempt_id=attempt_id,
-                        provider_payment_id=provider_payment_id)
-
-    if expected_customer_id and str(attempt.get("customerId") or "") != expected_customer_id:
-        return _blocked(CUSTOMER_MISMATCH,
-                        "the payment does not belong to the expected customer",
                         payment_attempt_id=attempt_id,
                         provider_payment_id=provider_payment_id)
 
@@ -263,6 +271,10 @@ def reconcile_payment(*,
                         "a verified capture did not satisfy the order-eligibility rule",
                         payment_attempt_id=attempt_id,
                         provider_payment_id=provider_payment_id)
+
+    if not isinstance(provider_payment_id, str) or not provider_payment_id:
+        return _blocked(PROVIDER_PAYMENT_CONFLICT, "verified payment has no provider id",
+                        payment_attempt_id=attempt_id)
 
     # ── claim, then number. Only the winner numbers, so a loser burns nothing ──
     order_id = order_keys.new_order_id()
@@ -292,6 +304,11 @@ def reconcile_payment(*,
                 table, attempt_id, key_attr=key_attr)
             or {}
         )
+        if adopted.get("paymentAttemptId") != attempt_id:
+            return _blocked(PROVIDER_PAYMENT_CONFLICT,
+                            "provider payment is already bound to another attempt",
+                            payment_attempt_id=attempt_id,
+                            provider_payment_id=provider_payment_id)
         number = str(adopted.get("orderNumber") or "")
         if number:
             return ReconciliationOutcome(
@@ -337,7 +354,7 @@ def _finish_numbering(table: Any, *, attempt_id: str, order_id: str,
             table, order_id=order_id, key_attr=key_attr,
             extra={"paymentAttemptId": attempt_id},
         )
-        order_keys.record_order_number_on_claim(
+        number = order_keys.record_order_number_on_claim(
             table, payment_attempt_id=attempt_id, order_number=number,
             key_attr=key_attr,
         )

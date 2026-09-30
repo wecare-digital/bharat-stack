@@ -156,28 +156,51 @@ def order_is_paid(order_id: str) -> Tuple[bool, str, int, str]:
     return False, "", 0, ""
 
 
-def verifier_for_event(payment_id: str = "", order_id: str = ""):
-    """A `verify_payment(reference_id)` callable for `order_creation.reconcile_payment`.
+def verifier_for_event(payment_id: str = "", order_id: str = "", *,
+                       load_attempt=None):
+    """Verify a capture bound to a trusted attempt, never just an event reference.
 
-    That function takes an injected verifier so it holds no client and reads no credential. This
-    adapts whichever identifier the event carried into that contract.
-
-    `payment_id` is preferred when present: it is one request, and it is the exact payment the
-    event referred to. Falling back to the order means scanning its payments for a captured one,
-    which is correct but answers a slightly broader question.
-
-    The `reference_id` argument is accepted and ignored on purpose. Razorpay does not index on our
-    reference, so it cannot be used to look a payment up — and quietly using it as one of these
-    ids would query a payment that does not exist and report "not paid" for a real capture.
+    The attempt must already carry a providerOrderId or providerPaymentId derived
+    from payment initiation or an authenticated Meta lookup. A webhook must not
+    supply its own binding. Missing bindings fail closed for reconciliation.
     """
     if not payment_id and not order_id:
         raise ValueError("a payment id or an order id is required to verify")
 
-    def verify(_reference_id: str) -> Tuple[bool, str, int, str]:
-        if payment_id:
-            captured, amount, currency = payment_is_captured(payment_id)
-            return captured, payment_id if captured else "", amount, currency
-        return order_is_paid(order_id)
+    def verify(reference_id: str) -> Tuple[bool, str, int, str]:
+        from lambda_utils.ecommerce.money import positive_paise
+        attempt = load_attempt(reference_id) if load_attempt else None
+        if not attempt:
+            raise RazorpayUnavailable("payment attempt binding is unavailable")
+        bound_payment = str(attempt.get("providerPaymentId") or "")
+        bound_order = str(attempt.get("providerOrderId") or "")
+        if not bound_payment and not bound_order:
+            raise RazorpayUnavailable("payment attempt has no verified provider binding")
+        if bound_payment and payment_id and bound_payment != payment_id:
+            raise RazorpayUnavailable("payment id disagrees with stored binding")
+        target = bound_payment or payment_id
+        if target:
+            payment = _get(f"/payments/{urllib.parse.quote(target, safe='')}")
+            payments = [payment]
+        else:
+            # Only a stored order id may select the payments being checked.
+            payload = _get(f"/orders/{urllib.parse.quote(bound_order, safe='')}/payments")
+            payments = payload.get("items") or []
+        captured = []
+        for payment in payments:
+            actual_id = payment.get("id")
+            if not actual_id or (target and actual_id != target):
+                raise RazorpayUnavailable("provider returned an unexpected payment")
+            if bound_order and payment.get("order_id") != bound_order:
+                raise RazorpayUnavailable("payment belongs to another provider order")
+            if str(payment.get("status") or "") == CAPTURED:
+                captured.append(payment)
+        if not captured:
+            return False, "", 0, ""
+        if len(captured) != 1:
+            raise RazorpayUnavailable("multiple captures require reconciliation")
+        paid = captured[0]
+        return True, paid["id"], positive_paise(paid.get("amount")), str(paid.get("currency") or "")
 
     return verify
 

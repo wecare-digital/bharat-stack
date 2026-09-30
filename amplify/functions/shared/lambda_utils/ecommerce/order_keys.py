@@ -328,7 +328,7 @@ def _read_row(table: Any, key_attr: str, key: str) -> Optional[Dict[str, Any]]:
     discarded as unknown.
     """
     try:
-        return table.get_item(Key={key_attr: key}).get("Item")
+        return table.get_item(Key={key_attr: key}, ConsistentRead=True).get("Item")
     except Exception as error:  # noqa: BLE001
         raise OrderIdentityUnavailable(
             "could not read %r: %s" % (key, type(error).__name__)
@@ -485,7 +485,8 @@ def claim_order_for_payment(table: Any,
 
     now = int(time.time())
     base = {"orderIdRef": order_id, "claimedAt": now,
-            "paymentAttemptId": payment_attempt_id}
+            "paymentAttemptId": payment_attempt_id,
+            "providerTransactionId": provider_transaction_id}
     if extra:
         base.update(extra)
 
@@ -503,8 +504,12 @@ def claim_order_for_payment(table: Any,
                     "provider payment %r is claimed but names no order"
                     % provider_transaction_id
                 )
-            logger.warning("provider payment already funded an order; adopting it")
-            return winner, False
+            if existing.get("paymentAttemptId") != payment_attempt_id:
+                return winner, False
+            # Recover a crash between provider and attempt claims using the
+            # committed identity. Never mint a second order for that payment.
+            order_id = winner
+            base["orderIdRef"] = winner
 
     item = dict(base, kind="PAYMENT_ATTEMPT_ORDER")
     if _claim_row(table, key_attr,
@@ -526,7 +531,7 @@ def record_order_number_on_claim(table: Any,
                                  *,
                                  payment_attempt_id: str,
                                  order_number: str,
-                                 key_attr: str = "orderId") -> None:
+                                 key_attr: str = "orderId") -> str:
     """Write the reserved order number onto the attempt's claim row.
 
     Separate from `claim_order_for_payment` because the number does not exist yet at claim
@@ -543,10 +548,16 @@ def record_order_number_on_claim(table: Any,
         table.update_item(
             Key={key_attr: PAYMENT_ATTEMPT_PREFIX + payment_attempt_id},
             UpdateExpression="SET orderNumber = :n, numberedAt = :t",
-            ConditionExpression="attribute_exists(%s)" % key_attr,
+            ConditionExpression="attribute_exists(%s) AND attribute_not_exists(orderNumber)" % key_attr,
             ExpressionAttributeValues={":n": order_number, ":t": int(time.time())},
         )
+        return order_number
     except Exception as error:  # noqa: BLE001
+        if _is_conditional_failure(error):
+            existing = resolve_order_for_payment(table, payment_attempt_id, key_attr=key_attr) or {}
+            canonical = existing.get("orderNumber")
+            if is_public_order_number(canonical):
+                return canonical
         raise OrderIdentityUnavailable(
             "could not record the order number for attempt %r: %s"
             % (payment_attempt_id, type(error).__name__)

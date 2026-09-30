@@ -47,6 +47,10 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 CONFIG = REPO / "src/config/wix.ts"
 BASE = "https://www.wixapis.com"
 
+#: A fixed, non-existent cart id used only to prove which cart base path resolves.
+#: It is a random UUID owned by nobody; a GET on it reads nothing and creates nothing.
+_PROBE_CART_ID = "00000000-0000-4000-8000-000000000000"
+
 
 def committed_ids() -> tuple[str, str]:
     """Read the public client id and site id from the committed config.
@@ -166,6 +170,14 @@ def main() -> int:
         "ecomCart": ("GET", "/ecom/v1/carts/current", None),
         "ecomOrders": ("POST", "/ecom/v1/orders/search",
                        {"search": {"cursorPaging": {"limit": 1}}}),
+        # Cart V2 base-path resolution. A GET on a random, non-existent cart id
+        # creates and charges nothing; a 404 CART_NOT_FOUND app error proves the
+        # V2 route resolves, while a 501 UNIMPLEMENTED / route-not-found would say
+        # the base path is wrong. Confirmed live 2026-10-01: `/ecom/v2/carts/{id}`
+        # returns 404 CART_NOT_FOUND, so V2 is the correct base path. We choose V2
+        # deliberately: the V1 cart/checkout APIs are removed 2027-02-01.
+        # `_PROBE_CART_ID` is a fixed nonsense UUID, owned by nobody.
+        "ecomCartV2Get": ("GET", f"/ecom/v2/carts/{_PROBE_CART_ID}", None),
         "invoicesV2": ("GET", "/invoices/v2/invoices?paging.limit=1", None),
         "members": ("GET", "/members/v1/members/my", None),
         "siteProperties": ("GET", "/site-properties/v4/properties", None),
@@ -201,6 +213,12 @@ def main() -> int:
                          or results["ecomCart"]["applicationError"]
                          == "OWNED_CART_NOT_FOUND"
                          else verdict("ecomCart")),
+        # V2 route resolves when a GET on a nonexistent cart is a semantic
+        # CART_NOT_FOUND (404) rather than a route/uninmplemented error.
+        "ecomCartV2": ("LIVE"
+                       if results["ecomCartV2Get"]["applicationError"]
+                       == "CART_NOT_FOUND"
+                       else f"NOT CONFIRMED ({results['ecomCartV2Get']['status']})"),
         "wixInvoices": verdict("invoicesV2"),
         "checkoutRedirect": ("REACHABLE"
                              if results["redirectSession"]["status"] in (200, 400)

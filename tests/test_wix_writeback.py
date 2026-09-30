@@ -39,7 +39,7 @@ class _RecordingWix:
         if path == "/ecom/v1/orders":
             return {"order": {"id": "wix-order-1"}}
         if "/add-payment" in path:
-            return {"order": {"id": "wix-order-1", "paymentStatus": "PAID"}}
+            return {"orderTransactions": {"orderId": "wix-order-1", "payments": body["payments"]}}
         raise AssertionError(f"unexpected Wix call: {method} {path}")
 
 
@@ -47,6 +47,8 @@ class _RecordingWix:
 def enabled(monkeypatch):
     monkeypatch.setenv("WIX_WRITEBACK_ENABLED", "true")
     monkeypatch.setenv("WIX_ECOM_WRITE_CONFIRMED", "true")
+    monkeypatch.setenv("WIX_SITE_ID", wb.CONFIRMED_SITE_ID)
+    monkeypatch.setenv("WIX_CART_V2_WRITE_CONTRACT", wb.WRITE_CONTRACT)
 
 
 # ── R7.4: enumerate the calls, none can charge ──────────────────────────────────
@@ -159,3 +161,42 @@ def test_record_payment_rejects_non_integer_amount(table, enabled):
         wb.record_external_payment(table, _RecordingWix(), order_id=ORDER,
                                    wix_order_id="wix-order-1", provider_transaction_id=TXN,
                                    amount_paise=599.0)  # float refused
+
+
+@pytest.mark.parametrize('field,value', [
+    ('WIX_SITE_ID', 'wrong-site'), ('WIX_SITE_ID', ''),
+    ('WIX_CART_V2_WRITE_CONTRACT', ''), ('WIX_CART_V2_WRITE_CONTRACT', 'v1')])
+def test_site_and_contract_gates_block_all_order_writes(table, enabled, monkeypatch, field, value):
+    monkeypatch.setenv(field, value)
+    wix = _RecordingWix()
+    with pytest.raises(wb.WixWritebackDisabled):
+        wb.create_wix_order(table, wix, order_id=ORDER, order_payload={})
+    assert wix.calls == []
+
+
+def test_timeout_cannot_create_a_second_wix_order(table, enabled):
+    calls = []
+    def uncertain(*args, **kwargs):
+        calls.append(args)
+        raise TimeoutError('could have succeeded')
+    with pytest.raises(TimeoutError):
+        wb.create_wix_order(table, uncertain, order_id=ORDER, order_payload={})
+    with pytest.raises(wb.WixWritebackPending):
+        wb.create_wix_order(table, uncertain, order_id=ORDER, order_payload={})
+    assert len(calls) == 1
+
+
+def test_incomplete_wix_response_is_not_recorded_as_success(table, enabled):
+    with pytest.raises(wb.WixWritebackPending):
+        wb.create_wix_order(table, lambda *a, **k: {}, order_id=ORDER, order_payload={})
+    with pytest.raises(wb.WixWritebackPending):
+        wb.create_wix_order(table, _RecordingWix(), order_id=ORDER, order_payload={})
+
+
+def test_confirmed_payment_cannot_be_reused_with_different_amount(table, enabled):
+    wix = _RecordingWix()
+    kwargs = dict(order_id=ORDER, wix_order_id='wix-order-1', provider_transaction_id=TXN)
+    wb.record_external_payment(table, wix, amount_paise=59900, **kwargs)
+    with pytest.raises(wb.WixWritebackPending):
+        wb.record_external_payment(table, wix, amount_paise=59901, **kwargs)
+    assert len(wix.calls) == 1
