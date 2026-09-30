@@ -1,28 +1,31 @@
 {
- "generated": "2026-09-27T03:19:28.192Z",
+ "generated": "2026-09-30T10:02:28.810Z",
  "routes": [
   {
    "route": "/",
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 49,
+   "translated": 53,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 4,
-    "aria-hidden": 5,
+    "aria-hidden": 66,
     "tag:SCRIPT": 2
    },
    "samples": {
@@ -37,6 +40,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 9,
    "header": true,
    "footer": true,
@@ -53,23 +57,26 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 49,
+   "translated": 53,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 4,
-    "aria-hidden": 5,
+    "aria-hidden": 66,
     "tag:SCRIPT": 2,
     "tag:NEXT-ROUTE-ANNOUNCER": 1
    },
@@ -86,6 +93,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 9,
    "header": true,
    "footer": true,
@@ -102,19 +110,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 43,
+   "translated": 45,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -131,6 +142,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 10,
    "header": true,
    "footer": true,
@@ -147,19 +159,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 42,
+   "translated": 44,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -176,6 +191,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 10,
    "header": true,
    "footer": true,
@@ -192,42 +208,2651 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 2263,
+   "translated": 116,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 750,
+    "data-wc-no-translate": 28,
+    "aria-hidden": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
     "data-wc-no-translate": "WECARE",
-    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"id\":\"9"
+    "aria-hidden": "Newer",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
    },
    "attrs": {
-    "placeholder": 1,
-    "aria-label": 7,
+    "placeholder": 2,
+    "aria-label": 11,
     "title": 1,
     "alt": 0
    },
-   "attrTotal": 9,
+   "obscured": false,
+   "attrTotal": 14,
    "header": true,
    "footer": true,
    "widget": true,
    "main": true,
    "h1Count": 1,
-   "h1Text": "Blog",
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/10/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/11/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/12/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/13/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/14/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/15/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/16/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/17/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/18/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/19/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/2/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 119,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/20/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/21/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/22/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/23/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/24/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/25/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/26/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/27/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/28/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/29/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/3/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/30/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/31/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/32/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/33/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/34/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 119,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/35/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 72,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 13,
+    "aria-hidden": 1,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "aria-hidden": "Older",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/4/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/5/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/6/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/7/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/8/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/page/9/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 116,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "aria-hidden": 1,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "aria-hidden": "Newer",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/10/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/11/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/12/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/13/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/14/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/15/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/16/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/17/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/18/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 119,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/19/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 111,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 26,
+    "aria-hidden": 1,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "aria-hidden": "Older",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/2/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 119,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/3/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/4/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/5/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/6/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/7/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/8/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/blog/topic/gastronomy/page/9/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 120,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 28,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"slug\":"
+   },
+   "attrs": {
+    "placeholder": 2,
+    "aria-label": 11,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 14,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Notes onclarity, practice, meaning, changeclar",
    "topSection": true,
    "authShell": false,
    "overflow": 0
@@ -237,19 +2862,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 43,
+   "translated": 45,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -266,6 +2894,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 10,
    "header": true,
    "footer": true,
@@ -282,30 +2911,31 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 50,
+   "translated": 52,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 6,
-    "aria-hidden": 1,
     "tag:CODE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
     "data-wc-no-translate": "WECARE",
-    "aria-hidden": "WECARE.DIGITAL",
     "tag:CODE": "H9C4+MMP",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/conta"
    },
@@ -315,6 +2945,7 @@
     "title": 2,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 10,
    "header": true,
    "footer": true,
@@ -331,19 +2962,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 43,
+   "translated": 45,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -360,6 +2994,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 10,
    "header": true,
    "footer": true,
@@ -372,23 +3007,75 @@
    "overflow": 0
   },
   {
+   "route": "/drop-docs/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 45,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/drop-"
+   },
+   "attrs": {
+    "placeholder": 1,
+    "aria-label": 8,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 10,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Send thepapers, proofs, scans, recordspaperspr",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
    "route": "/elsewhere/",
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 43,
+   "translated": 45,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -405,6 +3092,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 10,
    "header": true,
    "footer": true,
@@ -421,19 +3109,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 42,
+   "translated": 44,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -450,6 +3141,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 10,
    "header": true,
    "footer": true,
@@ -466,19 +3158,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 30,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -495,6 +3190,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 9,
    "header": true,
    "footer": true,
@@ -507,23 +3203,67 @@
    "overflow": 0
   },
   {
+   "route": "/google907ae7b9233a31c5/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    }
+   },
+   "status": 200,
+   "translated": 1,
+   "skipped": {},
+   "samples": {},
+   "attrs": {
+    "placeholder": 0,
+    "aria-label": 0,
+    "title": 0,
+    "alt": 0
+   },
+   "obscured": null,
+   "attrTotal": 0,
+   "header": false,
+   "footer": false,
+   "widget": false,
+   "main": false,
+   "h1Count": 0,
+   "h1Text": null,
+   "topSection": false,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
    "route": "/grahak-os/",
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 77,
+   "translated": 79,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 7,
@@ -542,6 +3282,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 9,
    "header": true,
    "footer": true,
@@ -554,23 +3295,26 @@
    "overflow": 0
   },
   {
-   "route": "/my-order/",
+   "route": "/hunar/",
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 43,
+   "translated": 45,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -579,7 +3323,7 @@
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
     "data-wc-no-translate": "WECARE",
-    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/my-or"
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/hunar"
    },
    "attrs": {
     "placeholder": 1,
@@ -587,13 +3331,63 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 10,
    "header": true,
    "footer": true,
    "widget": true,
    "main": true,
    "h1Count": 1,
-   "h1Text": "Track yourorder, delivery, request, bookingord",
+   "h1Text": "Sharpen yourrésumé, profile, pitch, storyrésum",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/leave-review/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 45,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/leave"
+   },
+   "attrs": {
+    "placeholder": 1,
+    "aria-label": 8,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 10,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Rate theservice, outcome, support, handoverser",
    "topSection": true,
    "authShell": false,
    "overflow": 0
@@ -603,19 +3397,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 42,
+   "translated": 44,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -632,6 +3429,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 10,
    "header": true,
    "footer": true,
@@ -648,15 +3446,18 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
@@ -669,6 +3470,7 @@
     "title": 0,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 0,
    "header": false,
    "footer": false,
@@ -681,23 +3483,75 @@
    "overflow": 0
   },
   {
+   "route": "/orders/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 45,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/order"
+   },
+   "attrs": {
+    "placeholder": 1,
+    "aria-label": 8,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 10,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Track yourorder, delivery, request, bookingord",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
    "route": "/privacy/",
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 244,
+   "translated": 246,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -714,6 +3568,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 10,
    "header": true,
    "footer": true,
@@ -726,23 +3581,124 @@
    "overflow": 0
   },
   {
+   "route": "/refer-and-earn/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 45,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/refer"
+   },
+   "attrs": {
+    "placeholder": 1,
+    "aria-label": 8,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 10,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Refer afriend, family, client, partnerfriendfa",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
+   "route": "/request-amendment/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 45,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/reque"
+   },
+   "attrs": {
+    "placeholder": 1,
+    "aria-label": 8,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 10,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Change thedate, detail, scope, addressdatedeta",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
    "route": "/ritual-guru/",
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 42,
+   "translated": 44,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -759,6 +3715,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 10,
    "header": true,
    "footer": true,
@@ -771,50 +3728,52 @@
    "overflow": 0
   },
   {
-   "route": "/store/",
+   "route": "/submit-request/",
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 44,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
-    "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
     "data-wc-no-translate": "WECARE",
-    "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
-    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/store"
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/submi"
    },
    "attrs": {
-    "placeholder": 3,
-    "aria-label": 7,
+    "placeholder": 1,
+    "aria-label": 8,
     "title": 1,
     "alt": 0
    },
-   "attrTotal": 11,
+   "obscured": false,
+   "attrTotal": 10,
    "header": true,
    "footer": true,
    "widget": true,
-   "main": false,
-   "h1Count": 0,
-   "h1Text": null,
-   "topSection": false,
-   "authShell": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Ask us tobegin, arrange, prepare, handlebegina",
+   "topSection": true,
+   "authShell": false,
    "overflow": 0
   },
   {
@@ -822,19 +3781,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 489,
+   "translated": 491,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -851,6 +3813,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 10,
    "header": true,
    "footer": true,
@@ -863,23 +3826,75 @@
    "overflow": 0
   },
   {
+   "route": "/vault/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": true,
+     "obscured": false
+    }
+   },
+   "status": 200,
+   "translated": 45,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/vault"
+   },
+   "attrs": {
+    "placeholder": 1,
+    "aria-label": 8,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": false,
+   "attrTotal": 10,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": true,
+   "h1Count": 1,
+   "h1Text": "Get back yourcopies, letters, records, reports",
+   "topSection": true,
+   "authShell": false,
+   "overflow": 0
+  },
+  {
    "route": "/vayulok/",
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "fold": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     },
     "desk": {
      "overflow": 0,
-     "topSection": true
+     "topSection": true,
+     "obscured": false
     }
    },
    "status": 200,
-   "translated": 35,
+   "translated": 37,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -896,6 +3911,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": false,
    "attrTotal": 9,
    "header": true,
    "footer": true,
@@ -912,19 +3928,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -943,6 +3962,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -959,19 +3979,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -990,6 +4013,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1006,19 +4030,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1037,6 +4064,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1053,19 +4081,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1084,6 +4115,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1100,19 +4132,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1131,6 +4166,58 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
+   "attrTotal": 11,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": false,
+   "h1Count": 0,
+   "h1Text": null,
+   "topSection": false,
+   "authShell": true,
+   "overflow": 0
+  },
+  {
+   "route": "/workspace/commerce/catalog/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    }
+   },
+   "status": 200,
+   "translated": 34,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:STYLE": 1,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/works"
+   },
+   "attrs": {
+    "placeholder": 3,
+    "aria-label": 7,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1147,19 +4234,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1178,6 +4268,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1194,19 +4285,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1225,6 +4319,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1241,19 +4336,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1272,6 +4370,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1288,19 +4387,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1319,6 +4421,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1335,19 +4438,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1366,6 +4472,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1382,19 +4489,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1413,6 +4523,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1429,19 +4540,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1460,6 +4574,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1476,19 +4591,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1507,6 +4625,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1523,19 +4642,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1554,6 +4676,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1570,19 +4693,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1601,6 +4727,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1617,19 +4744,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1648,6 +4778,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1664,19 +4795,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1695,6 +4829,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1711,19 +4846,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1742,6 +4880,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1758,19 +4897,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1789,6 +4931,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1805,19 +4948,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1836,6 +4982,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1852,19 +4999,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1883,6 +5033,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1899,19 +5050,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1930,6 +5084,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1946,19 +5101,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -1977,6 +5135,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -1993,19 +5152,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2024,6 +5186,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2040,19 +5203,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2071,6 +5237,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2087,19 +5254,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2118,6 +5288,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2134,19 +5305,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2165,6 +5339,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2181,19 +5356,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2212,6 +5390,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2228,19 +5407,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2259,6 +5441,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2275,19 +5458,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2306,6 +5492,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2322,19 +5509,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2353,6 +5543,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2369,19 +5560,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2400,6 +5594,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2416,19 +5611,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2447,6 +5645,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2463,19 +5662,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2494,6 +5696,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2510,19 +5713,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2541,6 +5747,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2557,19 +5764,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2588,6 +5798,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2604,19 +5815,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2635,6 +5849,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2651,19 +5866,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2682,6 +5900,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2698,19 +5917,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2729,6 +5951,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2745,19 +5968,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2776,6 +6002,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2792,19 +6019,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2823,6 +6053,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2839,19 +6070,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2870,6 +6104,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2886,19 +6121,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2917,6 +6155,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2933,19 +6172,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -2964,6 +6206,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -2980,19 +6223,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3011,6 +6257,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3027,19 +6274,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3058,6 +6308,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3074,19 +6325,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3105,6 +6359,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3121,19 +6376,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3152,6 +6410,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3168,19 +6427,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3199,6 +6461,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3215,19 +6478,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3246,6 +6512,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3262,19 +6529,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3293,6 +6563,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3309,19 +6580,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3340,6 +6614,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3356,19 +6631,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3387,6 +6665,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3403,19 +6682,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3434,6 +6716,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3450,19 +6733,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3481,6 +6767,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3497,19 +6784,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3528,6 +6818,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3544,19 +6835,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3575,6 +6869,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3591,19 +6886,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3622,6 +6920,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3638,19 +6937,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3669,6 +6971,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3685,19 +6988,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3716,6 +7022,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3732,19 +7039,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3763,6 +7073,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3779,19 +7090,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3810,6 +7124,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3826,19 +7141,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3857,6 +7175,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3873,19 +7192,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3904,6 +7226,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3920,19 +7243,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3951,6 +7277,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -3967,19 +7294,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -3998,6 +7328,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4014,19 +7345,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4045,6 +7379,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4061,19 +7396,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4092,6 +7430,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4108,19 +7447,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4139,6 +7481,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4155,19 +7498,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4186,6 +7532,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4202,19 +7549,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4233,6 +7583,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4249,19 +7600,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4280,6 +7634,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4296,19 +7651,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4327,6 +7685,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4343,19 +7702,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4374,6 +7736,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4390,19 +7753,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4421,6 +7787,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4437,19 +7804,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4468,6 +7838,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4484,19 +7855,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4515,6 +7889,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4531,19 +7906,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4562,6 +7940,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4578,19 +7957,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4609,6 +7991,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4625,19 +8008,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4656,6 +8042,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4672,19 +8059,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4703,6 +8093,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4719,19 +8110,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4750,6 +8144,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4766,19 +8161,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4797,6 +8195,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4813,19 +8212,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4844,6 +8246,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4860,19 +8263,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4891,6 +8297,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4907,19 +8314,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4938,6 +8348,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -4954,19 +8365,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -4985,6 +8399,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5001,19 +8416,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5032,6 +8450,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5048,19 +8467,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5079,6 +8501,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5095,19 +8518,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5126,6 +8552,313 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
+   "attrTotal": 11,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": false,
+   "h1Count": 0,
+   "h1Text": null,
+   "topSection": false,
+   "authShell": true,
+   "overflow": 0
+  },
+  {
+   "route": "/workspace/seo/blog-production/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    }
+   },
+   "status": 200,
+   "translated": 34,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:STYLE": 1,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/works"
+   },
+   "attrs": {
+    "placeholder": 3,
+    "aria-label": 7,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": null,
+   "attrTotal": 11,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": false,
+   "h1Count": 0,
+   "h1Text": null,
+   "topSection": false,
+   "authShell": true,
+   "overflow": 0
+  },
+  {
+   "route": "/workspace/seo/blog-production/batch/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    }
+   },
+   "status": 200,
+   "translated": 34,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:STYLE": 1,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/works"
+   },
+   "attrs": {
+    "placeholder": 3,
+    "aria-label": 7,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": null,
+   "attrTotal": 11,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": false,
+   "h1Count": 0,
+   "h1Text": null,
+   "topSection": false,
+   "authShell": true,
+   "overflow": 0
+  },
+  {
+   "route": "/workspace/seo/blog-production/publish/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    }
+   },
+   "status": 200,
+   "translated": 34,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:STYLE": 1,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/works"
+   },
+   "attrs": {
+    "placeholder": 3,
+    "aria-label": 7,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": null,
+   "attrTotal": 11,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": false,
+   "h1Count": 0,
+   "h1Text": null,
+   "topSection": false,
+   "authShell": true,
+   "overflow": 0
+  },
+  {
+   "route": "/workspace/seo/blog-production/qa/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    }
+   },
+   "status": 200,
+   "translated": 34,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:STYLE": 1,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/works"
+   },
+   "attrs": {
+    "placeholder": 3,
+    "aria-label": 7,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": null,
+   "attrTotal": 11,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": false,
+   "h1Count": 0,
+   "h1Text": null,
+   "topSection": false,
+   "authShell": true,
+   "overflow": 0
+  },
+  {
+   "route": "/workspace/seo/blog-production/review/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    }
+   },
+   "status": 200,
+   "translated": 34,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:STYLE": 1,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/works"
+   },
+   "attrs": {
+    "placeholder": 3,
+    "aria-label": 7,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": null,
+   "attrTotal": 11,
+   "header": true,
+   "footer": true,
+   "widget": true,
+   "main": false,
+   "h1Count": 0,
+   "h1Text": null,
+   "topSection": false,
+   "authShell": true,
+   "overflow": 0
+  },
+  {
+   "route": "/workspace/seo/blog-studio/",
+   "vp": {
+    "phone": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "fold": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    },
+    "desk": {
+     "overflow": 0,
+     "topSection": false,
+     "obscured": null
+    }
+   },
+   "status": 200,
+   "translated": 34,
+   "skipped": {
+    "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
+    "tag:STYLE": 1,
+    "tag:SCRIPT": 2
+   },
+   "samples": {
+    "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
+    "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"ledger\":[],\"ledg"
+   },
+   "attrs": {
+    "placeholder": 3,
+    "aria-label": 7,
+    "title": 1,
+    "alt": 0
+   },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5142,19 +8875,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5173,6 +8909,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5185,36 +8922,37 @@
    "overflow": 0
   },
   {
-   "route": "/workspace/seo/page/[id]/",
+   "route": "/workspace/seo/page/",
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
     "tag:STYLE": 1,
-    "tag:SCRIPT": 2,
-    "tag:NEXT-ROUTE-ANNOUNCER": 1
+    "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
     "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
-    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/works",
-    "tag:NEXT-ROUTE-ANNOUNCER": "WECARE.DIGITAL"
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/works"
    },
    "attrs": {
     "placeholder": 3,
@@ -5222,6 +8960,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5238,19 +8977,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5269,6 +9011,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5285,19 +9028,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5316,6 +9062,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5332,19 +9079,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5363,6 +9113,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5379,19 +9130,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5410,6 +9164,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5426,19 +9181,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5457,6 +9215,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5473,19 +9232,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5504,6 +9266,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5520,19 +9283,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5551,6 +9317,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5567,19 +9334,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5598,6 +9368,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5614,19 +9385,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5645,6 +9419,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5661,19 +9436,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5692,6 +9470,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5708,19 +9487,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5739,6 +9521,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5755,19 +9538,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5786,6 +9572,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
@@ -5802,19 +9589,22 @@
    "vp": {
     "phone": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "fold": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     },
     "desk": {
      "overflow": 0,
-     "topSection": false
+     "topSection": false,
+     "obscured": null
     }
    },
    "status": 200,
-   "translated": 32,
+   "translated": 34,
    "skipped": {
     "tag:NOSCRIPT": 1,
     "data-wc-no-translate": 5,
@@ -5833,6 +9623,7 @@
     "title": 1,
     "alt": 0
    },
+   "obscured": null,
    "attrTotal": 11,
    "header": true,
    "footer": true,
