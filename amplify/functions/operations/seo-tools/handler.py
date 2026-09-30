@@ -26,6 +26,8 @@ import blog_repetition
 import blog_sources
 import blog_templates
 import blog_verify
+import faq
+import seo_freshness
 import storage
 import wix
 
@@ -223,10 +225,44 @@ def _put_error_log(slug: str, page_type: str, started: float) -> None:
     })
 
 
-def _run_audit(page: Dict[str, Any], page_type: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def _run_audit(
+    page: Dict[str, Any], page_type: str, force: bool = False,
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """Generate an SEO audit, or return the stored one when the content has not changed.
+
+    THE HASH GATE IS THE COST CONTROL. This used to call ai.invoke_seo unconditionally, so
+    auditing a post twice with nothing changed paid Bedrock twice for the same answer. The
+    repository already hashes content for this purpose in blog_pipeline, blog_gate and
+    blog_sources; the SEO audit path was the one place that did not.
+
+    Placed HERE rather than in the two callers because _blog_audit and _page_audit both funnel
+    through this function - one gate covers both, and a third caller added later inherits it.
+
+    `force` re-runs deliberately, because the hash covers the CONTENT and not the prompt: when
+    ai.py's system prompt or model chain changes, identical content should be re-auditable
+    without editing the post, which is the source mutation this architecture forbids.
+
+    NOTHING ABOUT SOURCE CONTENT IS WRITTEN. The hash is computed from the source and stored on
+    the derived audit record. No updatedAt is touched: a freshness check that stamped what it
+    checked would corrupt sitemap lastmod and make every check look like an edit.
+    """
     started = time.monotonic()
     slug = str(page['slug'])
     try:
+        # A failure to read history must not block an audit - it degrades to "run it", which is
+        # the previous behaviour, rather than to an error.
+        try:
+            history = storage.list_slug_records(slug)
+        except Exception:  # noqa: BLE001
+            logger.exception('audit history read failed for %s; auditing without the hash gate', slug)
+            history = []
+        content_hash, reusable = seo_freshness.decide(page, page_type, history, force)
+        if reusable:
+            logger.info(json.dumps({
+                'event': 'seo_audit_skipped', 'slug': slug, 'pageType': page_type,
+                'auditId': reusable.get('id'), 'reason': 'unchanged_source_hash',
+            }))
+            return reusable, seo_freshness.skip_log(reusable, page_type)
         generated = ai.invoke_seo(page, page_type)
         result = generated['result']
         created_at = storage.now_iso()
@@ -277,6 +313,9 @@ def _run_audit(page: Dict[str, Any], page_type: str) -> Tuple[Dict[str, Any], Di
             'aiProvider': 'aws-bedrock',
             'aiModel': generated.get('model', ai.PRIMARY_MODEL),
             'status': 'pending_review',
+            # The gate above reads this back. An audit without it is always re-run, which is the
+            # correct behaviour for records written before the gate existed.
+            'sourceHash': content_hash,
         }
         storage.put_record(log)
         storage.put_record(audit)
@@ -306,7 +345,7 @@ def _blog_audit(body: Dict[str, Any], actor: str, origin: str):
     post = storage.get_blog_post(slug)
     if not post:
         raise LookupError('Blog post not found')
-    audit, log = _run_audit(post, 'blog')
+    audit, log = _run_audit(post, 'blog', force=bool(body.get('force')))
     return _response(200, {'ok': True, 'audit': audit, 'log': log}, origin)
 
 
@@ -328,7 +367,7 @@ def _page_audit(body: Dict[str, Any], actor: str, origin: str):
         'url': wix.SITE_BASE + slug,
         'currentSeoTitle': current.get('title', ''),
     }
-    audit, log = _run_audit(page, stored_type)
+    audit, log = _run_audit(page, stored_type, force=bool(body.get('force')))
     return _response(200, {'ok': True, 'audit': audit, 'log': log}, origin)
 
 
@@ -959,6 +998,26 @@ def handler(event: Dict[str, Any], context: Optional[Any]):
                 post = wix.get_blog_post_by_slug(slug)
                 if not post:
                     return _response(404, {'ok': False, 'error': 'Blog post not found'}, origin)
+                # APPROVED FAQ IS ATTACHED HERE, and only on the single-post route.
+                #
+                # This is the seam between the CMS and the published page: the static export
+                # builds by fetching this endpoint per post, and src/pages/post/[slug].tsx
+                # already renders post.jsonLd.faqSchema. So the frontend needs no change - the
+                # chain existed end to end and was cut only by wix.py hardcoding jsonLd to {}.
+                #
+                # NOT ON THE LIST ROUTE. faqSchema is read by the post page alone; the index
+                # renders cards from seven fields and never touches it. Enriching the list would
+                # add a DynamoDB query per post to a response that already carries 1279 of them,
+                # for output nothing consumes.
+                #
+                # THE QUERY IS GUARDED SEPARATELY from faq.attach's own guard. attach() cannot
+                # raise, but list_slug_records talks to DynamoDB and can - and a post must still
+                # be served when the SEO table is unreachable. An absent FAQ is invisible; a 503
+                # on a published article is not.
+                try:
+                    post = faq.attach(post, storage.list_slug_records(slug))
+                except Exception:  # noqa: BLE001
+                    logger.exception('faq lookup failed for slug %s', slug)
                 return _cacheable(200, {'ok': True, 'post': post}, origin, event)
             posts = wix.list_blog_posts()
             fields = _projection(event)
