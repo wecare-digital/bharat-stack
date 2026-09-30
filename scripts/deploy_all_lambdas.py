@@ -187,6 +187,18 @@ SPECS: List[Spec] = [
         "auth/email-verification",
         provisioned_by="python scripts/provision_email_verification.py",
     ),
+    # Customer registration front door. The HTTP route that proves a phone by WhatsApp OTP and
+    # then provisions the Cognito login administratively, so the browser never calls SignUp on a
+    # pool that is AllowAdminCreateUserOnly=true. Owns the per-IP throttle that a CUSTOM_AUTH
+    # trigger cannot do (a trigger event carries no client IP). First creation is owned by
+    # scripts/provision_customer_registration.py; it reuses the OTP pepper secret and the
+    # DownloadGrantsTable the email-verification door already uses. NOT standalone: it imports
+    # lambda_utils.identity.registration/customer, otp_throttle, otp_challenge, response, logging.
+    Spec(
+        "wecare-customer-registration",
+        "auth/customer-registration",
+        provisioned_by="python scripts/provision_customer_registration.py",
+    ),
     # Cognito CustomMessage trigger: branded HTML for MFA, verification and
     # recovery email. First creation is owned by
     # scripts/provision_cognito_custom_message.py, which also gives it a
