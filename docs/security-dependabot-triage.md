@@ -1,0 +1,123 @@
+# Dependabot triage
+
+Companion to `docs/security-codeql-triage.md`, and it exists for the same reason: a
+dismissal without a recorded reason is indistinguishable from a dismissal without a thought,
+and an alert left open with no note is indistinguishable from one nobody read.
+
+Measured 2026-09-30 against `repos/wecare-digital/wecare-digital/dependabot/alerts?state=open`.
+
+| # | Sev | Package | Vulnerable range | Manifest | Verdict |
+|---:|---|---|---|---|---|
+| 59 | MEDIUM | `oauthlib` | `>= 3.0.0, < 4.0.0` | `requirements-dev.txt` | ✅ **FIXED** — pinned to 4.0.0 |
+| 58 | MEDIUM | `oauthlib` | `>= 0.6.1, <= 3.3.1` | `requirements-dev.txt` | ✅ **FIXED** — pinned to 4.0.0 |
+| 57 | MEDIUM | `brace-expansion` | `>= 4.0.0, < 5.0.12` | `amplify/package-lock.json` | ⛔ **UPSTREAM-GATED** |
+| 56 | HIGH | `brace-expansion` | `>= 4.0.0, < 5.0.11` | `amplify/package-lock.json` | ⛔ **UPSTREAM-GATED** |
+| 55 | HIGH | `brace-expansion` | `>= 4.0.0, < 5.0.10` | `amplify/package-lock.json` | ⛔ **UPSTREAM-GATED** |
+| 23 | MEDIUM | `uuid` | `< 11.1.1` | `package-lock.json` | 🟡 **NOT REACHABLE** — dev scope, awaiting dismissal |
+
+## 55 / 56 / 57 — `brace-expansion`, and why an override does not work
+
+The three alerts are one copy: `node_modules/aws-cdk-lib/node_modules/brace-expansion` at
+**5.0.9**, reached through `aws-cdk-lib`'s bundled `minimatch`. The top-level
+`node_modules/brace-expansion` is already 5.0.12 and clean.
+
+**An npm `overrides` entry cannot fix this, and the attempt is recorded so nobody repeats
+it.** Adding `"brace-expansion@5": "5.0.12"` to `amplify/package.json` and regenerating the
+lockfile left the copy at 5.0.9 while churning the lockfile by 1537 lines. The reason is in
+the lockfile itself:
+
+```
+node_modules/aws-cdk-lib
+    bundleDependencies = [..., 'minimatch', ...]
+node_modules/aws-cdk-lib/node_modules/brace-expansion
+    version  = 5.0.9
+    inBundle = True
+```
+
+`inBundle: True` means the code ships **inside the `aws-cdk-lib` tarball**. Overrides,
+resolutions and manual lockfile edits all describe what npm should *fetch*; none of them
+changes the contents of a tarball that has already been fetched. The override was reverted.
+
+**Upgrading does not fix it either.** Both `aws-cdk-lib@2.270.0` (pinned here) and
+`2.271.0` (latest at the time of measuring) bundle `brace-expansion@5.0.9` — confirmed by
+downloading both tarballs and reading
+`package/node_modules/brace-expansion/package.json`. The fix has to come from AWS
+republishing `aws-cdk-lib` with a refreshed bundle.
+
+### The `scope=runtime` label is misleading here, and this is the part worth knowing
+
+Dependabot derives scope from `dependencies` versus `devDependencies`. `aws-cdk-lib` sits in
+`dependencies` of `amplify/package.json`, so it reports **runtime**. It reaches no deployed
+artifact:
+
+- **Every Lambda function is `python3.12`** (65 zip-packaged plus one container). Measured
+  via `list-functions --query 'Functions[].Runtime'`. A Node package cannot be inside a
+  Python function zip, and `deploy_all_lambdas.py` bundles no third-party packages at all.
+- **The Amplify build never installs it.** `amplify.yml` runs `npm ci` against the **root**
+  lockfile, and `amplify/package.json` is deliberately a separate install root whose
+  packages the root lockfile does not contain — see `docs/npm-ci-backend-isolation.md`.
+
+So the copy exists only when a developer runs `npm install` inside `amplify/` to use
+`ampx sandbox` or `ampx pipeline-deploy`. The advisories are ReDoS in a glob brace expander;
+reaching it needs attacker-controlled glob patterns, and at CDK synth time the patterns come
+from our own asset-bundling code.
+
+**Do not dismiss these as "not used".** They are genuinely present in a manifest and will
+become fixable the moment AWS refreshes the bundle. Leave them open so the fix is noticed;
+this file is the reason they are open.
+
+## 23 — `uuid`, and what the earlier fix actually achieved
+
+GHSA-w5hq-g745-h8pq affects `uuid` before 11.1.1 when a caller supplies its own output
+buffer. The vulnerable copy is `node_modules/xcode/node_modules/uuid@7.0.3`, pulled in by
+`@capacitor/cli` → `xcode`.
+
+Two things were established and both still hold:
+
+1. **Not reachable from our code.** Nothing under `src/` or `amplify/` imports `uuid` at
+   all — zero hits. The separate top-level `node_modules/uuid` is already 11.1.1.
+2. **Now correctly scoped.** `@capacitor/cli` was moved to `devDependencies`, and the
+   lockfile confirms the effect: `node_modules/xcode/node_modules/uuid` is `dev=True`, so
+   the alert reports `scope=development` rather than runtime.
+
+It cannot be resolved by upgrading, because `xcode` requires `uuid@^7`, and native packaging
+is **POST-PROJECT** per `.kiro/steering/00-current-owner-overrides.md` — so the tool that
+drags it in is not used in the current phase either.
+
+**Remaining action is a dismissal, which is owner-gated.** Dismissing a security alert is an
+account-level security decision, so it is not taken under standing authorization. The
+dismissal reason to select is *"vulnerable code is not actually used"*, and the two points
+above are its evidence.
+
+## 58 / 59 — `oauthlib`, fixed
+
+Both advisories had to be read together to find the fix. GHSA-hj66-6f7g-4r5v covers
+`<= 3.3.1` and GHSA-xpv3-w29h-x7cv covers `>= 3.0.0, < 4.0.0` — so **every 3.x release is
+affected** and only the 4.x line clears both. A patch bump would have closed one alert and
+left the other, which is the trap in treating two alerts on one package as one problem.
+
+`requests-oauthlib` declares `oauthlib >= 3.0.0` with no upper bound, so 4.0.0 is within the
+declared range rather than forced past it. Verified in a throwaway venv before changing the
+pin: `oauthlib 4.0.0` + `requests-oauthlib 2.0.0` + `google-auth-oauthlib 1.4.1` all import,
+and `OAuth2Session.authorization_url` still round-trips. 5201 pytest pass after the bump.
+
+Worth noting for whoever revisits this: **nothing in this repository imports `oauthlib` or
+`google_auth_oauthlib`.** They are transitive dev dependencies. Removing them outright would
+also have closed both alerts and was deliberately not done — the Google API work in
+`scripts/` uses service-account impersonation through `google-auth`, and pulling packages a
+concurrent session might reach for is a worse trade than a version bump that costs nothing.
+
+## Reproducing
+
+```
+gh api "repos/wecare-digital/wecare-digital/dependabot/alerts?state=open&per_page=20" \
+  --jq '.[] | "\(.number)  \(.security_advisory.severity)  \(.dependency.package.name)@\(.security_vulnerability.vulnerable_version_range)  scope=\(.dependency.scope)  \(.dependency.manifest_path)"'
+```
+
+To check what a bundled dependency really contains, read the tarball rather than the
+lockfile — the lockfile records what was requested, the tarball records what shipped:
+
+```
+curl -sSL -o cdk.tgz "$(npm view aws-cdk-lib@2.271.0 dist.tarball)"
+tar -xzOf cdk.tgz 'package/node_modules/brace-expansion/package.json'
+```
