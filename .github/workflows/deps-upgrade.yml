@@ -59,11 +59,17 @@ jobs:
             next@latest react@latest react-dom@latest react-router-dom@latest \
             aws-amplify@latest @aws-amplify/ui-react@latest \
             @aws-sdk/client-bedrock@latest @aws-sdk/client-bedrock-runtime@latest \
-            @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/ios@latest \
+            @capacitor/core@latest @capacitor/android@latest @capacitor/ios@latest \
             @capacitor/app@latest @capacitor/browser@latest @capacitor/haptics@latest \
             @capacitor/keyboard@latest @capacitor/push-notifications@latest \
             @capacitor/splash-screen@latest @capacitor/status-bar@latest flag-icons@latest
+          # @capacitor/cli is BELOW, in the --save-dev list, and moving it back up would undo
+          # a deliberate change. It is a build tool, not a runtime dependency, and it is the
+          # only path by which xcode@3.0.1 -> uuid@7.0.3 entered the production tree. This list
+          # is why the fix has to land in two places: package.json alone would be reverted by
+          # the next full-latest run of this workflow.
           npm install --save-dev --legacy-peer-deps --no-audit --no-fund --package-lock-only \
+            @capacitor/cli@latest \
             @aws-amplify/backend-cli@latest @aws-amplify/backend-data@latest @aws-amplify/data-construct@latest \
             @aws-amplify/graphql-schema-generator@latest @testing-library/jest-dom@latest @testing-library/react@latest \
             @types/node@latest @types/react@latest @types/react-dom@latest @vitejs/plugin-react@latest \

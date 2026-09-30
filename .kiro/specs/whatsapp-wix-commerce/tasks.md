@@ -2,6 +2,39 @@
 
 Derived from [`requirements.md`](requirements.md) and [`design.md`](design.md).
 
+---
+
+## ⛔ CURRENT PRODUCTION GATE — no payment can be initiated
+
+Measured live on 2026-09-30:
+
+```
+GET /2094615664435155/payment_configurations   ->   HTTP 200, ZERO configurations
+```
+
+The call succeeded; Meta returned an empty edge. So `WECAREDIGITAL` and `WECAREUPI` exist **only
+as constants in this repository**, and Meta's documentation states that an invalid
+`configuration_name` leaves the customer unable to pay. Two further names,
+`WECARE-RAZOR-PAY` and `Razorpay_ManishAgarwal`, survive in
+`.kiro/steering/META-BETA-REQUEST-EMAIL.md` from before the 2026-08-23 rebuild — four names in
+the repo, none at Meta.
+
+**Restoring it is owner-administrative work** in WhatsApp Manager → Payments. No application code
+may create or mutate a payment configuration. `lambda_utils/payment_readiness.py` detects the
+absence and refuses, so the checkout degrades rather than sending a message that cannot be paid.
+
+Two related conflicts must be resolved at the same time, because the readiness gate compares them:
+
+- **Razorpay MID.** `acc_HDfub6wOfQybuH` is live env and is the `account_id` in real Razorpay
+  webhook payloads; `acc_TTFSyolquKEZEy` appears only in prose and comments. They are different
+  *fields* — merchant account versus Meta's `provider_mid` — and the gate requires them to agree.
+- **UPI VPA.** Live env says `wecaredigital83.rzp@icici`; the code's fallback says
+  `wecaredigitalbh511413.rzp@rxairtel`. Different handle and different PSP.
+
+**Not blocked by this gate**, and therefore the work that proceeds: customer identity, phone and
+email verification, the address model, the checkout UI, the authoritative Wix total, the payment
+attempt model, payment history, the post-paid order architecture and the receipt architecture.
+
 **Phase 0 is complete and Phase 1 is startable. Phases 6 onward are blocked on R0** — the
 Wix credential does not exist in AWS, so no Wix contract can be verified. Tasks are ordered
 so that everything genuinely doable while R0 is open comes first, rather than stalling the
@@ -68,20 +101,43 @@ exiting zero is not verification.
     steering is what `00-current-owner-overrides.md` forbids quoting
   - _Requirements: R1, R6_
 
-## Phase 2 — Unique order subsystem (startable now)
+## Phase 2 — Identity subsystem ✅ COMPLETE (re-timed for order-after-payment)
 
-- [ ] 2.1 Add the `ORDERNO#<number> / UNIQUE` conditional reservation
-  - _Requirements: R2.3, R2.4_
-- [ ] 2.2 Make the failure path fail closed
-  - `_get_or_create_wd_order_number`'s exception path currently returns an **unstored**
-    number. Remove that path
-  - _Requirements: R2.5_ · _Verify: fault-injection test asserting no number on DynamoDB error_
-- [ ] 2.3 Resolve-before-generate on `REFERENCE#<metaReferenceId>`
-  - _Requirements: R2.6, R2.9_
-- [ ] 2.4 Order-number test suite
-  - 10,000 generated with zero duplicates; concurrent creation; duplicate Meta event;
-    duplicate payment event; retry after timeout; conditional collision; immutability
-  - _Requirements: R2.1, R2.7, R2.8_
+**R2 was reversed on 2026-09-30.** The original 2.1-2.4 asked for an order number reserved as
+part of building the payment request; that is now prohibited. The conditional-reservation
+mechanism was kept and re-pointed, not thrown away.
+
+- [x] 2.1 Conditional reservation under `ORDERNO#<number>`, written before the number is returned
+  - Retargeted to the 12-character public number. `reserve_public_order_number` in
+    `lambda_utils/ecommerce/order_keys.py`
+  - _Requirements: R2.6, R2.7_
+- [x] 2.2 Make the failure path fail closed
+  - `_get_or_create_wd_order_number` returned an **unstored** number on DynamoDB failure. It
+    also was never idempotent: the reuse check was `startswith('WD-ORD-')` but the generator
+    emits a SPACE at index 6, so every call regenerated and overwrote the mapping — and
+    `_enrich_order` calls it per order per listing
+  - _Requirements: R2.8_ · Verified: fault-injection test asserting no identifier escapes
+- [x] 2.3 Split the payment reference from the order identity
+  - `allocate_order_identity` **removed**, not deprecated. `PAYREF#` binds a reference to a
+    payment attempt and holds no order fields; `PAYMENTATTEMPT#` and `PROVIDERPAYMENT#` are
+    claimed only after verified capture
+  - _Requirements: R2.1, R2.4, R2.5_
+- [x] 2.4 Stop truncating the Meta reference
+  - `_sanitize_reference_id` ended with `result[:35]`. Truncating a join key maps two references
+    onto one string, so two orders reconcile against one payment. Outbound now raises and
+    refuses an order number outright; inbound returns an already-valid reference byte-for-byte,
+    since Meta's `reference_id` is case sensitive and permits dots
+  - _Requirements: R2.2_
+- [x] 2.5 Identifier test suite
+  - 10,000 reservations with zero duplicates; duplicate webhook; one provider payment across two
+    attempts; loser burns no number; crash between claim and reserve is recoverable; every
+    non-paid state has zero orders; retry lineage via `retryOf`
+  - _Requirements: R2.3, R2.9-R2.14_ · 83 tests in `test_order_keys.py` +
+    `test_reference_id_never_truncated.py`
+- [x] 2.6 UUIDv7 and ULID primitives
+  - `lambda_utils/identifiers.py`. Nothing in the fleet minted either, and `uuid.uuid7` does not
+    exist in CPython 3.12
+  - _Requirements: R2 identifier table_
 
 ## Phase 3 — Idempotency hardening (startable now)
 
