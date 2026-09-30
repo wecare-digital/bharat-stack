@@ -45,10 +45,28 @@ interface ShopProductHeadProps {
   product: ShopProduct;
 }
 
-const ShopProductHead: React.FC<ShopProductHeadProps> = ( { product } ) => {
+/**
+ * The JSON-LD graph for one product page, as a PURE FUNCTION so it can be asserted.
+ *
+ * EXPORTED BECAUSE next/head IS UNTESTABLE FROM jsdom. `<Head>` does not render into the
+ * component's container - it is a side effect onto document.head that next/head manages - so a
+ * test that rendered this component and queried the container for
+ * `script[type="application/ld+json"]` found ZERO scripts. The first version of the test for this
+ * did exactly that and passed VACUOUSLY: with no scripts to read, "the graph contains no Product"
+ * was trivially satisfied, which is the shape of gate that protects nothing.
+ *
+ * Building the graph here and rendering it below means the test asserts the object and the browser
+ * harness asserts the built HTML - tools/audit/schemacheck.js reads the real export. Neither is a
+ * stand-in for the other.
+ */
+/** One JSON-LD node. Deliberately loose: a schema.org graph is heterogeneous by design. */
+type LdNode = Record<string, unknown>;
+
+export const shopProductSchema = (
+  product: ShopProduct,
+): { '@context': string; '@graph': LdNode[] } => {
   const url = ORIGIN + shopProductPath( product );
   const shopUrl = ORIGIN + '/shop/';
-  const title = shopPageTitle( product );
   const description = shopMetaDescription( product );
 
   /**
@@ -73,8 +91,52 @@ const ShopProductHead: React.FC<ShopProductHeadProps> = ( { product } ) => {
    *
    * availability is read from the snapshot's `inStock`, which is the only thing that field is
    * allowed to do - see the note in src/content/shop.ts about why it never reaches a payment.
+   *
+   * THE NODE IS EMITTED ONLY WHEN THE PRODUCT HAS AN IMAGE, AND IT HAS NONE TODAY. Google requires
+   * name, image and offers on Product; tools/audit/schemacheck.js encodes that as
+   * REQUIRED.Product = [ 'name', 'image', 'offers' ] and failed this branch seven times, once per
+   * page. Three ways out were available and two are worse than doing nothing:
+   *
+   *   Send the company logo as the image. It is not a picture of the product, it would be the same
+   *     picture for all seven, and Google would render it as the product photo. This site has
+   *     already had a fabricated aggregateRating removed; inventing a product image is the same
+   *     mistake in a different field.
+   *
+   *   Exempt /shop/* from the gate. The gate has no exemption mechanism, and adding one to admit a
+   *     node the gate exists to reject would weaken it for every future page.
+   *
+   *   Emit no Product until there is an image. An incomplete Product is INELIGIBLE for the product
+   *     rich result however complete the rest of it is - schemacheck's own docblock makes exactly
+   *     that point about Article and `image` - so the node buys nothing today. Omitting it costs no
+   *     eligibility that was ever available.
+   *
+   * So the page keeps ItemPage and BreadcrumbList, which are complete and true, and the Product
+   * and its Offer appear automatically the moment the snapshot carries an image. The price is still
+   * on the page for a human to read; it is the machine-readable claim that waits for the picture
+   * Google needs beside it.
    */
-  const schema = {
+  const productNode: LdNode[] = product.image ? [ {
+    '@type': 'Product',
+    '@id': url + '#product',
+    name: product.name,
+    description: [ product.tagline, ...product.body ].join( ' ' ),
+    url,
+    image: product.image,
+    brand: { '@id': ORG_ID },
+    offers: {
+      '@type': 'Offer',
+      '@id': url + '#offer',
+      url,
+      price: product.price,
+      priceCurrency: product.currency,
+      availability: product.inStock
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      seller: { '@id': ORG_ID },
+    },
+  } ] : [];
+
+  const schema: { '@context': string; '@graph': LdNode[] } = {
     '@context': 'https://schema.org',
     '@graph': [
       {
@@ -86,7 +148,10 @@ const ShopProductHead: React.FC<ShopProductHeadProps> = ( { product } ) => {
         isPartOf: { '@id': WEBSITE_ID },
         inLanguage: 'en-IN',
         breadcrumb: { '@id': url + '#breadcrumb' },
-        mainEntity: { '@id': url + '#product' },
+        // mainEntity ONLY when the Product exists. A reference to an @id that nothing defines is a
+        // dangling pointer, and schemacheck asserts "no unresolved @id references" - so leaving it
+        // in unconditionally would trade one failure for another.
+        ...( productNode.length ? { mainEntity: { '@id': url + '#product' } } : {} ),
         publisher: { '@id': ORG_ID },
       },
       {
@@ -98,27 +163,18 @@ const ShopProductHead: React.FC<ShopProductHeadProps> = ( { product } ) => {
           { '@type': 'ListItem', position: 3, name: product.name, item: url },
         ],
       },
-      {
-        '@type': 'Product',
-        '@id': url + '#product',
-        name: product.name,
-        description: [ product.tagline, ...product.body ].join( ' ' ),
-        url,
-        brand: { '@id': ORG_ID },
-        offers: {
-          '@type': 'Offer',
-          '@id': url + '#offer',
-          url,
-          price: product.price,
-          priceCurrency: product.currency,
-          availability: product.inStock
-            ? 'https://schema.org/InStock'
-            : 'https://schema.org/OutOfStock',
-          seller: { '@id': ORG_ID },
-        },
-      },
+      ...productNode,
     ],
   };
+
+  return schema;
+};
+
+const ShopProductHead: React.FC<ShopProductHeadProps> = ( { product } ) => {
+  const url = ORIGIN + shopProductPath( product );
+  const title = shopPageTitle( product );
+  const description = shopMetaDescription( product );
+  const schema = shopProductSchema( product );
 
   return (
     <Head>

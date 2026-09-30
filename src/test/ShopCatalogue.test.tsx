@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import ShopIndex from '../pages/shop/index';
 import ShopProductPage from '../pages/shop/[slug]';
+import { shopProductSchema } from '../components/ShopProductHead';
 import {
   SHOP_PRODUCTS, shopProductBySlug, shopMetaDescription, shopPageTitle, shopProductPath,
   toParagraphs, catalogReadOn, CATALOG_FETCHED_AT,
@@ -35,6 +36,12 @@ const SYNTHETIC: ShopProduct = {
   tagline: 'A thing nobody can buy today.',
   body: [ 'One paragraph of body copy.' ],
 };
+
+/**
+ * Narrow one JSON-LD node for assertion. A schema.org graph is heterogeneous, so the builder types
+ * it as Record<string, unknown>; this keeps the reads explicit without reaching for `any`.
+ */
+const ld = ( value: unknown ): Record<string, unknown> => value as Record<string, unknown>;
 
 describe( 'the Wix snapshot is read correctly', () => {
   it( 'reads the seven visible products the snapshot holds', () => {
@@ -112,6 +119,49 @@ describe( 'toParagraphs turns merchant rich text into plain paragraphs', () => {
   it( 'drops empty paragraphs instead of rendering blank lines', () => {
     expect( toParagraphs( '<p></p><p>a</p><p>   </p>' ) ).toEqual( [ 'a' ] );
     expect( toParagraphs( '' ) ).toEqual( [] );
+  } );
+
+  it( 'leaves no tag delimiter behind, terminated or not', () => {
+    /*
+     * THE CodeQL FINDING, AS A TEST. It was a high-severity
+     * js/incomplete-multi-character-sanitization on this file and a real defect, not a false
+     * positive: the assertion further down that no `<span` reaches the DOM could have passed while
+     * the text still carried `<script`.
+     *
+     * Two residues, both measured rather than assumed:
+     *
+     *   UNTERMINATED. `/<[^>]*>/` needs a closing bracket, so `<script` with none never matched and
+     *     passed through whole. This is the one CodeQL named.
+     *
+     *   NESTED. `a<scr<script>ipt>b` consumes `<scr<script>` - `[^>]*` happily eats the inner `<` -
+     *     and strands the leftover `>` in `aipt>b`.
+     *
+     * The loop plus the final delimiter sweep removes both. Hostile input comes out mangled, which
+     * is the correct outcome for markup debris; readable copy is unaffected.
+     */
+    expect( toParagraphs( '<p>a<script</p>' ) ).toEqual( [ 'ascript' ] );
+    expect( toParagraphs( '<p>a<scr<script>ipt>b</p>' ) ).toEqual( [ 'aiptb' ] );
+    expect( toParagraphs( '<p>x<a<b>c>y</p>' ) ).toEqual( [ 'xcy' ] );
+    expect( toParagraphs( '<<>>' ) ).toEqual( [] );
+    expect( toParagraphs( '<p>q<<<<x>>>>r</p>' ) ).toEqual( [ 'qr' ] );
+  } );
+
+  it( 'never lets a raw delimiter out of any real description', () => {
+    // The property, swept over the whole committed catalogue rather than over invented input. Only
+    // a bracket that arrived entity-encoded may appear, and none of the seven contains one.
+    for ( const product of SHOP_PRODUCTS ) {
+      for ( const paragraph of [ product.tagline, ...product.body ] ) {
+        expect( paragraph, product.slug ).not.toMatch( /[<>]/ );
+      }
+    }
+  } );
+
+  it( 'leaves a decoded angle bracket as text, because the output is not markup', () => {
+    // Entities decode LAST, so `&lt;b&gt;` becomes the literal characters `<b>`. That is correct:
+    // this is display text for React children, which escapes on render, so the reader sees what the
+    // merchant typed. Stripping again after decoding would delete legitimate copy - `a < b > c`
+    // is tag-shaped and would become `a  c`.
+    expect( toParagraphs( '<p>a &lt; b &gt; c</p>' ) ).toEqual( [ 'a < b > c' ] );
   } );
 } );
 
@@ -235,6 +285,33 @@ describe( 'the product page', () => {
     expect( container.querySelectorAll( 'p.shopd-p' ) ).toHaveLength( kiosk.body.length );
   } );
 
+  it( 'renders a hostile description as inert text, creating no element', () => {
+    /*
+     * THE PROPERTY THAT ACTUALLY MATTERS, asserted against the DOM.
+     *
+     * The hostile input goes through toParagraphs FIRST, because that is the real pipeline - the
+     * page renders `product.body`, which is already this function's output. An earlier version of
+     * this test handed raw entity-encoded HTML straight to `body` and so tested nothing but React's
+     * escaping of an already-safe string.
+     */
+    const paragraphs = toParagraphs(
+      '<p>Safe opening line.</p><p><script>alert(1)</script></p>'
+      + '<p>&lt;img src=x onerror=alert(1)&gt;</p>',
+    );
+    const hostile: ShopProduct = {
+      ...SYNTHETIC, tagline: paragraphs[ 0 ], body: paragraphs.slice( 1 ),
+    };
+    const { container } = render( <ShopProductPage product={ hostile } /> );
+    expect( container.querySelectorAll( 'script' ) ).toHaveLength( 0 );
+    expect( container.querySelectorAll( 'img' ) ).toHaveLength( 0 );
+    expect( container.querySelector( '[onerror]' ) ).toBeNull();
+    // The script TAGS are gone and only their inner text survives.
+    expect( screen.getByText( 'alert(1)' ) ).toBeTruthy();
+    // The entity-encoded one decodes to literal characters and React escapes them on render, so it
+    // is readable text and not an element.
+    expect( screen.getByText( '<img src=x onerror=alert(1)>' ) ).toBeTruthy();
+  } );
+
   it( 'never puts merchant HTML into the DOM as HTML', () => {
     /*
      * THE ASSERTION THAT MATTERS MOST IN THIS FILE. descriptionHtml is rich text from a
@@ -273,6 +350,64 @@ describe( 'the product page', () => {
   it( 'marks a product that is out of stock', () => {
     render( <ShopProductPage product={ SYNTHETIC } /> );
     expect( screen.getByText( 'Not available right now.' ) ).toBeTruthy();
+  } );
+
+  it( 'emits no Product node while the product has no image', () => {
+    /*
+     * Google requires name, image and offers on Product, and tools/audit/schemacheck.js enforces
+     * exactly that list - it failed this branch seven times, once per page. All seven items report
+     * mediaCount 0, so there is no image to send, and an incomplete Product is ineligible for the
+     * rich result anyway. The node waits for the picture rather than borrowing the company logo.
+     */
+    for ( const product of SHOP_PRODUCTS ) {
+      expect( product.image, `${product.slug} unexpectedly has an image` ).toBeUndefined();
+    }
+    for ( const product of SHOP_PRODUCTS ) {
+      const types = shopProductSchema( product )[ '@graph' ]
+        .map( node => ld( node )[ '@type' ] );
+      expect( types, product.slug ).toEqual( [ 'ItemPage', 'BreadcrumbList' ] );
+      // No dangling reference to the node that was not emitted: schemacheck also asserts
+      // "no unresolved @id references", so an unconditional mainEntity would swap one failure
+      // for another.
+      expect( JSON.stringify( shopProductSchema( product ) ) ).not.toContain( '#product' );
+    }
+  } );
+
+  it( 'emits Product with its Offer as soon as an image exists', () => {
+    // The other half: the markup is written and gated, not missing. Populating `image` is the only
+    // thing between this repo and complete Product data.
+    const withImage: ShopProduct = {
+      ...( shopProductBySlug( 'kiosk' ) as ShopProduct ),
+      image: 'https://wecare.digital/get/o/stream/media/m/kiosk.png',
+    };
+    const graph = shopProductSchema( withImage )[ '@graph' ];
+    const item = graph.find( n => ld( n )[ '@type' ] === 'ItemPage' );
+    const productLd = graph.find( n => ld( n )[ '@type' ] === 'Product' );
+    expect( productLd ).toBeTruthy();
+    // The three properties Google requires, all present.
+    expect( ld( productLd ).name ).toBe( 'Kiosk' );
+    expect( ld( productLd ).image ).toBe( withImage.image );
+    expect( ld( ld( productLd ).offers )[ '@type' ] ).toBe( 'Offer' );
+    // The price in the markup is the same number the page prints, read from the same field.
+    expect( ld( ld( productLd ).offers ).price ).toBe( '24999.00' );
+    expect( ld( ld( productLd ).offers ).priceCurrency ).toBe( 'INR' );
+    expect( ld( ld( productLd ).offers ).availability ).toBe( 'https://schema.org/InStock' );
+    // And the page points at it, so the reference resolves.
+    expect( ld( ld( item ).mainEntity )[ '@id' ] ).toBe( ld( productLd )[ '@id' ] );
+  } );
+
+  it( 'marks the offer out of stock when the product is', () => {
+    const graph = shopProductSchema( { ...SYNTHETIC, image: 'https://wecare.digital/x.png' } )[ '@graph' ];
+    const productLd = graph.find( n => ld( n )[ '@type' ] === 'Product' );
+    expect( ld( ld( productLd ).offers ).availability ).toBe( 'https://schema.org/OutOfStock' );
+  } );
+
+  it( 'names the canonical URL in the graph, never the route pattern', () => {
+    // The whole reason this component owns the head: PUBLIC_PAGE_META is keyed on router.pathname,
+    // which for a dynamic route is '/shop/[slug]'.
+    const json = JSON.stringify( shopProductSchema( shopProductBySlug( 'viveka' ) as ShopProduct ) );
+    expect( json ).toContain( 'https://wecare.digital/shop/viveka/' );
+    expect( json ).not.toContain( '[slug]' );
   } );
 
   it( 'offers a way back to the listing', () => {
