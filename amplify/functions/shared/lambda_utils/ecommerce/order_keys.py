@@ -485,6 +485,34 @@ def record_order_number_on_claim(table: Any,
         ) from error
 
 
+def resolve_order_for_provider_payment(table: Any, provider_transaction_id: str, *,
+                                       key_attr: str = "orderId"
+                                       ) -> Optional[Dict[str, Any]]:
+    """The order claim for a provider transaction, or None.
+
+    Needed because a caller that loses the `PROVIDERPAYMENT#` claim holds the *wrong* attempt id
+    to look up: the order belongs to whichever attempt won, not to the one asking. Without this,
+    that caller sees "the provider claim is taken, but there is no order for my attempt" and
+    reasonably concludes it should finish the job — reserving a **second** public order number
+    for an order that already has one.
+
+    Found by the test asserting that one provider payment cannot fund two orders across two
+    attempts, which is exactly the case this resolves.
+    """
+    if not provider_transaction_id:
+        return None
+    claim = _read_row(
+        table, key_attr, PROVIDER_PAYMENT_PREFIX + provider_transaction_id)
+    if not claim:
+        return None
+    winner_attempt = str(claim.get("paymentAttemptId") or "")
+    if not winner_attempt:
+        return claim
+    # The attempt row is the one carrying `orderNumber`; the provider row only names the order.
+    return _read_row(
+        table, key_attr, PAYMENT_ATTEMPT_PREFIX + winner_attempt) or claim
+
+
 def resolve_order_for_payment(table: Any, payment_attempt_id: str, *,
                               key_attr: str = "orderId") -> Optional[Dict[str, Any]]:
     """The order claim for a payment attempt, or None when no order exists yet.
@@ -587,6 +615,7 @@ __all__ = [
     "claim_order_for_payment",
     "record_order_number_on_claim",
     "resolve_order_for_payment",
+    "resolve_order_for_provider_payment",
     "reserve_order_number",
     "commerce_keys_table_name",
     "order_ids_table_name",
