@@ -63,17 +63,36 @@ const HeaderCart: React.FC = () => {
     ? ( count > BADGE_CEILING ? `${BADGE_CEILING}+` : String( count ) )
     : '';
 
-  /** The spoken half of the name. Absent before the cart has been read, rather than guessed. */
-  const spokenCount = count === null
-    ? ''
-    : count === 0 ? 'empty' : `${count} ${count === 1 ? 'item' : 'items'}`;
+  /**
+   * The whole accessible name, as an attribute — there is NO text in the markup at all.
+   *
+   * The owner asked for the label deleted, not clipped, so the visually-hidden span and the clipped
+   * count phrase are both gone. The name has to live somewhere: a link whose only content is an
+   * aria-hidden glyph has no accessible name, which a screen reader announces as a bare "link" and
+   * Lighthouse fails as a discernible-name violation (it is one of the audits that keeps this site
+   * at 100).
+   *
+   * THE COST, STATED PLAINLY: attribute text is never translated. SupportWidget's walker rewrites
+   * text nodes only, so this string stays English in languages where a text node would have been
+   * translated. That is the trade "delete it" buys, and it was the only reason the clipped node
+   * existed.
+   *
+   * The count is folded in because the digits drawn inside the glyph are aria-hidden, so without it
+   * the number would be invisible to a screen reader. Absent before the cart has been read, rather
+   * than guessed at zero.
+   */
+  const accessibleName = count === null
+    ? 'Shopping Bag'
+    : count === 0
+      ? 'Shopping Bag, empty'
+      : `Shopping Bag, ${count} ${count === 1 ? 'item' : 'items'}`;
 
   return (
     // A plain anchor rather than next/link: styled-jsx does not scope a capitalised component, so
     // `<Link className="hdr-cart">` would render with none of the CSS below. The logo in Header.tsx
     // and every row of the nav menu carry the same exemption for the same reason.
     // eslint-disable-next-line @next/next/no-html-link-for-pages
-    <a className="hdr-cart" href="/cart/">
+    <a className="hdr-cart" href="/cart/" aria-label={ accessibleName }>
       <span className="hdr-cart-glyph" aria-hidden="true">
         <svg viewBox="0 -960 960 960" focusable="false">
           <path d="M220-80q-24 0-42-18t-18-42v-520q0-24 18-42t42-18h110v-10q0-63 43.5-106.5T480-880q63 0 106.5 43.5T630-730v10h110q24 0 42 18t18 42v520q0 24-18 42t-42 18H220Zm0-60h520v-520H630v90q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63-8.5-8.62-8.5-21.37v-90H390v90q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63-8.5-8.62-8.5-21.37v-90H220v520Zm170-580h180v-10q0-38-26-64t-64-26q-38 0-64 26t-26 64v10ZM220-140v-520 520Z" />
@@ -82,21 +101,8 @@ const HeaderCart: React.FC = () => {
           <span className="hdr-cart-n" data-wc-no-translate="true">{ badge }</span>
         ) }
       </span>
-      <span className="hdr-cart-label">Shopping Bag</span>
-      { spokenCount && <span className="hdr-cart-spoken">{ spokenCount }</span> }
 
       <style jsx>{`
-        /* THE SAME CHIP AS .nav-trigger, VALUE FOR VALUE, because the two controls sit 10px apart
-           and anything else reads as two design languages in one bar: #f4f7ee fill, #cfe0a6
-           hairline, 10px radius at rest, and the lime fill with a 2px #1a3a2a edge on
-           hover/focus/press. Dark green on lime measures 10.04:1, and the edge rather than the
-           fill carries the luminance step - the measurements behind that are recorded on
-           .nav-trigger in Header.tsx.
-           box-sizing:border-box so the 1px -> 2px border step changes nothing outside the chip.
-           margin-inline-start:auto is what puts this on the right of .hdr-in's flex row; it is
-           logical, so the control moves to the left edge in a mirrored document on its own.
-           flex-shrink:0 because the brand lockup beside it is nowrap - without it a narrow
-           viewport squeezes the bag instead of the empty space. */
         /* THE BAG ONLY - NO LABEL, NO BORDER, NO FILL AT REST, on owner instruction. "Shopping
            Bag" was how the icon was identified, not copy to render. The chip treatment that
            matched .nav-trigger is gone with it.
@@ -145,30 +151,11 @@ const HeaderCart: React.FC = () => {
           font-variant-numeric:tabular-nums;color:currentColor;pointer-events:none;
         }
 
-        /* ALWAYS CLIPPED, NEVER DELETED, and the distinction is the whole point. The owner wants no
-           visible text; the control still needs an accessible name. Keeping it as a clipped TEXT
-           NODE rather than moving it to an aria-label is deliberate: the translation walker rewrites
-           text nodes and never attribute text, so an aria-label would stay English in every one of
-           the catalogue's languages. clip rather than display:none or opacity:0 - display:none drops
-           it from the accessible name, and opacity:0 would still occupy layout. */
-        .hdr-cart-label{
-          position:absolute;inline-size:1px;block-size:1px;padding:0;margin:-1px;
-          overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
-        }
-
-        /* The spoken count is always clipped - it exists so the accessible name carries the
-           number, which the decorative digits inside the aria-hidden glyph cannot. clip rather
-           than display:none or opacity:0: display:none drops it from the accessible name, and
-           opacity:0 would leave it occupying layout. */
-        .hdr-cart-spoken{
-          position:absolute;inline-size:1px;block-size:1px;padding:0;margin:-1px;
-          overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
-        }
-
-        /* NO WIDTH BREAKPOINT IS NEEDED ANY MORE. This used to clip the label below 768px because
-           the measured header at 280px leaves only 35.2px beside the brand lockup and the trigger,
-           and "Shopping Bag" fits at no width. The label is now clipped at every width, so the
-           control is a constant 44px square and the calculation is moot. */
+        /* NO LABEL RULES AT ALL ANY MORE. The two clipped text nodes this component used to render
+           are deleted, so their rules went with them. The name is an aria-label on the anchor - see
+           the note beside accessibleName for what that costs. No width breakpoint either: the
+           control is a constant 44px square, so the old 767px label-clipping query had nothing
+           left to clip. */
         @media(prefers-reduced-motion:reduce){
           .hdr-cart{transition:none}
         }
