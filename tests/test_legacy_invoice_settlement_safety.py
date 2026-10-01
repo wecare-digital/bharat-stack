@@ -16,6 +16,10 @@ Covered:
       double-settle - the PROVIDERPAYMENT# claim blocks it (R2 one-time claim / replay defence).
   (d) a genuine UNKNOWN_REFERENCE legacy invoice with a matching provider binding and a
       provider-verified capture DOES settle exactly once (positive path preserved).
+  (e) the stranded-claim window (review Issue 1): a legacy claim whose subsequent settle no-ops
+      (the row's write errors between claim and settle) is RELEASED, not burned, so a legitimate
+      redelivery settles exactly once; and the release is money-safe - it never removes a commerce
+      PROVIDER_PAYMENT_CLAIM sharing the PROVIDERPAYMENT# namespace.
 """
 
 import importlib
@@ -369,3 +373,106 @@ def test_bound_legacy_invoice_wrong_provider_order_refuses(webhook, fake_ddb):
         assert _invoice_status(fake_ddb, 'INV-BOUND') == 'sent'
         assert not _any_invoice_paid(fake_ddb)
         spies.post_payment.assert_not_called()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# (e) the stranded-claim window (review Issue 1): a claim whose settle no-ops is RELEASED,
+#     so a legitimate redelivery settles exactly once - and the release never touches a
+#     commerce PROVIDER_PAYMENT_CLAIM.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _provider_payment_claim(ddb):
+    return ddb.tables.get(KEYS_TABLE, {}).get(order_keys.PROVIDER_PAYMENT_PREFIX + TXN)
+
+
+def test_legacy_claim_released_when_settle_noops_then_redelivery_settles(webhook, fake_ddb):
+    """A legacy claim is taken inside the verifier BEFORE the settle. If that settle no-ops (here a
+    storage error on the invoice update), the irreversible claim would otherwise be burned with no
+    settled row, stranding the payment forever. The handler must RELEASE the claim and quarantine,
+    and a legitimate Razorpay redelivery must then settle exactly once."""
+    _seed_invoice(fake_ddb, invoice_id='INV-STRANDED', provider_order_id=PROVIDER_ORDER)
+
+    # First delivery: the verifier binds + claims, then the invoice update is armed to error, so
+    # _mark_invoice_paid_by_reference reports not-settled and the claim is released.
+    with _PostSpies(webhook) as spies:
+        fake_ddb.arm_failure(INVOICES_TABLE, 'update_item', RuntimeError('throttled'))
+        _drive(webhook, fake_ddb, _event(),
+               verifier=lambda _r: (True, TXN, AMOUNT, 'INR'),
+               capture_details=(True, AMOUNT, 'INR', PROVIDER_ORDER))
+        # Nothing settled, no post-payment, no payment record on this stranded delivery.
+        spies.post_payment.assert_not_called()
+        spies.store.assert_not_called()
+    assert _invoice_status(fake_ddb, 'INV-STRANDED') == 'sent'
+    assert not _any_invoice_paid(fake_ddb)
+    # The one-time claim was RELEASED (not burned), so a redelivery can re-claim it.
+    assert _provider_payment_claim(fake_ddb) is None
+    # A durable quarantine row was still written for the human.
+    assert any(str(k).startswith(order_keys.QUARANTINE_PREFIX)
+               for k in fake_ddb.tables.get(KEYS_TABLE, {}))
+
+    # Razorpay redelivery of the SAME capture (no armed failure this time) now settles exactly once.
+    with _PostSpies(webhook) as spies:
+        _drive(webhook, fake_ddb, _event(),
+               verifier=lambda _r: (True, TXN, AMOUNT, 'INR'),
+               capture_details=(True, AMOUNT, 'INR', PROVIDER_ORDER))
+        assert spies.post_payment.call_count == 1
+        assert spies.store.call_count == 1
+    assert _invoice_status(fake_ddb, 'INV-STRANDED') == 'paid'
+    paid = [k for k, v in fake_ddb.tables[INVOICES_TABLE].items() if v.get('status') == 'paid']
+    assert paid == ['INV-STRANDED']
+    # The claim is now held and backed by a settled row.
+    claim = _provider_payment_claim(fake_ddb)
+    assert claim is not None and claim['invoiceIdRef'] == 'INV-STRANDED'
+
+
+def test_release_is_money_safe_when_a_row_actually_settled(webhook, fake_ddb):
+    """If the settle DID mark a row paid, the claim must be KEPT, never released - a settled row
+    must stay backed by its one-time claim so a replay still finds it held."""
+    _seed_invoice(fake_ddb, invoice_id='INV-KEPT', provider_order_id=PROVIDER_ORDER)
+    with _PostSpies(webhook):
+        _drive(webhook, fake_ddb, _event(),
+               verifier=lambda _r: (True, TXN, AMOUNT, 'INR'),
+               capture_details=(True, AMOUNT, 'INR', PROVIDER_ORDER))
+    assert _invoice_status(fake_ddb, 'INV-KEPT') == 'paid'
+    # Claim retained because a row actually settled.
+    claim = _provider_payment_claim(fake_ddb)
+    assert claim is not None and claim['invoiceIdRef'] == 'INV-KEPT'
+
+
+def test_release_never_removes_a_commerce_provider_payment_claim(webhook, fake_ddb):
+    """Unit-level money-safety: release_legacy_invoice_payment_claim is conditional on the row being
+    a LEGACY_INVOICE_PAYMENT_CLAIM for this invoice. A commerce PROVIDER_PAYMENT_CLAIM sharing the
+    PROVIDERPAYMENT# namespace (one payment funds at most one order) must NEVER be released."""
+    keys_table = fake_ddb.Table(KEYS_TABLE)
+    # Simulate the commerce path having claimed this payment for an order.
+    order_keys.claim_order_for_payment(
+        keys_table, payment_attempt_id=ATTEMPT, order_id='ORD-COMMERCE',
+        provider_transaction_id=TXN)
+    before = _provider_payment_claim(fake_ddb)
+    assert before is not None and before['kind'] == 'PROVIDER_PAYMENT_CLAIM'
+
+    # A (hypothetical) legacy release for the same payment id must lose the conditional delete.
+    released = order_keys.release_legacy_invoice_payment_claim(
+        keys_table, payment_id=TXN, invoice_id='INV-WHATEVER')
+    assert released is False
+    after = _provider_payment_claim(fake_ddb)
+    assert after is not None and after['kind'] == 'PROVIDER_PAYMENT_CLAIM'
+
+
+def test_release_only_removes_the_matching_invoice_claim(webhook, fake_ddb):
+    """A legacy release is bound to the invoice the claim names: a release naming a DIFFERENT
+    invoice must be a no-op, so a claim another worker re-bound is never removed."""
+    keys_table = fake_ddb.Table(KEYS_TABLE)
+    won, _ = order_keys.claim_legacy_invoice_payment(
+        keys_table, payment_id=TXN, invoice_id='INV-REAL', reference_id=REFERENCE)
+    assert won is True
+
+    # Wrong invoice id -> conditional delete loses, claim stays.
+    assert order_keys.release_legacy_invoice_payment_claim(
+        keys_table, payment_id=TXN, invoice_id='INV-OTHER') is False
+    assert _provider_payment_claim(fake_ddb) is not None
+
+    # Correct invoice id -> released.
+    assert order_keys.release_legacy_invoice_payment_claim(
+        keys_table, payment_id=TXN, invoice_id='INV-REAL') is True
+    assert _provider_payment_claim(fake_ddb) is None

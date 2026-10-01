@@ -12,8 +12,9 @@ shape, the tests fail here until this fake is taught it. That is the intended co
 
 Supported, and only this
 ------------------------
-    condition   attribute_exists(X) | attribute_not_exists(X) | X = :v , joined by AND
+    condition   attribute_exists(X) | attribute_not_exists(X) | X = :v | X <> :v , joined by AND
     update      SET a = :v, b = if_not_exists(b, :v2) [REMOVE c, d] [ADD n :delta]
+    delete      delete_item(Key), optional ConditionExpression in the same form as above
     query       one index, partition key .eq(value), optional range sort from the
                 index name, ScanIndexForward, Limit
 
@@ -268,6 +269,19 @@ class FakeTable:
         updated = _apply_update(UpdateExpression, base, values, names)
         self.rows[key] = updated
         return {"Attributes": dict(updated)} if ReturnValues else {}
+
+    def delete_item(self, Key=None, ConditionExpression=None,
+                    ExpressionAttributeValues=None, ExpressionAttributeNames=None, **_):
+        self.parent.calls.append((self.name, "delete_item"))
+        self._fail_if_armed("delete_item")
+        key = (Key or {})[self.key_attr]
+        existing = self.rows.get(key)
+        if not _evaluate_condition(ConditionExpression, existing,
+                                   ExpressionAttributeValues or {},
+                                   ExpressionAttributeNames or {}):
+            raise FakeClientError("ConditionalCheckFailedException")
+        self.rows.pop(key, None)
+        return {}
 
     def query(self, IndexName=None, KeyConditionExpression=None, Limit=None,
               ScanIndexForward=True, **_):

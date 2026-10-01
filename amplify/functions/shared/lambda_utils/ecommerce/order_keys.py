@@ -808,6 +808,65 @@ def claim_legacy_invoice_payment(table: Any,
     return False, str(existing.get("invoiceIdRef") or "")
 
 
+def release_legacy_invoice_payment_claim(table: Any,
+                                         *,
+                                         payment_id: str,
+                                         invoice_id: str,
+                                         key_attr: str = "orderId") -> bool:
+    """Release a legacy one-time payment claim that settled NO invoice row. Returns True if deleted.
+
+    The companion to `claim_legacy_invoice_payment`. The legacy settle on the Razorpay webhook is a
+    second, independent query against the referenceId GSI run AFTER this claim is taken, so a settle
+    that then no-ops (the row vanished, a duplicate made it ambiguous, or the write errored) would
+    otherwise strand the payment: the irreversible claim is held with no paid row behind it, and no
+    redelivery can ever settle. The caller detects "nothing settled" and calls this to release the
+    claim so a legitimate redelivery can re-claim and re-attempt.
+
+    Money-safety rests on the DELETE being CONDITIONAL, never unconditional:
+
+      * `kind = LEGACY_INVOICE_PAYMENT_CLAIM`  - never remove a commerce `PROVIDER_PAYMENT_CLAIM`
+        that happens to share the `PROVIDERPAYMENT#<payment_id>` namespace. A commerce order claim
+        must stay irrevocable.
+      * `invoiceIdRef = <invoice_id>`          - only release the claim THIS legacy settlement took,
+        not one another worker has since re-bound to a different invoice.
+      * `providerTransactionId = <payment_id>` - belt and braces that the row is for this payment.
+
+    If the row no longer matches (already released, re-bound, or a commerce claim), the conditional
+    delete loses and this returns False - a no-op, which is correct: there is nothing of ours to
+    release. A conditional-check failure is the only tolerated error; anything else raises
+    `OrderIdentityUnavailable` so a throttle is never mistaken for "released".
+
+    The caller invokes this ONLY after confirming no invoice row was settled for this payment, so at
+    release time no invoice is paid anywhere for it: releasing the claim cannot enable a double
+    settle, it only lets the one legitimate settlement happen on a later delivery.
+    """
+    if not payment_id:
+        raise ValueError("payment_id is required")
+    if not invoice_id:
+        raise ValueError("invoice_id is required")
+    key = PROVIDER_PAYMENT_PREFIX + payment_id
+    try:
+        table.delete_item(
+            Key={key_attr: key},
+            ConditionExpression=(
+                "#k = :kind AND invoiceIdRef = :inv AND providerTransactionId = :pid"
+            ),
+            ExpressionAttributeNames={"#k": "kind"},
+            ExpressionAttributeValues={
+                ":kind": "LEGACY_INVOICE_PAYMENT_CLAIM",
+                ":inv": invoice_id,
+                ":pid": payment_id,
+            },
+        )
+        return True
+    except Exception as error:  # noqa: BLE001 - re-raised below unless it is a lost condition
+        if _is_conditional_failure(error):
+            return False
+        raise OrderIdentityUnavailable(
+            "could not release %r: %s" % (key, type(error).__name__)
+        ) from error
+
+
 def reserve_topup_intent(table: Any,
                          *,
                          reference_id: str,

@@ -572,8 +572,9 @@ def _dispatch_download_grant_confirmation(order_id: str, request_id: str) -> Non
 # PAYMENT EVENT HANDLERS
 # ═══════════════════════════════════════════════════════════════════
 
-def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) -> bool:
-    """True only when this reference is a genuine, provider-verified, BOUND legacy invoice.
+def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) -> str:
+    """The claimed invoice id when this reference is a genuine, provider-verified, BOUND legacy
+    invoice; an empty string otherwise.
 
     Legacy invoice-only payments predate the commerce checkout: they have an invoice row keyed by
     referenceId but no PaymentAttempt (so reconcile returns UNKNOWN_REFERENCE). The brief forbids
@@ -602,11 +603,17 @@ def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) 
          payment_id under a different referenceId finds the claim already held and settles nothing.
 
     Only when all of these hold is the invoice-paid / post-payment work allowed to run. Any lookup
-    or verification failure returns False, which routes the capture into quarantine rather than
-    guessing. Never raises.
+    or verification failure returns '' (falsy), which routes the capture into quarantine rather
+    than guessing. Never raises.
+
+    Returns the claimed invoice id (truthy) on success so the caller can reconcile the one-time
+    PROVIDERPAYMENT#<payment_id> claim with the ACTUAL row settlement: the claim is taken here,
+    before `_mark_invoice_paid_by_reference` runs (the two-query design), so if that later settle
+    no-ops the caller releases this claim rather than stranding the payment. See the asymmetry note
+    in `_handle_payment_captured`.
     """
     if not reference_id:
-        return False
+        return ''
     try:
         from lambda_utils.ecommerce import order_keys
         from lambda_utils.ecommerce.money import positive_paise
@@ -624,7 +631,7 @@ def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) 
         items = resp.get('Items', [])
         if not items:
             # No invoice, no attempt: absence is not evidence. Let the caller quarantine it.
-            return False
+            return ''
         if len(items) > 1:
             logger.error(json.dumps({
                 'event': 'legacy_invoice_reference_ambiguous',
@@ -632,7 +639,7 @@ def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) 
                 'stage': 'legacy_verify',
                 'requestId': request_id,
             }))
-            return False
+            return ''
         invoice = items[0]
 
         # The invoice's authoritative total, in integer paise. If it is unparseable OR carries
@@ -641,12 +648,12 @@ def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) 
         try:
             total_minor = Decimal(str(invoice.get('total', 0))) * 100
             if total_minor != total_minor.to_integral_value():
-                return False
+                return ''
             expected_paise = payment_status.paise(total_minor)
         except (ValueError, ArithmeticError, TypeError):
-            return False
+            return ''
         if expected_paise <= 0:
-            return False
+            return ''
 
         # 3a) R2 binding: the invoice MUST carry a stored provider identifier. Without one, amount
         #     equality alone cannot establish that this capture is for this invoice - refuse.
@@ -660,24 +667,24 @@ def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) 
                 'stage': 'legacy_verify',
                 'requestId': request_id,
             }))
-            return False
+            return ''
 
         # 2) Authoritative provider verification. The event body is never trusted: we ask Razorpay
         #    directly for the named payment id and require a captured INR amount that equals the
         #    invoice total to the paise, and we read the capture's provider order id for binding.
         payment_id = str(payment.get('id') or '')
         if not payment_id:
-            return False
+            return ''
         (captured, provider_paise, provider_currency,
          provider_order_id) = razorpay_verify.payment_capture_details(payment_id)
         if not captured:
-            return False
+            return ''
         if str(provider_currency or '') != 'INR':
-            return False
+            return ''
         try:
             provider_paise = positive_paise(provider_paise)
         except ValueError:
-            return False
+            return ''
         if provider_paise != expected_paise:
             # Money moved but not for this invoice's amount. Do not mark it paid; a human decides.
             logger.error(json.dumps({
@@ -686,7 +693,7 @@ def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) 
                 'stage': 'legacy_verify',
                 'requestId': request_id,
             }))
-            return False
+            return ''
 
         # 3b) R2 binding check: the provider-verified capture must belong to the invoice's bound
         #     provider order, or be the invoice's bound payment. The event body is never consulted
@@ -703,16 +710,17 @@ def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) 
                 'stage': 'legacy_verify',
                 'requestId': request_id,
             }))
-            return False
+            return ''
 
         # 4) R2 one-time claim: before any invoice write, claim PROVIDERPAYMENT#<payment_id>. If it
         #    is already held (by a prior settlement or by the commerce path), this payment has
         #    settled - or will settle - something else: refuse and let the caller quarantine. This
         #    is what blocks a replay of the same payment_id under a different referenceId.
         keys_table = dynamodb.Table(order_keys.commerce_keys_table_name())
+        invoice_id = str(invoice.get('invoiceId') or '')
         won, claimed_invoice = order_keys.claim_legacy_invoice_payment(
             keys_table, payment_id=payment_id,
-            invoice_id=str(invoice.get('invoiceId') or ''),
+            invoice_id=invoice_id,
             reference_id=reference_id,
             extra={'source': 'razorpay-webhook-legacy'})
         if not won:
@@ -723,7 +731,7 @@ def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) 
                 'claimedInvoiceId': claimed_invoice or None,
                 'requestId': request_id,
             }))
-            return False
+            return ''
 
         logger.info(json.dumps({
             'event': 'legacy_invoice_verified',
@@ -731,7 +739,9 @@ def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) 
             'stage': 'legacy_verify',
             'requestId': request_id,
         }))
-        return True
+        # Return the claimed invoice id so the caller can release this one-time claim if the
+        # subsequent settle no-ops (the stranded-claim window the review flagged).
+        return invoice_id
     except Exception as exc:  # noqa: BLE001
         # Type only. Provider error bodies and ClientError messages can echo request content.
         logger.warning(json.dumps({
@@ -741,7 +751,51 @@ def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) 
             'error': type(exc).__name__,
             'requestId': request_id,
         }))
-        return False
+        return ''
+
+
+def _release_legacy_invoice_payment_claim(payment_id: str, invoice_id: str,
+                                          request_id: str) -> None:
+    """Release a legacy one-time PROVIDERPAYMENT#<payment_id> claim that settled no invoice row.
+
+    Reconciles the stranded-claim window (review Issue 1): the claim is taken inside
+    `_verified_legacy_invoice` before `_mark_invoice_paid_by_reference` runs, so a settle that then
+    no-ops would otherwise burn the claim with no settled row behind it. Called ONLY on the legacy
+    path and ONLY after that settle reported not-settled, so no invoice is paid for this payment
+    anywhere when this runs.
+
+    The release is a CONDITIONAL delete bound to the row still being THIS payment's legacy claim
+    for THIS invoice (see `order_keys.release_legacy_invoice_payment_claim`), so it can never remove
+    a commerce `PROVIDER_PAYMENT_CLAIM` or a claim another worker already re-bound. After release a
+    legitimate Razorpay redelivery re-claims and re-attempts; if the ambiguity/vanish persists it
+    simply quarantines again (idempotent). Never raises - a release failure is logged by type and
+    the capture is still quarantined by the caller, so the claim is at worst left in place (the old
+    behaviour) rather than making anything worse.
+    """
+    if not payment_id or not invoice_id:
+        return
+    try:
+        from lambda_utils.ecommerce import order_keys
+        keys_table = dynamodb.Table(order_keys.commerce_keys_table_name())
+        released = order_keys.release_legacy_invoice_payment_claim(
+            keys_table, payment_id=payment_id, invoice_id=invoice_id)
+        logger.error(json.dumps({
+            'event': 'legacy_invoice_claim_released_unsettled'
+                     if released else 'legacy_invoice_claim_release_noop',
+            'stage': 'legacy_verify',
+            'paymentId': payment_id,
+            'requestId': request_id,
+        }))
+    except Exception as exc:  # noqa: BLE001
+        # Type only. A ClientError message can echo request content. A failed release leaves the
+        # claim in place (the pre-fix behaviour); it never settles anything.
+        logger.error(json.dumps({
+            'event': 'legacy_invoice_claim_release_failed',
+            'stage': 'legacy_verify',
+            'paymentId': payment_id,
+            'error': type(exc).__name__,
+            'requestId': request_id,
+        }))
 
 
 def _quarantine_unverified_capture(reference_id: str, payment_id: str,
@@ -1032,10 +1086,11 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
     # UNKNOWN_REFERENCE - no PaymentAttempt exists at all, so this may genuinely be a pre-commerce
     # invoice-only payment. Every other outcome (paid-but-blocked, not-paid, unavailable, error,
     # needs-reconciliation) goes straight to durable quarantine and never touches an invoice.
-    legacy_invoice_verified = False
+    legacy_invoice_id = ''
     if reference_id and not verified_paid and outcome_kind == order_creation.UNKNOWN_REFERENCE:
-        legacy_invoice_verified = _verified_legacy_invoice(
+        legacy_invoice_id = _verified_legacy_invoice(
             reference_id, payment, request_id)
+    legacy_invoice_verified = bool(legacy_invoice_id)
 
     financial_success = verified_paid or legacy_invoice_verified
 
@@ -1047,12 +1102,39 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
         _quarantine_unverified_capture(reference_id, payment_id, outcome, request_id)
         return
 
-    # Money is authoritatively ours. Record the captured financial state now, gated on the verdict
-    # rather than on the event body. Preserves the monotonic-rank ConditionExpression semantics.
-    _store_payment_record(payment, 'captured', request_id)
-
-    # ── Direct invoice status update by referenceId (verified paths only) ──
-    _mark_invoice_paid_by_reference(reference_id, request_id, payment_id)
+    # ── Legacy stranded-claim reconciliation (review Issue 1) ──
+    #
+    # On the legacy path the one-time PROVIDERPAYMENT#<payment_id> claim is taken INSIDE
+    # _verified_legacy_invoice, before this settle runs - a two-query design (the verifier reads the
+    # referenceId GSI with Limit=2 and claims; the settle re-queries that GSI independently with
+    # full pagination). If the settle then no-ops - the row vanished, a second row appeared so it is
+    # ambiguous, or the conditional update raised a non-conditional storage error - the irreversible
+    # claim would be burned with NO settled row behind it, stranding a legitimate payment so it can
+    # never settle any invoice afterward, including on a Razorpay redelivery (only a human could
+    # clear it). So on the legacy path we settle FIRST and keep the claim only when a row was
+    # actually marked paid. When nothing settled we RELEASE the claim and quarantine instead.
+    #
+    # This stays money-safe. The release is conditional on the claim still being THIS payment's
+    # LEGACY_INVOICE_PAYMENT_CLAIM for THIS invoice, and it runs only when _mark_invoice_paid_by_
+    # reference reports no settled row - so no invoice is paid for this payment anywhere when we
+    # release. A cross-reference replay still loses the held claim while it is held; a one-payment-
+    # two-invoices (ambiguous) case still settles none. R1/C1 and R2 are untouched: the commerce
+    # path below is unchanged, and the legacy claim/settle ordering only adds a release on failure.
+    if legacy_invoice_verified:
+        if not _mark_invoice_paid_by_reference(reference_id, request_id, payment_id):
+            _release_legacy_invoice_payment_claim(
+                payment_id, legacy_invoice_id, request_id)
+            _quarantine_unverified_capture(reference_id, payment_id, outcome, request_id)
+            return
+        # A legacy invoice row is now settled and the claim is backed by it. Record the captured
+        # financial state.
+        _store_payment_record(payment, 'captured', request_id)
+    else:
+        # Verified commerce path (ORDER_CREATED / ORDER_ALREADY_EXISTS). The authoritative order
+        # already exists via reconcile; the invoice-paid write is a secondary projection. Ordering
+        # and behaviour here are unchanged from before this reconciliation was added.
+        _store_payment_record(payment, 'captured', request_id)
+        _mark_invoice_paid_by_reference(reference_id, request_id, payment_id)
 
     # Post-payment: create invoice, generate image (internal reference only)
     _post_payment_handler(payment_id, amount_rupees, currency, contact, email, description, notes, request_id)
@@ -1674,7 +1756,7 @@ def _store_payment_record(payment: Dict, status: str, request_id: str) -> None:
         logger.error(json.dumps({'event': 'payment_store_error', 'paymentId': payment_id, 'error': str(e), 'requestId': request_id}))
 
 def _mark_invoice_paid_by_reference(reference_id: str, request_id: str,
-                                    payment_id: str = '') -> None:
+                                    payment_id: str = '') -> bool:
     """Settle EXACTLY ONE invoice row for `reference_id`, conditionally, or none when ambiguous.
 
     R2 (single-row conditional settlement). This used to loop over every GSI match and mark each
@@ -1691,9 +1773,17 @@ def _mark_invoice_paid_by_reference(reference_id: str, request_id: str,
 
     When a `payment_id` is supplied (the legacy path), it is stamped onto the settled row as the
     provider transaction that settled it, so the row records which capture paid it.
+
+    Returns True when the referenced invoice is settled (newly marked paid by this call, OR already
+    paid by a concurrent/earlier delivery), and False when NOTHING is settled - no row matched, the
+    match was ambiguous, or a storage error prevented the write. The legacy caller uses this verdict
+    to decide whether the irreversible one-time PROVIDERPAYMENT# claim it took earlier is backed by
+    an actually-settled row; a False here lets it release that claim rather than strand the payment
+    (see `_handle_payment_captured`). This return value must stay truthful about settlement for that
+    reconciliation to be money-safe: never return True unless a paid row exists for this reference.
     """
     if not reference_id:
-        return
+        return False
     try:
         import time as _time
         import datetime
@@ -1728,14 +1818,17 @@ def _mark_invoice_paid_by_reference(reference_id: str, request_id: str,
                 'requestId': request_id,
             }))
             _quarantine_unverified_capture(reference_id, payment_id or '', None, request_id)
-            return
+            return False
 
         if not found:
-            return
+            # No invoice row for this reference. Nothing settled.
+            return False
 
         inv = found[0]
         if inv.get('status') == 'paid':
-            return
+            # Already settled (earlier delivery / concurrent writer). The row IS paid, so this is a
+            # settled outcome - the legacy caller must NOT release its claim.
+            return True
 
         update_names = {
             '#st': 'status', '#ps': 'paymentStatus',
@@ -1769,7 +1862,8 @@ def _mark_invoice_paid_by_reference(reference_id: str, request_id: str,
                     'referenceId': reference_id,
                     'requestId': request_id,
                 }))
-                return
+                # The row is paid, just not by this call. Settled either way.
+                return True
             raise
         logger.info(json.dumps({
             'event': 'invoice_marked_paid_by_webhook',
@@ -1777,6 +1871,7 @@ def _mark_invoice_paid_by_reference(reference_id: str, request_id: str,
             'referenceId': reference_id,
             'requestId': request_id,
         }))
+        return True
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'mark_invoice_paid_error',
@@ -1784,6 +1879,9 @@ def _mark_invoice_paid_by_reference(reference_id: str, request_id: str,
             'error': type(e).__name__,
             'requestId': request_id,
         }))
+        # A storage error means we cannot confirm a row was settled. Report not-settled so the
+        # legacy caller releases its one-time claim rather than stranding the payment.
+        return False
 
 def _mark_invoice_paid_by_phone_and_amount(phone: str, amount_rupees: float,
                                            request_id: str) -> bool:

@@ -3577,7 +3577,15 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
 def _mark_invoice_paid_by_reference(reference_id: str, request_id: str) -> None:
     """Directly update InvoicesTable: set status=paid for the given referenceId.
     This is a safety net so the invoice is always marked paid on capture,
-    regardless of whether the dedup path in create_invoice runs later."""
+    regardless of whether the dedup path in create_invoice runs later.
+
+    RETIRED (2026-10-01 website-only ruling, N1): this financial helper has NO caller on the
+    in-WhatsApp payment-capture path - that branch was retired to a type-only audit record (see
+    `_process_payment_status`). It is kept DEFINED, not deleted, so the env-var/code contract is
+    not silently removed, but it must stay unreachable from any capture path: the single
+    authoritative payment producer is the Razorpay webhook
+    (payments/razorpay-webhook/handler.py), which has its OWN `_mark_invoice_paid_by_reference`.
+    Do not re-wire this one into a money path."""
     if not reference_id:
         return
     try:
@@ -3637,6 +3645,12 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
     After WhatsApp payment captured: create invoice via unified invoice engine.
     Uses wecare-invoice-engine Lambda for proper GST sequencing (WD/FY/NNNNN).
     Also sends the invoice image on WhatsApp automatically.
+
+    RETIRED (2026-10-01 website-only ruling, N1): this financial helper has NO caller on the
+    in-WhatsApp payment-capture path, which was retired to a type-only audit record. Kept DEFINED
+    (not deleted) so the contract is not silently removed, but it must stay unreachable from any
+    capture path. The Razorpay webhook is the single authoritative payment/receipt producer; do
+    not re-wire this into a money path.
     """
     import datetime
     try:
@@ -3879,6 +3893,12 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
     """After a payment is captured, check InvoicesTable for remaining pending dues.
     If found, auto-send the next payment link (sequential pay) and notify user.
     Gated behind whatsapp_auto_next_due (default OFF) to avoid post-payment spam.
+
+    RETIRED (2026-10-01 website-only ruling, N1): this financial-adjacent helper has NO caller on
+    the in-WhatsApp payment-capture path, which was retired to a type-only audit record. Kept
+    DEFINED (not deleted) so the contract is not silently removed, but it must stay unreachable
+    from any capture path. The Razorpay webhook is the single authoritative payment producer; do
+    not re-wire this into a money path.
     """
     if not _auto_next_due_enabled():
         logger.info(json.dumps({'event': 'balance_due_followup_skipped',
