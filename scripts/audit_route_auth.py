@@ -174,6 +174,7 @@ EXPECTED_PUBLIC_ROUTES = {
     # widening this. If a tool that mutates or that costs money per call is ever added,
     # this line must come out and the route must move behind require_auth.
     "ANY /mcp": "read-only MCP server over public content; no auth possible in-protocol",
+    "GET /workspace/mcp/oauth/callback": "provider OAuth callback; exact route, ten-minute principal-bound one-use state and PKCE; no administrative tools exposed",
 }
 
 
