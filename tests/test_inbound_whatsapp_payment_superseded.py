@@ -23,6 +23,7 @@ that previously settled).
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import sys
@@ -30,9 +31,13 @@ import sys
 import pytest
 from unittest.mock import patch
 
+INBOUND_HANDLER_DIR = os.path.join(
+    os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'inbound-whatsapp-handler')
+INBOUND_HANDLER_PATH = os.path.join(INBOUND_HANDLER_DIR, 'handler.py')
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'shared'))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'inbound-whatsapp-handler'))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'inbound-whatsapp-handler', 'modules'))
+sys.path.insert(0, INBOUND_HANDLER_DIR)
+sys.path.insert(0, os.path.join(INBOUND_HANDLER_DIR, 'modules'))
 
 
 REFERENCE_ID = 'WD-PAY-SUPERSEDED-1'
@@ -99,12 +104,34 @@ class _Dynamo:
         return self.tables[name]
 
 
+def _load_inbound_handler():
+    """Load the inbound-whatsapp-handler's handler.py from its absolute path.
+
+    A bare ``import handler`` here is fragile: another test (the FEAT-002 webhook test) also
+    inserts its own razorpay-webhook directory at the front of ``sys.path`` and imports the bare
+    name ``handler``, so collection order could resolve ``handler`` to the WEBHOOK module (which has
+    no ``_process_payment_status``). Evicting any stale ``handler`` from ``sys.modules`` and loading
+    this exact file by path makes the import deterministic regardless of collection order, mirroring
+    ``tests/test_seo_engine.py``'s ``_load`` and the webhook fixture's stale-eviction pattern.
+    """
+    for stale in [m for m in sys.modules if m == 'handler' or m.startswith('handler.')]:
+        del sys.modules[stale]
+    sys.path.insert(0, os.path.join(INBOUND_HANDLER_DIR, 'modules'))
+    sys.path.insert(0, INBOUND_HANDLER_DIR)
+    spec = importlib.util.spec_from_file_location('handler', INBOUND_HANDLER_PATH)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules['handler'] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 @pytest.fixture()
 def handler_env():
     """Import the real handler with boto3 patched, wire a recording DynamoDB, seed an invoice."""
     with patch.dict(os.environ, {'AWS_REGION': 'us-east-1'}):
         with patch('boto3.resource'), patch('boto3.client'):
-            import handler as h
+            h = _load_inbound_handler()
 
     dynamo = _Dynamo()
     # An UNPAID invoice that matches the reference exactly as the fail-open path would have settled.
