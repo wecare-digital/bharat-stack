@@ -15,7 +15,7 @@
 const BRAND = 'WECARE.DIGITAL';
 const BASE = 'https://wecare.digital';
 const AUTHOR = 'Swdhya Vaksetu';
-const AUTHOR_URL = `${BASE}/swdhya`;
+const AUTHOR_URL = `${BASE}/anew/`;
 const LOGO = 'https://wecare.digital/get/o/stream/media/m/wecare-digital.png';
 
 export const PAGE_SEO_SYSTEM_PROMPT = `You are an expert SEO editor specializing in Wix websites. You follow Google's E-E-A-T guidelines and schema.org best practices.
@@ -123,12 +123,30 @@ export interface PageData {
 }
 
 const SITE_PAGES_SAMPLE = [
-  '/', '/bnb', '/bnb-store', '/legal-champ', '/legalchamp-store',
-  '/ritual', '/ritual-store', '/swdhya', '/swdhya-store', '/no-fault',
-  '/nofault-store', '/expoweek', '/star', '/one', '/faq', '/contact',
-  '/legal-stuff', '/privacy', '/careers-plus-culture', '/partner-up',
-  '/enterprise-assist', '/gift-card', '/blog', '/sitemap', '/appointment',
-  '/submit-request', '/track-request', '/selfservice', '/loyalty', '/referral',
+  "/",
+  "/contact",
+  "/blog",
+  "/shop",
+  "/orders",
+  "/grahak-os",
+  "/vayulok",
+  "/bharat-rx",
+  "/elsewhere",
+  "/expo-week",
+  "/dastavez",
+  "/clear-closure",
+  "/ritual-guru",
+  "/anew",
+  "/hunar",
+  "/niji-setu",
+  "/submit-request",
+  "/request-amendment",
+  "/drop-docs",
+  "/vault",
+  "/leave-review",
+  "/refer-and-earn",
+  "/privacy",
+  "/terms"
 ];
 
 export function buildPageUserMessage(page: PageData): string {

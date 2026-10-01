@@ -238,18 +238,35 @@ describe( 'Brand assets', () => {
     expect( icon.src ).toContain( OPAQUE_SQUARE );
   } );
 
-  it( 'points manifest shortcuts at the canonical workspace URLs rather than a redirect', () => {
+  it( 'carries no workspace shortcuts, because this manifest is the PUBLIC web app', () => {
     /*
-     * These were /dashboard, /dm and /contacts - the pre-/workspace/ paths. All three still
-     * resolve, verified live at 301 to /workspace/dashboard/, /workspace/engage/ and
-     * /workspace/contacts/, so this was a hop rather than a break. A launcher shortcut is a
-     * cold start though, and the redirect is a round trip before any HTML arrives. /dm also
+     * SUPERSEDED 2026-10-01. This test used to be
+     * "points manifest shortcuts at the canonical workspace URLs rather than a redirect",
+     * asserting exactly
+     *   [ '/workspace/dashboard/', '/workspace/engage/inbox/', '/workspace/contacts/' ].
+     *
+     * THE ORIGINAL REASONING IS KEPT because it is still correct about what it was about:
+     * those three were /dashboard, /dm and /contacts - the pre-/workspace/ paths. All three
+     * still resolve, verified live at 301 to /workspace/dashboard/, /workspace/engage/ and
+     * /workspace/contacts/, so that change was a hop rather than a break. A launcher shortcut
+     * is a cold start, and the redirect is a round trip before any HTML arrives; /dm also
      * landed on /workspace/engage/ rather than the inbox, so "Messages" opened a section index.
+     * If workspace shortcuts ever belong in a manifest again, that is the shape they take.
+     *
+     * WHAT CHANGED is the question, not the answer. public/manifest.json is the manifest for
+     * the PUBLIC site, served from the export root to every visitor, so these three entries
+     * were the OS long-press menu offered to any customer who installed wecare.digital - three
+     * launcher items straight into the internal staff Cognito login. The whole `shortcuts` key
+     * was removed rather than left as `[]`, because an empty array is a declared-but-empty
+     * menu and a missing key is simply no menu.
+     *
+     * Staff reach the workspace by signing in, which is unchanged. Nothing about authorization
+     * moved here - hiding a launcher entry is not access control.
      */
-    const urls = MANIFEST.shortcuts.map( ( s: { url: string } ) => s.url );
-    expect( urls ).toEqual( [ '/workspace/dashboard/', '/workspace/engage/inbox/', '/workspace/contacts/' ] );
-    // trailingSlash:true - a shortcut without the slash takes another redirect.
-    for ( const url of urls ) expect( url.endsWith( '/' ) ).toBe( true );
+    expect( MANIFEST.shortcuts ).toBeUndefined();
+    const workspaceValues = Object.values( MANIFEST )
+      .filter( ( v ): v is string => typeof v === 'string' && v.startsWith( '/workspace' ) );
+    expect( workspaceValues ).toEqual( [] );
   } );
 
   it( 'leaves the BIMI svg alone, because DNS points at it under p=reject', () => {

@@ -133,3 +133,37 @@ def test_the_historical_snapshot_is_not_advertised_as_a_rollback_target(redirect
     assert "is NOT a" in workflow and "amplify-custom-rules-before-8.4.json" in workflow, (
         "the summary must name the historical snapshot and say it is not a rollback target"
     )
+
+
+def test_owner_policy_preserves_rewrites_without_restoring_legacy_destinations(redirects, tmp_path, monkeypatch):
+    """Legacy redirects disappear; only canonical www and home access remain."""
+    monkeypatch.setattr(redirects, "ROOT", tmp_path)
+    rewrites = [
+        {"source": "/api/<*>", "target": "https://api.example/prod/<*>", "status": "200"},
+        {"source": "/get/<*>", "target": "https://media.example/<*>", "status": "200"},
+        {"source": "/mcp", "target": "https://api.example/prod/mcp", "status": "200"},
+        {"source": "/<*>", "target": "/404.html", "status": "404-200"},
+    ]
+    removals = [
+        {"source": "https://www.wecare.digital", "target": "https://wecare.digital", "status": "301"},
+        {"source": "/swdhya/", "target": "/anew/", "status": "301"},
+        {"source": "/access/<*>", "target": "/workspace/access/<*>", "status": "302"},
+        {"source": "/retired", "target": "/", "status": "404"},
+    ]
+    client = _FakeAmplify()
+    assert redirects.apply(client, removals + rewrites) == 0
+    approved = redirects.desired_redirects()
+    assert client.written == approved + rewrites
+    assert approved[0] == removals[0]
+    assert all(r["target"] == "https://wecare.digital/" for r in approved[1:])
+    assert all("/workspace" not in r["target"] for r in approved)
+    client.written = None
+    assert redirects.apply(client, approved + rewrites) == 0
+    assert client.written is None, "a converged config must not write or recreate aliases"
+
+
+def test_removal_refuses_to_erase_a_missing_page_fallback(redirects, tmp_path, monkeypatch):
+    monkeypatch.setattr(redirects, "ROOT", tmp_path)
+    client = _FakeAmplify()
+    assert redirects.apply(client, LIVE_RULES[:-1]) == 2
+    assert client.written is None

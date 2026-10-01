@@ -89,10 +89,8 @@ interface NavColumn {
 // single-column dropdown roughly 700px tall, past the bottom of a laptop viewport.
 //
 // Trailing slashes are load-bearing on the static pages: next.config.js sets
-// trailingSlash, so /vayulok would redirect before resolving. /access is bare
-// deliberately - it is the authenticated entry point, not an exported public page -
-// but it still needs `match`, or the Sign in row is the only item in this menu that
-// never lights up on its own page.
+// trailingSlash, so /vayulok would redirect before resolving. Staff access belongs
+// inside /workspace/ and is deliberately absent from this public menu.
 //
 // The external entries carry no target, so they open in the SAME tab. That is the
 // default for a plain anchor, so it is the ABSENCE of an attribute doing the work -

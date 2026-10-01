@@ -19,25 +19,5 @@
       "purpose": "any"
     }
   ],
-  "screenshots": [],
-  "shortcuts": [
-    {
-      "name": "Dashboard",
-      "short_name": "Dashboard",
-      "url": "/workspace/dashboard/",
-      "icons": []
-    },
-    {
-      "name": "Messages",
-      "short_name": "Messages",
-      "url": "/workspace/engage/inbox/",
-      "icons": []
-    },
-    {
-      "name": "Contacts",
-      "short_name": "Contacts",
-      "url": "/workspace/contacts/",
-      "icons": []
-    }
-  ]
+  "screenshots": []
 }
