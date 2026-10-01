@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import ShareLinks from '../../components/ShareLinks';
+import BlogContribution from '../../components/BlogContribution';
 import {
   SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SOCIAL_CARD_TYPE, SOCIAL_CARD_ALT, SHARE_CARD_TYPE,
 } from '../../config/share';
@@ -503,6 +504,16 @@ export default function BlogPostPage ( {
               ) ) }
             </nav>
           ) }
+
+          {/* SUPPORT THIS WORK - the Section 5 voluntary-contribution block, placed AFTER the Tags
+              nav and BEFORE the share row so the reading order is content -> Tags -> Contribution
+              -> Share -> pager/related. It is a component (components/BlogContribution.tsx) so the
+              UI, the central-config amounts and the honest-degradation client seam live in one
+              place and are unit-tested in isolation. postId AND slug are passed so a contribution
+              is attributable; the component's heading is an h2, never an h1, so the page keeps its
+              single h1 and htmlcheck's H1-MANY guard is satisfied. It does NOT take the shareRef -
+              that stays on .post-share below, which is the IntersectionObserver reveal sentinel. */}
+          <BlogContribution postId={ post.id } slug={ post.slug } />
 
           {/* SHARE, AT THE END OF THE READING RATHER THAN THE START.
               A share control above the article asks a reader to recommend something they have not
