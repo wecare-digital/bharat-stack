@@ -168,6 +168,16 @@ Dispatch ambiguity stays `dispatch_unknown`; it is never reported as success or
 blindly retried. Status queries inspect only the latest 100 matching workflow runs;
 older runs require an explicit GitHub audit.
 
+## Live activation on 2026-10-01
+
+PR #179 is merged into stack. The CloudFormation stack is deployed successfully,
+and the administrative MCP live alias points to version 1. IAM-signed initialization,
+eight-tool discovery, registry reads and AWS/GitHub SDK reads passed live checks.
+The new server is enabled in local Kiro and Codex configuration; reload each client.
+Meta Social and WhatsApp still require separate cloud browser consent. Code-job
+dispatch remains disabled. See `execution/workspace-mcp-live-20261001.md` for exact
+evidence, remaining verification and the retained proxy path used by local clients.
+
 ## Cost, audit and rollback
 
 No provisioned concurrency, always-on compute, NAT gateway, new AI inference or new

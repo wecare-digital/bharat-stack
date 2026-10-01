@@ -1,5 +1,26 @@
 # Change authority matrix
 
+## 2026-10-01 administrative MCP merge and deployment
+
+- A0_READ: confirmed PR #179 merged and its applicable CI checks passed; rediscovered
+  account, stack absence, API routes and public live alias before deployment.
+- A1_LOCAL: tested the exact merged tree (6022 Python tests passed, one skipped;
+  56 focused tests passed) and rebuilt the reproducible release bundle.
+- A3_PRODUCTION: owner explicitly instructed merge and test. AWS MCP created,
+  reviewed and executed the additive CloudFormation change set merged-d24c0250:
+  17 Add actions, stack CREATE_COMPLETE, new live version 1. Signed live MCP and
+  AWS/GitHub reads passed; authentication, OAuth nonce and tool-policy guards passed.
+  CODE_JOBS_ENABLED remains false and public MCP live remains version 9.
+- A1_LOCAL/A2_REMOTE_CODE: enabled the new local Kiro/Codex server, preserving all
+  other entries and private backups; set the scoped patch read-role repository
+  variable. Recorded sanitized deployment evidence and remaining consent checks.
+
+Evidence: `workspace-mcp-live-20261001.md` and
+`snapshots/workspace-mcp-deployment-20261001.json`. Rollback: disable the new client
+entries; use reviewed additive-stack IaC rollback, preserving retained DDB/KMS;
+restore captured live version 1 for later Lambda releases. No destructive rollback,
+provider sends, payment changes or code-job dispatch occurred.
+
 ## 2026-10-01 administrative MCP feature branch
 
 - A0_READ: rediscovered AWS identity (775261844268/us-east-1), API routes/stage,
