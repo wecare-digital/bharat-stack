@@ -40,7 +40,12 @@ the site was reachable under two hostnames with identical content. That is
 host-canonicalisation loss, not redirect cleanup. Measured before restoring:
 `https://www.wecare.digital/` 200, `https://www.wecare.digital/shop/` 200.
 
-### The live rule array now, in full (9 rules)
+### The rule array at 2026-10-01T08:59:52Z, in full (9 rules) — SUPERSEDED, see §0.1
+
+**This table is the post-apply state of change 2 and nothing later.** It is kept because it is
+the evidence for the `+1 added / −0 removed / 0 reordered` diff below, but a reader who stops
+here gets the wrong array: the live array is **12 rules**, read at 13:15:19Z — see §0.1
+immediately after this table, and §5.5 for how the three extra rules arrived.
 
 | # | source | target | status |
 |---:|---|---|---|
@@ -57,6 +62,34 @@ host-canonicalisation loss, not redirect cleanup. Measured before restoring:
 Applied at **2026-10-01T08:59:52Z** (`2026-10-01T14:29:52+05:30`). Readback confirmed 9 rules,
 first rule the host canonicalisation, last rule the 404-200 fallback, **+1 added / −0 removed /
 0 reordered** (diffed, not assumed).
+
+### 0.1 The live rule array, in full (12 rules) — read 2026-10-01T13:15:19Z
+
+Added in the second convergence pass because the 9-rule table above was stale and was
+contradicted inside this same document by §5.5. Read live with `amplify get-app`, not inferred
+from the provisioner:
+
+| # | source | target | status |
+|---:|---|---|---|
+| 0 | `https://www.wecare.digital` | `https://wecare.digital` | 301 |
+| 1 | `/access` | `https://wecare.digital/` | 302 |
+| 2 | `/access/` | `https://wecare.digital/` | 302 |
+| 3 | `/access/<*>` | `https://wecare.digital/` | 302 |
+| 4 | `/get` | `/get/index.html` | 200 |
+| 5 | `/get/` | `/get/index.html` | 200 |
+| 6 | `/get/<*>` | `https://d1kf2rchz7yras.cloudfront.net/<*>` | 200 |
+| 7 | `/r/<*>` | `https://zllr9lrg7j.execute-api.us-east-1.amazonaws.com/prod/r/<*>` | 200 |
+| 8 | `/api/<*>` | `https://zllr9lrg7j.execute-api.us-east-1.amazonaws.com/prod/<*>` | 200 |
+| 9 | `/mcp` | `…/prod/mcp` | 200 |
+| 10 | `/mcp/` | `…/prod/mcp` | 200 |
+| 11 | `/<*>` | `/404.html` | 404-200 |
+
+The 9 → 12 step is the three `/access` → home 302s emitted by `desired_redirects()`, applied by
+the concurrent session described in §5.5. **This task made exactly one production write** — the
+single rule in change 2 — and that is unchanged by the restatement.
+
+Note what rows 1-3 do to the ordering claim below: they are **redirects sitting ahead of every
+passthrough rewrite**. See the corrected structural-properties paragraph.
 
 ### Propagation, measured — and why one attempt would have given the wrong answer
 
@@ -78,15 +111,34 @@ Recorded because the first reading looked like a failed change and was not one. 
 re-probe-rather-than-conclude rule earning its place rather than being quoted.
 
 Structural properties that hold and are pinned by `tests/test_url_host_routing_rules.py`: no
-rule targets `/workspace/**`; all seven passthrough rewrites precede every redirect; the
-catch-all is last and keeps `404-200`; the host rule's source and target are **bare origins
-with no path**, which is what makes Amplify carry the request path across.
+rule targets `/workspace/**`; **no redirect source equals or prefix-matches a passthrough prefix
+(`/api`, `/get`, `/r/`, `/mcp`), in either direction**; the catch-all is last and keeps
+`404-200`; the host rule's source and target are **bare origins with no path**, which is what
+makes Amplify carry the request path across.
+
+> **CORRECTED 2026-10-01T13:15Z.** The second property read *"all seven passthrough rewrites
+> precede every redirect"*, and that was **false in production** while no gate could see it. The
+> live array (§0.1) has the three `/access` 302s at indexes **1-3, ahead of all seven
+> passthroughs**, because `desired_redirects()` emits redirects first and `apply()` rebuilds the
+> array as `domain + desired_redirects() + middle + catch_all`. The assertion that existed
+> (`test_every_passthrough_precedes_every_redirect`) only ever read the committed **9-rule**
+> `after` snapshot, which contains no path redirect, so it passed while the stated guarantee did
+> not hold. Harmless in fact — no `/access` source overlaps `/api`, `/get`, `/r` or `/mcp` — but
+> the claim and the assertion had diverged, which is the defect. Resolved by stating the
+> property that is actually true, and by asserting it on the **live shape**: that test was
+> renamed `test_in_the_committed_snapshot_every_passthrough_precedes_every_redirect` (rescoped,
+> not deleted) and
+> `test_no_sanctioned_redirect_can_shadow_a_passthrough_in_the_live_shape` now checks the array
+> `apply()` actually writes. Non-overlap is the stronger property anyway: a redirect that cannot
+> match an `/api` request cannot shadow it wherever it sits in the array.
 
 ---
 
 ## 1. The matrix
 
-85 rows, probed by `scripts/probe_url_host_matrix.py`, exit 0. Only the **terminal** status in
+85 rows, probed by `scripts/probe_url_host_matrix.py`, exit 0 — **88 rows as of
+2026-10-01T13:15Z**: +1 for the third `/access` wildcard row (§5.5) and +2 for the two new
+subdomain rows 83a/83b below. Only the **terminal** status in
 a chain is judged: `trailingSlash: true` means an extensionless path always 301s to add the
 slash first, so a first-hop reading calls `/admin` "301, fine" whether the chain ends on a 404
 or on a staff login at 200. Chains are walked with a seen-set, so a loop is a hard failure
@@ -122,7 +174,9 @@ rather than two individually-correct status codes.
 | 80 | `GET /get/o/stream/media/m/wecare-digital.png` | 200 | 200 | unchanged |
 | 81 | `GET /r/zzznotacode` | 302 → `/contact/` | 302 → `/contact/` → 200, one hop | unchanged |
 | 82 | `GET /api/definitely-no-route` | 302 → `/contact/` | same | unchanged — **open finding, §5** |
-| 83 | `https://shop.wecare.digital/` | no address; TLS alert 40 at the CF IP | no TCP connection (status 0) | unchanged — **gap, §4** |
+| 83 | `https://shop.wecare.digital/` | no address; TLS alert 40 at the CF IP | **302 → `https://wecare.digital/`, terminal 200** — re-measured 13:15Z | **gap CLOSED, by the home-fallback workstream, not by this task — §4.1** |
+| 83a | `https://shop.wecare.digital/shop/` | not measured before | **302 → `https://wecare.digital/`, terminal 200 — path DROPPED** | new row; the fallback deliberately discards the path, unlike row 3 — §4.1 |
+| 83b | `https://a.b.wecare.digital/` | not measured before (reported only as "not covered") | **resolves to `3.175.86.x`, TLS refused: no SAN matches — status 0** | **the residual gap, still open — §4.1** |
 | 84 | `https://xout.wecare.digital/` | 404 (Wix) | **302 → `https://wecare.digital/`, terminal 200** — changed later the same day | **INFORMATIONAL** — Wix-owned, out of scope, §4 and §9.3 |
 | 85 | `https://mta-sts.wecare.digital/` | 403 at `/` | 403 | **must not change** — email auth is fail-closed |
 
@@ -247,7 +301,84 @@ targets measured 200 today.
 **So the gap is not a certificate gap. It is an alias/association + DNS gap**, and this task
 did not close it.
 
+> **The table above is the 2026-10-01 morning measurement and three of its five rows are now
+> out of date.** The zone holds 33 record sets including a wildcard, `shop` has an address, and
+> CloudFront no longer refuses the handshake for it. Corrected in §4.1 rather than rewritten in
+> place, because the original reasoning is what explains why the close needed the work it did.
+> The Amplify row is still exactly true: the association still registers only the apex and
+> `www`, which is the point §4.1 turns on.
+
+### 4.1 CORRECTION 2026-10-01T13:15Z — the single-label gap is CLOSED; the second-label gap is not
+
+Written in the second convergence pass, after re-measuring every claim in §4 and in
+OWNER-DECISION ITEM 2 below. **Both halves matter and they have different owners, so they are
+separated rather than reported as one item.**
+
+**Closed: the single-label case.** Measured, not inferred:
+
+| Measurement | Value |
+|---|---|
+| `list-resource-record-sets Z03939753QJGZ6ZD6BXO8` | **33** record sets, including `\052.wecare.digital` **A** and **AAAA**, both ALIAS → `d27evp2npt2kzr.cloudfront.net` |
+| That distribution | CloudFront **`E1ZZ786I3YH65O`**, alias `*.wecare.digital`, `Status: Deployed`, comment *"Redirect unused WECARE subdomains and retired Wix hosts to home"* |
+| `dig +short A shop.wecare.digital` | `3.175.86.69 .46 .32 .99` |
+| `dig +short A zzz-not-a-host.wecare.digital` | same four addresses — any unused single-label name, not just `shop` |
+| `curl -I https://shop.wecare.digital/` | **302**, `location: https://wecare.digital/`, terminal **200** |
+| `curl -I https://shop.wecare.digital/shop/` | **302** → `https://wecare.digital/` — the **path is dropped**, by design |
+| Certificate presented for `shop` | `CN=wecare.digital`, SAN `wecare.digital, *.wecare.digital` — the existing shared cert `f75d0db0-d476-443a-b787-96c4931862d2`, validating normally |
+| `amplify get-domain-association` | still **two** subdomains: one with no `prefix` (branch `stack`) and one `prefix: "www"` |
+
+**The owning workstream is the home fallback, not this task.** `docs/execution/home-fallback-20261001.md`
+records the owner instruction *"unused WECARE subdomains and unknown website links land at
+https://wecare.digital/"*, the `wecare-home-fallback` CloudFormation stack at `CREATE_COMPLETE`,
+Route 53 change `C1002370145M1YU1Y7I7Y` at `INSYNC`, and the later owner correction that deleted
+the newly-issued certificate and reused the existing one. This task made **no** DNS, ACM,
+CloudFront or domain-association change, and was not permitted to.
+
+**Note how it was closed, because it is not what ITEM 2 predicted.** ITEM 2 said the close needed
+*both* an Amplify `update-domain-association` **and** a Route 53 wildcard. It was closed with the
+Route 53 wildcard pointed at a **separate dedicated distribution** instead — which sidesteps
+ITEM 2's stated blast radius entirely: the live domain association serving the canonical home was
+never touched, so it was never at risk of leaving `AVAILABLE`. ITEM 2's warning that step 2
+*without* step 1 would be worse than nothing was correct for the design it described, and does not
+apply to the design that shipped. The resulting behaviour also differs from what ITEM 2 would have
+produced: a wildcard on the Amplify app would have **served the site** under every unused name,
+whereas this returns a 302 to the apex and serves nothing — the better outcome for
+canonicalisation.
+
+**Still open: the second-label case, and the reason is TLS, not DNS.** This is the residual gap
+§4 predicted, and it is still true — but the measured cause is more specific than "has no
+address":
+
+```
+dig +short A a.b.wecare.digital   ->  3.175.86.46 3.175.86.69 3.175.86.99 3.175.86.32
+curl https://a.b.wecare.digital/  ->  curl: (60) SSL: no alternative certificate subject
+                                      name matches target host name 'a.b.wecare.digital'
+```
+
+It **does** resolve: a DNS wildcard matches more than one label (RFC 4592), so
+`*.wecare.digital` answers for `a.b.` too. What does not stretch is the **certificate** —
+`*.wecare.digital` matches exactly one label — so the connection dies at the handshake and
+`curl` reports `http_code 000`. Status `0` in the probe harness, the same code the old
+no-address state produced, for a different reason. Row 83b now pins it with the cause written
+down.
+
+Closing it is unchanged from §4: a **new SAN** on a re-requested certificate, re-associated on
+**both** consumers of `f75d0db0-d476-443a-b787-96c4931862d2` — the Amplify app **and** CloudFront
+`E1SZBXLQ4XNLJ7`, the MTA-STS policy endpoint under `mode: enforce`, where a failure makes senders
+refuse inbound mail. **Outside this task's authority** and not a change to make casually. No
+second-label host is required by any product surface today, so there is nothing waiting on it.
+
+`www.xout.wecare.digital` is the one second-label host that answers, and it answers because it
+keeps its **own Wix TLS endpoint** (`pointing.wixdns.net`) rather than because our certificate
+reaches it — restored deliberately by the home-fallback workstream's final owner correction. It
+301s to `xout`, which 302s to the apex.
+
 ### ⚠️ OWNER-DECISION ITEM 2 — wildcard subdomain coverage, NOT done
+
+> **RESOLVED for single-label hosts, 2026-10-01, by the home-fallback workstream — see §4.1.**
+> Everything below is the state as this task found it and the plan it declined to execute; it is
+> kept because §4.1's "not what ITEM 2 predicted" paragraph only makes sense against it. The
+> residual second-label item remains open and is restated at the end of §4.1.
 
 Making an unused owned subdomain land on home requires **both** of:
 
@@ -280,6 +411,14 @@ and not a change to make casually at any time.
 `www.xout.wecare.digital` → 301 → `xout.wecare.digital` → 404. Repointing them means editing
 hosted-zone records for a legacy Wix surface and registering the hosts on Amplify.
 **Out of scope — reported, not touched.**
+
+> **CORRECTED 2026-10-01T13:15Z.** Both now reach the canonical home, and `xout` is no longer a
+> second-label host from our side: it has an address in our own zone and lands on
+> `E1ZZ786I3YH65O` like any other unused single-label name — measured `302 → https://wecare.digital/`,
+> terminal 200. `www.xout` is the genuinely second-label one; it still terminates through its own
+> Wix TLS endpoint, 301 to `xout`, then 302 to the apex. Repointed by the home-fallback
+> workstream under the owner's instruction, not by this task. §9.3 carries the same correction
+> for the probe row.
 
 `src/pages/404.tsx` already records the client-side half of this correctly and was left
 as-is: a request to a subdomain that does not exist never reaches the application at all. It
@@ -445,6 +584,12 @@ access control, and this work does not touch authorization.
 `src/lib/safeReturnPath.ts` and `src/test/SafeReturnPath.test.ts` are implemented and green.
 `src/pages/account/sign-in.tsx` is owned by the **`src/pages/account/**` workstream** and was
 not touched, so the validator has **no production caller yet**.
+
+> **RE-MEASURED 2026-10-01T13:15Z and STILL OPEN.** `sign-in.tsx:180` still carries the
+> permissive regex; the only references to `safeLocalReturnPath` anywhere in `src/` are inside
+> its own test. `/checkout/` and `/account/` still measure **404**, so ITEM 4 below is still a
+> live precondition on the wiring. Raised to the owner in this pass rather than applied — see
+> §9.4, "Open, and why it is open rather than fixed".
 
 The two gaps it closes are real and were measured against the current regex
 `/^\/[a-zA-Z0-9/_-]*\/?$/`:
@@ -668,3 +813,88 @@ change landing mid-run warrant different responses, and only the second one is t
 The downgrade to `informational=True` still stands, for a reason that survives the correction:
 `xout` is a second-label host OUTSIDE our certificate (`*.wecare.digital` matches one label
 only - see section 4), so its routing is owned elsewhere either way.
+
+**Its EXPECTATION was moved to the measured truth on 2026-10-01T13:15Z**, for the same reason the
+`shop` row was: left at `404` the row reported a permanent `NOTE` on every run, and a note nobody
+acts on is read no more carefully than a permanent `FAIL`. It now expects 200 with terminal
+`https://wecare.digital/` and stays informational, so it reads `ok` today and NOTEs only if the
+Wix-owned `www.xout` endpoint changes.
+
+---
+
+## 9.4 Second convergence pass — 2026-10-01T13:15Z
+
+Run after a review found that two pieces of this document's own verification evidence no longer
+matched live measurement. Every claim below was re-measured, not carried forward.
+
+### What was wrong, and what it is now
+
+| # | Finding | Resolution |
+|---:|---|---|
+| 1 | `scripts/probe_url_host_matrix.py` **exited 1**: `shop.wecare.digital` was pinned at status 0 (the documented no-address gap) but now 302s to the apex. A gate that goes red for a reason nobody acts on stops being read | Expectation **moved to the measured truth** and kept a HARD row, asserted on the terminal URL as well as the status. Two rows added: the path-dropping behaviour, and `a.b.wecare.digital` pinning the residual gap. `mta-sts` stays a hard 403 |
+| 2 | §4 and OWNER-DECISION ITEM 2 **overstated** the subdomain gap — they said the wildcard work was not done | **§4.1** added: the single-label case is closed, with measured evidence and the owning workstream named; the second-label case is still open, with its cause corrected from "no address" to "no certificate covers it" |
+| 3 | §0's "9 rules" table was **stale** and contradicted by §5.5's 12 | §0 table re-titled as the 08:59:52Z post-apply state; **§0.1** holds the live 12-rule array with its own read timestamp |
+| 4 | `src/lib/safeReturnPath.ts` still has **no production caller** | **Still open — raised to the owner, see below.** Re-measured: `sign-in.tsx:180` still carries the permissive regex, and the only references to the module are in its own test |
+| 5 | The "every passthrough precedes every redirect" claim was **false live** and no gate could see it | §0 restated to the non-overlap property that actually holds; the snapshot test rescoped and renamed, and `test_no_sanctioned_redirect_can_shadow_a_passthrough_in_the_live_shape` added to assert it on the array `apply()` writes |
+| 6 | The two provisioner-convergence tests would **fail on a clean checkout of HEAD** without commit `4c603188` | **Already resolved.** `4c603188` is an ancestor of `HEAD` (`83a8d60d`), and `HEAD` equals `origin/stack`. Verified directly against the HEAD-committed provisioner: `desired_redirects()` length **4**, `WWW_CANONICAL emitted: True`, so both tests assert normally rather than skip. No merge, rebase or force push was needed |
+
+### Gates, on the exact tree
+
+| Gate | Result |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run lint` | exit 0 — **0 errors**, 188 warnings, count unmoved from the repo baseline |
+| `npx vitest run` | exit 0 — **48 files, 684 tests passed** |
+| `npm run build` | exit 0 — `out/404/index.html` present (**36,567 bytes**); `out/sitemap.xml` **1,407 `<loc>`**, unchanged |
+| `pytest …routing_rules …rollback_snapshot -q` | **17 passed** (14 → 16 when another session added two provisioner tests, → 17 with the live-shape test added here) |
+| `scripts/probe_url_host_matrix.py --json` | **probed 88, failed 0**, exit 0, **0 informational rows drifted** (86 → 88: the two new subdomain rows) |
+| `scripts/retired_url_probe.py` | exit 0 — the `www` row reads `OK-redirect`, 301 to the apex |
+| `scripts/provision_legacy_redirects.py` / `--verify` | exit **0** / exit **0** — `12 rules; 4 redirects to reconcile`, `Verified: only approved home/access redirects remain` |
+| `git diff --stat _routes.json` | empty — byte-identical |
+
+### Independently re-measured with `curl`, not through the harness
+
+So that a bug in this task's own probe could not vouch for itself:
+
+`POST /api/razorpay-webhook` **401** · `POST /api/auth/validate` **401** ·
+`POST /api/payments/webhook` **404** · `GET /api/webhook/sinch-rcs` **200** ·
+`GET /mcp` **405** · `POST /mcp` **400** ·
+`GET /get/o/stream/media/m/wecare-digital.png` **200** ·
+`GET /definitely-not-a-page/` **404** carrying `"page":"/404"` and
+`name="robots" content="noindex, follow"` ·
+`https://www.wecare.digital/shop/` **301 → `https://wecare.digital/shop/`**, terminal **200**,
+path preserved · `/workspace/` **200** with the Authenticator shell (`data-amplify` and
+`amplify-authenticator` both present) · `/account/sign-in/` **200** ·
+`/shop/ /cart/ /orders/ /blog/ /404/ /` all **200**.
+
+### Open, and why it is open rather than fixed
+
+**The return-path validator still has no production caller** (§7). Re-measured here:
+`src/pages/account/sign-in.tsx:180` is still
+`/^\/[a-zA-Z0-9\/_-]*\/?$/`, which accepts `//evil` (protocol-relative — the browser reads
+`evil` as the host) and `/workspace/access` (a customer sent to the staff login). The live gap is
+real.
+
+It was **not** closed here for two independent reasons, and only the first is a boundary:
+
+1. The wiring is one line in `src/pages/account/sign-in.tsx`, which is owned by the
+   `src/pages/account/**` workstream and is outside this task's permitted paths.
+2. It cannot be applied correctly yet anyway. **OWNER-DECISION ITEM 4 is a precondition**, not a
+   footnote: `/checkout/` and `/account/` are on the validator's allowlist and both measure
+   **404** today (re-confirmed in this pass). Wiring it first would start routing a signed-in
+   customer to a missing page, which is a worse customer outcome than the open-redirect shape it
+   closes — and the two candidate resolutions (narrow `ALLOWED`, or ship the two pages) are both
+   product decisions.
+
+Raised to the owner rather than decided unilaterally. `src/test/SafeReturnPath.test.ts` holds a
+test that **fails the moment a production caller appears**, so the precondition cannot be skipped
+by accident.
+
+### Scope
+
+No DNS record, ACM certificate, CloudFront distribution, domain association, WAF or Security Hub
+setting was created, modified or deleted in this pass. **No production write of any kind was
+made** — the only AWS calls were reads (`amplify get-app`, `amplify get-domain-association`,
+`route53 list-resource-record-sets`, `cloudfront list-distributions`) plus public HTTP probes. No
+secret was read and no credential appears in any command or in this record. `_routes.json` and the
+`/<*>` → `/404.html` catch-all are untouched.

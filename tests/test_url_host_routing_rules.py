@@ -182,13 +182,30 @@ def test_none_of_the_fifteen_superseded_prefixes_has_a_rule_at_all(after):
 
 # ─────────────────────── invariant 2: passthrough before every redirect ───────────────────────
 
-def test_every_passthrough_precedes_every_redirect(after):
-    """Ordering, not presence, is the guarantee - Amplify evaluates top-down.
+def test_in_the_committed_snapshot_every_passthrough_precedes_every_redirect(after):
+    """Ordering within the COMMITTED 9-rule snapshot. Deliberately not a claim about live.
 
-    With the removal there is exactly one redirect left and it is a HOST rule, so this
-    holds trivially today. It is asserted anyway because it stops being trivial the moment
-    anyone adds a path redirect back, and the failure mode it guards is a silently
-    shadowed payment webhook rather than a visible error.
+    With the owner's removal there was exactly one redirect left and it was a HOST rule, so
+    this held trivially when written. It is asserted anyway because it stops being trivial
+    the moment anyone adds a path redirect back, and the failure mode it guards is a
+    silently shadowed payment webhook rather than a visible error.
+
+    RENAMED AND RESCOPED 2026-10-01T13:15Z (second convergence pass), because the blanket
+    claim was FALSE in production and nothing could see it. The live array read from
+    `amplify get-app` is 12 rules, and the three sanctioned `/access` -> home 302s sit at
+    indexes **1-3, ahead of all seven passthrough rewrites**. The ordering guarantee stated
+    in section 0 of `docs/execution/url-host-matrix-20261001.md` and the one asserted here
+    had therefore diverged: this test only ever read the committed 9-rule `after` snapshot,
+    which has no path redirect in it, so it passed while the stated property did not hold.
+
+    Harmless in fact - no `/access` source equals or prefix-matches `/api`, `/get`, `/r` or
+    `/mcp` - but "harmless in fact" is the property that actually holds, and it is now
+    asserted as such for the LIVE shape by
+    `test_no_sanctioned_redirect_can_shadow_a_passthrough_in_the_live_shape` below. The
+    document was corrected to state the non-overlap property instead of the ordering one.
+    The snapshot assertion is kept rather than deleted: it is still the right check for the
+    array it reads, and it is the pair of this file's structural invariants that catches a
+    future snapshot regrowing a path redirect.
     """
     passthrough_indices = [i for i, rule in enumerate(after) if _is_passthrough(rule)]
     assert len(passthrough_indices) == 7, (
@@ -216,6 +233,60 @@ def test_no_rule_source_could_ever_shadow_a_passthrough(after):
             f"redirect {source} overlaps a passthrough prefix - provider webhooks are "
             f"delivered through /api/<*> and a shadowing rule is a payment outage"
         )
+
+
+def test_no_sanctioned_redirect_can_shadow_a_passthrough_in_the_live_shape(
+    redirects, after, tmp_path, monkeypatch,
+):
+    """The property that is actually true of the LIVE array, asserted on the live shape.
+
+    Added 2026-10-01T13:15Z, because the ordering claim this file used to make about the
+    live array was false (see
+    `test_in_the_committed_snapshot_every_passthrough_precedes_every_redirect`). Live read:
+    12 rules, with the three `/access` -> home 302s at indexes 1-3 ahead of every
+    passthrough rewrite. Ordering is therefore NOT the guarantee. Non-overlap is, and it is
+    the stronger one anyway: a redirect that cannot match an `/api`, `/get`, `/r` or `/mcp`
+    request cannot shadow it no matter where in the array it sits.
+
+    Asserted against the array `apply()` actually writes rather than against a snapshot, so
+    it covers the shape that reaches production. `desired_redirects()` is the config-as-code
+    source of every redirect in that array, which is what makes this check total rather than
+    a sample: a redirect cannot reach the live array without passing through here.
+
+    This does not make the sibling snapshot test redundant - that one reads a committed
+    artefact, this one reads generated config, and the two can drift apart.
+    """
+    _require_converged_provisioner(redirects.desired_redirects())
+    monkeypatch.setattr(redirects, "ROOT", tmp_path)
+    client = _CapturingAmplify()
+    assert redirects.apply(client, [dict(rule) for rule in after]) == 0
+    assert client.written is not None, "apply() should have written"
+
+    passthrough_sources = {
+        str(rule.get("source", "")) for rule in client.written if _is_passthrough(rule)
+    }
+    assert passthrough_sources, "the rebuilt array must still contain passthrough rewrites"
+
+    for rule in client.written:
+        source = str(rule.get("source", ""))
+        if not _is_redirect(rule) or not source.startswith("/"):
+            continue  # the host rule's source is an origin, not a path; it cannot match one
+        if source == CATCH_ALL["source"]:
+            continue  # the /<*> catch-all is a 404-family status, evaluated after file lookup
+        assert not source.startswith(PASSTHROUGH_PREFIXES), (
+            f"redirect {source} overlaps a passthrough prefix - provider webhooks are "
+            f"delivered through /api/<*> and a shadowing rule is a payment outage"
+        )
+        # The reverse direction too: `/acc<*>` would not START WITH a passthrough prefix but
+        # a passthrough could still fall under it. An empty stem would match everything, so it
+        # is rejected outright rather than silently passing the loop below.
+        stem = source.removesuffix("<*>").rstrip("/")
+        assert stem, f"a redirect source that reduces to the whole site cannot be sanctioned: {source}"
+        for passthrough in passthrough_sources:
+            assert not passthrough.startswith(stem), (
+                f"redirect {source} is a prefix of passthrough {passthrough} - it would "
+                f"shadow it regardless of array order"
+            )
 
 
 # ─────────────────────────── invariant 3: the catch-all is last and is a 404 ───────────────────────────
