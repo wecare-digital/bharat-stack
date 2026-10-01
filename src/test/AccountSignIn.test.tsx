@@ -286,19 +286,26 @@ describe( 'the error copy is the owner\'s table and nothing else', () => {
     expect( container.textContent || '' ).not.toContain( 'Use a WhatsApp number.' );
   } );
 
-  it( 'refuses a number with no country code instead of assuming India', async () => {
+  it( 'never infers India for bare digits - the selected code decides', async () => {
     /*
-     * THE WHOLE REASON THE COMBINED FIELD STILL DEMANDS A "+". customerAuth.normaliseMobile()
-     * infers +91 for any ten digits starting 6-9 - right for the main market, wrong for everyone
-     * else - so a shopper in Dubai typing ten national digits would otherwise be signed in as a
-     * non-existent Indian customer with no way to see why. Bare digits are refused here, before
-     * requestOtp is ever called.
+     * THE GUARANTEE THAT OUTLIVED TWO REDESIGNS OF THIS FIELD. customerAuth.normaliseMobile() infers
+     * +91 for any ten digits starting 6-9 - right for the main market, wrong for everyone else - so a
+     * shopper in Dubai typing ten national digits could be signed in as a non-existent Indian
+     * customer with no way to see why.
+     *
+     * The earlier single-input field defended that by REFUSING bare digits ("Include your country
+     * code, like +91."). The divided field defends it by construction: a code is always selected, so
+     * bare digits are composed against the SELECTION. Asserted the strong way round - with +971
+     * chosen, the +91 form must never reach the gateway.
      */
-    const requestOtp = vi.spyOn( customerAuth, 'requestOtp' );
+    const requestOtp = vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
+      session: 'sess-D', destination: '+971 ******3210', registered: true,
+    } as Awaited<ReturnType<typeof customerAuth.requestOtp>> );
     render( <SignIn /> );
+    fireEvent.change( screen.getByLabelText( 'Country code' ), { target: { value: '+971' } } );
     await enterPhone( '9876543210' );
-    expect( screen.getByText( 'Include your country code, like +91.' ) ).toBeTruthy();
-    expect( requestOtp ).not.toHaveBeenCalled();
+    await waitFor( () => expect( requestOtp ).toHaveBeenCalledWith( '+9719876543210' ) );
+    expect( requestOtp ).not.toHaveBeenCalledWith( '+919876543210' );
   } );
 
   it( 'accepts 00 as the international prefix, not just +', async () => {
@@ -312,10 +319,18 @@ describe( 'the error copy is the owner\'s table and nothing else', () => {
     await waitFor( () => expect( requestOtp ).toHaveBeenCalledWith( '+919876543210' ) );
   } );
 
-  it( 'prefills the field so the expected shape is visible', () => {
-    // A default the shopper can see and edit, which is not the same as inferring a country.
+  it( 'shows the default country code rather than inferring one', () => {
+    /*
+     * A DEFAULT THE SHOPPER CAN SEE AND CHANGE, which is not the same as inferring a country - that
+     * distinction is the entire reason this control is shaped the way it is.
+     *
+     * This replaces an assertion that the number box was prefilled "+91 ". The prefill existed to
+     * make the required shape visible when the shopper had to type the code themselves; the code
+     * segment shows it directly now, so the number box starts empty and nobody edits around a prefix.
+     */
     render( <SignIn /> );
-    expect( ( screen.getByLabelText( 'WhatsApp number' ) as HTMLInputElement ).value ).toBe( '+91 ' );
+    expect( ( screen.getByLabelText( 'Country code' ) as HTMLSelectElement ).value ).toBe( '+91' );
+    expect( ( screen.getByLabelText( 'WhatsApp number' ) as HTMLInputElement ).value ).toBe( '' );
   } );
 
   it( 'does not leak whether the number is already registered', async () => {
