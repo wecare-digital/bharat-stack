@@ -82,6 +82,20 @@ PRESERVED = [
     ('+91 93309-94400', '+919330994400'),
     # The trunk-zero rule, which applies to 91 and to nothing else.
     ('+91 09330994400', '+919330994400'),
+    # Non-breaking spaces (U+00A0), which a paste from a formatted document carries. These pin
+    # that a non-ASCII separator is tolerated at all, on both implementations.
+    #
+    # Read what they do NOT prove, so nobody mistakes them for the drift guard they look like:
+    # a row in this table cannot see a separator-predicate divergence. The canonical function
+    # compacts with `[\s\-().]`; the standalone trigger cannot import it and spells the same
+    # test as `not ch.isspace()` (identical on every one of the 0x110000 codepoints). An
+    # explicit `" \t"` set - which the trigger carried first - is NOT identical, yet it still
+    # produces `6591234567` for both rows below, because the trailing `isdigit()` filter
+    # discards whatever the compaction left behind. The divergence only becomes visible when
+    # the surviving character changes a BRANCH decision, which is the leading-zero check, so it
+    # is pinned by `test_the_two_implementations_agree_on_refusal_too` instead.
+    ('+65\u00a09123\u00a04567', '+6591234567'),
+    ('00\u00a065 9123 4567', '+6591234567'),
     # NOT an oversight. We do not know the United Kingdom's trunk convention and will not
     # invent one, so the stray national `0` is carried through and the provider rejects the
     # number. A visible failure the customer can correct beats a silent misdelivery.
@@ -424,7 +438,13 @@ def test_the_masked_destination_carries_no_invented_country_code(trigger):
     masked = trigger._mask_phone('+6591234567')
     assert masked.endswith('4567')
     assert not masked.lstrip('*').startswith('91')
-    assert '91' not in masked.replace('*', '')[:-4] or masked.replace('*', '') == '4567'
+    # The length is the load-bearing assertion, because the mask hides the digits that would
+    # otherwise reveal the corruption. `+6591234567` is 10 digits, so 6 stars and 4 visible.
+    # The defect produced `916591234567` - 12 digits, 8 stars - so a wrong country code shows
+    # up here as two extra characters and nothing else. Asserting on the unmasked prefix
+    # cannot work: `masked.replace('*', '')` is the last four by construction.
+    assert len(masked) == 10, masked
+    assert masked == '******4567'
 
 
 @pytest.mark.parametrize('raw,expected', PRESERVED)
@@ -435,6 +455,29 @@ def test_the_two_implementations_do_not_drift(trigger, raw, expected):
     """
     assert trigger._normalise_phone(raw) == \
         customer.normalize_phone_preserving_country(raw).lstrip('+')
+
+
+@pytest.mark.parametrize('raw', [
+    '+\u00a00065 9123 4567',
+    '+\u00a009330994400',
+    '\u00a0+65\u00a0(9123)\u00a04567\u00a0',
+])
+def test_the_two_implementations_agree_on_refusal_too(trigger, raw):
+    """Agreeing on the accepted rows is not enough: they have to agree on the refused ones.
+
+    These inputs are the ones that exposed the divergence. A non-breaking space sitting between
+    the marker and the first digit survives an ASCII-only separator filter, so the leading zeros
+    stay attached and the trigger would accept a number the canonical door refuses - and the
+    value it accepted would be the OTP destination. Parametrised on refusal rather than folded
+    into `PRESERVED`, because the third row is accepted by both and the first two by neither.
+    """
+    try:
+        expected = customer.normalize_phone_preserving_country(raw).lstrip('+')
+    except ValueError:
+        with pytest.raises(ValueError):
+            trigger._normalise_phone(raw)
+    else:
+        assert trigger._normalise_phone(raw) == expected
 
 
 def test_the_trigger_still_imports_nothing_from_lambda_utils():
@@ -547,8 +590,6 @@ TOUCHED_SOURCES = [
 FORBIDDEN_IN_LOGS = ('e164', 'raw_phone', 'phone_number', 'pepper', 'otp',
                      'secret', 'password', 'answer', 'throttle_subject')
 
-_LOG_CALL_RE = re.compile(r'^(logger\.|print$|print\(|log\.)')
-
 
 def _source_id(path: Path) -> str:
     """`auth/email-verification/handler.py` rather than `handler.py`. Three of the six sources
@@ -613,10 +654,21 @@ def test_no_full_phone_number_reaches_a_registration_response_body(table):
         assert '9123' not in rendered
 
 
-def test_the_masked_destination_is_the_only_phone_shape_the_trigger_publishes(trigger):
+def test_the_masked_destination_is_the_only_phone_shape_the_trigger_publishes(
+        trigger, monkeypatch):
     """The browser is shown a masked destination so a mistyped number is correctable, and
     nothing more. Last four only - do not widen it; a full number in a response is a
-    disclosure."""
+    disclosure.
+
+    `monkeypatch`, not direct attribute assignment. The `trigger` fixture is `scope='module'`,
+    so a bare `trigger._send_otp = ...` is never undone and leaks into every later test that
+    takes the fixture. This happens to be the last test in the file today, which makes the
+    leak invisible rather than absent - under `pytest-randomly` or any reordering it would
+    silently stub out the send path for the drift-agreement tests above and they would still
+    pass.
+    """
+    monkeypatch.setattr(trigger, '_consume_send_budget', lambda *_a, **_k: None)
+    monkeypatch.setattr(trigger, '_send_otp', lambda *_a, **_k: None)
     event = {
         'triggerSource': 'CreateAuthChallenge_Authentication',
         'request': {'userAttributes': {'phone_number': '+6591234567',
@@ -624,8 +676,6 @@ def test_the_masked_destination_is_the_only_phone_shape_the_trigger_publishes(tr
                     'session': []},
         'response': {},
     }
-    trigger._consume_send_budget = lambda *_a, **_k: None
-    trigger._send_otp = lambda *_a, **_k: None
     result = trigger.handler(event, None)
     destination = result['response']['publicChallengeParameters']['destination']
 

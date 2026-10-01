@@ -192,7 +192,17 @@ def _normalise_phone(phone: str) -> str:
     text = str(phone or "").strip()
     # Separators only. The `+` and the `00` must survive this step - removing them first is
     # exactly the bug.
-    compact = "".join(ch for ch in text if ch not in " \t-().")
+    #
+    # `not ch.isspace()` rather than an explicit `" \t"` set, because the canonical
+    # implementation compacts with `re.sub(r"[\s\-().]", "", text)` and `\s` matches every
+    # codepoint for which `str.isspace()` is true - verified exhaustively across all
+    # 0x110000 codepoints, zero disagreements. An explicit ASCII set would diverge on a
+    # non-breaking space (U+00A0): the canonical function would keep it, see `rest` starting
+    # with a literal space-then-zero and reject, while this copy would drop nothing and read
+    # the leading zeros as part of the number. That divergence lands on the OTP destination,
+    # so the two predicates have to be the same predicate, not two spellings that happen to
+    # agree on the current test table.
+    compact = "".join(ch for ch in text if not ch.isspace() and ch not in "-().")
 
     if compact.startswith("+"):
         rest = compact[1:]

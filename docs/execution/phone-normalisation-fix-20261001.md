@@ -6,13 +6,23 @@ is a production IAM change on a role 62 Lambda functions depend on.
 
 | # | Finding | Status |
 |---|---|---|
-| 1 | `normalize_phone` prepended the India country code to an already-complete foreign number | ✅ COMPLETE |
-| 2 | Session and OTP responses carried no `Cache-Control` | ✅ COMPLETE (two handlers) · ⏳ PENDING (one deployed handler not in this tree) |
+| 1 | `normalize_phone` prepended the India country code to an already-complete foreign number | ✅ COMPLETE in source · ⚠️ the live trigger (version 11) predates the iteration-2 separator fix |
+| 2 | Session and OTP responses carried no `Cache-Control` | ✅ COMPLETE (two handlers, source-only — neither function exists in the account) · ✅ COMPLETE and **live** for `wecare-customer-session`, closed by another workstream |
 | 3 | `wecare-digital-lambda-role` grants `UpdateItem`/`DeleteItem` on the customer session table to 62 functions | ⚠️ NEEDS CONFIRMATION — severity HIGH, **no IAM write attempted** |
 
-**No deploy was performed.** No `update-function-code`, no version publish, no alias move. The live
-`wecare-customer-whatsapp-auth` and `wecare-customer-session` functions stay on their current code.
-Every AWS interaction recorded here is a read.
+> **CORRECTION, 2026-10-01 (review iteration 2).** This section previously read "**No deploy was
+> performed.** No `update-function-code`, no version publish, no alias move. The live
+> `wecare-customer-whatsapp-auth` and `wecare-customer-session` functions stay on their current
+> code." **Every one of those claims is false**, and so was "Not pushed" below. Three functions
+> were deployed and two `live` aliases moved while this task was being committed. The measured
+> state is in [§ What actually reached production](#what-actually-reached-production). The
+> original sentence is kept here rather than deleted, because a doc that silently corrects itself
+> teaches nobody why it was wrong: the task was *scoped* source-only and the author reported the
+> scope instead of measuring the account. **Nothing has been deployed or rolled back to make the
+> original sentence true.**
+
+Every AWS interaction performed *by this task* is a read. That is not the same as "nothing was
+deployed" — see below.
 
 **Phone numbers in this document are masked to the last four digits**, per the repo's logging rule.
 The complete case tables live in `tests/test_phone_country_code_preservation.py`, where they are test
@@ -21,9 +31,137 @@ the count is stated instead of the digits.
 
 ---
 
+## What actually reached production
+
+Measured 2026-10-01 by `GetFunctionConfiguration` + `ListVersionsByFunction` + `GetAlias` on each
+function, and attributed with `cloudtrail lookup-events` on `UpdateFunctionCode20150331v2`,
+`PublishVersion20150331` and `UpdateAlias20150331` over 2026-10-01. Reads only; nothing in this
+section was performed by this task.
+
+### The deploys
+
+| Time (UTC) | Function | Principal | Became |
+|---|---|---|---|
+| 14:16:00 | `wecare-seo-tools` | `GitHubActions-bharat-stack-seo-tools` (CI OIDC) | `$LATEST` |
+| 14:34:59 | `wecare-customer-whatsapp-auth` | `iam::775261844268:user/wecare-admin` | version **11** |
+| 14:35:10 | `wecare-customer-session` | `iam::775261844268:user/wecare-admin` | version **4** |
+| 14:37:45 | `wecare-seo-tools` | `GitHubActions-bharat-stack-seo-tools` (CI OIDC) | `$LATEST` (current) |
+
+### The alias moves
+
+| Time (UTC) | Alias | From | To |
+|---|---|---|---|
+| 14:35:16 | `wecare-customer-session:live` | 3 | **4** |
+| 14:36:08 | `wecare-customer-whatsapp-auth:live` | 10 | **11** |
+
+### How the whatsapp-auth deploy was attributed to *this* change
+
+Not inferred from the timestamp. `wecare-customer-whatsapp-auth` is packaged `standalone=True`, so
+its zip is exactly one deterministic member (`handler.py`, `ZIP_DATE = (2026, 1, 1, 0, 0, 0)`,
+`external_attr 0o644 << 16`, `ZIP_DEFLATED`). Rebuilding that zip from git and hashing it
+reproduces the live digests exactly:
+
+| Source of `handler.py` | Reconstructed `CodeSha256` | Live version |
+|---|---|---|
+| `456b5716~1` (pre-fix) | `EHPLBO9iwjT++WhFi/3HsZ1wWSgsTYc3+rJAaMqfnSo=` | version **10** |
+| `b1833c22` (post-fix, committed) | `WmCx1537bzzjOOMrSUA+wbvbrFPY90IKIdjyIQ/KEKM=` | version **11**, `$LATEST`, `live` |
+
+The `PublishVersion` call at 14:35:40Z carries `codeSha256 WmCx1537…` with the description
+`Checkout country preservation and no-cache response guards 2026-10-01`, which names this change
+outright. So the attribution rests on a byte-exact digest match *and* an operator-written
+description, not on proximity in time.
+
+`wecare-customer-session` version 4 came from the concurrent workstream's commit `6ed1426b`
+("Stop the new customer-session handler leaking a cacheable CSRF token"), a parent of merge
+`805c7517`. That handler calls `sessions.harden_session_headers(result['headers'])` at two return
+paths — so the helper Finding 2 added here was consumed and deployed by another session, which is
+why it is live despite this task never invoking it.
+
+### Rollback targets — recorded late, which is itself the gap
+
+`01-standing-authorization.md` gates an `A3_PRODUCTION` alias move on "rollback version captured
+first". No rollback version was captured for either function, because the author believed no alias
+had moved. Recorded now:
+
+| Function | Pre-change `live` | Pre-change `CodeSha256` | Restore with |
+|---|---|---|---|
+| `wecare-customer-whatsapp-auth` | **10** | `EHPLBO9iwjT++WhFi/3HsZ1wWSgsTYc3+rJAaMqfnSo=` | `aws lambda update-alias --function-name wecare-customer-whatsapp-auth --name live --function-version 10 --region us-east-1` |
+| `wecare-customer-session` | **3** | `IpQUxkbBSRNepaEJzZObaNGocoB7440gm1tLfEBJhho=` | `aws lambda update-alias --function-name wecare-customer-session --name live --function-version 3 --region us-east-1` |
+
+**Moving the alias is the operative step, not `update-function-code`.** The Cognito user pool
+invokes `…:function:wecare-customer-whatsapp-auth:live`, so `$LATEST` is not what signs in a
+customer; version 11 began serving at 14:36:08Z when the alias moved, not at 14:34:59Z when the
+code uploaded. A rollback that only reverts source changes nothing in production.
+
+### Live blast radius, stated honestly
+
+The trigger is **stricter** in production than it was. Two reasons that is survivable, and one that
+is not comfortable:
+
+- **Nobody is locked out.** Every existing pool user was provisioned by `normalize_phone`, which
+  always emits a leading `+`. The new marker requirement therefore matches every stored
+  `phone_number` attribute, and the strict path refuses only input that never reached the pool.
+- **The digit floor widened, it did not narrow.** `8 <= len <= 15` replaced `10 <= len <= 15`, so
+  the change admits more values rather than fewer, on a pool with
+  `AdminCreateUserConfig.AllowAdminCreateUserOnly`.
+- **⚠️ The coupling argument in `plan.md` §0.4 is now inverted.** That section argued the trigger
+  fix and the registration-door fix "must land together", because fixing registration alone would
+  make the trigger's latent defect live. What actually happened is the reverse: the **trigger is
+  deployed and strict**, while the registration door is **not deployed at all** —
+  `wecare-customer-registration` and `wecare-email-verification` both return
+  `ResourceNotFoundException`. That is the safe half of the asymmetry (a strict destination cannot
+  misdeliver), but the argument's premise no longer describes production and should not be quoted
+  as if it did.
+
+### ⏳ PENDING — the live trigger does not carry the review-iteration-2 fix
+
+The separator-predicate correction below (`not ch.isspace()`, see
+[Finding 1 › the two implementations](#two-implementations-and-why-the-duplication-is-correct)) is
+**source only**. The same reconstruction method gives:
+
+| Source | `CodeSha256` | Deployed as |
+|---|---|---|
+| working tree, iteration-2 fix applied | `wYKP21XLw7GL0TIZQ9jlOnfUr0Q8KijwE5bO3YZ7TM0=` | **nothing** |
+
+So live version 11 carries the ASCII-only separator set. The exposure is narrow — it needs a
+non-ASCII space between the marker and a leading zero in a stored Cognito `phone_number`, which no
+current pool value has, since all were written through `normalize_phone` — but it is a real
+divergence between this tree and the running function, and it is not this task's to deploy.
+
+### The rule this establishes, for `lambda-snapstart-deploy.md`
+
+`.github/workflows/seo-tools-deploy.yml` lists `amplify/functions/shared/lambda_utils/**` among its
+`push: branches: [stack]` path filters, and its deploy job packages
+`(shared/lambda_utils).glob('*.py')` before calling `update-function-code` on `wecare-seo-tools`.
+That function has **no `live` alias**, so `$LATEST` serves immediately.
+
+This change edited `lambda_utils/customer_session.py` — a top-level `*.py`, inside the glob — so
+the push that carried these commits deployed it. Run `36874922132` (head_sha `805c7517`) reached
+AWS at 14:16:00Z and failed only at the later live-Wix verification step, well after the deploy
+step succeeded. Run `36877743960` (head_sha `e455c87e`) deployed again at 14:37:45Z and is what
+`$LATEST` carries today, `CHw4cX6xTz0Kc36gW7zv5Kd6kokHStawGZwRA6NKxBU=`.
+
+**The general rule: a task scoped "source only" stops being source-only the moment a top-level
+`amplify/functions/shared/lambda_utils/*.py` edit reaches `origin/stack`**, because that path is a
+push trigger on a workflow that deploys an unaliased function. Note the precise boundary — the
+glob is `*.py`, not `**/*.py`, so this task's `identity/customer.py` and `identity/registration.py`
+edits did *not* travel this way; only `customer_session.py` did.
+
+`lambda-snapstart-deploy.md` documents only the manual publish-and-move path and does not mention
+this CI path at all. Flagged for that file: a contributor reading it today would conclude, as this
+doc originally did, that not running a deploy script means not deploying.
+
+---
+
 ## Finding 1 — the India default was applied to numbers that already had a country code
 
-Commit `456b5716` on `stack`, 7 files, +870/-19. Not pushed.
+Commit `456b5716` on `stack`, 7 files, +870/-19.
+
+> **CORRECTION.** This line read "Not pushed." Both `456b5716` and `f8a73fb0` are ancestors of
+> `origin/stack`, carried there inside merge `805c7517` ("Merge remote-tracking branch
+> 'origin/stack' into stack") pushed by a concurrent session. Verified with
+> `git merge-base --is-ancestor <sha> origin/stack` — both return 0. This task did not push; the
+> index and the branch are shared, and another session's push took these commits with it.
 
 ### What the defect was
 
@@ -128,6 +266,36 @@ One deliberate divergence from the plan at that site: the trigger's length bound
 sign-in than at registration is the same class of harm — a customer could register with an 8 or
 9 digit E.164 number and then never be able to sign in. The pool is `AllowAdminCreateUserOnly`, so a
 wider accept opens nothing.
+
+#### Review iteration 2 — the drift the drift test could not see
+
+The duplication was reproduced faithfully in shape but not in predicate. The canonical function
+compacts separators with `re.sub(r"[\s\-().]", "", text)`; the in-place copy spelled it
+`"".join(ch for ch in text if ch not in " \t-().")`. Those are not the same test — `\s` matches
+Unicode whitespace and an explicit ASCII set does not — and the drift-agreement test could not
+detect it, because `.strip()` runs first and the trailing `isdigit()` filter discards whatever the
+compaction left behind. Every row of the shared table therefore agreed by coincidence.
+
+The divergence is only observable when the surviving character changes a *branch* decision, and
+there is exactly one such branch: the leading-zero refusal. Measured:
+
+| Input | Canonical | Trigger, ASCII-only set |
+|---|---|---|
+| `+\u00a00065 …` | refused (`a country code does not start with zero`) | **accepted**, leading zeros intact |
+| `+\u00a00…` (Indian spelling) | refused | **accepted**, leading zero intact |
+
+The accepted value would have been the OTP destination. Fixed by making the predicate the same
+predicate: `not ch.isspace() and ch not in "-()."`, which agrees with `[\s\-().]` on every one of
+the 0x110000 codepoints — verified exhaustively rather than argued. Pinned by
+`test_the_two_implementations_agree_on_refusal_too`, which asserts agreement on **refusal** as well
+as on output, because agreement on accepted rows was what hid this.
+
+Two Unicode-space rows were also added to the shared table. They pin that a non-ASCII separator is
+tolerated at all; they do **not** catch the predicate divergence, and the table says so, so nobody
+mistakes them for the guard.
+
+⏳ This fix is source-only. See [§ What actually reached production](#what-actually-reached-production)
+— live version 11 carries the ASCII-only set.
 
 ### Entry points wired — and the ones deliberately not
 
@@ -248,9 +416,16 @@ somebody else's file. The sequence, which is worth keeping straight:
 
 So the `csrfToken` tripwire now has a real subject rather than only its positive control: the one
 handler that actually returns a token is the one now covered. Nothing in this task was changed to
-make that true, and nothing here is deployed — per `lambda-snapstart-deploy.md` that handler, like
-the two in this change, keeps serving its old responses until a version is published and the `live`
-alias moves.
+make that true.
+
+> **CORRECTION.** This paragraph ended "and nothing here is deployed — … that handler, like the two
+> in this change, keeps serving its old responses until a version is published and the `live` alias
+> moves." The mechanism is right and the conclusion is wrong: that is precisely what happened, and
+> it has already happened. `wecare-customer-session` version 4 was published at 14:35:14Z and
+> `live` moved from 3 to 4 at 14:35:16Z, so the hardened responses **are** what production serves.
+> See [§ What actually reached production](#what-actually-reached-production). The two OTP doors
+> remain undeployed for a different reason — `wecare-customer-registration` and
+> `wecare-email-verification` do not exist in the account at all.
 
 ---
 
@@ -434,13 +609,16 @@ than passing vacuously.
 
 | Gate | Result |
 |---|---|
-| Deploy | ➖ NOT REQUIRED — explicitly out of scope; source, tests and this doc only |
-| AWS writes | ➖ NOT REQUIRED — three reads, nothing mutated |
+| Deploy **by this task** | ➖ NOT REQUIRED — out of scope; no `update-function-code`, `publish-version` or `update-alias` was called from here |
+| Deploy **that happened anyway** | ⚠️ COMPLETE WITH IMPROVEMENTS — 3 functions deployed, 2 `live` aliases moved, by `user/wecare-admin` and by CI, measured in [§ What actually reached production](#what-actually-reached-production). Rollback targets recorded **after** the fact, which breaches the `A3_PRODUCTION` "rollback version captured first" condition |
+| Live trigger matches this tree | ❌ NO — version 11 predates the iteration-2 separator fix. Source-only, not deployed |
+| AWS writes **by this task** | ➖ NOT REQUIRED — reads only, nothing mutated |
 | Secrets Manager reads | ➖ NOT REQUIRED — none performed, in any spelling |
 | `src/` modified | ➖ NOT REQUIRED — none |
 | Finding 3 applied | ⚠️ NEEDS CONFIRMATION — deliberately not applied |
 | Cross-seam verification between the two commits | ✅ COMPLETE — see the table above |
-| `wecare-customer-session` no-store headers | ✅ COMPLETE — closed by another workstream in `6ed1426b` |
+| `wecare-customer-session` no-store headers | ✅ COMPLETE — closed by another workstream in `6ed1426b`, and **live** on version 4 since 14:35:16Z |
+| Pushed | ✅ `456b5716` and `f8a73fb0` are ancestors of `origin/stack` via merge `805c7517`, pushed by a concurrent session — not by this task |
 
 **Overall: ⚠️ COMPLETE WITH IMPROVEMENTS.** Findings 1 and 2 are fixed in source and pinned by
 tests, and the seams between the two commits that delivered them are verified. **One** item remains
@@ -448,10 +626,22 @@ outside this task's authority: the Finding 3 IAM change, which needs an owner de
 `wecare-customer-session` handler, reported here as pending, has since been fixed by the workstream
 that owns it using the call this doc named.
 
-Nothing above is deployed. That is the one thing not to read as finished: under
-`lambda-snapstart-deploy.md` a published version and an alias move are what make a payments- or
-auth-path change live, and neither has happened, so all three handlers continue to serve their
-previous code.
+> **CORRECTION.** This paragraph read "Nothing above is deployed. That is the one thing not to read
+> as finished: under `lambda-snapstart-deploy.md` a published version and an alias move are what
+> make a payments- or auth-path change live, and neither has happened, so all three handlers
+> continue to serve their previous code." Both the publish and the alias move **had** happened, for
+> two of the three, before this was written.
+
+The thing not to read as finished is the inverse of what this section originally claimed. Under
+`lambda-snapstart-deploy.md` a published version plus an alias move is what makes an auth-path
+change live, and for `wecare-customer-whatsapp-auth` (version 11, alias moved 14:36:08Z) and
+`wecare-customer-session` (version 4, alias moved 14:35:16Z) both steps are done — so those two are
+live, with their rollback targets recorded only retrospectively. What is **not** finished:
+
+- the iteration-2 separator fix on the trigger is source-only; live version 11 does not carry it;
+- `wecare-customer-registration` and `wecare-email-verification` are not deployed because they do
+  not exist in the account, so the Finding 2 header work on those two handlers is source-only too;
+- Finding 3 is still an owner decision.
 
 ## Related
 
@@ -461,5 +651,9 @@ previous code.
   snapshot and the drift-agreement test
 - `tests/test_session_response_is_not_cacheable.py` — the per-return-path guard and the `csrfToken`
   tripwire
-- `.kiro/steering/lambda-snapstart-deploy.md` — why none of this is live until a version is
-  published and the `live` alias moves
+- `.kiro/steering/lambda-snapstart-deploy.md` — the publish-and-move rule that makes an auth-path
+  change live. Flagged above: it documents only the manual path and omits the
+  `seo-tools-deploy.yml` push trigger on `amplify/functions/shared/lambda_utils/**`, which deploys
+  an unaliased function straight from a push to `stack`
+- `docs/execution/change-authority-matrix.md` — where the alias moves recorded above belong as
+  `A3_PRODUCTION` entries
