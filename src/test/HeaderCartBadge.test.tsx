@@ -77,10 +77,20 @@ describe( 'the count is read after mount, never during the server render', () =>
      * A client render cannot show this. testing-library wraps render() in act(), which flushes
      * effects before it returns, so the pre-effect tree is not observable from there.
      */
-    // The <style> block has to come out first: styled-jsx inlines the stylesheet into the markup,
-    // and that stylesheet names .hdr-cart-n whether or not the element exists.
-    const markup = renderToStaticMarkup( <HeaderCart /> )
-      .replace( /<style[\s\S]*?<\/style>/g, '' );
+    /*
+     * The <style> block has to come out first: styled-jsx inlines the stylesheet into the markup,
+     * and that stylesheet names .hdr-cart-n whether or not the element exists.
+     *
+     * PARSED, NOT REGEX-STRIPPED. A single-pass regex strip of the style element here was a high
+     * CodeQL finding (js/incomplete-multi-character-sanitization): one pass over nested delimiters
+     * can splice a surviving `<style` back together, so the assertion below could have passed while
+     * the stylesheet was still in the string. A parser decides what an element is and cannot be
+     * fooled that way, and it says what this step actually means - remove the style elements.
+     */
+    const parsed = new DOMParser().parseFromString(
+      renderToStaticMarkup( <HeaderCart /> ), 'text/html' );
+    parsed.querySelectorAll( 'style' ).forEach( node => node.remove() );
+    const markup = parsed.body.innerHTML;
     expect( markup ).not.toContain( 'hdr-cart-n' );
     // The bag itself IS in the server markup - it is the badge that waits, not the control.
     expect( markup ).toContain( 'Shopping Bag' );
