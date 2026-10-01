@@ -315,9 +315,16 @@ SUPERSCRIPT TWO, U+00B3, U+00B9 and the Ethiopic numerals from U+1369 — measur
 
 | Input | Canonical | Trigger |
 |---|---|---|
-| `+65<U+00B2>91234567` | `+6591234567` | **`65<U+00B2>91234567`** |
-| `+919330994400<U+00B2>` | `+919330994400` | **`919330994400<U+00B2>`** |
-| `+91<U+00B2>09330994400` | `+919330994400` | **`91<U+00B2>09330994400`** |
+Masked to the last four per the rule stated at the top of this document. The marker character's
+POSITION is what carries the meaning in each row, so it is kept exactly where it occurred; the
+preceding digits are not. The unmasked vectors are fixtures in
+`tests/test_phone_country_code_preservation.py`, which is where they belong.
+
+| Input | Canonical | Trigger |
+|---|---|---|
+| `+65<U+00B2>•••••4567` | `+65•••••4567` | **`65<U+00B2>•••••4567`** |
+| `+91•••••••4400<U+00B2>` | `+91•••••••4400` | **`91•••••••4400<U+00B2>`** |
+| `+91<U+00B2>0••••••4400` | `+91•••••••4400` | **`91<U+00B2>0••••••4400`** |
 
 The trigger's docstring promises a digits-only E.164 destination and was returning a string
 containing a non-digit. That value is the `_consume_send_budget` throttle key, the WhatsApp send
@@ -330,10 +337,10 @@ filter unverified.
 The same change closes a second, independent problem in the canonical function, which is the more
 serious of the two. `\D` does not strip a **non-ASCII decimal** digit — Arabic-Indic U+0660-U+0669 is
 category Nd — so those characters survived the strip, passed the 8..15 bound that counted them, and
-were returned inside the `+`-prefixed result. Measured: `+91933099440<U+0660>` was returned verbatim,
+were returned inside the `+`-prefixed result. Measured: `+91••••••440<U+0660>` was returned verbatim,
 and an all-Arabic-Indic input returned itself. `registration.complete` writes `normalizedPhone` and
-the Cognito `Username` from this value and enforces uniqueness on it, so that string and
-`+919330994400` were **two distinct identities that read identically to a human** — the same
+the Cognito `Username` from this value and enforces uniqueness on it, so that string and the
+same number ending `4400` were **two distinct identities that read identically to a human** — the same
 permanent wrong-identity reservation as the headline defect, reached through a different door. A
 direct API caller is the reachable path.
 
