@@ -126,14 +126,22 @@ describe( 'safeLocalReturnPath — absent and malformed input', () => {
   it( 'falls back for a local path that is simply not an allowed destination', () => {
     // Reject by default is the whole design: a well-formed, harmless, local path that
     // nobody listed still does not pass.
-    expect( safeLocalReturnPath( '/blog/' ) ).toBe( DEFAULT );
+    //
+    // `/blog/` used to be this test's first example and MOVED to the accepted set on
+    // 2026-10-01 when the owner narrowed `ALLOWED` — it resolves, and a plausible return
+    // destination that falls back to `/cart/` is a silent wrong answer rather than a safe
+    // one. `/vault/` carries the case instead: local, well-formed, resolves to nothing,
+    // listed nowhere. `/terms/` is the sharper example — it is a real exported page and is
+    // STILL rejected, which is the point: membership is a decision, not a consequence of
+    // existing.
     expect( safeLocalReturnPath( '/vault/' ) ).toBe( DEFAULT );
+    expect( safeLocalReturnPath( '/terms/' ) ).toBe( DEFAULT );
   } );
 } );
 
 describe( 'safeLocalReturnPath — the accepted set', () => {
   it( 'accepts each customer destination in its slashed form', () => {
-    for ( const ok of [ '/cart/', '/checkout/', '/orders/', '/shop/', '/account/', '/' ] ) {
+    for ( const ok of [ '/cart/', '/orders/', '/shop/', '/blog/', '/' ] ) {
       expect( safeLocalReturnPath( ok ) ).toBe( ok );
     }
   } );
@@ -141,8 +149,9 @@ describe( 'safeLocalReturnPath — the accepted set', () => {
   it( 'normalises the unslashed form rather than rejecting it', () => {
     // `trailingSlash: true`, so the unslashed form would 301 to the slashed one anyway.
     expect( safeLocalReturnPath( '/cart' ) ).toBe( '/cart/' );
-    expect( safeLocalReturnPath( '/checkout' ) ).toBe( '/checkout/' );
+    expect( safeLocalReturnPath( '/orders' ) ).toBe( '/orders/' );
     expect( safeLocalReturnPath( '/shop' ) ).toBe( '/shop/' );
+    expect( safeLocalReturnPath( '/blog' ) ).toBe( '/blog/' );
   } );
 
   it( 'never returns a value carrying a query string or fragment', () => {
@@ -157,10 +166,11 @@ describe( 'safeLocalReturnPath — the accepted set', () => {
   } );
 
   it( 'only ever returns a member of the allowed set', () => {
-    const allowed = new Set( [ '/cart/', '/checkout/', '/orders/', '/shop/', '/account/', '/' ] );
+    const allowed = new Set( [ '/cart/', '/orders/', '/shop/', '/blog/', '/' ] );
     const inputs = [
       '/cart', '/cart/', '/', '//evil', '/workspace/access', 'https://evil.example/',
-      '%2f%2fevil', '/../x', '', null, undefined, '/blog/', '/cart/#f',
+      '%2f%2fevil', '/../x', '', null, undefined, '/terms/', '/cart/#f',
+      '/checkout/', '/account/', '\\\\evil.example',
     ];
     for ( const input of inputs ) {
       expect( allowed.has( safeLocalReturnPath( input ) ), `${String( input )} escaped the allowlist` )
@@ -195,8 +205,27 @@ describe( 'safeLocalReturnPath — the accepted set', () => {
  * assert they fall back to `/cart/`), or the two pages land (then assert the directory has an
  * index). The same convention as
  * `tests/test_url_host_routing_rules.py::test_the_provisioner_would_strip_the_host_rule_KNOWN_HAZARD`.
+ *
+ * ── GAP CLOSED 2026-10-01, AND THIS BLOCK IS NOW ITS INVERSION ───────────────────────────
+ *
+ * The owner took the first of the two documented resolutions: `/checkout/` and `/account/`
+ * LEFT `ALLOWED`, and `/blog/` joined it. Building the two pages was rejected for now, on the
+ * grounds that `/checkout/` overlaps checkout work in flight and that shipping a page to
+ * satisfy a validator is the tail wagging the dog. Everything above is the state that
+ * prompted the decision and is kept as written; the assertions below are the inversion the
+ * last paragraph prescribed, in the order it prescribed them:
+ *
+ *   - the two entries fall back to `/cart/` rather than being vouched for;
+ *   - all FIVE remaining members are checked against the filesystem, not four;
+ *   - `has no production caller` became `HAS a production caller and routes through here`.
+ *
+ * The caller test is the one worth reading twice. Its old job was to fail the moment the
+ * wiring landed, so that this decision could not be skipped by accident — it did that job, and
+ * a test that simply starts passing once wired would teach nothing and would not notice the
+ * wiring being removed again. Inverted, it now pins the thing that actually matters: that the
+ * permissive regex has not come back.
  */
-describe( 'safeLocalReturnPath — accepted destinations that do not resolve (KNOWN GAP)', () => {
+describe( 'safeLocalReturnPath — the gap is closed and the validator is wired (INVERTED)', () => {
   const PAGES_DIR = path.join( process.cwd(), 'src', 'pages' );
 
   /** A destination resolves only if `output: 'export'` has a source file to emit for it. */
@@ -204,29 +233,38 @@ describe( 'safeLocalReturnPath — accepted destinations that do not resolve (KN
     fs.existsSync( path.join( PAGES_DIR, segment, 'index.tsx' ) )
     || fs.existsSync( path.join( PAGES_DIR, `${segment}.tsx` ) );
 
-  it( 'confirms the four resolvable destinations really do have a page', () => {
+  it( 'confirms every one of the five allowed destinations really does have a page', () => {
     // `/` is `src/pages/index.tsx`. If one of these ever stops existing, the validator would
-    // start handing out a 404 for a destination this test currently vouches for.
+    // start handing out a 404 for a destination this test vouches for — which is exactly the
+    // gap this block used to record, so the check is now total rather than partial.
     expect( fs.existsSync( path.join( PAGES_DIR, 'index.tsx' ) ), '/ must have an exported page' ).toBe( true );
-    for ( const segment of [ 'cart', 'orders', 'shop' ] ) {
+    for ( const segment of [ 'cart', 'orders', 'shop', 'blog' ] ) {
       expect( pageExists( segment ), `/${segment}/ must have an exported page` ).toBe( true );
     }
   } );
 
-  it( 'records that /checkout/ and /account/ are accepted but have no page (invert when fixed)', () => {
+  it( 'no longer accepts /checkout/ or /account/, because neither has a page', () => {
+    // The measurement that drove the narrowing, re-asserted from the filesystem rather than
+    // trusted: `src/pages/checkout/` holds only status.tsx and success.tsx, `src/pages/account/`
+    // only sign-in.tsx. `output: 'export'` emits a page only where a source file exists, so
+    // both answered 404 live.
     expect( pageExists( 'checkout' ) ).toBe( false );
     expect( pageExists( 'account' ) ).toBe( false );
 
-    // Accepted today regardless, which is the gap itself: the function vouches for a value
-    // that cannot be navigated to.
-    expect( safeLocalReturnPath( '/checkout/' ) ).toBe( '/checkout/' );
-    expect( safeLocalReturnPath( '/account/' ) ).toBe( '/account/' );
+    // INVERTED: they now fall back instead of being vouched for.
+    expect( safeLocalReturnPath( '/checkout/' ) ).toBe( DEFAULT );
+    expect( safeLocalReturnPath( '/account/' ) ).toBe( DEFAULT );
+    expect( safeLocalReturnPath( '/checkout' ) ).toBe( DEFAULT );
+    expect( safeLocalReturnPath( '/account' ) ).toBe( DEFAULT );
   } );
 
-  it( 'has no production caller, which is what bounds the gap', () => {
+  it( 'HAS a production caller, and that caller routes through this validator', () => {
     // Read as text rather than imported: importing a page module executes Amplify.configure.
-    // If this ever fails, the section 7 wiring has landed and the two rows above became
-    // customer-reachable — at which point the gap is live, not latent.
+    //
+    // INVERTED 2026-10-01. This asserted `callers` was EMPTY, so that it would fail the moment
+    // the wiring landed and the decision could not be skipped by accident. The wiring has
+    // landed, so the assertion flips to the property that matters from here on: the sign-in
+    // page must import this function AND must not have kept the permissive regex beside it.
     const SELF = [ path.join( 'src', 'lib', 'safeReturnPath.ts' ), path.join( 'src', 'test', 'SafeReturnPath.test.ts' ) ];
     const walk = ( dir: string ): string[] => fs.readdirSync( dir, { withFileTypes: true } ).flatMap( ( entry ) => {
       const full = path.join( dir, entry.name );
@@ -237,6 +275,17 @@ describe( 'safeLocalReturnPath — accepted destinations that do not resolve (KN
       .map( ( full ) => path.relative( process.cwd(), full ) )
       .filter( ( rel ) => !SELF.includes( rel ) )
       .filter( ( rel ) => fs.readFileSync( path.join( process.cwd(), rel ), 'utf8' ).includes( 'safeLocalReturnPath' ) );
-    expect( callers, `safeLocalReturnPath now has caller(s): ${callers.join( ', ' )}` ).toEqual( [] );
+
+    const signIn = path.join( 'src', 'pages', 'account', 'sign-in.tsx' );
+    expect( callers, 'the customer sign-in page must validate its return path through this module' )
+      .toContain( signIn );
+
+    // The regex is the defect, not merely the old implementation: it accepted `//evil` and
+    // `/workspace/access`. Importing the validator while leaving the regex in place would pass
+    // the check above and change nothing, so the literal is forbidden outright.
+    const source = fs.readFileSync( path.join( process.cwd(), signIn ), 'utf8' );
+    expect( source, 'the permissive return-path regex must not come back' )
+      .not.toContain( 'a-zA-Z0-9/_-' );
+    expect( source ).toContain( 'safeLocalReturnPath( raw )' );
   } );
 } );

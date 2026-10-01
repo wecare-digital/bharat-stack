@@ -68,6 +68,7 @@ import {
   requestOtp, submitOtp, normaliseMobile, getSession, nextSessionFrom,
 } from '../../lib/customerAuth';
 import * as signInMessages from '../../lib/signInMessages';
+import { safeLocalReturnPath } from '../../lib/safeReturnPath';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
 const REGISTRATION_URL = `${API_BASE}/auth/customer-registration`;
@@ -176,8 +177,14 @@ function messageForHttpStatus ( status: number, payload: string ): string {
 function returnPathFromUrl (): string {
   if ( typeof window === 'undefined' ) return '/cart/';
   const raw = String( new URLSearchParams( window.location.search ).get( 'return' ) || '' ).trim();
-  // Only same-site absolute paths, so this can never be turned into an open redirect.
-  return /^\/[a-zA-Z0-9/_-]*\/?$/.test( raw ) ? raw : '/cart/';
+  // Reject-by-default allowlist. The regex this replaced claimed it "can never be turned into
+  // an open redirect" and two measured inputs falsified that: `//evil` passed every character
+  // in the class while a browser reads the leading `//` as protocol-relative and resolves
+  // `evil` as a HOST, and `/workspace/access` passed as a well-formed local path while being
+  // the STAFF login. See src/lib/safeReturnPath.ts for why this is an allowlist and not a
+  // character class. It returns the value to use rather than a boolean, so what was checked
+  // is what navigates.
+  return safeLocalReturnPath( raw );
 }
 
 /**

@@ -590,6 +590,16 @@ not touched, so the validator has **no production caller yet**.
 > its own test. `/checkout/` and `/account/` still measure **404**, so ITEM 4 below is still a
 > live precondition on the wiring. Raised to the owner in this pass rather than applied — see
 > §9.4, "Open, and why it is open rather than fixed".
+>
+> **✅ CLOSED 2026-10-01, by owner decision. The handoff below is history; §7.1 is what shipped.**
+> The owner cleared the `src/pages/account/**` boundary — the workstream that owned it
+> (`customer-session-otp-hardening`) **aborted** before reaching implementation, its design loop
+> having exhausted its iteration budget, and `sign-in.tsx` was confirmed clean in `git status`,
+> so there was no live owner to collide with. The reasoning given was that "documented and
+> tested-for-later" is the right holding pattern when a fix would regress a customer, but not an
+> acceptable resting state for an open redirect closable in one line — and that the owner
+> handoff §15 forbids this shape in terms ("no open redirect", "reject protocol-relative URLs",
+> "reject workspace/admin destinations").
 
 The two gaps it closes are real and were measured against the current regex
 `/^\/[a-zA-Z0-9/_-]*\/?$/`:
@@ -660,6 +670,62 @@ Pinned by `src/test/SafeReturnPath.test.ts` →
 `'safeLocalReturnPath — accepted destinations that do not resolve (KNOWN GAP)'`, which asserts
 the current measured truth, including a test that **fails as soon as a production caller
 appears**. Same convention as §5.5: when it is resolved, **invert the test, do not delete it**.
+
+### ✅ 7.1 RESOLVED — the allowlist was narrowed to five, and the validator is wired
+
+**Owner decision, 2026-10-01.** Of the two candidate resolutions above, the first was taken:
+`ALLOWED` was **narrowed**, not grown. Building `/checkout/` and `/account/` was declined for
+now on the grounds that `/checkout/` overlaps checkout work in flight, and that shipping a page
+to satisfy a validator is the wrong way round.
+
+**The allowlist as it ships — five destinations, every one measured 200 live:**
+
+| member | live | page source |
+|---|---|---|
+| `/` | 200 | `src/pages/index.tsx` |
+| `/cart/` | 200 | `src/pages/cart.tsx` |
+| `/orders/` | 200 | `src/pages/orders.tsx` |
+| `/shop/` | 200 | `src/pages/shop/index.tsx` |
+| **`/blog/`** | 200 | `src/pages/blog/index.tsx` — **added** |
+
+**Removed, with the measured reason:** `/checkout/` and `/account/`, both **404**.
+`src/pages/checkout/` holds only `status.tsx` and `success.tsx`; `src/pages/account/` holds only
+`sign-in.tsx`. Neither directory has an `index`, and **`output: 'export'` emits a page only
+where a source file exists** — so a page exists only where a source file does, and both had
+nothing to hit but the `/<*>` → `/404.html` catch-all.
+
+**Re-adding either is conditional on the page existing, not a free edit.** That ordering is
+enforced rather than documented: `src/test/SafeReturnPath.test.ts` checks all five members
+against the filesystem, so an entry added to `ALLOWED` without a corresponding source file fails
+the suite before it can reach a customer.
+
+**`/blog/` was added rather than left out, and the reason is the inverse of the usual one.** It
+resolves, and it is a plausible place to send a customer back to. Excluding it would not have
+been conservative — it would have *manufactured* the silent fallback to `/cart/` that the
+narrowing exists to avoid, by rejecting a destination that works. Membership is a decision about
+intent, not a consequence of existing: `/terms/` is also a real exported page and is still
+rejected, which the test asserts explicitly.
+
+**The one remaining behaviour change is `/cart` → `/cart/` normalisation**, and it is the correct
+direction: the site runs `trailingSlash: true`, so the slashed form is canonical and returning
+the input as typed would simply spend a 301 to arrive at the same place.
+
+**What changed in code, exactly — nothing was restyled or refactored:**
+
+```
+src/pages/account/sign-in.tsx   + import { safeLocalReturnPath } from '../../lib/safeReturnPath';
+                                  returnPathFromUrl() now returns safeLocalReturnPath( raw )
+                                  the false "can never be turned into an open redirect" comment deleted
+src/lib/safeReturnPath.ts         ALLOWED: 6 entries -> 5; dated rationale added, none removed
+src/test/SafeReturnPath.test.ts   the KNOWN GAP block INVERTED, not deleted
+```
+
+The inversion is the part worth reading. The old `has no production caller` test existed to fail
+the moment the wiring landed, so this decision could not be skipped by accident — it did that
+job. Simply letting it pass once wired would teach nothing and would not notice the wiring being
+removed again, so it now asserts that `sign-in.tsx` **is** a caller, **and** that the literal
+`a-zA-Z0-9/_-` is absent from that file. Importing the validator while leaving the old regex
+beside it would otherwise satisfy a caller check and change nothing.
 
 ---
 
@@ -834,7 +900,7 @@ matched live measurement. Every claim below was re-measured, not carried forward
 | 1 | `scripts/probe_url_host_matrix.py` **exited 1**: `shop.wecare.digital` was pinned at status 0 (the documented no-address gap) but now 302s to the apex. A gate that goes red for a reason nobody acts on stops being read | Expectation **moved to the measured truth** and kept a HARD row, asserted on the terminal URL as well as the status. Two rows added: the path-dropping behaviour, and `a.b.wecare.digital` pinning the residual gap. `mta-sts` stays a hard 403 |
 | 2 | §4 and OWNER-DECISION ITEM 2 **overstated** the subdomain gap — they said the wildcard work was not done | **§4.1** added: the single-label case is closed, with measured evidence and the owning workstream named; the second-label case is still open, with its cause corrected from "no address" to "no certificate covers it" |
 | 3 | §0's "9 rules" table was **stale** and contradicted by §5.5's 12 | §0 table re-titled as the 08:59:52Z post-apply state; **§0.1** holds the live 12-rule array with its own read timestamp |
-| 4 | `src/lib/safeReturnPath.ts` still has **no production caller** | **Still open — raised to the owner, see below.** Re-measured: `sign-in.tsx:180` still carries the permissive regex, and the only references to the module are in its own test |
+| 4 | `src/lib/safeReturnPath.ts` still has **no production caller** | **CLOSED.** Raised to the owner because every fix changed customer-visible behaviour and the file was outside this task's paths; the owner cleared the boundary and chose to narrow the allowlist. Wired, allowlist narrowed to five, KNOWN GAP test inverted — **§7.1** |
 | 5 | The "every passthrough precedes every redirect" claim was **false live** and no gate could see it | §0 restated to the non-overlap property that actually holds; the snapshot test rescoped and renamed, and `test_no_sanctioned_redirect_can_shadow_a_passthrough_in_the_live_shape` added to assert it on the array `apply()` writes |
 | 6 | The two provisioner-convergence tests would **fail on a clean checkout of HEAD** without commit `4c603188` | **Already resolved.** `4c603188` is an ancestor of `HEAD` (`83a8d60d`), and `HEAD` equals `origin/stack`. Verified directly against the HEAD-committed provisioner: `desired_redirects()` length **4**, `WWW_CANONICAL emitted: True`, so both tests assert normally rather than skip. No merge, rebase or force push was needed |
 
@@ -844,7 +910,7 @@ matched live measurement. Every claim below was re-measured, not carried forward
 |---|---|
 | `npm run typecheck` | exit 0 |
 | `npm run lint` | exit 0 — **0 errors**, 188 warnings, count unmoved from the repo baseline |
-| `npx vitest run` | exit 0 — **48 files, 684 tests passed** |
+| `npx vitest run` | exit 0 — **48 files, 684 tests passed**, before and after §7.1 alike: the KNOWN GAP block was inverted in place, so its three cases changed what they assert without changing the count (22 in `SafeReturnPath.test.ts`) |
 | `npm run build` | exit 0 — `out/404/index.html` present (**36,567 bytes**); `out/sitemap.xml` **1,407 `<loc>`**, unchanged |
 | `pytest …routing_rules …rollback_snapshot -q` | **17 passed** (14 → 16 when another session added two provisioner tests, → 17 with the live-shape test added here) |
 | `scripts/probe_url_host_matrix.py --json` | **probed 88, failed 0**, exit 0, **0 informational rows drifted** (86 → 88: the two new subdomain rows) |
@@ -867,28 +933,41 @@ path preserved · `/workspace/` **200** with the Authenticator shell (`data-ampl
 `amplify-authenticator` both present) · `/account/sign-in/` **200** ·
 `/shop/ /cart/ /orders/ /blog/ /404/ /` all **200**.
 
-### Open, and why it is open rather than fixed
+### The one finding that needed a decision, and how it was closed
 
-**The return-path validator still has no production caller** (§7). Re-measured here:
-`src/pages/account/sign-in.tsx:180` is still
-`/^\/[a-zA-Z0-9\/_-]*\/?$/`, which accepts `//evil` (protocol-relative — the browser reads
-`evil` as the host) and `/workspace/access` (a customer sent to the staff login). The live gap is
-real.
+**The return-path validator had no production caller** (§7). Measured in this pass before
+raising it: `src/pages/account/sign-in.tsx:180` carried `/^\/[a-zA-Z0-9\/_-]*\/?$/`, which
+accepts `//evil` (protocol-relative — the browser reads `evil` as the host) and
+`/workspace/access` (a customer sent to the staff login). The only references to
+`safeLocalReturnPath` anywhere in `src/` were inside its own test.
 
-It was **not** closed here for two independent reasons, and only the first is a boundary:
+It was **raised rather than fixed unilaterally**, for two independent reasons — only the first of
+which was a boundary:
 
-1. The wiring is one line in `src/pages/account/sign-in.tsx`, which is owned by the
-   `src/pages/account/**` workstream and is outside this task's permitted paths.
-2. It cannot be applied correctly yet anyway. **OWNER-DECISION ITEM 4 is a precondition**, not a
-   footnote: `/checkout/` and `/account/` are on the validator's allowlist and both measure
-   **404** today (re-confirmed in this pass). Wiring it first would start routing a signed-in
-   customer to a missing page, which is a worse customer outcome than the open-redirect shape it
-   closes — and the two candidate resolutions (narrow `ALLOWED`, or ship the two pages) are both
-   product decisions.
+1. The wiring is one line in `src/pages/account/sign-in.tsx`, which was outside this task's
+   permitted paths because the `src/pages/account/**` workstream owned it.
+2. It could not be applied correctly as specified anyway. `/checkout/` and `/account/` were on
+   the validator's allowlist and both measured **404**, so wiring it first would have started
+   routing a signed-in customer to a missing page — a worse customer outcome than the
+   open-redirect shape it closes. Both candidate resolutions were product decisions.
 
-Raised to the owner rather than decided unilaterally. `src/test/SafeReturnPath.test.ts` holds a
-test that **fails the moment a production caller appears**, so the precondition cannot be skipped
-by accident.
+**The owner chose to narrow the allowlist and cleared the boundary** — the owning workstream had
+aborted before implementation and `sign-in.tsx` was clean in `git status`, so there was no live
+owner to collide with. Shipped as **§7.1**: five destinations, all measured 200, `/blog/` added
+and `/checkout/`+`/account/` removed; the one-line wiring applied with nothing else in that file
+touched; the KNOWN GAP test inverted so it now asserts the caller exists **and** that the
+permissive regex is absent.
+
+**Independently verified against the module**, 24 cases, all passing, run from a throwaway config
+so no file was added under `src/**`:
+
+- **18 rejections**, each landing on `/cart/`: `//evil` (single-label host, no dot), `//evil.example`,
+  `///evil`, `/workspace/access`, `/WorkSpace/Access`, `\\evil.example`, `/\evil.example`,
+  `https://evil.example`, `http://evil.example/cart/`, `%2f%2fevil.example`, `%252f%252fevil`,
+  `/%2f%2fevil.example`, `/../etc/passwd`, `/cart/../workspace/access`, `javascript:alert(1)`,
+  `/checkout/`, `/account/`, `/terms/`.
+- **5 round-trips**: `/`, `/cart/`, `/orders/`, `/shop/`, `/blog/`.
+- **Normalisation** of the unslashed form of all four non-root members.
 
 ### Scope
 
