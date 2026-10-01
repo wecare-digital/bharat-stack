@@ -546,3 +546,8 @@ checks to make a test pass.
 - A1_LOCAL: corrected pending-write replay, provider-payment binding, exact amount checks, order-number races and Wix Add Payments request/response contract. Wrong-site and unverified-contract writes fail closed.
 - A2_REMOTE_CODE: commit explicit owned paths to stack and non-force push after focused checks. Concurrent registration, V1 checkout scaffold, UI and provider-email work are preserved outside this commit.
 - Runtime: no Lambda deployment, alias movement, payment/send flag or provider-configuration change. Full WhatsApp checkout is not claimed live. Rollback: revert the source commit, keeping feature flags off.
+
+
+## Owner home fallback and access update - 2026-10-01
+
+A0_READ/A1_LOCAL/A3_PRODUCTION: unused subdomain home routing and direct access retirement explicitly requested. CloudFormation wecare-home-fallback CREATE_COMPLETE; CloudFront E1ZZ786I3YH65O Deployed; DNS C1002370145M1YU1Y7I7Y INSYNC. All 28 non-Wix DNS records preserved. Home/access routing evidence and rollback: docs/execution/home-fallback-20261001.md. A2_REMOTE_CODE: isolated exact-path commit and non-force push to stack; merge existing committed public-link work with the remote checkout commits, keeping remote requirements-dev.txt unchanged. Uncommitted shared checkout edits excluded.
