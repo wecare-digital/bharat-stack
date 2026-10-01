@@ -167,26 +167,48 @@ describe( 'the control itself', () => {
     expect( bag() ).toHaveAttribute( 'href', '/cart/' );
   } );
 
-  it( 'names itself with a text node, not an attribute', () => {
+  it( 'renders no text at all and carries its name on the attribute', () => {
     const { container } = render( <HeaderCart /> );
     /*
-     * SupportWidget's translation walker rewrites TEXT NODES and never attribute text, so an
-     * aria-label here would stay English in every language the site offers - the defect skill §5
-     * measures at 1329 strings sitewide, 116 of them aria-labels. So "Shopping Bag" is rendered
-     * text, and this asserts the absence of the shortcut as well as the presence of the label.
+     * THE LABEL IS DELETED, NOT CLIPPED, on owner instruction - "shopping Bag text delete not
+     * hidden". So there is no .hdr-cart-label and no .hdr-cart-spoken element, and the control
+     * renders ZERO visible or hidden text; the only thing inside it is the aria-hidden glyph.
+     *
+     * The name therefore has to be the attribute. That is a reversal of the previous contract here,
+     * which asserted the opposite, and the reason is worth keeping: a link whose only content is an
+     * aria-hidden glyph has no accessible name at all, which a screen reader announces as a bare
+     * "link" and Lighthouse fails as a discernible-name violation. The cost is that attribute text
+     * is never translated - SupportWidget's walker rewrites text nodes only - so this string stays
+     * English where the old clipped node would have been translated. That is the trade the
+     * instruction buys, and it is recorded rather than hidden.
      */
     const link = bag();
-    expect( link.getAttribute( 'aria-label' ) ).toBeNull();
-    expect( container.querySelector( '.hdr-cart-label' )?.textContent ).toBe( 'Shopping Bag' );
+    expect( link.getAttribute( 'aria-label' ) ).toBe( 'Shopping Bag, empty' );
+    expect( container.querySelector( '.hdr-cart-label' ) ).toBeNull();
+    expect( container.querySelector( '.hdr-cart-spoken' ) ).toBeNull();
     /*
-     * ICON ONLY, ON OWNER INSTRUCTION: "only cart icon no text or border - this was shopping was
-     * written to make you understand". So the label must still EXIST (it is the accessible name,
-     * and a text node rather than an aria-label so it translates) but must be clipped, and the
-     * control must carry no border or fill at rest. The focus ring is deliberately NOT asserted
+     * No text node anywhere in the control - the glyph and the badge digits are all there is.
+     * The <style> element is excluded because styled-jsx renders the stylesheet INSIDE the
+     * component in jsdom (it is hoisted to the head in a real build), so its CSS would otherwise
+     * count as this element's text. Cloning and removing it reads the markup rather than the
+     * stylesheet, which is the thing being asserted.
+     */
+    const copy = link.cloneNode( true ) as HTMLElement;
+    copy.querySelectorAll( 'style' ).forEach( node => node.remove() );
+    expect( ( copy.textContent || '' ).trim() ).toBe( '' );
+
+    /*
+     * Still icon only: no border and no fill at rest. The focus ring is deliberately NOT asserted
      * away - it is an accessibility requirement, not decoration.
      */
+    /*
+     * Asserted as the absence of a RULE, not of the substring: a comment that explains why a class
+     * is gone necessarily names it, and a bare `not.toContain` would fail on the explanation
+     * instead of on a real rule. Matching `{` pins the declaration itself.
+     */
     const css = container.querySelector( 'style' )?.textContent || '';
-    expect( css ).toMatch( /\.hdr-cart-label\{[^}]*clip:rect\(0,0,0,0\)/ );
+    expect( css ).not.toMatch( /\.hdr-cart-label\s*\{/ );
+    expect( css ).not.toMatch( /\.hdr-cart-spoken\s*\{/ );
     const rest = /\.hdr-cart\{([^}]*)\}/.exec( css )?.[ 1 ] || '';
     expect( rest ).toContain( 'border:0' );
     expect( rest ).toContain( 'background:none' );
