@@ -1,0 +1,14 @@
+{
+  "task_id": "customer-experience-upgrade-2026-10-01",
+  "task_description": "WECARE.DIGITAL customer-experience upgrade, in-scope slice on branch feature/customer-experience-upgrade (base 51445762). IMPLEMENT: Section 1 (customer nav group -> 'Request' + add 'Zip'), Section 3 (public /zip page, real-capability-gated actions, no fake transacting controls), Section 4 (public /perks page + 'Perks' nav group above 'Legal Stuff'; audit/repair the /gift-card references to a real destination; no third-party provider name in UI), Section 5 (Blog BLOG_CONTRIBUTION UI + central amount config + full server-side-verify/idempotency/reconciliation backend). BUILD-BUT-GATE-OFF: Section 2 coupon + gift-card redemption and Section 5 contribution charge - all payable paths behind the SAME disabled CHECKOUT_INITIATION_ENABLED / server-enforced readiness gate; no constant forces payment on; no real charge; integer paise; browser never controls trusted amount; provider abstracted (no hard-coded third-party vendor). DEFERRED to orchestrator: Section 6 (Terms+Privacy) and Section 7 (disclaimer/liability) - terms.ts and privacy.ts left UNCHANGED (blocked on missing section-7 text + legal-review boundary). ENVIRONMENT: no AWS/Wix-live in sandbox - AWS/Wix-dependent wiring delivered as source + runbook, reported BLOCKED-ON-ENVIRONMENT, never executed or faked; any chat-pasted AWS key must not be used. GIT: commit to feature/customer-experience-upgrade ONLY; do not commit to stack, do not push, do not open a PR (user override of single-branch steering).",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
+  "blocked_reason": null,
+  "branch": "feature/customer-experience-upgrade",
+  "base_sha": "51445762",
+  "deferred": {
+    "section_6_terms_privacy": "Deferred to orchestrator; src/content/legal/terms.ts and privacy.ts left UNCHANGED. In-scope features add only TODO comments where a legal placeholder is strictly needed, never legal clauses.",
+    "section_7_disclaimer_liability": "Deferred to orchestrator; blocked on the truncated/missing section-7 text and a legal-review boundary the orchestrator holds with the user.",
+    "section_2_and_5_payment_wiring": "Built but kept GATED OFF (no live charge); AWS/Wix-live deploy/verify reported BLOCKED-ON-ENVIRONMENT."
+  }
+}
