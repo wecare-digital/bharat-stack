@@ -8,13 +8,14 @@ canonical www and retired access-to-home redirects are now approved exceptions.
 ## Implementation
 
 - `amplify/infra/home-fallback.json` provisions a dedicated CloudFront distribution,
-  viewer-request redirect function, DNS-validated ACM certificate and encrypted
+  viewer-request redirect function, the existing ACM certificate and encrypted
   private access-log bucket with 30-day retention. It does not modify the existing
   Amplify distribution or the MTA-STS certificate/distribution.
 - The function always returns a 302 to the exact https://wecare.digital/ URL. It
   drops the incoming path and query string and sets no-store.
 - `scripts/home_fallback_dns.py` declares a guarded cutover for *.wecare.digital,
-  xout.wecare.digital and www.xout.wecare.digital, using IPv4/IPv6 aliases. Explicit
+  and xout.wecare.digital, using IPv4/IPv6 aliases. The existing nested www.xout
+  Wix CNAME forwards to xout. Explicit
   www, email, verification and SIP records remain untouched.
 - `scripts/provision_legacy_redirects.py` retains canonical www and three access
   redirects while removing all other legacy custom redirects. Runtime rewrites
@@ -44,7 +45,8 @@ canonical www and retired access-to-home redirects are now approved exceptions.
 ## Scope limits and rollback
 
 TLS wildcard coverage is one hostname label: *.wecare.digital. The separately
-covered existing www.xout.wecare.digital host is also included. Arbitrarily deep
+existing www.xout.wecare.digital host stays on its Wix certificate and forwards
+through xout to home. Arbitrarily deep
 invented names such as a.b.wecare.digital require additional certificate coverage;
 they cannot be promised under this wildcard.
 
@@ -84,3 +86,20 @@ for the total changing from 30 to 35 record sets.
 ## Exact integration-tree checks
 
 The isolated review checkout integrates the already committed public-link cleanup with the latest remote checkout work. Its 16 Python routing tests, 31 public-link/not-found/safe-return tests, typecheck and full static export passed. All 36 live public page URLs returned 200 after DNS cutover. The existing resolver negative cache for shop remains temporary; a fresh unknown name and xout/www.xout pass normal live HTTP probes. shop passes HTTPS with normal certificate validation when connected to the deployed endpoint.
+
+
+## Final owner correction: existing certificate only
+
+The owner instructed reuse of the existing certificate and deletion of the one
+newly issued during this task. The current CloudFormation template creates no ACM
+certificate resource. The redirect distribution uses existing certificate
+f75d0db0-d476-443a-b787-96c4931862d2. Its sole alternate hostname is *.wecare.digital.
+The original www.xout CNAME has been restored to pointing.wixdns.net so its existing
+Wix TLS endpoint redirects via xout to home without a newly issued certificate.
+The earlier new-certificate deployment details above are historical; deletion
+verification is recorded below once the CloudFront update completes.
+
+
+### Certificate removal verified
+
+CloudFormation UPDATE_COMPLETE; distribution Deployed with existing certificate f75d0db0-d476-443a-b787-96c4931862d2. ACM DescribeCertificate for the task-created 4953c75b-9cdb-406e-a01d-766bf1dc61bd returned ResourceNotFoundException, verifying deletion. Its sole new validation record was removed; the shared original validation record remains. Final DNS inventory: 33 record sets. Original www.xout CNAME restored; 29 original DNS records retained exactly. Final IaC certificate guard and routing tests: 17 passed.

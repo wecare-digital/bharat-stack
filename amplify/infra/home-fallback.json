@@ -1,27 +1,7 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Owner-approved unused subdomains redirect to WECARE home; preserve explicit service DNS records.",
+  "Description": "Owner-approved unused subdomains redirect to WECARE home using the existing certificate.",
   "Resources": {
-    "Certificate": {
-      "Type": "AWS::CertificateManager::Certificate",
-      "Properties": {
-        "DomainName": "*.wecare.digital",
-        "SubjectAlternativeNames": [
-          "www.xout.wecare.digital"
-        ],
-        "ValidationMethod": "DNS",
-        "DomainValidationOptions": [
-          {
-            "DomainName": "*.wecare.digital",
-            "HostedZoneId": "Z03939753QJGZ6ZD6BXO8"
-          },
-          {
-            "DomainName": "www.xout.wecare.digital",
-            "HostedZoneId": "Z03939753QJGZ6ZD6BXO8"
-          }
-        ]
-      }
-    },
     "RedirectFunction": {
       "Type": "AWS::CloudFront::Function",
       "Properties": {
@@ -79,8 +59,7 @@
           "Enabled": true,
           "Comment": "Redirect unused WECARE subdomains and retired Wix hosts to home",
           "Aliases": [
-            "*.wecare.digital",
-            "www.xout.wecare.digital"
+            "*.wecare.digital"
           ],
           "IPV6Enabled": true,
           "HttpVersion": "http2and3",
@@ -124,9 +103,7 @@
             ]
           },
           "ViewerCertificate": {
-            "AcmCertificateArn": {
-              "Ref": "Certificate"
-            },
+            "AcmCertificateArn": "arn:aws:acm:us-east-1:775261844268:certificate/f75d0db0-d476-443a-b787-96c4931862d2",
             "SslSupportMethod": "sni-only",
             "MinimumProtocolVersion": "TLSv1.2_2021"
           },
@@ -159,9 +136,7 @@
       }
     },
     "CertificateArn": {
-      "Value": {
-        "Ref": "Certificate"
-      }
+      "Value": "arn:aws:acm:us-east-1:775261844268:certificate/f75d0db0-d476-443a-b787-96c4931862d2"
     }
   }
 }

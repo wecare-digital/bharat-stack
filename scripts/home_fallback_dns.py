@@ -7,7 +7,7 @@ Call apply(client, domain, existing) after saving existing to a rollback file.
 
 ZONE_ID = "Z03939753QJGZ6ZD6BXO8"
 CLOUDFRONT_ZONE_ID = "Z2FDTNDATAQYW2"
-NAMES = ("*.wecare.digital.", "xout.wecare.digital.", "www.xout.wecare.digital.")
+NAMES = ("*.wecare.digital.", "xout.wecare.digital.")
 
 
 def changes(domain: str, existing: list[dict]) -> list[dict]:
