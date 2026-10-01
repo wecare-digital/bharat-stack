@@ -115,6 +115,12 @@ def env(monkeypatch):
     monkeypatch.setattr(h, 'INITIATION_ENABLED', False)
     monkeypatch.setattr(h.wix_ecom, 'create_checkout', lambda items, **k: _fake_checkout())
     monkeypatch.setattr(h.customer_auth, 'authenticate', lambda event: _Identity(CUSTOMER))
+    # Every test in THIS file exercises the Checkout V1 price authority, which became the
+    # opt-out path on 2026-10-01 when Cart V2 became the default. Pinning the gate off here is
+    # deliberate rather than a workaround: V1 is retained and must stay covered until its callers
+    # have moved and the V2 delivery round trip is confirmed live. The Cart V2 branch of the same
+    # handler is covered by `tests/test_checkout_cart_v2_authority.py`.
+    monkeypatch.setenv('WIX_CART_V2_DISABLED', 'true')
     return h, fake, lam, monkeypatch
 
 

@@ -13,8 +13,11 @@ import urllib.request
 
 import boto3
 
+import meta_graph_version
+
 REGION = "us-east-1"
-GRAPH = "https://graph.facebook.com/v25.0"
+# Resolved centrally rather than carried as a literal; see `scripts/meta_graph_version.py`.
+GRAPH = meta_graph_version.graph_base()
 
 WABAS = {
     "WABA1": "2094615664435155",

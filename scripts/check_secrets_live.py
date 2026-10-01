@@ -37,6 +37,8 @@ import urllib.request
 import boto3
 from botocore.exceptions import ClientError
 
+import meta_graph_version
+
 REGION = "us-east-1"
 TIMEOUT = 20
 
@@ -76,7 +78,7 @@ def check_meta(s: dict) -> list[tuple[str, str, str, str]]:
     token, app_id, app_secret = s.get("access_token"), s.get("app_id"), s.get("app_secret")
     if token and app_secret:
         proof = hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
-        code, body = http("https://graph.facebook.com/v25.0/me?" + urllib.parse.urlencode(
+        code, body = http(meta_graph_version.graph_base() + "/me?" + urllib.parse.urlencode(
             {"access_token": token, "appsecret_proof": proof, "fields": "id,name"}))
         if code == 200:
             out.append(("access_token + app_secret", "VALID",
@@ -86,7 +88,7 @@ def check_meta(s: dict) -> list[tuple[str, str, str, str]]:
             out.append(("access_token + app_secret", "INVALID",
                         f"HTTP {code}: {str(err.get('message'))[:90]}", fp(token)))
     if app_id and app_secret:
-        code, body = http("https://graph.facebook.com/v25.0/" + app_id + "?" +
+        code, body = http(meta_graph_version.graph_base() + "/" + app_id + "?" +
                           urllib.parse.urlencode({"access_token": f"{app_id}|{app_secret}",
                                                   "fields": "id"}))
         out.append(("app_secret (app token)", "VALID" if code == 200 else "INVALID",

@@ -1,7 +1,15 @@
-"""Shared WhatsApp/Meta constants and enums."""
+"""Shared WhatsApp/Meta template constants and enums.
 
-GRAPH_BASE = 'https://graph.facebook.com'
-DEFAULT_API_VERSION = 'v25.0'
+No Graph host or API version lives here. Two constants naming the Graph host and the default
+API version were declared in this file as independent literals with zero importers, which read
+as configuration while deciding nothing -- the 2026-10-01 version audit counted them as two of
+six sources of truth for a value that must have exactly one. `lambda_utils.meta_version` is the
+sole authority; take the version, the base URL and the URL builder from there.
+
+Deliberately not re-exported. A re-export would add `whatsapp_types -> meta_version` to the
+Lambda packaging closure that `tests/test_provision_checkout_contract.py` pins, so every
+function importing a template constant would start shipping the version module too.
+"""
 
 TEMPLATE_CATEGORIES = ('MARKETING', 'UTILITY', 'AUTHENTICATION')
 

@@ -1,11 +1,12 @@
 {
   "generatedBy": "packages/config/vendorVersions.ts via scripts/check-versions.ts --write",
-  "metaGraphApiVersion": "v25.0",
-  "metaGraphApiBase": "https://graph.facebook.com/v25.0",
+  "metaGraphApiVersion": "v26.0",
+  "metaGraphApiBase": "https://graph.facebook.com/v26.0",
   "metaAuthTemplateName": "wecare_otp",
   "metaAuthTemplateLanguage": "en",
   "wixCatalogVersion": "V3",
-  "wixEcomVersion": "V1",
+  "wixEcomOrdersVersion": "V1",
+  "wixEcomCartVersion": "V2",
   "lambdaPythonRuntime": "python3.12",
   "rejectedRuntimes": [
     "nodejs26.x",

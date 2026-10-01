@@ -82,41 +82,37 @@ export interface VendorVersion {
 /**
  * Meta Graph API version.
  *
- * `v26.0` is not adopted yet, but NOT for the reason this repo previously recorded.
+ * Moved v25.0 → v26.0 on 2026-10-01. The pin that held it at v25.0 rested on a false
+ * premise, and the audit that established that is
+ * `docs/execution/meta-graph-version-audit-20261001.md`.
  *
- * `meta-business-agent/handler.py:231-234` pins away from v26.0 on the grounds that it
+ * `meta-business-agent/handler.py:231-234` pinned away from v26.0 on the grounds that it
  * "blocked a batch of commerce endpoints" and that `_tool_product_lookup` reads
  * `/{catalog_id}/products`. Checked against Meta's v26.0 changelog, that does not hold:
  * v26.0 deprecates the **Commerce Order Management API** — 47 endpoints shaped
  * `/{commerce-order-id}/…`, `/{page-id}/commerce_orders`, `/{commerce-merchant-settings-id}/…`
  * — because checkout on Facebook and Instagram Shops was sunset. `/{catalog_id}/products` is
- * the Product Catalog API and is not among them. This repository calls none of the 47, and
- * none of the five legacy protocol features v26.0 removes.
+ * the Product Catalog API and is not among them. The audit enumerated ~50 endpoints across
+ * 18 functions and 3 scripts and found **zero** affected, plus none of the five legacy
+ * protocol features v26.0 removes.
  *
- * So the documented blocker is **unsubstantiated**. That is grounds to test, not clearance:
- * whether `/{catalog_id}/products` actually answers on v26.0 still needs one live Graph
- * call, which has not been made.
+ * `upgradeBlockedReason` and `lagExpiresOn` are gone with the lag. Carrying an expired
+ * justification is the failure mode `lagExpiresOn` exists to catch, and the honest remaining
+ * gap is not a lag: it is that **no live Graph call has been made on v26.0 from this repo**,
+ * because that needs a real token and reading a credential is prohibited here. That gap is
+ * recorded as a deploy gate in the audit, not as a reason to stay on v25.0 — a doc audit is
+ * grounds to move the repo constant, and the live Lambda environments pin v25.0 explicitly,
+ * so production does not move until a separately authorized deploy.
  *
- * `lagExpiresOn` is 2026-10-27, the date the changelog gives for those surfaces being
- * removed from *all* remaining Graph versions. Past that date the pin protects nothing,
- * so the gate stops accepting it as a reason.
- *
- * v25.0 itself is supported until 2028-07-29, so there is no urgency from its own lifecycle.
+ * v25.0 is supported until 2028-07-29, so nothing here is an outage deadline.
  */
 export const META_GRAPH: VendorVersion = {
   name: 'Meta Graph API / WhatsApp Cloud API',
-  configured: 'v25.0',
+  configured: 'v26.0',
   verifiedLatest: 'v26.0',
-  verifiedOn: '2026-09-26',
+  verifiedOn: '2026-10-01',
   evidence: 'DOC',
   drift: 'lag-allowed-with-reason',
-  upgradeBlockedReason:
-    'Upgrade gated on a Meta contract test covering order_details, payment lookup and the ' +
-    'AUTHENTICATION template round trip. NOTE the previously recorded blocker — "v26.0 ' +
-    'blocked a batch of commerce calls" — is unsubstantiated: v26.0 deprecates the Commerce ' +
-    'Order Management API, which this repo does not call. The pin also protects nothing ' +
-    'after 2026-10-27, when those surfaces are removed from every remaining version.',
-  lagExpiresOn: '2026-10-27',
   rederive: 'https://developers.facebook.com/docs/graph-api/changelog/versions/',
 } as const;
 
@@ -165,14 +161,79 @@ export const WIX_CATALOG: VendorVersion = {
   rederive: '.venv/bin/python scripts/probe_wix_capabilities.py',
 } as const;
 
-export const WIX_ECOM: VendorVersion = {
-  name: 'Wix eCommerce (orders, transactions, fulfillments, cart, checkout)',
+/**
+ * Wix eCommerce — Orders, Order Transactions, Order Fulfillments.
+ *
+ * Split out of a single conflated `WIX_ECOM` entry on 2026-10-01. That entry was named
+ * "(orders, transactions, fulfillments, cart, checkout)" and reported `[ ok ]` purely
+ * because both of its columns said `V1` — it averaged two families with opposite verdicts
+ * into one reassuring row.
+ *
+ * `/ecom/v1` is not one API. It is the version prefix shared by six separate Wix eCommerce
+ * APIs, and only Cart and Checkout are in the 2027-02-01 removal. Orders, Order Transactions
+ * and Order Fulfillments are current, carry no deprecation notice, and appear nowhere in the
+ * Cart V2 migration mapping. V1 **is** latest for this family, so `must-be-latest` passing
+ * here is a real measurement rather than an artefact.
+ *
+ * 14 of this repo's 16 `/ecom/v1` call sites belong here and are deliberately left alone.
+ */
+export const WIX_ECOM_ORDERS: VendorVersion = {
+  name: 'Wix eCommerce Orders / Transactions / Fulfillments',
   configured: 'V1',
   verifiedLatest: 'V1',
-  verifiedOn: '2026-09-26',
+  verifiedOn: '2026-10-01',
   evidence: 'DOC',
   drift: 'must-be-latest',
-  rederive: 'https://dev.wix.com/docs/api-reference/business-solutions/e-commerce',
+  rederive: 'https://dev.wix.com/docs/api-reference/business-solutions/e-commerce/orders/introduction',
+} as const;
+
+/**
+ * Wix eCommerce — Cart and Checkout.
+ *
+ * The half of the old `WIX_ECOM` row that genuinely lags. Cart V2 unifies Cart V1 and
+ * Checkout V1 into one Cart entity, and **those two APIs are removed on 2027-02-01**; a
+ * V1 checkout id is a V2 cart id, so ids carry across.
+ *
+ * `configured: 'V1'` because V1 is still what *serves*: `ecommerce/checkout/handler.py`
+ * resolves its authoritative total through `wix_ecom.create_checkout`
+ * (`POST /ecom/v1/checkouts`). The Cart V2 adapter exists, is extended, and is reachable
+ * from the checkout handler, but it is behind `WIX_CART_V2_ENABLED` — absent on every
+ * function — so it is not the default and claiming `V2` here would be false.
+ *
+ * `configured: 'V2'` as of 2026-10-01: Cart V2 is the DEFAULT price authority in code.
+ * `ecommerce/checkout` resolves its total through `cart_v2.CartV2.calculate` and
+ * `ecommerce/purchase_intent`, and the gate was inverted from an opt-in (`WIX_CART_V2_ENABLED`)
+ * to an opt-out (`WIX_CART_V2_DISABLED`). Checkout V1 is retained and reachable by one
+ * environment variable, which is a zero-commit rollback and the reason the gate was inverted
+ * rather than deleted.
+ *
+ * What the §3 delivery blocker turned out to be: Cart V2 replaces V1's silent adjustments with
+ * explicit violations, so a real Calculate Cart against this site answers an address-less cart
+ * with `ERROR`-severity `MISSING_DELIVERY_ADDRESS` and `MISSING_DELIVERY_METHOD`. That is the
+ * contract working, not a defect — V1's total was obtainable only because nothing validated it.
+ * The resolution is to supply the address from the authenticated customer's owned profile, and
+ * `Estimate Cart` (verified: no address needed with `calculateDelivery`/`calculateTax` off) is
+ * the documented pre-address state. A placeholder address is refused outright: in India the
+ * delivery address is the place of supply, so a fake one yields the wrong CGST/SGST-versus-IGST
+ * split on an invoice carrying seller GSTIN 19AAFFW7196L1Z8.
+ *
+ * NO `upgradeBlockedReason`, deliberately. Two gaps remain and NEITHER is version lag, so
+ * recording them here would re-create exactly the conflation splitting this row undid:
+ *   - six V2 request shapes (set/remove-delivery-method, refresh, estimate, add/remove-coupon)
+ *     are convention-derived and unverified against a live call — a deploy gate;
+ *   - `checkout/handler.py`'s `LOAD_OWNED_ADDRESS` seam is unwired, so the V2 path answers
+ *     `DELIVERY_DETAILS_REQUIRED` — a feature gate.
+ * Both are tracked in `docs/execution/wix-cart-v2-migration-20261001.md` §10.
+ */
+export const WIX_ECOM_CART: VendorVersion = {
+  name: 'Wix eCommerce Cart / Checkout',
+  configured: 'V2',
+  verifiedLatest: 'V2',
+  verifiedOn: '2026-10-01',
+  evidence: 'DOC',
+  drift: 'must-be-latest',
+  rederive:
+    'https://dev.wix.com/docs/api-reference/business-solutions/e-commerce/purchase-flow/cart-v2/migration-guide',
 } as const;
 
 /**
@@ -342,7 +403,8 @@ export const VENDOR_VERSIONS = {
   metaGraph: META_GRAPH,
   metaAuthTemplate: META_AUTH_TEMPLATE,
   wixCatalog: WIX_CATALOG,
-  wixEcom: WIX_ECOM,
+  wixEcomOrders: WIX_ECOM_ORDERS,
+  wixEcomCart: WIX_ECOM_CART,
   wixBlog: WIX_BLOG,
   googlePlaces: GOOGLE_PLACES,
   googleAddressValidation: GOOGLE_ADDRESS_VALIDATION,
@@ -498,7 +560,15 @@ export interface VendorVersionsJson {
   readonly metaAuthTemplateName: string;
   readonly metaAuthTemplateLanguage: string;
   readonly wixCatalogVersion: string;
-  readonly wixEcomVersion: string;
+  /**
+   * Orders / Transactions / Fulfillments. Replaces the former `wixEcomVersion`, which
+   * conflated this family with Cart and Checkout even though only the latter is being
+   * removed. Renamed rather than narrowed in place so no reader silently gets a different
+   * meaning for the same key.
+   */
+  readonly wixEcomOrdersVersion: string;
+  /** Cart / Checkout. Lags: V2 is latest, V1 is removed 2027-02-01. */
+  readonly wixEcomCartVersion: string;
   readonly lambdaPythonRuntime: string;
   readonly rejectedRuntimes: readonly string[];
 }
@@ -520,7 +590,8 @@ export function toJsonMirror(): VendorVersionsJson {
     metaAuthTemplateName: templateName ?? 'wecare_otp',
     metaAuthTemplateLanguage: templateLanguage ?? 'en',
     wixCatalogVersion: WIX_CATALOG.configured,
-    wixEcomVersion: WIX_ECOM.configured,
+    wixEcomOrdersVersion: WIX_ECOM_ORDERS.configured,
+    wixEcomCartVersion: WIX_ECOM_CART.configured,
     lambdaPythonRuntime: LAMBDA_PYTHON_RUNTIME.configured,
     rejectedRuntimes: REJECTED_RUNTIMES.map((entry) => entry.id),
   };

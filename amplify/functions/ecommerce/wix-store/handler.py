@@ -360,7 +360,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 def _customer_cart(event, method):
     from lambda_utils import customer_auth
-    from lambda_utils.ecommerce.cart_v2 import CartV2
+    from lambda_utils.ecommerce.cart_v2 import CartV2, is_enabled as cart_v2_enabled
     from lambda_utils.ecommerce.customer_cart import CustomerCart, CartBusy, CartMissing
 
     if method == 'OPTIONS':
@@ -368,7 +368,10 @@ def _customer_cart(event, method):
     identity, denied = customer_auth.require_customer(event)
     if denied:
         return denied
-    if os.environ.get('WIX_CART_V2_ENABLED', '').lower() != 'true':
+    # Cart V2 is the default price authority since 2026-10-01. `cart_v2.is_enabled` owns the
+    # decision so this route and `ecommerce/checkout` cannot disagree about whether V2 serves,
+    # and so the operator-facing kill switch is one documented key rather than two spellings.
+    if not cart_v2_enabled():
         return _response(503, {'error': 'CART_UNAVAILABLE'})
     if method not in ('GET', 'POST'):
         return _response(405, {'error': 'METHOD_NOT_ALLOWED'})

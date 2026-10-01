@@ -107,12 +107,39 @@ prompt's "must be upgradeable without rewriting business logic" requirement is c
 | Auth mechanism, current | permanent admin API key, `Authorization: <raw key>` | `REPO` `wix-store/handler.py:81-123, 344-357` | ⚠️ older mechanism |
 | Auth mechanism, recommended | OAuth `client_credentials` → short-lived access token | `DOC` Wix: client credentials are the recommended way to authorize admin operations in a headless project | ✅ spec targets this |
 | Stores Catalog | V3 in Lambda code (`/stores/v3/products/{search,query,query-variants}`, `/stores/v3/inventory-items/query`) | `REPO` | ⚠️ capability not re-verified against the site |
-| eCommerce Orders | V1 read/search/patch (`/ecom/v1/orders/*`) | `REPO` | ✅ implemented |
-| Order Transactions | V1 read (`/ecom/v1/transactions/orders/{id}`) | `REPO` | ⚠️ read only; **no** payment recording |
-| Order Fulfillments | V1 read (`/ecom/v1/fulfillments/orders/{id}`) | `REPO` | ✅ implemented |
-| Cart / Checkout | **absent** — zero occurrences of `/ecom/v1/carts`, `/ecom/v1/checkouts`, `redirect-session` | `REPO` grep across `amplify/`, `src/`, `scripts/` | ❌ greenfield |
+| eCommerce Orders | **V1 is LATEST** for this family — read/search/patch (`/ecom/v1/orders/*`), 7 call sites | `DOC` + `REPO` | ✅ implemented, **not** deprecated |
+| Order Transactions | **V1 is LATEST** — read (`/ecom/v1/transactions/orders/{id}`), 2 sites; plus 3 `/ecom/v1/payments/.../add-payment` sites in `wix_writeback` | `DOC` + `REPO` | ⚠️ write-back gated off; **no** payment recording live |
+| Order Fulfillments | **V1 is LATEST** — read (`/ecom/v1/fulfillments/orders/{id}`), 2 sites | `DOC` + `REPO` | ✅ implemented |
+| Cart / Checkout | **PRESENT, and this row previously said "absent", which was false.** Checkout V1 at `lambda_utils/wix_ecom.py:153` (`POST /ecom/v1/checkouts`) and `:211` (`GET /ecom/v1/checkouts/{id}`). Cart **V2** at `lambda_utils/ecommerce/cart_v2.py` (`/ecom/v2/carts/*`) | `REPO` grep, re-run 2026-10-01 | ⚠️ **V2 is the default price authority**; V1 retained as the opt-out path |
 | Invoices v4 / Receipts v1 | **absent**; invoicing is homegrown (`payments/invoice-engine` + 5 tables + per-FY sequence) | `REPO` | ❌ decision required, see `design.md` |
 | Site capability probe | not possible this session | `BLOCKED` no usable Wix credential exists — see §4 | ⛔ |
+
+### `/ecom/v1` is six APIs sharing a prefix, not one deprecated API
+
+Corrected 2026-10-01. The rows above used to read as though `/ecom/v1` were a single version to
+migrate off. It is the prefix shared by six separate Wix eCommerce APIs, and **only two are in the
+2027-02-01 removal**: eCommerce Cart and eCommerce Checkout, which Cart V2 replaces by combining
+them into one Cart entity. Orders, Order Transactions and Order Fulfillments are current, carry no
+deprecation notice, and appear nowhere in the Cart V2 migration mapping — for them V1 *is* latest.
+
+Of this repo's 16 `/ecom/v1` call sites in `amplify/`, **2** are in the removal (both Checkout V1,
+both in `lambda_utils/wix_ecom.py`) and **14** are not. Migrating the 14 is not possible — Cart V2
+has no order search — and deleting them would break live staff order management. They are
+deliberately untouched.
+
+| Family | `amplify/` call sites | Removed 2027-02-01? |
+|---|---:|---|
+| Checkout V1 (`/ecom/v1/checkouts…`) | 2 | **Yes** — migrated to Cart V2, V1 retained behind the gate |
+| Orders (`/ecom/v1/orders…`) | 7 | No |
+| Order Transactions (`…/transactions…`, `…/add-payment`) | 5 | No |
+| Order Fulfillments (`/ecom/v1/fulfillments…`) | 2 | No |
+
+Sources:
+[Purchase Flow: Introduction](https://dev.wix.com/docs/api-reference/business-solutions/e-commerce/purchase-flow/introduction),
+[Cart V2: Migration Guide](https://dev.wix.com/docs/api-reference/business-solutions/e-commerce/purchase-flow/cart-v2/migration-guide),
+[Cart V2: Migration Mapping](https://dev.wix.com/docs/api-reference/business-solutions/e-commerce/purchase-flow/cart-v2/migration-mapping),
+[About Orders](https://dev.wix.com/docs/api-reference/business-solutions/e-commerce/orders/introduction).
+Content was rephrased for compliance with licensing restrictions.
 
 **Catalog version, installed apps and Invoices availability cannot be verified**, because
 every probe needs a credential the account does not currently hold. The prompt's §0 items

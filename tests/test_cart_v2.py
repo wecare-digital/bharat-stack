@@ -23,12 +23,38 @@ def live():
     return json.loads(FIXTURE.read_text())
 
 
-def ready():
-    # Explicitly synthetic success fixture; live demo lacked delivery details.
+def synthetic_payable():
+    """A HAND-FORCED payable cart. Not evidence that this site can be paid for.
+
+    It takes the real live response and wipes `violations` and `demo`. That makes it fine for what
+    the tests below use it for — exercising the contract's arithmetic, binding and refusal logic on
+    an otherwise realistic shape — and useless as proof of a working checkout, because the two
+    fields it erases are exactly the ones the live site sets.
+
+    The honest payable fixture is `fixtures/wix_cart_v2_delivery_complete.json`, which clears the
+    violations the way the provider does: by supplying a real delivery address and method, with the
+    delivery charge that follows. `tests/test_wix_cart_v2_delivery.py` drives that one.
+
+    Renamed from `ready` on purpose. Under the old name it read like a fixture describing a cart
+    that was good to go, and every "payable total" assertion in this file rested on it, which
+    overstated what the suite had established.
+    """
     result = live()
     result['cart']['demo'] = False
     result['summary']['violations'] = []
     return result
+
+
+def test_the_synthetic_fixture_differs_from_the_live_one_only_by_the_blocking_fields():
+    """Pins what `synthetic_payable` actually fakes, so the overstatement cannot creep back.
+
+    If someone later forces another field to make a test pass, this fails and names it.
+    """
+    forced, actual = synthetic_payable(), live()
+    assert actual['summary']['violations'], 'the live fixture must keep its real violations'
+    forced['summary']['violations'] = actual['summary']['violations']
+    forced['cart']['demo'] = actual['cart']['demo']
+    assert forced == actual
 
 
 def item():
@@ -39,7 +65,7 @@ def item():
 class Wix:
     def __init__(self, response=None):
         self.calls = []
-        self.response = ready() if response is None else response
+        self.response = synthetic_payable() if response is None else response
         self.fail = False
 
     def __call__(self, path, method='GET', body=None):
@@ -269,11 +295,34 @@ def test_cart_route_rejects_missing_customer_session_before_any_wix_call(handler
     assert response['statusCode'] == 401
 
 
-def test_authenticated_cart_route_stays_disabled_until_deployment_verification(handler_module, monkeypatch):
+def test_the_cart_route_can_still_be_switched_off_by_one_env_var(handler_module, monkeypatch):
+    """The gate inverted on 2026-10-01: Cart V2 is the default and `WIX_CART_V2_DISABLED` is the
+    kill switch.
+
+    This test used to assert the opposite — that an authenticated cart request returned 503 with
+    no env set — because V2 was opt-in. The route now serves by default, and what is worth
+    guarding is that the OFF switch still works without a code change: `/wix-store/cart` performs
+    real Create Cart and Add Line Items writes against the live site for any authenticated
+    customer, so an operator needs a lever that is one environment variable and a redeploy.
+    """
     from lambda_utils import customer_auth
     identity = CustomerIdentity(customer_id='a', phone='+919330994400', subject='a')
     monkeypatch.setattr(customer_auth, 'require_customer', lambda _: (identity, None))
     monkeypatch.delenv('WIX_CART_V2_ENABLED', raising=False)
+    monkeypatch.setenv('WIX_CART_V2_DISABLED', 'true')
+    monkeypatch.setattr(handler_module, '_wix_request', lambda *a, **k: pytest.fail('disabled call'))
+    response = handler_module.handler({'httpMethod': 'GET', 'path': '/wix-store/cart', 'headers': {}}, None)
+    assert response['statusCode'] == 503
+
+
+def test_a_legacy_explicit_disable_is_still_honoured(handler_module, monkeypatch):
+    """A deployed `WIX_CART_V2_ENABLED=false` is somebody's decision, and inverting the default
+    must not quietly overrule it."""
+    from lambda_utils import customer_auth
+    identity = CustomerIdentity(customer_id='a', phone='+919330994400', subject='a')
+    monkeypatch.setattr(customer_auth, 'require_customer', lambda _: (identity, None))
+    monkeypatch.delenv('WIX_CART_V2_DISABLED', raising=False)
+    monkeypatch.setenv('WIX_CART_V2_ENABLED', 'false')
     monkeypatch.setattr(handler_module, '_wix_request', lambda *a, **k: pytest.fail('disabled call'))
     response = handler_module.handler({'httpMethod': 'GET', 'path': '/wix-store/cart', 'headers': {}}, None)
     assert response['statusCode'] == 503
@@ -302,7 +351,7 @@ def test_replayed_quote_is_rejected_after_cart_changes(cart_store):
 
 
 def test_demo_never_becomes_payable_even_with_no_reported_violations():
-    response = ready()
+    response = synthetic_payable()
     response['cart']['demo'] = True
     with pytest.raises(CartContractError):
         CartV2(Wix(response)).calculate(response['cart']['id'])

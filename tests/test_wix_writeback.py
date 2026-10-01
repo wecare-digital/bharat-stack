@@ -7,6 +7,7 @@ once and records the payment once across retries, and no float arithmetic touche
 """
 
 import os
+import re
 import sys
 
 import pytest
@@ -21,6 +22,9 @@ from lambda_utils.ecommerce import wix_writeback as wb  # noqa: E402
 TABLE = "stack-wecare-digital-CommerceKeys"
 ORDER = "01J8Z9Q9W9EXAMPLEORDERID000000"
 TXN = "pay_ABC123"
+#: A real-shaped Cart V2 cart id. `mark_cart_completed` validates it as a UUID through
+#: `cart_v2.identifier`, so a placeholder string would be refused before any call.
+CART = "7f3a2b1c-4d5e-4f60-8a71-9b2c3d4e5f60"
 
 
 @pytest.fixture
@@ -40,6 +44,9 @@ class _RecordingWix:
             return {"order": {"id": "wix-order-1"}}
         if "/add-payment" in path:
             return {"orderTransactions": {"orderId": "wix-order-1", "payments": body["payments"]}}
+        if path.endswith("/mark-as-completed"):
+            return {"cart": {"id": CART, "revision": "5", "orderPlaced": True,
+                             "orderId": body["orderId"]}}
         raise AssertionError(f"unexpected Wix call: {method} {path}")
 
 
@@ -53,21 +60,60 @@ def enabled(monkeypatch):
 
 # ── R7.4: enumerate the calls, none can charge ──────────────────────────────────
 
-def test_the_only_allowed_endpoints_are_create_order_and_record_payment():
+def test_the_only_allowed_endpoints_are_create_order_record_payment_and_complete_cart():
     # The complete, static set. If someone adds an endpoint, this fails until they update the
     # test — which forces a human to look at whether the new endpoint can charge.
+    #
+    # Mark Cart As Completed joined on 2026-10-01. It is the third step of the external-order
+    # sequence D7 specifies (Orders Create Order -> Order Transactions Add Payments -> Cart V2
+    # Mark Cart As Completed); without it a paid cart is never closed. It sets `orderPlaced` and
+    # attaches the order id, and moves no money. Its neighbour Cart V2 **Place Order** CAN enter
+    # Wix payment collection, which is why that one is absent here and absent from
+    # `cart_v2.CartV2` entirely.
     assert wb.ALLOWED_ENDPOINTS == frozenset({
         ("POST", "/ecom/v1/orders"),
         ("POST", "/ecom/v1/payments/orders/{orderId}/add-payment"),
+        ("POST", "/ecom/v2/carts/{cartId}/mark-as-completed"),
     })
 
 
 def test_no_allowed_endpoint_is_a_charging_endpoint():
     # Every allowlisted path, checked against the charging markers. None may match.
     for _method, template in wb.ALLOWED_ENDPOINTS:
-        concrete = template.replace("{orderId}", "wix-order-1")
+        concrete = re.sub(r"\{[A-Za-z][A-Za-z0-9]*\}", "wix-order-1", template)
         assert not wb._endpoint_would_charge(concrete), \
             f"{template} matches a charging marker"
+
+
+def test_place_order_is_not_reachable_even_though_it_is_the_v2_create_order():
+    """The one Cart V2 call that could collect, refused at the guard as well as being off-list.
+
+    Cart V2's Place Order is the documented replacement for Checkout V1's Create Order, so the
+    migration makes reaching for it the natural mistake. It must fail closed.
+    """
+    wix = _RecordingWix()
+    for path in ("/ecom/v2/carts/cart-1/place-order",
+                 "/ecom/v2/carts/cart-1/create-order",
+                 "/ecom/v2/carts/cart-1/checkout-url"):
+        with pytest.raises((wb.WixWouldCharge, wb.WixEndpointNotAllowed)):
+            wb._guarded_call(wix, method="POST", path=path)
+    assert wix.calls == []
+
+
+def test_the_cart_slot_cannot_smuggle_an_extra_path_segment():
+    """The generalised `{name}` slot accepts only an id, so it cannot land on a neighbour.
+
+    Worth asserting because the slot matcher was widened from a hard-coded `{orderId}` to support
+    `{cartId}`, and a sloppy widening is how an allowlist stops being one.
+    """
+    wix = _RecordingWix()
+    for path in ("/ecom/v2/carts/cart-1/extra/mark-as-completed",
+                 "/ecom/v2/carts/../orders/mark-as-completed",
+                 "/ecom/v2/carts//mark-as-completed",
+                 "/ecom/v2/carts/cart-1?x=1/mark-as-completed"):
+        with pytest.raises((wb.WixWouldCharge, wb.WixEndpointNotAllowed)):
+            wb._guarded_call(wix, method="POST", path=path)
+    assert wix.calls == []
 
 
 @pytest.mark.parametrize("charging_path", [
@@ -97,13 +143,81 @@ def test_a_full_reconciliation_writeback_makes_only_non_charging_calls(table, en
     wb.create_wix_order(table, wix, order_id=ORDER, order_payload={"lineItems": []})
     wb.record_external_payment(table, wix, order_id=ORDER, wix_order_id="wix-order-1",
                                provider_transaction_id=TXN, amount_paise=59900)
-    # Enumerate: exactly create-order then add-payment. Both non-charging by the markers.
+    wb.mark_cart_completed(table, wix, order_id=ORDER, cart_id=CART, wix_order_id="wix-order-1")
+    # Enumerate the WHOLE sequence: create-order, add-payment, mark-as-completed. R7.4 wants this
+    # spelled out so "it cannot charge again" is demonstrated rather than asserted.
     assert wix.calls == [
         ("POST", "/ecom/v1/orders"),
         ("POST", "/ecom/v1/payments/orders/wix-order-1/add-payment"),
+        (f"POST", f"/ecom/v2/carts/{CART}/mark-as-completed"),
     ]
     for _method, path in wix.calls:
         assert not wb._endpoint_would_charge(path)
+
+
+# ── Mark Cart As Completed ──────────────────────────────────────────────────────
+
+def test_completing_a_cart_is_idempotent(table, enabled):
+    """A second call returns `completed: False` and makes no further request.
+
+    The cart is closed once. A repeat must not re-call Wix, for the same reason order creation
+    must not: a duplicate is indistinguishable from a retry at the provider.
+    """
+    wix = _RecordingWix()
+    first = wb.mark_cart_completed(table, wix, order_id=ORDER, cart_id=CART,
+                                   wix_order_id="wix-order-1")
+    second = wb.mark_cart_completed(table, wix, order_id=ORDER, cart_id=CART,
+                                    wix_order_id="wix-order-1")
+    assert first == {"completed": True}
+    assert second == {"completed": False}
+    assert len(wix.calls) == 1
+
+
+def test_an_ambiguous_completion_is_not_repeated(table, enabled):
+    """A timeout leaves a pending marker, and a pending marker is never permission to retry.
+
+    Its own effect rather than sharing `WIX_ORDER`: a timeout here is ambiguous about the CART, and
+    folding the two together would make an unresolved completion look like an unresolved order and
+    invite a second order.
+    """
+    def timing_out(path, method="POST", body=None):
+        raise TimeoutError("uncertain write")
+
+    with pytest.raises(TimeoutError):
+        wb.mark_cart_completed(table, timing_out, order_id=ORDER, cart_id=CART,
+                               wix_order_id="wix-order-1")
+    wix = _RecordingWix()
+    with pytest.raises(wb.WixWritebackPending):
+        wb.mark_cart_completed(table, wix, order_id=ORDER, cart_id=CART,
+                               wix_order_id="wix-order-1")
+    assert wix.calls == []
+
+
+def test_a_cart_completion_needs_an_order_to_attach(table, enabled):
+    """Completing with no order id would lose the link, and the cart is where Wix records it."""
+    wix = _RecordingWix()
+    with pytest.raises(ValueError):
+        wb.mark_cart_completed(table, wix, order_id=ORDER, cart_id=CART, wix_order_id="")
+    assert wix.calls == []
+
+
+@pytest.mark.parametrize("bad_cart", ["", "not-a-uuid", "../orders", None, 1])
+def test_a_malformed_cart_id_never_reaches_the_provider(table, enabled, bad_cart):
+    wix = _RecordingWix()
+    with pytest.raises(ValueError):
+        wb.mark_cart_completed(table, wix, order_id=ORDER, cart_id=bad_cart,
+                               wix_order_id="wix-order-1")
+    assert wix.calls == []
+
+
+def test_cart_completion_is_disabled_with_the_rest_of_the_writeback(table, monkeypatch):
+    """No new flag. It is inert by exactly the same four gates as the other two calls."""
+    monkeypatch.delenv("WIX_WRITEBACK_ENABLED", raising=False)
+    wix = _RecordingWix()
+    with pytest.raises(wb.WixWritebackDisabled):
+        wb.mark_cart_completed(table, wix, order_id=ORDER, cart_id=CART,
+                               wix_order_id="wix-order-1")
+    assert wix.calls == []
 
 
 # ── inert by default ────────────────────────────────────────────────────────────
