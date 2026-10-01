@@ -669,26 +669,188 @@ def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) 
 def _quarantine_unverified_capture(reference_id: str, payment_id: str,
                                    outcome: Optional[Dict[str, Any]],
                                    request_id: str) -> None:
-    """Park a capture that could not be authoritatively cleared. Writes nothing financial.
+    """Durably park a capture that could not be authoritatively cleared. Writes nothing financial.
 
     Reached when a commerce reference did not reconcile to an order and the reference is not a
     provider-verified legacy invoice, or when reconciliation/verification/storage failed. It marks
-    NO invoice paid, runs NO post-payment, sends NO confirmation, and does NOT double-write; it
-    only emits a single staff alert. The event RECEIPT (the audit row and the 200 response) is
-    handled by the caller and is unaffected - this keeps the raw receipt separate from verified
-    financial state. The money may or may not have moved, so the customer is never told to retry.
+    NO invoice paid, runs NO post-payment, sends NO confirmation, and does NOT double-write any
+    financial state.
+
+    What it DOES do, and why this changed: it persists a durable, recoverable intake row
+    (reference_id, payment_id, outcome category, created_at, and acknowledgement fields) to the
+    commerce-keys table via the same conditional-write pattern order creation uses. The row it
+    replaced was a staff alert LOG and nothing else - which disappears from the operational view
+    the moment CloudWatch retention lapses, and is gone entirely once Razorpay stops retrying. A
+    durable row stays queryable (see scripts/reconcile_captures.py) and an acknowledged event
+    remains recoverable afterwards. The staff alert log is still emitted alongside it, so existing
+    alerting keeps firing; the row is the thing that survives.
+
+    The event RECEIPT (the audit row and the 200 response) is handled by the caller and is
+    unaffected - this keeps the raw receipt separate from verified financial state. The money may
+    or may not have moved, so the customer is never told to retry.
     """
-    from lambda_utils.ecommerce import order_creation
+    from lambda_utils.ecommerce import order_creation, order_keys
     category = (outcome or {}).get('outcome') or order_creation.NEEDS_RECONCILIATION
+
+    # The durable, recoverable intake. Keyed by payment id and idempotent, so a redelivery of the
+    # same unverified capture does not pile up rows or undo an acknowledgement. A storage failure
+    # here must be visible, not swallowed - without the row there is no recovery record - but it
+    # must also not fail the webhook (a non-2xx makes Razorpay retry the whole event, and the lease
+    # already handles that). So it is logged by type and the alert still fires below.
+    persisted = False
+    try:
+        table = dynamodb.Table(order_keys.commerce_keys_table_name())
+        order_keys.record_capture_quarantine(
+            table, payment_id=payment_id, reference_id=reference_id or '',
+            outcome=category, extra={'source': 'razorpay-webhook'})
+        persisted = True
+    except Exception as exc:  # noqa: BLE001
+        # Type only. A ClientError message can echo request content.
+        logger.error(json.dumps({
+            'event': 'capture_quarantine_persist_failed',
+            'outcome': category,
+            'paymentId': payment_id,
+            'referenceId': reference_id or None,
+            'stage': 'quarantine',
+            'error': type(exc).__name__,
+            'requestId': request_id,
+        }))
+
     logger.error(json.dumps({
         'event': 'capture_needs_reconciliation',
         'alert': order_creation.NEEDS_RECONCILIATION,
         'outcome': category,
         'paymentId': payment_id,
         'referenceId': reference_id or None,
+        'durable': persisted,
         'stage': 'quarantine',
         'requestId': request_id,
     }))
+
+
+def _handle_wallet_topup_captured(payment: Dict, request_id: str) -> None:
+    """Credit a partner wallet for a self-service top-up — bound, verified, and once.
+
+    This used to trust the event body outright: it read the amount and the recipient WABA from
+    `payment.notes` and called `partner_billing.topup` immediately. The webhook signing secret is
+    in this repository's public git history, so a signature proves only that someone read the
+    history - which meant anyone could forge a `payment.captured` with any `amount` and any
+    `wabaId` and mint free wallet balance, and a duplicate delivery of a genuine capture would
+    credit twice.
+
+    Three gates close that, in order:
+
+      1. A STORED top-up intent must exist for this reference. The self-service flow reserves one
+         (`reserve_topup_intent`) before the payment link is created, carrying the WABA and amount
+         the business actually asked for. No intent -> this is not an authorised top-up -> credit
+         nothing. The event notes are never the authority for who or how much.
+      2. The captured amount is VERIFIED against Razorpay's API (`payment_is_captured`), never read
+         from the event, and must equal the stored intent's amount in INR to the paise.
+      3. An idempotency marker (`claim_topup_credit`, keyed by payment id, conditional) is claimed
+         BEFORE the credit, so one captured payment credits exactly once and a redelivery credits
+         nothing.
+
+    Never raises: a non-2xx makes Razorpay retry the whole event, and nothing here is worth that.
+    """
+    from decimal import Decimal
+    from lambda_utils.ecommerce import order_keys
+    from lambda_utils.ecommerce.money import positive_paise
+    from lambda_utils.integrations import razorpay_verify
+
+    notes = payment.get('notes', {}) or {}
+    payment_id = str(payment.get('id') or '')
+    waba_id = str(notes.get('wabaId') or '')
+    reference_id = str(notes.get('referenceId') or notes.get('reference_id')
+                       or notes.get('ref') or '')
+
+    if not payment_id:
+        logger.error(json.dumps({'event': 'partner_wallet_topup_no_payment_id',
+                                 'stage': 'wallet_topup', 'requestId': request_id}))
+        return
+
+    try:
+        table = dynamodb.Table(order_keys.commerce_keys_table_name())
+
+        # Gate 1: a stored top-up intent the business actually created.
+        intent = order_keys.resolve_topup_intent(table, reference_id) if reference_id else None
+        if not intent:
+            # No authorised intent. The event notes are not evidence, so credit nothing and park
+            # it for a human instead of trusting the body.
+            logger.error(json.dumps({
+                'event': 'partner_wallet_topup_no_intent',
+                'alert': 'TOPUP_WITHOUT_INTENT',
+                'paymentId': payment_id,
+                'referenceId': reference_id or None,
+                'stage': 'wallet_topup',
+                'requestId': request_id,
+            }))
+            _quarantine_unverified_capture(reference_id, payment_id, None, request_id)
+            return
+
+        try:
+            intent_paise = positive_paise(intent.get('amountPaise'))
+        except (ValueError, TypeError):
+            logger.error(json.dumps({'event': 'partner_wallet_topup_intent_amount_invalid',
+                                     'paymentId': payment_id, 'referenceId': reference_id or None,
+                                     'stage': 'wallet_topup', 'requestId': request_id}))
+            _quarantine_unverified_capture(reference_id, payment_id, None, request_id)
+            return
+        intent_waba = str(intent.get('wabaId') or '')
+        if not intent_waba or (waba_id and waba_id != intent_waba):
+            # The event names a different WABA than the one the top-up was created for. Never let
+            # the event body redirect a credit; the stored intent is the authority.
+            logger.error(json.dumps({'event': 'partner_wallet_topup_waba_mismatch',
+                                     'alert': 'TOPUP_WABA_MISMATCH', 'paymentId': payment_id,
+                                     'referenceId': reference_id or None, 'stage': 'wallet_topup',
+                                     'requestId': request_id}))
+            _quarantine_unverified_capture(reference_id, payment_id, None, request_id)
+            return
+
+        # Gate 2: authoritative provider verification of the captured amount. Never the event body.
+        captured, provider_paise, provider_currency = razorpay_verify.payment_is_captured(
+            payment_id)
+        if not captured or str(provider_currency or '') != 'INR':
+            _quarantine_unverified_capture(reference_id, payment_id, None, request_id)
+            return
+        try:
+            provider_paise = positive_paise(provider_paise)
+        except ValueError:
+            _quarantine_unverified_capture(reference_id, payment_id, None, request_id)
+            return
+        if provider_paise != intent_paise:
+            # Money moved, but not for the amount the top-up was created for. A human decides.
+            logger.error(json.dumps({'event': 'partner_wallet_topup_amount_mismatch',
+                                     'alert': 'TOPUP_AMOUNT_MISMATCH', 'paymentId': payment_id,
+                                     'referenceId': reference_id or None, 'stage': 'wallet_topup',
+                                     'requestId': request_id}))
+            _quarantine_unverified_capture(reference_id, payment_id, None, request_id)
+            return
+
+        # Gate 3: idempotency. Claim the credit BEFORE applying it, so a duplicate delivery that
+        # loses the claim credits nothing. A lost claim is the normal duplicate case, not an error.
+        if not order_keys.claim_topup_credit(
+                table, payment_id=payment_id, reference_id=reference_id,
+                waba_id=intent_waba, amount_paise=intent_paise):
+            logger.info(json.dumps({'event': 'partner_wallet_topup_duplicate_skipped',
+                                    'paymentId': payment_id, 'referenceId': reference_id or None,
+                                    'stage': 'wallet_topup', 'requestId': request_id}))
+            return
+
+        # Credit the amount from the STORED INTENT (verified equal to the provider's), in rupees
+        # from exact integer paise - never from the event body's float.
+        amount_rupees = Decimal(intent_paise) / 100
+        from lambda_utils import partner_billing
+        r = partner_billing.topup(intent_waba, amount_rupees,
+                                  note=f'Razorpay top-up {payment_id}', actor='self-service')
+        logger.info(json.dumps({'event': 'partner_wallet_topup_paid', 'wabaId': intent_waba,
+                                'amountPaise': intent_paise, 'balance': r.get('balance'),
+                                'paymentId': payment_id, 'referenceId': reference_id or None,
+                                'stage': 'wallet_topup', 'requestId': request_id}, default=str))
+    except Exception as e:  # noqa: BLE001
+        # Type only. A ClientError / provider error message can echo request content.
+        logger.error(json.dumps({'event': 'partner_wallet_topup_error',
+                                 'error': type(e).__name__, 'paymentId': payment_id,
+                                 'stage': 'wallet_topup', 'requestId': request_id}))
 
 
 def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
@@ -708,16 +870,7 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
     # Partner prepaid wallet top-up (self-service): if this payment was created for
     # a wallet top-up, credit the tenant's wallet and stop (not an invoice payment).
     if (notes or {}).get('purpose') == 'wallet_topup' and (notes or {}).get('wabaId'):
-        try:
-            from lambda_utils import partner_billing
-            r = partner_billing.topup(notes['wabaId'], amount_rupees,
-                                      note=f'Razorpay top-up {payment_id}', actor='self-service')
-            logger.info(json.dumps({'event': 'partner_wallet_topup_paid', 'wabaId': notes['wabaId'],
-                                    'amount': amount_rupees, 'balance': r.get('balance'),
-                                    'paymentId': payment_id, 'requestId': request_id}))
-        except Exception as e:  # noqa: BLE001
-            logger.error(json.dumps({'event': 'partner_wallet_topup_error', 'error': str(e),
-                                     'paymentId': payment_id, 'requestId': request_id}))
+        _handle_wallet_topup_captured(payment, request_id)
         return
 
     # Paid secure-file download (wecare.digital/get): hand the order id to secure-files
