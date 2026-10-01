@@ -2,7 +2,12 @@
 
 **Date:** 2026-10-01 · **Account:** 775261844268 · **Region:** us-east-1
 **HTTP API:** `zllr9lrg7j` ("wecare-digital-api"), stage `prod`, `AutoDeploy: true`
-**Deployed source revision:** `4c603188fd859be28c269db0b2250f76dbb378e5` (`origin/stack`)
+**Deployed source revision:** `4c603188fd859be28c269db0b2250f76dbb378e5` — the `origin/stack` tip
+at deploy time, and what the live function still runs.
+**`origin/stack` now:** `83a8d60d` (this work landed as `13c9f7a2`). The two are not the same, and
+the difference is recorded in
+[the staleness note](#the-deployed-artifact-is-now-stale-and-that-is-recorded-not-fixed) rather
+than quietly closed.
 
 `POST /api/ecommerce/checkout` returned **404** because the function behind it had never been
 created. It now returns **401**. That is the whole change: a reachable, authenticating endpoint
@@ -26,8 +31,11 @@ two independent blocks have to be removed by an owner before anything can.
 | `config/lambda-env-manifest.json` entry | ✅ COMPLETE |
 | IaC declaration under `amplify/infra/` | ✅ COMPLETE |
 | S3 bag-icon upload + provenance | ✅ COMPLETE |
-| `PAYMENT_INITIATION_DISABLED` observed on a live request | ⛔ BLOCKED — needs a customer token **and** owner-supplied readiness values. See [the honest limitation](#the-deliverable-i-could-not-produce-and-why) |
-| Website-Razorpay architecture direction | ⚠️ NEEDS CONFIRMATION — owner decision, unchanged by this work |
+| `PAYMENT_INITIATION_DISABLED` reached by an authenticated unit test | ✅ COMPLETE — `tests/test_checkout_handler.py` |
+| `PAYMENT_INITIATION_DISABLED` reached by a live probe | ➖ NOT REQUIRED — structurally unreachable, and that is the [defence-in-depth](#why-payment_initiation_disabled-is-unreachable-live-and-why-that-is-correct) property, not a gap |
+| Website-Razorpay architecture direction | ✅ **DECIDED** — website Razorpay Standard Checkout + downloadable receipt. See [the ruling](#the-architecture-ruling-decided-2026-10-01) |
+| Website path wired into the deployed handler | ⏳ PENDING — ruling is settled, implementation is not. Handler still imports neither `website_checkout` nor `razorpay_orders`, at `4c603188` **or** at `83a8d60d` |
+| Deployed artifact current with `origin/stack` | ⚠️ **STALE** — live is `4c603188`'s package; `order_keys.py` has moved since. Harmless while inert, [must be deployed before the gate is enabled](#the-deployed-artifact-is-now-stale-and-that-is-recorded-not-fixed) |
 | `dynamodb:ConditionCheckItem` on the checkout role | ➖ NOT REQUIRED — measured, not assumed |
 
 ---
@@ -132,32 +140,50 @@ Four independent facts, each measured:
    no gateway order was created.
 4. **The role grants no Razorpay credential read.** See the IAM section.
 
-### The deliverable I could not produce, and why
+### Why `PAYMENT_INITIATION_DISABLED` is unreachable live, and why that is correct
 
 The task asked for `POST /api/ecommerce/checkout` with `action=create` to return
 `PAYMENT_INITIATION_DISABLED`. **It returns 401, and no probe can make it return
-`PAYMENT_INITIATION_DISABLED`.** This is a property of the handler, not a gap in the deployment,
-and I did not change the handler to make the literal assertion pass — doing so would have
-weakened authentication to satisfy a probe.
+`PAYMENT_INITIATION_DISABLED`.** The handler was not changed to make the literal assertion pass;
+doing so would have weakened authentication to make a probe prettier.
 
-Two gates sit ahead of that branch, in this order:
+**Reviewed and accepted as defence-in-depth, not as an untested branch** (owner, 2026-10-01:
+three independent refusals stacked in front of a payable order is the intended design). Three
+refusals, in execution order:
 
 1. `handler.handler` calls `customer_auth.require_customer(event)` **first**, before parsing the
-   body. An unauthenticated or invalidly-authenticated request returns an opaque 401 and never
+   body. An unauthenticated or invalidly-authenticated request gets an opaque 401 and never
    enters `_create`. Checkout is correctly not a public endpoint.
-2. Inside `_create`, `payment_readiness.evaluate` runs **before** the
-   `if not INITIATION_ENABLED` branch. With both `EXPECTED_*` empty it returns
-   `CONFIGURATION_UNVERIFIED`, so the response is **409 `payment_unavailable`** — which
-   short-circuits ahead of `PAYMENT_INITIATION_DISABLED`.
+2. Inside `_create`, `payment_readiness.evaluate` runs **before** the `if not INITIATION_ENABLED`
+   branch. With both `EXPECTED_*` empty it returns `CONFIGURATION_UNVERIFIED`, so the response is
+   **409 `payment_unavailable`**, short-circuiting ahead of the gate.
+3. Only then does the gate itself answer `PAYMENT_INITIATION_DISABLED`.
 
-So reaching `PAYMENT_INITIATION_DISABLED` live needs a real customer Cognito access token **and**
-owner-supplied readiness values. Minting a customer token is not authorised here and supplying
-readiness values is owner-only. **The honest, measured contract change is 404 → 401**, and the
-intent behind the asked-for assertion — that the endpoint is reachable, well-formed, and creates
-nothing payable — is satisfied and evidenced above.
+Reaching layer 3 live would need a real customer Cognito access token **and** owner-supplied
+readiness values. Minting a customer token is not authorised here, and the readiness values are
+owner-only. **So the measured live contract change is 404 → 401**, and the branch is reached
+where it can be reached honestly: in a unit test with an authenticated fixture.
 
-The `PAYMENT_INITIATION_DISABLED` response shape itself is covered by
-`tests/test_checkout_handler.py`, which exercises it with a stubbed identity.
+#### The branch IS exercised, with an authenticated fixture
+
+`tests/test_checkout_handler.py::test_create_disabled_prepares_attempt_but_sends_nothing_and_makes_no_order`
+stubs `customer_auth.authenticate` to return a `CustomerIdentity`, sets readiness to pass
+(`EXPECTED_CONFIGURATION_NAME='WECAREDIGITAL'`, `EXPECTED_PROVIDER_MID='acc_TESTMID'`) and pins
+`INITIATION_ENABLED=False` — so it enters the exact branch a live probe cannot, and asserts the
+properties that matter rather than just the status string:
+
+- `status == 'PAYMENT_INITIATION_DISABLED'`, `amountPaise == 59900` (Wix's authoritative 599.00 in
+  integer paise), `currency == 'INR'`
+- exactly **one** attempt row, bound to the customer, `checkoutMode == 'WIX_HEADLESS'`,
+  `status == 'PAYMENT_READINESS_CHECKED'`
+- a `PAYREF#` reservation exists, and **no** `ORDERNO#`, `PAYMENTATTEMPT#` or `PROVIDERPAYMENT#`
+  row does — so no order was created
+- the only internal invoke was the readiness payment-config read; **no** `send` path was invoked,
+  so no payable message went out
+
+`tests/test_razorpay_binding.py` covers the same state on the website path
+(`wc.PAYMENT_INITIATION_DISABLED`). Between them the branch is covered for both flows; what is
+absent is only a live HTTP observation of it, which is prevented by layers 1 and 2 above.
 
 ---
 
@@ -325,12 +351,75 @@ docstring**. Its top-level imports are `customer_auth`, `payment_readiness`, `or
 `payment_attempt`, `wix_ecom`, `logging`, `response` — confirmed by the 18-file import closure.
 `_action` dispatches `create` and `status` and nothing else.
 
-So the additive website contract (`CHECKOUT_OPTIONS_READY`, the callback with HMAC-over-stored-
-order-id plus authoritative capture) is present in the artifact and unreachable. Wiring it is the
-**open owner architecture decision** from the original request — the repo's own spec mandates
-in-WhatsApp payment with WhatsApp-only receipts, while the handoff asks for website Razorpay plus
-a downloadable receipt. This deployment deliberately does not choose. Both paths sit behind the
-same `CHECKOUT_INITIATION_ENABLED` gate, off.
+**Re-measured at `83a8d60d` after the merge: still true.** The import list is unchanged, so the
+additive website contract (`CHECKOUT_OPTIONS_READY`, the callback with HMAC-over-stored-order-id
+plus authoritative capture) is present in the artifact and still unreachable.
+
+The architecture question that blocked it has since been answered, which changes the status from
+"undecided" to "decided and not yet implemented" — see below. Both paths remain behind the same
+`CHECKOUT_INITIATION_ENABLED` gate, off.
+
+### The architecture ruling (decided 2026-10-01)
+
+**Website Razorpay Standard Checkout + downloadable receipt.** Recorded in commit `9e3e77cb`
+*"docs: reconcile checkout spec to website-only Razorpay ruling (FEAT-004)"*, which updated
+`requirements.md`, `design.md` and `tasks.md`.
+
+This supersedes the spec statements this deployment was written against. The earlier
+"WhatsApp-only receipts" and "payment collected externally via WhatsApp" language is **retired**,
+not merely overridden. Owner confirmation in session: WhatsApp stays as the support widget, OTP
+sign-in, and authorised receipt/order notifications — it is **out of the purchase flow**. Commit
+`b6646345` retired the in-WhatsApp payment-capture side effects on that basis.
+
+Two things the ruling does **not** change, and both were re-confirmed with it:
+
+- `CHECKOUT_INITIATION_ENABLED` stays **OFF**. Enabling it is owner-only and still ungranted.
+- **No live monetary test** happens until the owner authorises it separately.
+
+So the consequence for this deployment is narrow and worth stating plainly: the deployed function
+is unaffected, because the website path it would run is not wired into the handler yet. The ruling
+unblocks that implementation work; it does not retroactively change what was deployed. Note also
+that `.kiro/steering/whatsapp-payments-india-reference.md` still describes the in-WhatsApp
+posture — steering has not been reconciled to `9e3e77cb`, and whoever wires the website path
+should expect to resolve that, since steering outranks a spec on conflict.
+
+### The deployed artifact is now stale, and that is recorded, not fixed
+
+Measured after the merge. The live function still runs the package built from `4c603188`; HEAD is
+now `83a8d60d`:
+
+```
+live  CodeSha256  917moZkEBIyIzGRQvChUup2PMoWfw4Ebmr863jnQBKI=   112 files  413,871 bytes
+HEAD  package     OU+pzkX/hi4/5lSYEsA8FlBDhjaFXzOV2HooSeSzk8o=   114 files  419,158 bytes
+```
+
+What moved, and whether it matters:
+
+| File | Change | In the deployed import closure? |
+|---|---|---|
+| `lambda_utils/ecommerce/order_keys.py` | +100 lines: `claim_legacy_invoice_payment`, `release_legacy_invoice_payment_claim` (commits `86c36f43`, `72a68e31`) | **Yes** |
+| `lambda_utils/integrations/razorpay_verify.py` | +23 lines | No |
+
+`order_keys` **is** one of the 18 files the handler reaches, so this is real drift and not a
+cosmetic hash difference. It is harmless **today** for one reason only: the function is inert.
+Every request is refused at `customer_auth` before any `order_keys` call, so no code path that
+differs between the two revisions can execute.
+
+**It must be deployed before `CHECKOUT_INITIATION_ENABLED` is enabled.** One command, and it
+reports the drift itself rather than relying on this note being read:
+
+```
+.venv/bin/python scripts/deploy_all_lambdas.py wecare-checkout --dry-run
+#   packaged 114 files, 419158 bytes
+#   WOULD UPDATE: 917moZkEBIyI... -> OU+pzkX/hi4/...
+# then, to apply (publishes a version and moves the live alias for THIS function only):
+.venv/bin/python scripts/deploy_all_lambdas.py wecare-checkout
+```
+
+Not done here deliberately: the task scope was to create the function with the gate off and verify
+the contracts, and a code update plus an alias move from v1 to v2 is a separate action with no
+benefit while the function cannot execute the changed code. Recording a known-stale artifact is
+safer than a silent redeploy outside the reviewed scope.
 
 ### 2. The Razorpay credential read is lazy, but a rotation still needs a republish
 
@@ -344,16 +433,26 @@ environment. A warm sandbox keeps serving the old value after a rotation. So a r
 to recycle the consumers. This is a correctly-written lazy read with a real operational
 consequence, not a defect.
 
-### 3. Two DO-NOT-TOUCH files are mid-edit and 20 tests fail in the working tree
+### 3. Working-tree test failures are foreign, and the committed tree is green
 
-`tests/` on the live working tree: **20 failed, 5604 passed**. All 20 are in four files testing
-`amplify/functions/payments/razorpay-webhook/handler.py` (97 insertions / 183 deletions
-uncommitted) and `lambda_utils/ecommerce/order_creation.py` — both owned by other sessions and
-both on the DO-NOT-TOUCH list.
+Measured three times, because "the tests fail" needs a scope before it means anything.
 
-On `4c603188` **plus** every change in this commit, the full suite is **5726 passed, 3 skipped,
-0 failed**. The failures are another session's in-flight work, not a regression from this
-deployment, and the revision that was actually deployed is green.
+| Tree | Result |
+|---|---|
+| `4c603188` (deployed revision) + this commit's changes | **5726 passed, 3 skipped, 0 failed** |
+| `83a8d60d` (merged `origin/stack`), clean `git archive` | **5757 passed, 1 skipped, 0 failed** |
+| live working tree at the same HEAD | **22 failed, 5735 passed** |
+
+The committed tree is green at both revisions. Every working-tree failure traces to one
+uncommitted file belonging to another session —
+`amplify/functions/shared/lambda_utils/ecommerce/order_creation.py`, on this task's
+DO-NOT-TOUCH list — and the failures are confined to `test_razorpay_webhook_captured_gating.py`,
+`test_razorpay_webhook_order_creation.py`, `test_order_creation.py` and
+`test_payment_vocabulary_at_decision_points.py`.
+
+None of this task's 14 paths is dirty; all match HEAD. The practical point for a reader: run the
+suite against a clean archive before concluding anything from a red local run, because in this
+shared tree a red run is the normal state rather than a signal.
 
 ---
 
@@ -486,17 +585,42 @@ touched.
 
 ---
 
-## Open — owner only
+## Open
 
-1. **Confirm the architecture direction.** Website Razorpay + downloadable receipt, or in-WhatsApp
-   payment + WhatsApp-only receipts? The repo spec says one, the handoff says the other. Until
-   this is answered the website path stays unwired and `secretsmanager:GetSecretValue` on
-   `wecare/razorpay/api` stays ungranted.
-2. **`CHECKOUT_INITIATION_ENABLED`** — owner-only. Setting it alone is not sufficient and not
-   safe: both `EXPECTED_*` readiness values must come from a live Meta/Razorpay readback first,
-   or the endpoint returns 409 regardless.
-3. **The live monetary test to +918100640044** remains deferred, as does the fleet-wide alias move
-   across ~60 functions. Neither was touched here.
+~~**Confirm the architecture direction.**~~ **Answered 2026-10-01** — website Razorpay Standard
+Checkout + downloadable receipt, committed at `9e3e77cb`. See
+[the ruling](#the-architecture-ruling-decided-2026-10-01).
+
+Remaining, in the order they have to happen:
+
+1. **Wire the website path into the handler** (implementation, not a decision). `handler.py`
+   imports neither `website_checkout` nor `razorpay_orders` at `83a8d60d`, so the sanctioned flow
+   is shipped-but-unreachable. Expect to reconcile
+   `.kiro/steering/whatsapp-payments-india-reference.md`, which still describes the in-WhatsApp
+   posture and outranks the spec on conflict.
+2. **Grant `secretsmanager:GetSecretValue` on `wecare/razorpay/api`** to
+   `wecare-checkout-role` — at the moment step 1 lands, not before. Still deliberately ungranted:
+   the direction being decided does not make the credential usable while the code that reads it
+   cannot execute. `test_the_role_grants_no_razorpay_credential_read` pins the current state so
+   adding it is a deliberate edit.
+3. **Deploy the current artifact.** The live function is `4c603188`'s package and `order_keys.py`
+   has moved since — see
+   [the staleness note](#the-deployed-artifact-is-now-stale-and-that-is-recorded-not-fixed).
+   This must precede step 4.
+4. **`CHECKOUT_INITIATION_ENABLED`** — owner-only, and still OFF. Setting it alone is neither
+   sufficient nor safe: both `EXPECTED_*` readiness values must come from a live Meta/Razorpay
+   readback first, or the endpoint returns 409 regardless.
+5. **The live monetary test to +918100640044** remains deferred pending separate owner
+   authorisation, as does the fleet-wide alias move across ~60 functions. Neither was touched here.
+
+## Push
+
+Resolved by the orchestrator, not by this session. `origin/stack` is now `83a8d60d` and local is
+0 ahead / 0 behind; commit `13c9f7a2` is an ancestor of HEAD and present on the remote. The
+non-fast-forward this document originally flagged was a genuine blocker — local `stack` was 3
+ahead / 25 behind — and integrating it was the one-committer's call under
+`.kiro/steering/multi-session-parallel-agents.md`. No `reset --hard`, stash, force push or history
+rewrite was involved on either side.
 
 ---
 
