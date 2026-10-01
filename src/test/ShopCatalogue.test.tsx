@@ -254,9 +254,17 @@ describe( 'the listing page', () => {
     expect( screen.getByText( '₹599.00' ) ).toBeTruthy();
   } );
 
-  it( 'says when the prices were read, rather than implying they are live', () => {
+  it( 'says where the prices come from and that nothing is charged', () => {
+    /*
+     * The owner replaced the snapshot DATE with a shorter sentence, so this no longer asserts
+     * "read on 26 September 2026". The substance that had to survive is still asserted: the price is
+     * the catalogue's rather than a quote, the store is what confirms it, and proceeding charges
+     * nothing. Dropping the date loses a freshness cue and was the owner's call.
+     */
     render( <ShopIndex products={ SHOP_PRODUCTS } /> );
-    expect( screen.getByText( /read from the store catalogue on 26 September 2026/ ) ).toBeTruthy();
+    expect( screen.getByText( /Prices here are from the store catalogue/ ) ).toBeTruthy();
+    expect( screen.getByText( /The store confirms the amount when you proceed/ ) ).toBeTruthy();
+    expect( screen.getByText( /charges you nothing/ ) ).toBeTruthy();
   } );
 
   it( 'says nothing about stock while everything is in stock', () => {
@@ -346,8 +354,8 @@ describe( 'the product page', () => {
     // It no longer claims "this page is not a checkout" now that a cart path exists.
     const kiosk = shopProductBySlug( 'kiosk' ) as ShopProduct;
     render( <ShopProductPage product={ kiosk } /> );
-    expect( screen.getByText( /Live payment is not being accepted yet/ ) ).toBeTruthy();
-    expect( screen.getByText( /prepares your order without charging you/ ) ).toBeTruthy();
+    expect( screen.getByText( /Live payment is not on yet/ ) ).toBeTruthy();
+    expect( screen.getByText( /charges you nothing/ ) ).toBeTruthy();
     expect( screen.queryByText( /This page is not a checkout/ ) ).toBeNull();
   } );
 

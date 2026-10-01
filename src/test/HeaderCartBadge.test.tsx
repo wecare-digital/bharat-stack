@@ -178,6 +178,20 @@ describe( 'the control itself', () => {
     const link = bag();
     expect( link.getAttribute( 'aria-label' ) ).toBeNull();
     expect( container.querySelector( '.hdr-cart-label' )?.textContent ).toBe( 'Shopping Bag' );
+    /*
+     * ICON ONLY, ON OWNER INSTRUCTION: "only cart icon no text or border - this was shopping was
+     * written to make you understand". So the label must still EXIST (it is the accessible name,
+     * and a text node rather than an aria-label so it translates) but must be clipped, and the
+     * control must carry no border or fill at rest. The focus ring is deliberately NOT asserted
+     * away - it is an accessibility requirement, not decoration.
+     */
+    const css = container.querySelector( 'style' )?.textContent || '';
+    expect( css ).toMatch( /\.hdr-cart-label\{[^}]*clip:rect\(0,0,0,0\)/ );
+    const rest = /\.hdr-cart\{([^}]*)\}/.exec( css )?.[ 1 ] || '';
+    expect( rest ).toContain( 'border:0' );
+    expect( rest ).toContain( 'background:none' );
+    expect( rest ).not.toContain( '#cfe0a6' );
+    expect( css ).toContain( '.hdr-cart:focus-visible' );
   } );
 
   it( 'keeps the glyph decorative so the name is not read twice', () => {

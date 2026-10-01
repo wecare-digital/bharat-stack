@@ -4,7 +4,7 @@ import type { GetStaticPaths, GetStaticProps } from 'next';
 import ShopProductHead from '../../components/ShopProductHead';
 import PageTopBand from '../../components/PageTopBand';
 import Breadcrumbs from '../../components/Breadcrumbs';
-import { SHOP_PRODUCTS, shopProductBySlug, catalogReadOn } from '../../content/shop';
+import { SHOP_PRODUCTS, shopProductBySlug } from '../../content/shop';
 import type { ShopProduct } from '../../content/shop';
 import { addItem } from '../../lib/cart';
 
@@ -100,9 +100,9 @@ const ShopProductPage: React.FC<ShopProductPageProps> = ( { product } ) => {
                 with nothing dropped: where the price came from, who decides the amount, and that
                 nothing is charged. */}
             <p className="shopd-note">
-              Price read from the store catalogue on { catalogReadOn() }; the store confirms the
-              amount at checkout. Live payment is not being accepted yet, so adding to your cart
-              prepares your order without charging you.
+              Prices here are from the store catalogue. The store confirms the amount when you
+              proceed. Live payment is not on yet, so proceeding prepares your order and charges
+              you nothing.
             </p>
 
             <p className="shopd-back"><Link href="/shop/">All items in the shop</Link></p>

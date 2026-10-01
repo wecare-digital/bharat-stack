@@ -7,7 +7,7 @@ import RotatingHero from '../../components/RotatingHero';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import type { CycleWord } from '../../components/RotatingHero';
 import { ORIGIN, ld } from '../../lib/schema';
-import { SHOP_PRODUCTS, catalogReadOn, shopProductPath } from '../../content/shop';
+import { SHOP_PRODUCTS, shopProductPath } from '../../content/shop';
 import type { ShopProduct } from '../../content/shop';
 
 /**
@@ -105,8 +105,9 @@ const ShopIndex: React.FC<ShopIndexProps> = ( { products } ) => {
           {/* Saying when the snapshot was taken is the difference between a reference price and a
               quote. */}
           <p className="shop-asof">
-            Prices were read from the store catalogue on { catalogReadOn() }. They are shown for
-            reference - the store confirms the amount at checkout.
+            Prices here are from the store catalogue. The store confirms the amount when you
+            proceed. Live payment is not on yet, so proceeding prepares your order and charges
+            you nothing.
           </p>
 
           <section className="shop-grid" aria-label="Catalogue">
