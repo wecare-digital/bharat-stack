@@ -25,6 +25,7 @@ SHA. The deployed-revision evidence lives in docs/execution/checkout-deployment-
 """
 from __future__ import annotations
 
+import ast
 import importlib.util
 import subprocess
 import sys
@@ -317,39 +318,97 @@ def test_the_package_is_deterministic(built):
     assert module.package_sha(zip_bytes) == module.package_sha(again)
 
 
-def test_the_handler_reads_its_payment_credential_lazily(built):
+# ── the two property assertions, asked of BOTH builds ─────────────────────────
+#
+# R6.1 (integer paise) and secret-handling (lazy credential reads) are the two properties here
+# whose answer must be reproducible from a SHA, so they are the two that least belong on the
+# working-tree build alone. They used to take `built` only - the fixture that packages whatever
+# three other sessions have uncommitted - while every weaker assertion in this file was asked of
+# both. `packaged_members` closes that: each runs twice, once over the tree and once over
+# `git archive HEAD`.
+
+@pytest.fixture(params=["working-tree", "committed"])
+def packaged_members(request):
+    """The member dict from one of the two builds. Skips with `committed` when git cannot."""
+    if request.param == "working-tree":
+        _, members, _, _ = request.getfixturevalue("built")
+        return members
+    return request.getfixturevalue("committed").members
+
+
+def _import_time_calls(tree: ast.AST) -> list:
+    """Every `Call` that runs when the module is IMPORTED, not when something is invoked.
+
+    Computed as "every call that is not inside a function body", which is wider than the previous
+    `tree.body` filtered to `Assign`/`Expr`/`AnnAssign` in three ways that each hid a real shape:
+
+    - a module-scope `try:` / `if:` / `with:` wrapping the read (the single most likely spelling of
+      an import-time secret fetch, since it would be written defensively),
+    - a class-body assignment, which executes at import just as surely as a module-level one,
+    - a decorator expression or a default argument value, which are evaluated at `def` time.
+
+    Lambda bodies are deferred like function bodies. Decorators and defaults live outside
+    `node.body`, so they stay in scope by construction.
+    """
+    deferred = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            bodies = node.body
+        elif isinstance(node, ast.Lambda):
+            bodies = [node.body]
+        else:
+            continue
+        for stmt in bodies:
+            for inner in ast.walk(stmt):
+                deferred.add(inner)
+    return [n for n in ast.walk(tree)
+            if isinstance(n, ast.Call) and n not in deferred]
+
+
+def test_no_packaged_module_reads_a_secret_at_import_time(packaged_members):
     """A module-scope `get_secret_value` caches the value for the life of the execution
     environment, so a rotation does not take effect until every warm sandbox recycles. The
-    razorpay-webhook function was fixed for exactly this on 2026-09-19."""
-    _, members, _, _ = built
-    import ast
-    checked = [n for n in ("lambda_utils/integrations/razorpay_orders.py", "handler.py")
-               if n in members]
-    assert "handler.py" in checked, "the handler itself must always be packaged"
-    for name in checked:
-        tree = ast.parse(members[name].decode("utf-8"), filename=name)
-        for node in tree.body:  # module scope only
-            if not isinstance(node, (ast.Assign, ast.Expr, ast.AnnAssign)):
-                continue
-            for call in (n for n in ast.walk(node) if isinstance(n, ast.Call)):
-                rendered = ast.unparse(call.func)
-                assert "get_secret_value" not in rendered, \
-                    f"{name}:{call.lineno} reads a secret at import time"
+    razorpay-webhook function was fixed for exactly this on 2026-09-19.
+
+    Asked of EVERY packaged module rather than of two named files. The narrow version inspected
+    `razorpay_orders.py` and `handler.py` only, and so did not cover `wix_ecom.py` - which is the
+    one secret `wecare-checkout-role` can actually read, and therefore the one module where this
+    regression would have a live consequence rather than a theoretical one.
+    """
+    readers, checked = [], 0
+    assert "handler.py" in packaged_members, "the handler itself must always be packaged"
+    for name, raw in sorted(packaged_members.items()):
+        if not name.endswith(".py") or b"get_secret_value" not in raw:
+            continue
+        checked += 1
+        tree = ast.parse(raw.decode("utf-8"), filename=name)
+        for call in _import_time_calls(tree):
+            if "get_secret_value" in ast.unparse(call.func):
+                readers.append(f"{name}:{call.lineno}")
+    assert checked, ("no packaged module mentions get_secret_value at all — the package is not "
+                     "what this test thinks it is")
+    assert not readers, ("reads a secret at import time (breaks rotation until every warm "
+                         "sandbox recycles):\n  " + "\n  ".join(readers))
 
 
-def test_no_float_arithmetic_on_the_money_path(built):
+def test_no_float_arithmetic_on_the_money_path(packaged_members):
     """R6.1. `0.1 + 0.2` is not `0.3` in binary floating point, and a one-paise mismatch against
-    the checkout total must fail closed - so a rounding artefact becomes a refused order."""
-    _, members, _, _ = built
-    import ast
+    the checkout total must fail closed - so a rounding artefact becomes a refused order.
+
+    Presence is asserted before parsing. `if name not in members: continue` meant a money module
+    DROPPED from the package made this test pass - the same succeeds-at-doing-nothing shape the
+    evidence document calls out for `git archive` run from a subdirectory. A money module that is
+    not in the package is the more serious defect, not the excuse to skip the check.
+    """
     money = ("lambda_utils/ecommerce/checkout_pricing.py",
              "lambda_utils/ecommerce/money.py",
              "lambda_utils/integrations/razorpay_orders.py",
              "lambda_utils/wix_ecom.py")
+    missing = [name for name in money if name not in packaged_members]
+    assert not missing, ("money module(s) absent from the package, so R6.1 could not be checked "
+                         "over them:\n  " + "\n  ".join(missing))
     for name in money:
-        if name not in members:
-            continue
-        tree = ast.parse(members[name].decode("utf-8"), filename=name)
+        tree = ast.parse(packaged_members[name].decode("utf-8"), filename=name)
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) \
                     and node.func.id == "float":

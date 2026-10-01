@@ -30,20 +30,26 @@ two independent blocks have to be removed by an owner before anything can.
 | `wecare-checkout` provisioned (python3.12, v1, `live` alias) | ✅ COMPLETE — `live` since moved to **v2** by another session, [reconciled](#the-alias-moved-to-v2-while-this-review-response-was-in-flight) |
 | `/ecommerce/*` routes + alias-qualified integration on `zllr9lrg7j` | ✅ COMPLETE |
 | Invoke permission scoped to the two exact routes, no wildcard | ✅ COMPLETE — [narrowed twice](#the-invoke-permission-was-narrowed-twice-and-the-second-step-is-the-one-worth-reading) |
-| All eight review findings addressed | ✅ COMPLETE — [review response](#review-response-2026-10-01-second-iteration) |
+| All eight first-iteration review findings addressed | ✅ COMPLETE — [second pass](#review-response-2026-10-01-second-iteration) |
+| All nine second-iteration review findings addressed | ✅ COMPLETE — [third pass](#review-response-2026-10-01-third-iteration) |
+| IAM narrowing present on the branch of record, not only live | ✅ COMPLETE — all five commits are ancestors of `origin/stack`, [read off the branch](#push) |
+| Import validation + closure measured against the **deployed** bytes | ✅ COMPLETE — live v2 `CodeSha256 1Ho3NbcbR3mlX8n3UBVth0wSSnBqh5OXPb1r1XETMHM=`, 0 import errors, 20-module closure |
 | Scoped least-privilege IAM role, shared fleet role untouched | ✅ COMPLETE |
 | `CHECKOUT_INITIATION_ENABLED` absent — initiation OFF | ✅ COMPLETE |
 | Live contract verified 404 → 401, no payable attempt created | ✅ COMPLETE |
-| No existing function's `live` alias moved | ✅ COMPLETE |
+| No existing function's `live` alias moved **by this task** | ✅ COMPLETE — evidenced. But `wecare-razorpay-webhook` is now **v46**, moved by another session; the brief's "must remain v45" is [no longer satisfiable](#re-measured-2026-10-01-1426z-wecare-razorpay-webhook-is-now-v46-and-that-needs-saying-plainly) |
 | `config/lambda-env-manifest.json` entry | ✅ COMPLETE |
 | IaC declaration under `amplify/infra/` | ✅ COMPLETE |
 | S3 bag-icon upload + provenance | ✅ COMPLETE |
 | `PAYMENT_INITIATION_DISABLED` reached by an authenticated unit test | ✅ COMPLETE — `tests/test_checkout_handler.py` |
 | `PAYMENT_INITIATION_DISABLED` reached by a live probe | ➖ NOT REQUIRED — structurally unreachable, and that is the [defence-in-depth](#why-payment_initiation_disabled-is-unreachable-live-and-why-that-is-correct) property, not a gap |
+| Owner acceptance of that substitution | ⚠️ **NOT EVIDENCED** — an earlier unverifiable citation is withdrawn; the measurement now lives in [an artifact outside this document](snapshots/checkout-gate-ordering-20261001.json) |
+| `--verify` fails on gate-off-with-readiness-set | ✅ COMPLETE — the state where "gate off" stops meaning inert now [exits 1](#finding-9-where-the-gate-is-off-stops-meaning-nothing-happens) |
 | Website-Razorpay architecture direction | ✅ **DECIDED** — website Razorpay Standard Checkout + downloadable receipt. See [the ruling](#the-architecture-ruling-decided-2026-10-01) |
 | Website path wired into the deployed handler | ⏳ PENDING — ruling is settled, implementation is not. Handler still imports neither `website_checkout` nor `razorpay_orders`, at `4c603188` **or** at `83a8d60d` |
 | Deployed artifact current with `origin/stack` | ⚠️ **STALE** — live is `4c603188`'s package; `order_keys.py` has moved since. Harmless while inert, [must be deployed before the gate is enabled](#the-deployed-artifact-is-now-stale-and-that-is-recorded-not-fixed) |
-| `dynamodb:ConditionCheckItem` on the checkout role | ➖ NOT REQUIRED — measured, not assumed |
+| `dynamodb:ConditionCheckItem` on the checkout role | ➖ NOT REQUIRED — now measured against the **live** closure, not an export |
+| `secretsmanager:GetSecretValue` on `wecare/razorpay/api` | ➖ NOT REQUIRED — `razorpay_orders` is unreachable on the live artifact; the role's one secret grant matches its one reachable secret reader |
 
 ---
 
@@ -269,9 +275,18 @@ The task asked for `POST /api/ecommerce/checkout` with `action=create` to return
 `PAYMENT_INITIATION_DISABLED`.** The handler was not changed to make the literal assertion pass;
 doing so would have weakened authentication to make a probe prettier.
 
-**Reviewed and accepted as defence-in-depth, not as an untested branch** (owner, 2026-10-01:
-three independent refusals stacked in front of a payable order is the intended design). Three
-refusals, in execution order:
+**Corrected, third iteration.** This paragraph previously read "Reviewed and accepted as
+defence-in-depth, not as an untested branch (owner, 2026-10-01: ...)". That citation is withdrawn:
+there is no artifact behind it. The architecture ruling three sections down cites commit `9e3e77cb`
+and can be checked; this cited a date and a name inside the same document that was making the
+claim, which is not provenance. Treat the substitution as **recorded and measured, not approved**.
+
+What replaces the claim is a measurement, in a file that is not this one:
+[`docs/execution/snapshots/checkout-gate-ordering-20261001.json`](snapshots/checkout-gate-ordering-20261001.json),
+derived from the bytes on the `live` alias rather than from a working tree, with
+`ownerAcceptance: NOT EVIDENCED` stated in the artifact itself. The structural facts below are also
+pinned by `tests/test_checkout_gate_contract.py`, so they fail a test rather than ageing quietly in
+prose. Three refusals, in execution order:
 
 1. `handler.handler` calls `customer_auth.require_customer(event)` **first**, before parsing the
    body. An unauthenticated or invalidly-authenticated request gets an opaque 401 and never
@@ -399,11 +414,57 @@ missing from the ZIP surfaces here as `Unable to import module 'handler'`. It di
 | `wecare-invoice-engine` | v39 | v39 |
 
 `scripts/deploy_all_lambdas.py` was **never run without a target**. One function was created; no
-existing function's code, configuration or alias was touched.
+existing function's code, configuration or alias was touched by this task.
 
-Re-checked after the review follow-up: `wecare-razorpay-webhook` is still **v45**. The only alias in
-this account that has moved is `wecare-checkout`'s own, v1 → v2, and
-[not by this session](#the-alias-moved-to-v2-while-this-review-response-was-in-flight).
+#### Re-measured 2026-10-01 14:26Z: `wecare-razorpay-webhook` is now v46, and that needs saying plainly
+
+The brief named v45 as the value to confirm, and it is no longer v45.
+
+| Function | Review pass | 14:26Z | Moved by |
+|---|---|---|---|
+| `wecare-razorpay-webhook` | v45 | **v46** | another session |
+| `wecare-whatsapp-business-api` | v57 | v57 | — |
+| `wecare-contacts` | v26 | v26 | — |
+| `wecare-outbound-whatsapp` | v43 | v43 | — |
+| `wecare-invoice-engine` | v39 | v39 | — |
+| `wecare-checkout` | v2 | v2 | another session (v1 → v2, earlier) |
+
+Attribution, because "not me" is a claim that has to be evidenced rather than asserted:
+
+```
+$ aws lambda list-versions-by-function --function-name wecare-razorpay-webhook
+46  2026-10-01T14:12:34Z        <- published during this session's window
+45  2026-09-30T06:07:02Z
+
+$ aws cloudtrail lookup-events --lookup-attributes \
+      AttributeKey=EventName,AttributeValue=UpdateFunctionCode20150331v2 \
+      --start-time 2026-10-01T14:00:00Z
+wecare-ai-generate-response   2026-10-01T14:23:40Z
+wecare-ai-query-kb            2026-10-01T14:23:40Z
+wecare-faq-handler            2026-10-01T14:23:39Z
+wecare-seo-tools              2026-10-01T14:16:00Z
+wecare-razorpay-webhook       2026-10-01T14:12:34Z
+```
+
+Five functions had their code replaced inside this session's window and none of them is
+`wecare-checkout`. The IAM user is shared, so `wecare-admin` in CloudTrail does not discriminate
+between sessions — the discriminating facts are these:
+
+- `scripts/provision_checkout.py` contains **zero** occurrences of the string
+  `razorpay-webhook`, and exactly one `publish_version` call, inside `ensure_live_alias`, keyed on
+  `FUNCTION_NAME = "wecare-checkout"`.
+- The only invocation of it this iteration was `--verify`, which returns through `verify()` and
+  reaches no `ensure_*` function at all.
+- `amplify/functions/payments/razorpay-webhook/handler.py` is on this task's DO-NOT-TOUCH list and
+  is owned by another session; `wecare-seo-tools` is deployed by `scripts/deploy_seo_tools.py`,
+  which this task never ran. Four of the five are plainly that other work.
+
+What this means for the brief's instruction is worth stating rather than glossing: **the
+"must remain v45" condition is not satisfied, and cannot be re-satisfied from here.** Rolling the
+alias back to v45 would revert another session's deployed payment-webhook fix, which is a far worse
+action than recording the drift. The condition's *purpose* — that this task moves no existing
+function's alias — does hold, and is evidenced above. The only alias this task has ever created or
+moved is `wecare-checkout:live`.
 
 ### Route surface diff
 
@@ -803,16 +864,235 @@ unavailable.
 
 ---
 
+## Review response (2026-10-01, third iteration)
+
+Nine findings, one blocking. The blocking one resolved itself in the right way — the orchestrator
+pushed — but the other eight were all `confirmed`, and six of them described a check that could not
+fail. That is the same defect in six costumes, and it is the one worth fixing properly rather than
+answering.
+
+| # | Finding | Resolution |
+|---|---|---|
+| 1 | IAM narrowing unpushed; the branch would re-widen the grant | **Resolved on the remote.** All three commits are now ancestors of `origin/stack`, read off the branch and verified by AST. [Push](#push) rewritten — it had reported the *first* iteration's resolution as the whole story |
+| 2 | `import_closure` drops relative imports | `resolve_relative_import` added; the walker follows `from .x`, `from ..x` and bare `from . import x`. Live closure 19 → **20** modules |
+| 3 | Live v2's import closure never measured | `live_members()` downloads the artifact off the alias; `--verify` now validates and closures **the deployed bytes**, not a local export |
+| 4 | `PAYMENT_INITIATION_DISABLED` substitution had no external artifact | The unevidenced "owner, 2026-10-01" citation is **withdrawn**. Replaced by a measured artifact outside this document, plus 5 tests pinning the structure |
+| 5 | `test_no_float_arithmetic_on_the_money_path` skipped absent modules | Presence asserted before parsing; a dropped money module now **fails** |
+| 6 | Two property tests ran only against the working tree | Both parametrised over `working-tree` **and** `committed` |
+| 7 | The lazy-secret test's reach was narrower than its claim | Rewritten to walk every import-time statement in **every** packaged module |
+| 8 | `--verify` did not check `WIX_SITE_ID` | The key list is **derived** from `expected_environment()`, so it cannot drift |
+| 9 | `--verify` exited 0 on gate-off-plus-readiness-set | That combination is now a **problem**, with the reason in the message |
+
+### Finding 3 is the one that changes what `--verify` means
+
+Before this iteration, `--verify` read live configuration and judged a local package in the same
+breath. The seam was invisible because both halves printed under one heading. It now downloads the
+artifact from the `live` alias and scopes every package-derived verdict to those bytes:
+
+```
+$ python scripts/provision_checkout.py --verify
+comparison package built from: .scratch/deploy-checkout (the recorded deploy export)
+function: present (live v2)
+initiation: OFF (expected)
+readiness inputs: empty — blocks regardless of the gate
+route POST /ecommerce/checkout:        -> ...function:wecare-checkout:live
+route POST /ecommerce/checkout/status: -> ...function:wecare-checkout:live
+routes on zllr9lrg7j: 362 total, stage prod
+invoke permission apigateway-invoke-post-ecommerce-checkout:
+    arn:aws:execute-api:us-east-1:775261844268:zllr9lrg7j/prod/POST/ecommerce/checkout
+invoke permission apigateway-invoke-post-ecommerce-checkout-status:
+    arn:aws:execute-api:us-east-1:775261844268:zllr9lrg7j/prod/POST/ecommerce/checkout/status
+live artifact (v2): 113 files, 417093 bytes, sha256 1Ho3NbcbR3mlX8n3UBVth0wSSnBqh5OXPb1r1XETMHM=
+  imports on the live artifact: all resolve (0 guarded warning(s))
+  reachable from handler.py on live: 20 of 113 packaged modules
+  NOTE live artifact differs from the compared export: 1 file(s) only on live, 0 only in the export
+  grant report scoped to the LIVE artifact (CodeSha256 1Ho3NbcbR3mlX8n3UBVth0wSSnBqh5OXPb1r1XETMHM=)
+iam dynamodb:GetItem:            allowed
+iam dynamodb:PutItem:            allowed
+iam dynamodb:UpdateItem:         allowed
+iam dynamodb:ConditionCheckItem: implicitDeny  (not required: no TransactWriteItems/
+    TransactGetItems anywhere in the handler's import closure)
+
+checkout provisioning verified (initiation disabled)
+```
+
+**The v2 package had never been measured by anyone, and now it has.** What the measurement says,
+recorded in [`checkout-live-closure-20261001.json`](snapshots/checkout-live-closure-20261001.json):
+
+| | |
+|---|---|
+| Live `CodeSha256` | `1Ho3NbcbR3mlX8n3UBVth0wSSnBqh5OXPb1r1XETMHM=` |
+| Files | 113 (the recorded v1 export is 112) |
+| The one extra file | `lambda_utils/customer_session_store.py` — **not** in the reachable closure, so it moves no verdict |
+| Import validation on the live bytes | 0 errors, 0 warnings |
+| Reachable from `handler.py` | 20 of 113 |
+| `razorpay_orders` reachable? | **no** |
+| `website_checkout` reachable? | **no** |
+| Transaction call sites in the closure | none |
+| `dynamodb:ConditionCheckItem` | `implicitDeny`, and genuinely not required |
+
+So the two deliberate IAM omissions are still correct **as measured against production**, not as
+inferred from an export. One result is worth pulling out, because it is a stronger statement than
+anything in the previous passes:
+
+> Six packaged modules read a secret. Exactly **one** of them is reachable from the live handler:
+> `lambda_utils/wix_ecom.py`. And `wecare/wix/headless-api-key` is exactly the one secret
+> `CheckoutLeastPrivilege` grants. The role's single secret grant matches the single reachable
+> reader, with nothing spare on either side.
+
+A detail on how the artifact is fetched, since it touches `secret-handling.md`: `get_function`
+returns a short-lived **presigned** S3 URL carrying an `X-Amz-Signature`, which is credential-shaped
+material. It is fetched in-process, never printed, never passed as an argument, never written to a
+file, and kept out of the download-failure message too — `test_the_presigned_download_url_is_never_printed_or_stored`
+walks `live_members` and fails if it reaches a `print`.
+
+### Finding 2: a closure that cannot see 35 of its own edges
+
+The walker did `if node.level or not node.module: continue`, discarding every relative import.
+`lambda_utils` carries 35 of them and one is inside this closure:
+
+```
+lambda_utils/template_ttl.py:16  from .whatsapp_types import TTL_BOUNDS, TTL_NEG1_ALLOWED
+```
+
+Measured against the live artifact, before and after:
+
+```
+closure with relative edges dropped (the old walker):  19 files
+closure with relative edges resolved (the real set):   20 files
+missed:  ['lambda_utils/whatsapp_types.py']
+transaction needles in either set:  none
+```
+
+The verdict was right and the method was not, which is the worst combination to leave alone: the
+failure direction is a false "grant not required" with a green verifier. `resolve_relative_import`
+handles the arithmetic, including the case that is easy to get off by one — a package's
+`__init__.py` is *inside* its package, so `from .x import y` there resolves to a sibling of the
+`__init__`, not of the package directory. Five unit cases pin it, plus three closure tests, plus one
+asserting that a `TransactWriteItems` **reached only by a relative import** now requires the grant.
+
+### Findings 5, 6 and 7: three tests that could not fail
+
+Grouped because they are one defect. Each of these passed for a reason unrelated to the property it
+claimed to check.
+
+**7 — the lazy-secret test.** It walked `tree.body` filtered to `Assign`/`Expr`/`AnnAssign`, in two
+named files. So a module-scope `try:` wrapping a credential read — the *most likely* spelling, since
+anyone writing one would write it defensively — was invisible to it, and `wix_ecom.py`, the one
+secret this role can actually read, was not inspected at all. Rewritten to compute "every call that
+is not inside a function body" across **every packaged module**, which widens it in four directions
+at once: compound statements, class bodies, decorators, and default argument values. Proven against
+the real package with five injected shapes:
+
+| Injected into `wix_ecom.py` at module scope | Old test | New test |
+|---|---|---|
+| `try:` wrapping the read | **passed** | fails |
+| `if:` wrapping the read | **passed** | fails |
+| class-body assignment | **passed** | fails |
+| default argument value | **passed** | fails |
+| plain module-scope assign | fails | fails |
+| the same read left *inside* a function | passes | passes (correctly) |
+
+**5 — the no-float test.** `if name not in members: continue` meant a money module dropped from the
+package made R6.1 pass. Presence is asserted first now; removing `money.py` from the package fails
+with *"money module(s) absent from the package, so R6.1 could not be checked over them"*.
+
+**6 — both ran on the working tree only.** These two are the R6.1 and secret-handling properties, so
+they are precisely the ones whose answer should be reproducible from a SHA rather than dependent on
+what three other sessions have uncommitted. A `packaged_members` fixture parametrises both over
+`working-tree` and `committed`.
+
+### Finding 9: where "the gate is off" stops meaning "nothing happens"
+
+The previous pass identified this correctly in prose and then let the verifier print it. Measured
+again from the live bytes — line numbers inside `handler.py` on v2, not offsets:
+
+| Line | Step |
+|---:|---|
+| 229 | `customer_auth.require_customer` — before the body is parsed at 233 |
+| 259 | `wix_ecom.create_checkout` — **a live Wix write** |
+| 277 | `payment_readiness` — refuses here today, both `EXPECTED_*` empty |
+| 290 | `order_keys.allocate_payment_reference` — reserves `PAYREF#` |
+| 312 | `put_item` on `PaymentAttemptsTable` |
+| 323 | `if not INITIATION_ENABLED` — **the gate, last** |
+| 327 | `PAYMENT_INITIATION_DISABLED`, HTTP 200 |
+
+The recorded 0-before / 0-after on `PaymentAttemptsTable` is true because line 229 refuses at the
+door, and it would stay true at line 277 for an authenticated caller. But the moment an owner
+supplies both readiness values with the flag still off, every authenticated `action=create` performs
+a live Wix write and writes an attempt row before refusing. `--verify` now **exits 1** on that
+combination and says why, instead of printing `readiness inputs: SET by an operator` and returning
+success. An operator who sets those values expecting inertness gets a failure, which is the whole
+point of a verifier.
+
+Handler ordering is pre-existing code this task does not own, so it was measured and pinned, not
+changed. `test_no_new_side_effect_creeps_in_before_the_gate` is a **subset** assertion on purpose:
+moving the gate earlier is an improvement and stays green; a *new* outbound call appearing ahead of
+it fails. Verified both directions against the real handler — injecting an `invoke()` before the
+gate fails; hoisting the gate to the top of `_create` passes.
+
+### Finding 4: a measurement instead of a citation
+
+The substitution is correct and the previous pass was right to make it. What was wrong was its
+provenance: "owner, 2026-10-01", cited inside the document doing the reporting, while the
+architecture ruling four sections away cites a checkable commit. Rather than reproduce an
+unverifiable approval, the claim is withdrawn and replaced with evidence that does not depend on
+this file:
+
+- [`checkout-gate-ordering-20261001.json`](snapshots/checkout-gate-ordering-20261001.json) —
+  measured from the live alias's bytes, carrying the observed 401 body, both structural reasons the
+  literal probe is unreachable with their line numbers, and `ownerAcceptance: NOT EVIDENCED` stated
+  in the artifact itself.
+- `tests/test_checkout_gate_contract.py` — 5 assertions: authentication precedes the body parse,
+  neither action dispatches ahead of it, the gate still answers `PAYMENT_INITIATION_DISABLED`, no
+  new side effect precedes the gate, and the disabled branch reaches no order creation, capture or
+  refund.
+
+**No owner approval should be inferred from any of this.** It establishes what the endpoint does; it
+does not establish that anyone signed off on the substitution.
+
+### Verification for this iteration
+
+```
+tests/test_provision_checkout_contract.py      55 passed   (+16 this iteration)
+tests/test_checkout_package_completeness.py    19 passed   (2 tests now x2 fixtures)
+tests/test_checkout_gate_contract.py            5 passed   (new)
+full suite                                   5935 passed, 1 skipped
+python scripts/provision_checkout.py --verify    exit 0
+```
+
+Mutation-checked rather than assumed green: every assertion added or rewritten here was run against
+a deliberately broken input and confirmed to fail, and the two that should tolerate an improvement
+were confirmed to stay green. Harnesses were throwaway and live in `.scratch/`, which is gitignored.
+One of them had to assemble its injected needle at runtime — writing the literal call shape on a
+command line is refused by `block-inline-secrets`, correctly, so it follows the convention
+`scripts/verify_secret_hook.py` already uses.
+
+### Not changed, and why
+
+- **No deploy.** v2 remains on the alias. Every fix this iteration is in the provisioner, the tests
+  and the evidence; none of it changes the packaged handler, so there is nothing to ship. The
+  artifact is still [stale relative to the tree](#the-deployed-artifact-is-now-stale-and-that-is-recorded-not-fixed),
+  as recorded, and deploying it is step 3 of [Open](#open).
+- **No IAM change.** `dynamodb:ConditionCheckItem` stays `implicitDeny` and unrequested;
+  `secretsmanager:GetSecretValue` on `wecare/razorpay/api` stays ungranted. Both are now confirmed
+  unnecessary against the deployed closure rather than against an export.
+- **The gate stays off**, and `CHECKOUT_INITIATION_ENABLED` remains absent from the live environment
+  rather than set to `"false"`.
+
+---
+
 ## Changes committed
 
 | Path | Why |
 |---|---|
-| `scripts/provision_checkout.py` | `--source-root`; delegated packaging + pre-create import validation; route/integration/alias-qualified-permission provisioning; closure-scoped IAM grant report; route assertions in `--verify`. **Second iteration:** grant-report findings reach the exit code, per-route invoke statements, `--verify` names its source root |
+| `scripts/provision_checkout.py` | `--source-root`; delegated packaging + pre-create import validation; route/integration/alias-qualified-permission provisioning; closure-scoped IAM grant report; route assertions in `--verify`. **Second iteration:** grant-report findings reach the exit code, per-route invoke statements, `--verify` names its source root. **Third iteration:** `live_members()` + `validate_members()` so every package-derived verdict describes the DEPLOYED bytes; `resolve_relative_import` so the closure follows relative edges; the verified env key list derived from `expected_environment()`; gate-off-with-readiness-set is now a failure |
 | `config/lambda-env-manifest.json` | `wecare-checkout` entry (67 functions / 397 variables) |
 | `amplify/infra/checkout.json` | IaC declaration of record |
-| `tests/test_provision_checkout_contract.py` | gate, routes, alias qualification, IAM omissions |
-| `tests/test_checkout_package_completeness.py` | package completeness, determinism, lazy secret, no float money |
-| `docs/execution/snapshots/checkout-*-20261001.json` | 8 before/after snapshots |
+| `tests/test_provision_checkout_contract.py` | gate, routes, alias qualification, IAM omissions. **Third iteration:** +16 — relative-import closure, live-artifact scoping, the presigned URL never printed, and a `verify()` harness that drives the real function against stubbed AWS so findings 8 and 9 are behavioural rather than text assertions |
+| `tests/test_checkout_package_completeness.py` | package completeness, determinism, lazy secret, no float money. **Third iteration:** the two property tests parametrised over the working tree *and* `committed`; the lazy-secret walk widened to every import-time statement in every packaged module; the no-float test asserts presence before parsing |
+| `tests/test_checkout_gate_contract.py` | **new** — 5 assertions pinning why the literal `PAYMENT_INITIATION_DISABLED` probe is unreachable, and failing when a new side effect appears ahead of the gate |
+| `docs/execution/snapshots/checkout-*-20261001.json` | 10 snapshots — the 8 before/after ones, plus `checkout-live-closure-*` (the deployed artifact measured) and `checkout-gate-ordering-*` (the substitution, evidenced outside this document) |
 | `docs/execution/checkout-deployment-20261001.md` | this document |
 
 `scripts/deploy_all_lambdas.py` was **not modified** — no packaging defect blocked the work; its
@@ -935,6 +1215,8 @@ touched.
 | `checkout-bag-icon-provenance-20261001.json` | icon provenance, checksums, object headers |
 | `checkout-invoke-policy-before-narrowing-20261001.json` | the single API-wide statement, as it stood before review finding 6 |
 | `checkout-invoke-policy-after-narrowing-20261001.json` | the two per-route statements, all three narrowing steps, and the gate/alias/table re-measurement taken with them |
+| `checkout-live-closure-20261001.json` | **third iteration** — the artifact on the `live` alias, downloaded and measured: `CodeSha256`, 113 files, the one file that differs from the v1 export, 0 import errors, the 20-module reachable closure with what the old walker missed, the IAM verdict re-derived against it, and the one-reachable-secret-reader result |
+| `checkout-gate-ordering-20261001.json` | **third iteration** — why `action=create` cannot answer `PAYMENT_INITIATION_DISABLED` to an external probe, measured from the live bytes: the observed 401 body, both structural reasons with line numbers, the `_create` ordering, the consequence if readiness is ever set while the gate is off, and `ownerAcceptance: NOT EVIDENCED` |
 
 ---
 
@@ -968,12 +1250,44 @@ Remaining, in the order they have to happen:
 
 ## Push
 
-Resolved by the orchestrator, not by this session. `origin/stack` is now `83a8d60d` and local is
-0 ahead / 0 behind; commit `13c9f7a2` is an ancestor of HEAD and present on the remote. The
-non-fast-forward this document originally flagged was a genuine blocker — local `stack` was 3
-ahead / 25 behind — and integrating it was the one-committer's call under
-`.kiro/steering/multi-session-parallel-agents.md`. No `reset --hard`, stash, force push or history
-rewrite was involved on either side.
+**Corrected, third iteration.** This section previously read that push was "resolved" and named
+only `13c9f7a2`. That was the *first* iteration's resolution, and reading it as the resolution for
+the work as a whole hid a real regression path: three later commits carrying the IAM narrowing were
+local-only, so the branch of record still produced an any-stage/any-method/any-path grant on
+`zllr9lrg7j` while the live account carried the narrow per-route statements. The code of record was
+the looser side, and its `verify()` had no invoke-statement check, so a run of it would have
+re-widened the grant and reported success.
+
+**Measured again on 2026-10-01 at 14:26Z, and now genuinely resolved.** All five commits are
+ancestors of `origin/stack`:
+
+| Commit | On `origin/stack` |
+|---|---|
+| `13c9f7a2` Turn the checkout 404 into an authenticating endpoint | yes |
+| `4d1b396f` Record the website-Razorpay ruling and the artifact drift | yes |
+| `ad3bf0a0` Make the verify gate able to fail; scope invoke to two routes | **yes** |
+| `643a86e0` Skip the committed-package build when running from an export | **yes** |
+| `23f6ebae` Reconcile the evidence against a live alias moved to v2 | **yes** |
+
+Read off the branch rather than off the reflog, because "pushed" and "present on the remote" are
+different claims:
+
+```
+$ git show origin/stack:scripts/provision_checkout.py | python -c "<ast>"
+source_arn args: ['route_key']
+returns: f'arn:aws:execute-api:{REGION}:{account_id()}:{API_ID}/{STAGE}/{method}{path}'
+wide ARN string constants in code: []        # /*/* survives only inside the docstring
+verify references live_policy_statements: True
+verify references route_statement_id:    True
+```
+
+So the branch of record now narrows rather than widens, and its verifier can detect drift. The
+three fixes made in *this* iteration (`live_members`, the derived env key list, the
+readiness-set-with-gate-off failure) are **not** on the remote yet — they are in this commit, and
+the orchestrator pushes. Measured at the time of writing: HEAD 3 ahead / 0 behind.
+
+No `reset --hard`, stash, force push or history rewrite was involved at any point, by this session
+or the integrating one.
 
 ---
 

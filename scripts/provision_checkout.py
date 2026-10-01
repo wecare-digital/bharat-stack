@@ -47,8 +47,11 @@ sessions' in-flight edits, and a package built from it would ship a handler whos
 stale.
 
 `--verify` defaults `--source-root` to that same export instead of to the working tree, and prints
-which root produced the verdict either way. A grant report about a package nobody deployed is a
-report about nothing, and the default used to be the dirty tree.
+which root it used either way. That export is now only a COMPARISON: `--verify` downloads the
+artifact off the `live` alias and scopes the import validation, the reachability closure and the
+IAM grant report to those bytes. A report about a package nobody deployed is a report about
+nothing, and for one afternoon that is exactly what was on record — another session published v2
+and moved the alias while every package-derived conclusion still described v1.
 
 Usage:
     python scripts/provision_checkout.py --dry-run
@@ -70,9 +73,12 @@ import ast
 import base64
 import hashlib
 import importlib.util
+import io
 import json
 import sys
 import time
+import urllib.request
+import zipfile
 from pathlib import Path
 
 import boto3
@@ -275,6 +281,63 @@ def package_sha(zip_bytes: bytes) -> str:
     return base64.b64encode(hashlib.sha256(zip_bytes).digest()).decode()
 
 
+def live_members(qualifier: str = LIVE_ALIAS) -> tuple:
+    """Return `(members, sha, note)` for the code actually running on `qualifier`.
+
+    This exists because every package-derived verdict here used to describe a LOCAL export while
+    the alias pointed at a version somebody else published. The import validation, the reachability
+    closure and therefore the `ConditionCheckItem` verdict were all computed from
+    `.scratch/deploy-checkout`; the function in production had never had its imports walked. The
+    consequence was specific rather than theoretical — if a later version wired `razorpay_orders`
+    in, the role would be missing `secretsmanager:GetSecretValue` on `wecare/razorpay/api` and
+    nothing here would have said so.
+
+    `get_function` returns a short-lived **presigned** S3 URL for the artifact. That URL carries an
+    `X-Amz-Signature`, so it is credential-shaped material: it is fetched in-process and is never
+    printed, logged, passed as an argument or written to a file. Only the resulting `CodeSha256`
+    and member list leave this function. See .kiro/steering/secret-handling.md.
+    """
+    try:
+        described = lam().get_function(FunctionName=FUNCTION_NAME, Qualifier=qualifier)
+    except ClientError as exc:
+        return None, "", f"live code NOT MEASURED: get_function failed " \
+                         f"({exc.response.get('Error', {}).get('Code', 'unknown')})"
+    sha = described.get("Configuration", {}).get("CodeSha256", "")
+    location = (described.get("Code") or {}).get("Location")
+    if not location:
+        return None, sha, "live code NOT MEASURED: no download location returned"
+    try:
+        with urllib.request.urlopen(location, timeout=60) as response:  # noqa: S310 - AWS presigned
+            payload = response.read()
+    except Exception as exc:  # noqa: BLE001 - never surface the URL in the message
+        return None, sha, f"live code NOT MEASURED: download failed ({type(exc).__name__})"
+    fetched = package_sha(payload)
+    if sha and fetched != sha:
+        return None, sha, (f"live code NOT MEASURED: downloaded bytes hash to {fetched}, "
+                           f"but the alias reports {sha}")
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            members = {info.filename: archive.read(info)
+                       for info in archive.infolist() if not info.is_dir()}
+    except zipfile.BadZipFile:
+        return None, sha, "live code NOT MEASURED: artifact is not a readable zip"
+    return members, sha, f"{len(members)} files, {len(payload)} bytes, sha256 {sha}"
+
+
+def validate_members(members: dict, source_root: Path) -> tuple:
+    """Run the fleet's own import resolution over an arbitrary member set.
+
+    `deploy_all_lambdas.validate` does not read the `Spec` it is handed — it reasons purely over
+    `members` — so the same checker that gates a build can be pointed at bytes pulled back out of
+    Lambda. That is what makes a verdict about the live artifact possible at all.
+    """
+    dal = _deploy_module(source_root)
+    spec = dal.Spec(FUNCTION_NAME, "ecommerce/checkout")
+    errors, warnings = dal.validate(spec, members, frozenset())
+    errors += dal.validate_handler(members, "handler.handler")
+    return sorted(set(errors)), sorted(set(warnings))
+
+
 def report_package(zip_bytes: bytes, members: dict, errors: list, warnings: list) -> int:
     print(f"package: {len(members)} files, {len(zip_bytes)} bytes, "
           f"sha256 {package_sha(zip_bytes)}")
@@ -372,6 +435,12 @@ def ensure_log_group(dry_run: bool) -> str:
     return "exists; retention verified" if exists else "created"
 
 
+#: Environment keys this script seeds empty and an owner later fills from a live Meta/Razorpay
+#: read. `--verify` checks them for PRESENCE only; every other key in `expected_environment()` is
+#: checked for an exact value.
+READINESS_KEYS = ("EXPECTED_CONFIGURATION_NAME", "EXPECTED_PROVIDER_MID")
+
+
 def expected_environment() -> dict:
     return {
         "PAYMENT_ATTEMPTS_TABLE": PAYMENT_ATTEMPTS_TABLE,
@@ -428,9 +497,8 @@ def reconcile_environment(dry_run: bool) -> str:
     # Only ADD/repair the keys this script owns; never clobber an operator-set
     # CHECKOUT_INITIATION_ENABLED or a live-read EXPECTED_* value.
     drifted = {k: v for k, v in wanted.items()
-               if k not in ("EXPECTED_CONFIGURATION_NAME", "EXPECTED_PROVIDER_MID")
-               and current.get(k) != v}
-    for k in ("EXPECTED_CONFIGURATION_NAME", "EXPECTED_PROVIDER_MID"):
+               if k not in READINESS_KEYS and current.get(k) != v}
+    for k in READINESS_KEYS:
         if k not in current:
             drifted[k] = wanted[k]
     if not drifted:
@@ -595,6 +663,34 @@ _SIMULATED_ACTIONS = ("dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateIt
                       "dynamodb:ConditionCheckItem")
 
 
+def _package_of(arcname: str) -> list:
+    """The dotted package an arcname's module lives IN, as a list of parts.
+
+    `lambda_utils/template_ttl.py` -> `['lambda_utils']`, and
+    `lambda_utils/ecommerce/__init__.py` -> `['lambda_utils', 'ecommerce']`, because a package's
+    `__init__` is inside the package rather than beside it. Getting that distinction wrong makes
+    every relative import from an `__init__.py` resolve one level too high.
+    """
+    parts = arcname.split("/")
+    return parts[:-1] if parts[-1] != "__init__.py" else parts[:-1]
+
+
+def resolve_relative_import(arcname: str, module: str | None, level: int) -> str:
+    """`from ..x import y` inside `arcname` -> the dotted module it names, or `""` if it escapes.
+
+    `level` counts dots. One dot means "this package", so the base is the importing module's own
+    package; each further dot climbs one more. Returns `""` rather than raising when the import
+    climbs above the package root, because a malformed package should produce a measurable miss in
+    the closure report, not a crash in the middle of an IAM verdict.
+    """
+    base = _package_of(arcname)
+    climb = level - 1
+    if climb > len(base):
+        return ""
+    base = base[:len(base) - climb] if climb else base
+    return ".".join(base + (module.split(".") if module else []))
+
+
 def import_closure(members: dict, entry: str = "handler.py") -> set:
     """Modules actually reachable from `entry` by following imports inside the package.
 
@@ -604,6 +700,14 @@ def import_closure(members: dict, entry: str = "handler.py") -> set:
     `notifications/store.py` are present and both use `TransactWriteItems`. Neither is imported by
     the checkout handler. Scanning the ZIP therefore reports a `ConditionCheckItem` grant the
     function can never need, and a grant report that cries wolf is one nobody reads.
+
+    **Relative imports count, and used to be skipped.** This walker did `if node.level: continue`,
+    which silently discarded every `from .x import y` edge — and `lambda_utils` carries 35 of them,
+    one of them inside this very closure (`template_ttl.py` -> `whatsapp_types.py`). The measured
+    set was 18 files where 19 are reachable. The verdict happened to be unchanged because the
+    missed module opens no transaction, but the failure direction is the dangerous one: a future
+    relatively-imported module that calls `TransactWriteItems` would produce a false "grant not
+    required" while the verifier exits 0, i.e. a function missing a permission with a green gate.
     """
     reachable, pending = set(), [entry]
     while pending:
@@ -619,11 +723,18 @@ def import_closure(members: dict, entry: str = "handler.py") -> set:
             if isinstance(node, ast.Import):
                 dotted = [alias.name for alias in node.names]
             elif isinstance(node, ast.ImportFrom):
-                if node.level or not node.module:
+                if node.level:
+                    resolved = resolve_relative_import(arcname, node.module, node.level)
+                    if not resolved:
+                        continue
+                    dotted = [resolved] + [f"{resolved}.{a.name}" for a in node.names]
+                elif not node.module:
                     continue
-                # `from lambda_utils.ecommerce import order_keys, payment_attempt` imports both the
-                # package module and each named submodule; try every candidate and keep what exists.
-                dotted = [node.module] + [f"{node.module}.{a.name}" for a in node.names]
+                else:
+                    # `from lambda_utils.ecommerce import order_keys, payment_attempt` imports both
+                    # the package module and each named submodule; try every candidate and keep
+                    # whichever exist.
+                    dotted = [node.module] + [f"{node.module}.{a.name}" for a in node.names]
             else:
                 continue
             for name in dotted:
@@ -733,9 +844,17 @@ def report_required_grants(members: dict | None) -> list:
 
 
 def verify(members: dict | None = None, source_note: str = "") -> int:
+    """Read every provisioned fact back off the account and return 1 on any problem.
+
+    `members`, when given, is a LOCAL build used only as a comparison. Everything judged here is
+    read from the account: the alias, the published version's environment, the routes, the
+    per-route invoke statements, and — since the artifact can be downloaded — the deployed bytes
+    themselves. An earlier shape of this function judged a local export and reported on live in the
+    same breath, which is how a package nobody deployed came to carry the IAM verdict.
+    """
     problems: list[str] = []
     if source_note:
-        print(f"grant report closure: {source_note}")
+        print(f"comparison package built from: {source_note}")
     if not function_exists():
         print("FAIL function missing")
         return 1
@@ -748,9 +867,21 @@ def verify(members: dict | None = None, source_note: str = "") -> int:
     live_config = lam().get_function_configuration(
         FunctionName=FUNCTION_NAME, Qualifier=alias["FunctionVersion"])
     live_env = (live_config.get("Environment") or {}).get("Variables") or {}
-    for key in ("PAYMENT_ATTEMPTS_TABLE", "COMMERCE_KEYS_TABLE", "WIX_API_KEY_SECRET",
-                "SENDER_FUNCTION", "PAYMENT_WABA_ID"):
-        if live_env.get(key) != expected_environment()[key]:
+
+    # Derived from `expected_environment()`, never restated. A hand-enumerated list omitted
+    # WIX_SITE_ID — a key this script sets and `reconcile_environment` repairs — so a wrong Wix
+    # site id on live passed verification. Any key added to `expected_environment` is now checked
+    # by construction, which is the only version of this check that cannot drift out of date.
+    for key, want in sorted(expected_environment().items()):
+        if key in READINESS_KEYS:
+            # Deliberately presence-only: these are the two values an owner fills in from a live
+            # Meta/Razorpay read, so a non-empty value is legitimate drift from what this script
+            # writes. Absence is not — `payment_readiness` would raise rather than refuse.
+            if key not in live_env:
+                problems.append(f"env {key} absent on live (v{alias['FunctionVersion']}) — "
+                                f"readiness cannot evaluate")
+            continue
+        if live_env.get(key) != want:
             problems.append(f"env {key} mismatch on live (v{alias['FunctionVersion']})")
 
     initiation = str(live_env.get("CHECKOUT_INITIATION_ENABLED", "")).strip().lower()
@@ -766,6 +897,24 @@ def verify(members: dict | None = None, source_note: str = "") -> int:
     print(f"initiation: {'ON' if initiation in ('1','true','yes','on') else 'OFF (expected)'}")
     print(f"readiness inputs: {'empty — blocks regardless of the gate' if readiness_empty else 'SET by an operator'}")
     print(f"sender: {SENDER_FUNCTION}:{LIVE_ALIAS}; WABA {PAYMENT_WABA_ID}")
+
+    # Gate off is NOT the same as nothing happens, and this used to be a print that exited 0.
+    # The gate is the LAST check in `handler._create`; the measured order is
+    #   wix_ecom.create_checkout (a live Wix write) -> currency compare -> payment_readiness
+    #   -> order_keys.allocate_payment_reference -> put_item on PaymentAttemptsTable
+    #   -> `if not INITIATION_ENABLED: refuse`.
+    # So while readiness is empty it refuses early and the table stays at 0 rows. The moment an
+    # owner supplies both readiness values with the flag still off, every authenticated
+    # action=create performs a live Wix write and writes an attempt row before refusing. No money
+    # moves and no gateway order is created, but "the gate is off" stops meaning "inert" — and an
+    # operator who set those values expecting inertness deserves a non-zero exit, not a note.
+    if not readiness_empty:
+        problems.append(
+            "readiness inputs are SET while CHECKOUT_INITIATION_ENABLED is off: every "
+            "authenticated action=create now reaches wix_ecom.create_checkout (a live Wix write) "
+            "and writes a PaymentAttempt row BEFORE the gate refuses. Either enable initiation "
+            "deliberately or clear EXPECTED_CONFIGURATION_NAME/EXPECTED_PROVIDER_MID to keep the "
+            "endpoint inert")
 
     # Routes + integration: the half that turns a deployed function into a reachable endpoint.
     want_uri = function_arn(qualified=True)
@@ -811,7 +960,44 @@ def verify(members: dict | None = None, source_note: str = "") -> int:
         problems.append(f"unexpected invoke statement {extra} on :{LIVE_ALIAS} "
                         f"({_statement_source_arn(statements[extra])}) — not created by this script")
 
-    problems.extend(report_required_grants(members))
+    # The package the GRANT REPORT reasons over must be the one that is running, not a local
+    # export that happens to be lying around. Those two diverged in practice: another session
+    # published v2 and moved the alias, and every package-derived conclusion on record still
+    # described v1. Pull the artifact back out of Lambda, re-run the fleet's own import resolution
+    # over it, and reason about THAT. The local export is kept only as a comparison.
+    deployed, deployed_sha, deployed_note = live_members()
+    print(f"live artifact (v{alias['FunctionVersion']}): {deployed_note}")
+    if deployed is None:
+        problems.append(f"the deployed artifact could not be measured — {deployed_note}")
+    else:
+        live_errors, live_warnings = validate_members(deployed, ROOT)
+        for warning in live_warnings:
+            print(f"  warning (live artifact): {warning}")
+        for error in live_errors:
+            problems.append(f"live artifact v{alias['FunctionVersion']}: {error}")
+        if not live_errors:
+            print(f"  imports on the live artifact: all resolve "
+                  f"({len(live_warnings)} guarded warning(s))")
+        print(f"  reachable from handler.py on live: {len(import_closure(deployed))} of "
+              f"{len(deployed)} packaged modules")
+        if members is not None:
+            # A member-set difference is the readable form of "live is not what this tree would
+            # build". Reported, never a gate: the local export is evidence about the repository,
+            # and the artifact is the thing under verification.
+            only_live = sorted(set(deployed) - set(members))
+            only_export = sorted(set(members) - set(deployed))
+            if only_live or only_export:
+                print(f"  NOTE live artifact differs from the compared export: "
+                      f"{len(only_live)} file(s) only on live, "
+                      f"{len(only_export)} only in the export")
+            else:
+                print("  live artifact ships the same member set as the compared export")
+        print(f"  grant report scoped to the LIVE artifact (CodeSha256 {deployed_sha})")
+
+    # `deployed` when the artifact was readable, else `None`, which `report_required_grants` keeps
+    # distinct from "measured and needs nothing". Falling back to the local export here would be
+    # the exact substitution this block exists to stop.
+    problems.extend(report_required_grants(deployed))
 
     if problems:
         print("\nFAIL:")
@@ -837,13 +1023,13 @@ def main(argv=None) -> int:
         args.source_root, prefer_deploy_export=args.verify)
 
     if args.verify:
-        # Build the package too, so the grant report reasons about the shipped module set rather
-        # than about the whole repo. `members=None` is NOT treated as "nothing required" — see
-        # report_required_grants.
+        # Build the local package only as a COMPARISON. The grant report itself is scoped to the
+        # artifact pulled back off the `live` alias — see `verify`. A failure to build here is
+        # therefore a lost comparison, not a lost verdict.
         try:
             _, members, _, _ = build_package(source_root)
         except Exception as exc:  # noqa: BLE001
-            print(f"note: could not rebuild package for the grant report: {type(exc).__name__}")
+            print(f"note: could not rebuild the comparison package: {type(exc).__name__}")
             members = None
         return verify(members, source_note=why)
 
