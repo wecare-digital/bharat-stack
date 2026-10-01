@@ -985,6 +985,49 @@ def _handle_wallet_topup_captured(payment: Dict, request_id: str) -> None:
                                  'stage': 'wallet_topup', 'requestId': request_id}))
 
 
+def _handle_blog_contribution_captured(payment: Dict, request_id: str) -> None:
+    """Settle a Section 5 voluntary blog contribution — bound, verified, once, and no Wix order.
+
+    Mirrors ``_handle_wallet_topup_captured`` exactly, for the BLOG_CONTRIBUTION purpose:
+
+      1. A STORED contribution record must exist for the ``contributionId`` the notes name. No
+         record -> not an authorised contribution -> settle nothing, quarantine. The notes are
+         never the authority.
+      2. The amount is RE-DERIVED from the stored record and VERIFIED against Razorpay's API
+         (``payment_is_captured``), never read from the event body, and must equal the stored
+         record's amount in INR to the paise.
+      3. A conditional one-time claim keyed by the payment id is made BEFORE the settle, so a
+         duplicate delivery settles exactly once.
+
+    A BLOG_CONTRIBUTION capture creates NO Wix Store product or order. Never raises: a non-2xx
+    makes Razorpay retry the whole event, and nothing here is worth that.
+    """
+    from lambda_utils.ecommerce import blog_contribution, order_keys
+    from lambda_utils.integrations import razorpay_verify
+
+    payment_id = str(payment.get('id') or '')
+    try:
+        table = dynamodb.Table(order_keys.commerce_keys_table_name())
+
+        def quarantine(reference_id: str, pay_id: str) -> None:
+            _quarantine_unverified_capture(reference_id, pay_id, None, request_id)
+
+        def verify_capture(pid: str):
+            return razorpay_verify.payment_is_captured(pid)
+
+        result = blog_contribution.settle_contribution_capture(
+            payment=payment, keys_table=table, verify_capture=verify_capture,
+            quarantine=quarantine)
+        logger.info(json.dumps({'event': 'blog_contribution_capture_handled',
+                                'outcome': result.status, 'paymentId': payment_id,
+                                'stage': 'contribution', 'requestId': request_id}))
+    except Exception as e:  # noqa: BLE001
+        # Type only. A ClientError / provider error message can echo request content.
+        logger.error(json.dumps({'event': 'blog_contribution_error',
+                                 'error': type(e).__name__, 'paymentId': payment_id,
+                                 'stage': 'contribution', 'requestId': request_id}))
+
+
 def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
     """Handle payment.captured — the main success event. Store payment + mark invoice paid + trigger invoice."""
     payment = event_data.get('payment', {}).get('entity', {})
@@ -1003,6 +1046,14 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
     # a wallet top-up, credit the tenant's wallet and stop (not an invoice payment).
     if (notes or {}).get('purpose') == 'wallet_topup' and (notes or {}).get('wabaId'):
         _handle_wallet_topup_captured(payment, request_id)
+        return
+
+    # Section 5 voluntary blog contribution (BLOG_CONTRIBUTION): settle the stored contribution
+    # record and stop. This is NOT an invoice payment and must NOT create a Wix Store product or
+    # order, so it must not fall through below. The amount is re-derived from the stored record,
+    # never from these notes - the notes are only a routing hint.
+    if (notes or {}).get('purpose') == 'BLOG_CONTRIBUTION':
+        _handle_blog_contribution_captured(payment, request_id)
         return
 
     # Paid secure-file download (wecare.digital/get): hand the order id to secure-files

@@ -39,8 +39,9 @@ ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "provision_checkout.py"
 
 #: Everything the two coexisting checkout flows can reach. The website Razorpay path
-#: (`website_checkout`, `razorpay_orders`, `checkout_pricing`, `order_creation`,
-#: `customer_receipt`, `customer_session`) is NOT imported by the handler today - it ships ahead
+#: (`website_checkout`, `blog_contribution`, `razorpay_orders`, `checkout_pricing`,
+#: `order_creation`, `customer_receipt`, `customer_session`) is NOT imported by the handler today
+#: - it ships ahead
 #: of the owner's architecture decision. It is listed anyway, deliberately: the day that decision
 #: lands, wiring it must not also require discovering that the package was incomplete.
 #:
@@ -63,6 +64,7 @@ REQUIRED = (
     "lambda_utils/ecommerce/order_keys.py",
     "lambda_utils/ecommerce/payment_attempt.py",
     "lambda_utils/ecommerce/website_checkout.py",
+    "lambda_utils/ecommerce/blog_contribution.py",
     "lambda_utils/ecommerce/checkout_pricing.py",
     "lambda_utils/ecommerce/order_creation.py",
     "lambda_utils/ecommerce/customer_receipt.py",

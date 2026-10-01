@@ -1061,6 +1061,165 @@ def resolve_gateway_order(table: Any, gateway_order_id: str, *,
     return _read_row(table, key_attr, GATEWAY_ORDER_PREFIX + gateway_order_id)
 
 
+# ── Section 5 blog contributions (BLOG_CONTRIBUTION) ────────────────────────────
+#: The authoritative record of ONE voluntary blog contribution. Written at initiation time (before
+#: the gateway order is created, so a later `payment.captured` has a stored amount/post to bind
+#: the credit to) and advanced to a settled state only after an authoritative capture readback.
+#: It is NOT an order and mints NO public order number: a contribution never becomes a Wix Store
+#: product or purchase order. It carries ONLY the authoritative fields Section 5 requires -
+#: opaque ids, the blog post id/slug, integer paise, currency, the attempt/gateway/payment ids,
+#: the verified/captured state, timestamps and a refund-state slot. No customer PII.
+CONTRIBUTION_PREFIX = "BLOGCONTRIB#"
+
+#: The idempotency marker that makes one captured contribution settle a contribution exactly once.
+#: Claimed conditionally (keyed by payment id) BEFORE any settle write, so a duplicate webhook
+#: delivery loses the claim and settles nothing - the same shape as `TOPUP_CREDIT_PREFIX`.
+CONTRIBUTION_SETTLE_PREFIX = "BLOGCONTRIBSETTLE#"
+
+
+def reserve_contribution(table: Any,
+                         *,
+                         contribution_id: str,
+                         post_id: str,
+                         slug: str,
+                         amount_paise: int,
+                         payment_attempt_id: str,
+                         currency: str = "INR",
+                         key_attr: str = "orderId",
+                         extra: Optional[Dict[str, Any]] = None) -> bool:
+    """Record a voluntary blog contribution the server authorised. True if reserved, False if bound.
+
+    Written at initiation time, before the gateway order exists, so the later `payment.captured`
+    has a stored amount to re-derive the settlement from - the event notes are never the authority
+    for how much. The server has already validated `amount_paise` against its own authoritative
+    presets/bounds; this only persists it. Stores ONLY the required authoritative fields and no
+    customer PII. Mints no order number: a contribution is not an order.
+    """
+    if not contribution_id:
+        raise ValueError("contribution_id is required")
+    if not post_id:
+        raise ValueError("post_id is required")
+    if not payment_attempt_id:
+        raise ValueError("payment_attempt_id is required")
+    from lambda_utils.ecommerce.money import positive_paise
+    amount_paise = positive_paise(amount_paise)
+    now = int(time.time())
+    item = {
+        "kind": "BLOG_CONTRIBUTION",
+        "contributionId": contribution_id,
+        "postId": post_id,
+        "slug": slug or "",
+        "amountPaise": amount_paise,
+        "currency": currency or "INR",
+        "paymentAttemptId": payment_attempt_id,
+        "gatewayOrderId": "",
+        "providerPaymentId": "",
+        "state": "INITIATED",
+        "refundState": "NONE",
+        "createdAt": now,
+        "updatedAt": now,
+    }
+    if extra:
+        item.update(extra)
+    return _claim_row(table, key_attr, CONTRIBUTION_PREFIX + contribution_id, item)
+
+
+def resolve_contribution(table: Any, contribution_id: str, *,
+                         key_attr: str = "orderId") -> Optional[Dict[str, Any]]:
+    """The stored contribution record for a contribution id, or None.
+
+    None means no contribution was authorised under this id - a capture naming an unknown
+    contribution is either a forgery or a lost write and must not settle anything.
+    """
+    if not contribution_id:
+        return None
+    return _read_row(table, key_attr, CONTRIBUTION_PREFIX + contribution_id)
+
+
+def bind_contribution_gateway_order(table: Any,
+                                    *,
+                                    contribution_id: str,
+                                    gateway_order_id: str,
+                                    key_attr: str = "orderId") -> None:
+    """Record the created gateway order id on the contribution record. Best-effort link.
+
+    The authoritative verify/settle paths resolve the binding via `resolve_gateway_order` and the
+    contribution via `resolve_contribution`; this only cross-links the two for reconciliation and
+    never raises into the caller (a missing link falls back to the receipt/binding correlation).
+    """
+    if not contribution_id or not gateway_order_id:
+        return
+    try:
+        table.update_item(
+            Key={key_attr: CONTRIBUTION_PREFIX + contribution_id},
+            UpdateExpression="SET gatewayOrderId = :g, updatedAt = :t",
+            ConditionExpression="attribute_exists(%s)" % key_attr,
+            ExpressionAttributeValues={":g": gateway_order_id, ":t": int(time.time())},
+        )
+    except Exception as error:  # noqa: BLE001
+        logger.info('{"event":"blog_contribution_gateway_link_skipped","error":"%s"}',
+                    type(error).__name__)
+
+
+def claim_contribution_settlement(table: Any,
+                                  *,
+                                  payment_id: str,
+                                  contribution_id: str = "",
+                                  gateway_order_id: str = "",
+                                  amount_paise: int = 0,
+                                  key_attr: str = "orderId") -> bool:
+    """Claim the right to settle a contribution for one captured payment. Idempotent.
+
+    True on the first delivery (the caller may settle), False on every redelivery (already
+    settled). Keyed by payment id, so one Razorpay capture settles a contribution exactly once no
+    matter how many times the webhook is delivered. The claim is written BEFORE the settle, so
+    even a crash between claim and settle cannot double-settle - a redelivery sees the claim and
+    stops. Shares nothing with the commerce `PROVIDERPAYMENT#` namespace deliberately: a
+    contribution is a distinct purpose and must not collide with an order claim.
+    """
+    if not payment_id:
+        raise ValueError("payment_id is required")
+    item = {
+        "kind": "BLOG_CONTRIBUTION_SETTLE",
+        "paymentId": payment_id,
+        "contributionId": contribution_id or "",
+        "gatewayOrderId": gateway_order_id or "",
+        "amountPaise": int(amount_paise or 0),
+        "settledAt": int(time.time()),
+    }
+    return _claim_row(table, key_attr, CONTRIBUTION_SETTLE_PREFIX + payment_id, item)
+
+
+def mark_contribution_settled(table: Any,
+                              *,
+                              contribution_id: str,
+                              provider_payment_id: str,
+                              amount_paise: int,
+                              key_attr: str = "orderId") -> None:
+    """Advance a contribution record to CAPTURED with the authoritative payment id and amount.
+
+    Called only after the single-settlement claim has been won and an authoritative capture
+    readback confirmed the amount against the stored record. Never raises into the webhook (a
+    non-2xx makes Razorpay retry the whole event); a failed state write is logged by type and the
+    settlement claim already guarantees exactly-once.
+    """
+    if not contribution_id or not provider_payment_id:
+        return
+    try:
+        table.update_item(
+            Key={key_attr: CONTRIBUTION_PREFIX + contribution_id},
+            UpdateExpression=("SET #st = :captured, providerPaymentId = :p, "
+                              "settledAmountPaise = :a, settledAt = :t, updatedAt = :t"),
+            ConditionExpression="attribute_exists(%s)" % key_attr,
+            ExpressionAttributeNames={"#st": "state"},
+            ExpressionAttributeValues={":captured": "CAPTURED", ":p": provider_payment_id,
+                                       ":a": int(amount_paise), ":t": int(time.time())},
+        )
+    except Exception as error:  # noqa: BLE001
+        logger.info('{"event":"blog_contribution_settle_mark_skipped","error":"%s"}',
+                    type(error).__name__)
+
+
 __all__ = [
     "META_REFERENCE_ID_MAX_LENGTH",
     "RAZORPAY_RECEIPT_MAX_LENGTH",
@@ -1111,4 +1270,11 @@ __all__ = [
     "reserve_checkout_request_key",
     "bind_gateway_order",
     "resolve_gateway_order",
+    "CONTRIBUTION_PREFIX",
+    "CONTRIBUTION_SETTLE_PREFIX",
+    "reserve_contribution",
+    "resolve_contribution",
+    "bind_contribution_gateway_order",
+    "claim_contribution_settlement",
+    "mark_contribution_settled",
 ]
