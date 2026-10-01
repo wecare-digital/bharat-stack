@@ -628,6 +628,10 @@ outdated, and a deleted test would have left the reconciliation unverified.
 The lesson for the next reader: **re-measure, do not re-use.** Every count in §0 is timestamped
 for this reason, and §1 carries probed statuses rather than expectations.
 
+
+## Superseding owner instruction - home fallback completed
+
+The later owner instruction authorized wildcard home routing and direct access retirement. The provisioner now retains www plus three /access-to-home rules. The known-hazard tests have been inverted to assert preservation. CloudFront E1ZZ786I3YH65O is deployed; wildcard/xout/www.xout DNS change is INSYNC. See docs/execution/home-fallback-20261001.md for implementation, live checks and rollback. This supersedes the earlier pending wildcard and provisioner decision items; the earlier probe matrix remains historical evidence.
 ### 9.3 `xout.wecare.digital` moved too, and why its row is now informational
 
 A second drift, caught on the final re-run. `https://xout.wecare.digital/` was measured at
@@ -651,3 +655,16 @@ gap — §4 OWNER-DECISION ITEM 2) and `mta-sts.wecare.digital` (403, the MTA-ST
 under `mode: enforce`, where email is fail-closed). Both remain hard assertions, and
 `_row`'s docstring says in terms that `informational` is not for silencing a surface we control.
 Both re-measured at their expected values on the final run.
+
+**CORRECTED ON MERGE - the cause is known, and it was not a third party.** The paragraph
+above is the explanation: a concurrent session deployed CloudFront `E1ZZ786I3YH65O` for
+wildcard home routing and its `wildcard/xout/www.xout` DNS change reached `INSYNC` between
+the two readings. So the drift was OURS, authorized and deliberate - not Wix editing their
+host. The original wording "Nothing of ours changed between those readings" was true of this
+task, which made no DNS/ACM/CloudFront change, but false of the repository. Recorded rather
+than silently rewritten, because an unexplained third-party drift and a teammate's approved
+change landing mid-run warrant different responses, and only the second one is this one.
+
+The downgrade to `informational=True` still stands, for a reason that survives the correction:
+`xout` is a second-label host OUTSIDE our certificate (`*.wecare.digital` matches one label
+only - see section 4), so its routing is owned elsewhere either way.

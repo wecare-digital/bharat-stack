@@ -594,10 +594,31 @@ def _do_topup_order(event: dict, body: dict, origin: str):
     if not key_id or not key_secret:
         return cors_response(501, {'error': 'Razorpay API keys not configured. Add key_id/key_secret to wecare/razorpay/api to enable self-service top-up.'}, origin)
 
+    # Reserve a durable top-up INTENT before the payment link exists. The Razorpay webhook binds
+    # the eventual capture to this stored intent (customer WABA + exact amount) and refuses to
+    # credit anything it cannot bind - so the event body's notes are never the authority for who
+    # is credited or how much. See razorpay-webhook._handle_wallet_topup_captured.
+    from lambda_utils.ecommerce import order_keys
+    amount_paise = int(round(amount * 100))
+    try:
+        keys_table = boto3.resource('dynamodb', region_name=REGION).Table(
+            order_keys.commerce_keys_table_name())
+        reference_id = order_keys.allocate_payment_reference(
+            keys_table, payment_attempt_id=order_keys.new_payment_attempt_id(),
+            extra={'kind': 'TOPUP_PAYREF', 'wabaId': waba_id})
+        order_keys.reserve_topup_intent(
+            keys_table, reference_id=reference_id, waba_id=waba_id,
+            amount_paise=amount_paise, currency='INR')
+    except Exception as e:  # noqa: BLE001
+        logger.error(json.dumps({'event': 'partner_topup_intent_error',
+                                 'error': type(e).__name__, 'wabaId': waba_id}))
+        return cors_response(502, {'success': False,
+                                   'error': 'Could not reserve a top-up intent'}, origin)
+
     payload = {
-        'amount': int(round(amount * 100)), 'currency': 'INR', 'accept_partial': False,
+        'amount': amount_paise, 'currency': 'INR', 'accept_partial': False,
         'description': f'WECARE wallet top-up ({waba_id})',
-        'notes': {'purpose': 'wallet_topup', 'wabaId': waba_id},
+        'notes': {'purpose': 'wallet_topup', 'wabaId': waba_id, 'referenceId': reference_id},
         'reminder_enable': True,
     }
     auth = base64.b64encode(f'{key_id}:{key_secret}'.encode()).decode()

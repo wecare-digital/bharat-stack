@@ -666,6 +666,401 @@ def reserve_order_number(table: Any,
     )
 
 
+# ── durable capture quarantine: a recoverable intake row, not an alert ──────────
+#: A capture the webhook could not authoritatively clear. Parked as a DURABLE row so it
+#: survives after Razorpay stops retrying - an alert log does not. One row per payment id,
+#: so a redelivery of the same unverified capture updates the same intake rather than piling
+#: up duplicates. Writes NOTHING financial: it only records that a human must look.
+QUARANTINE_PREFIX = "CAPTUREQUARANTINE#"
+
+#: A stored wallet top-up intent. The self-service top-up flow reserves one of these BEFORE
+#: the payment link is created, so a `payment.captured` for a wallet top-up can be bound to a
+#: customer/amount the business actually asked for - rather than trusting the event notes.
+TOPUP_INTENT_PREFIX = "TOPUPINTENT#"
+
+#: The idempotency marker that makes one captured payment credit a wallet exactly once. Claimed
+#: conditionally before `partner_billing.topup`, so a duplicate webhook delivery loses the claim
+#: and credits nothing.
+TOPUP_CREDIT_PREFIX = "TOPUPCREDIT#"
+
+
+def record_capture_quarantine(table: Any,
+                              *,
+                              payment_id: str,
+                              reference_id: str = "",
+                              outcome: str = "",
+                              key_attr: str = "orderId",
+                              extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Durably park an unverified capture for a human. Returns the stored/known row.
+
+    Idempotent and recoverable, which is the whole reason it exists. The money may or may not
+    have moved and the webhook could not tell, so this records the fact rather than guessing.
+    Keyed by payment id, because that is the one identifier a capture always carries and the one
+    a human reconciling it will search by. A redelivery of the same unverified capture finds the
+    row already present and leaves it untouched (its `acknowledged` state and `createdAt` are
+    preserved), so acknowledging an event does not make it reappear and re-alert.
+
+    Writes NOTHING financial: no invoice is marked paid, no wallet is credited, no order is
+    created. On a storage error it raises `OrderIdentityUnavailable` - the caller must not treat
+    a failed park as a successful one, because that would silently drop the only recovery record.
+    """
+    if not payment_id:
+        raise ValueError("payment_id is required to quarantine a capture")
+    now = int(time.time())
+    item = {
+        "kind": "CAPTURE_QUARANTINE",
+        "paymentId": payment_id,
+        "referenceId": reference_id or "",
+        "outcome": outcome or "",
+        "status": "UNRESOLVED",
+        "acknowledged": False,
+        "createdAt": now,
+    }
+    if extra:
+        item.update(extra)
+    key = QUARANTINE_PREFIX + payment_id
+    if _claim_row(table, key_attr, key, item):
+        return item
+    # Already parked by an earlier delivery. Return the existing row so the caller can see it is
+    # recoverable; never overwrite it, so an acknowledgement is not undone by a retry.
+    existing = _read_row(table, key_attr, key)
+    return existing or item
+
+
+def resolve_capture_quarantine(table: Any, payment_id: str, *,
+                               key_attr: str = "orderId") -> Optional[Dict[str, Any]]:
+    """The quarantine intake row for a payment id, or None. Raises only on a storage error."""
+    if not payment_id:
+        return None
+    return _read_row(table, key_attr, QUARANTINE_PREFIX + payment_id)
+
+
+def acknowledge_capture_quarantine(table: Any,
+                                   *,
+                                   payment_id: str,
+                                   actor: str = "staff",
+                                   key_attr: str = "orderId") -> Optional[Dict[str, Any]]:
+    """Mark a parked capture acknowledged WITHOUT deleting it, so it stays recoverable.
+
+    Acknowledgement records that a human has seen the intake; it does not resolve or discharge
+    it. The row is retained (never TTL'd, never deleted) precisely so that an acknowledged event
+    remains recoverable after Razorpay has stopped retrying - the alert log it replaced could not
+    offer that. Returns the updated row, or None if there is nothing parked under this id.
+    """
+    if not payment_id:
+        return None
+    key = QUARANTINE_PREFIX + payment_id
+    try:
+        table.update_item(
+            Key={key_attr: key},
+            UpdateExpression="SET acknowledged = :a, acknowledgedBy = :who, acknowledgedAt = :t",
+            ConditionExpression="attribute_exists(%s)" % key_attr,
+            ExpressionAttributeValues={":a": True, ":who": actor or "staff",
+                                       ":t": int(time.time())},
+        )
+    except Exception as error:  # noqa: BLE001
+        if _is_conditional_failure(error):
+            return None
+        raise OrderIdentityUnavailable(
+            "could not acknowledge quarantine %r: %s" % (payment_id, type(error).__name__)
+        ) from error
+    return resolve_capture_quarantine(table, payment_id, key_attr=key_attr)
+
+
+def claim_legacy_invoice_payment(table: Any,
+                                 *,
+                                 payment_id: str,
+                                 invoice_id: str,
+                                 reference_id: str = "",
+                                 key_attr: str = "orderId",
+                                 extra: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
+    """Claim the right to settle exactly one legacy invoice for one Razorpay payment. Idempotent.
+
+    Returns `(won, invoiceIdRef)`. `won` is True only when THIS call wrote the claim. When the
+    marker already exists, `won` is False and `invoiceIdRef` is the invoice the claim is already
+    bound to - which is what defeats a replay: a second signature-valid `payment.captured`
+    carrying the SAME `payment_id` under a DIFFERENT referenceId finds the claim already held for
+    the first invoice and settles nothing.
+
+    Shares the `PROVIDERPAYMENT#<payment_id>` namespace with `claim_order_for_payment`, so a single
+    provider payment can fund at most one thing across BOTH the commerce and the legacy paths: if
+    the commerce reconciler already claimed this payment for an order, the legacy claim loses, and
+    vice-versa. The marker is claimed BEFORE any invoice write, so one payment settles one invoice.
+    """
+    if not payment_id:
+        raise ValueError("payment_id is required")
+    if not invoice_id:
+        raise ValueError("invoice_id is required")
+    now = int(time.time())
+    item = {
+        "kind": "LEGACY_INVOICE_PAYMENT_CLAIM",
+        "invoiceIdRef": invoice_id,
+        "providerTransactionId": payment_id,
+        "referenceId": reference_id or "",
+        "claimedAt": now,
+    }
+    if extra:
+        item.update(extra)
+    key = PROVIDER_PAYMENT_PREFIX + payment_id
+    if _claim_row(table, key_attr, key, item):
+        return True, invoice_id
+    existing = _read_row(table, key_attr, key) or {}
+    return False, str(existing.get("invoiceIdRef") or "")
+
+
+def release_legacy_invoice_payment_claim(table: Any,
+                                         *,
+                                         payment_id: str,
+                                         invoice_id: str,
+                                         key_attr: str = "orderId") -> bool:
+    """Release a legacy one-time payment claim that settled NO invoice row. Returns True if deleted.
+
+    The companion to `claim_legacy_invoice_payment`. The legacy settle on the Razorpay webhook is a
+    second, independent query against the referenceId GSI run AFTER this claim is taken, so a settle
+    that then no-ops (the row vanished, a duplicate made it ambiguous, or the write errored) would
+    otherwise strand the payment: the irreversible claim is held with no paid row behind it, and no
+    redelivery can ever settle. The caller detects "nothing settled" and calls this to release the
+    claim so a legitimate redelivery can re-claim and re-attempt.
+
+    Money-safety rests on the DELETE being CONDITIONAL, never unconditional:
+
+      * `kind = LEGACY_INVOICE_PAYMENT_CLAIM`  - never remove a commerce `PROVIDER_PAYMENT_CLAIM`
+        that happens to share the `PROVIDERPAYMENT#<payment_id>` namespace. A commerce order claim
+        must stay irrevocable.
+      * `invoiceIdRef = <invoice_id>`          - only release the claim THIS legacy settlement took,
+        not one another worker has since re-bound to a different invoice.
+      * `providerTransactionId = <payment_id>` - belt and braces that the row is for this payment.
+
+    If the row no longer matches (already released, re-bound, or a commerce claim), the conditional
+    delete loses and this returns False - a no-op, which is correct: there is nothing of ours to
+    release. A conditional-check failure is the only tolerated error; anything else raises
+    `OrderIdentityUnavailable` so a throttle is never mistaken for "released".
+
+    The caller invokes this ONLY after confirming no invoice row was settled for this payment, so at
+    release time no invoice is paid anywhere for it: releasing the claim cannot enable a double
+    settle, it only lets the one legitimate settlement happen on a later delivery.
+    """
+    if not payment_id:
+        raise ValueError("payment_id is required")
+    if not invoice_id:
+        raise ValueError("invoice_id is required")
+    key = PROVIDER_PAYMENT_PREFIX + payment_id
+    try:
+        table.delete_item(
+            Key={key_attr: key},
+            ConditionExpression=(
+                "#k = :kind AND invoiceIdRef = :inv AND providerTransactionId = :pid"
+            ),
+            ExpressionAttributeNames={"#k": "kind"},
+            ExpressionAttributeValues={
+                ":kind": "LEGACY_INVOICE_PAYMENT_CLAIM",
+                ":inv": invoice_id,
+                ":pid": payment_id,
+            },
+        )
+        return True
+    except Exception as error:  # noqa: BLE001 - re-raised below unless it is a lost condition
+        if _is_conditional_failure(error):
+            return False
+        raise OrderIdentityUnavailable(
+            "could not release %r: %s" % (key, type(error).__name__)
+        ) from error
+
+
+def reserve_topup_intent(table: Any,
+                         *,
+                         reference_id: str,
+                         waba_id: str,
+                         amount_paise: int,
+                         currency: str = "INR",
+                         key_attr: str = "orderId",
+                         extra: Optional[Dict[str, Any]] = None) -> bool:
+    """Record a wallet top-up the business actually asked for. True if reserved, False if bound.
+
+    Written at top-up-initiation time, before the payment link exists, so the later
+    `payment.captured` has a stored customer (`waba_id`) and amount to bind the credit to. The
+    webhook never invents these from the event notes - absence of this row means the capture is
+    not an authorised top-up and must not credit anything.
+    """
+    if not reference_id:
+        raise ValueError("reference_id is required")
+    if not waba_id:
+        raise ValueError("waba_id is required")
+    from lambda_utils.ecommerce.money import positive_paise
+    amount_paise = positive_paise(amount_paise)
+    item = {
+        "kind": "TOPUP_INTENT",
+        "referenceId": reference_id,
+        "wabaId": waba_id,
+        "amountPaise": amount_paise,
+        "currency": currency or "INR",
+        "reservedAt": int(time.time()),
+    }
+    if extra:
+        item.update(extra)
+    return _claim_row(table, key_attr, TOPUP_INTENT_PREFIX + reference_id, item)
+
+
+def resolve_topup_intent(table: Any, reference_id: str, *,
+                         key_attr: str = "orderId") -> Optional[Dict[str, Any]]:
+    """The stored top-up intent for a reference, or None when no top-up was authorised."""
+    if not reference_id:
+        return None
+    return _read_row(table, key_attr, TOPUP_INTENT_PREFIX + reference_id)
+
+
+def claim_topup_credit(table: Any,
+                       *,
+                       payment_id: str,
+                       reference_id: str = "",
+                       waba_id: str = "",
+                       amount_paise: int = 0,
+                       key_attr: str = "orderId") -> bool:
+    """Claim the right to credit a wallet for one captured payment. Idempotent.
+
+    True on the first delivery (the caller may credit), False on every redelivery (already
+    credited). Keyed by payment id, so one Razorpay capture credits a wallet exactly once no
+    matter how many times the webhook is delivered. The claim is written BEFORE the credit, so
+    even a crash between claim and credit cannot double-credit - a redelivery sees the claim and
+    stops.
+    """
+    if not payment_id:
+        raise ValueError("payment_id is required")
+    item = {
+        "kind": "TOPUP_CREDIT",
+        "paymentId": payment_id,
+        "referenceId": reference_id or "",
+        "wabaId": waba_id or "",
+        "amountPaise": int(amount_paise or 0),
+        "creditedAt": int(time.time()),
+    }
+    return _claim_row(table, key_attr, TOPUP_CREDIT_PREFIX + payment_id, item)
+
+
+# ── website Standard Checkout: request key + gateway-order binding (section 8) ──
+#: A customer-scoped, intent-fingerprinted request key reserved BEFORE the external order-create
+#: call. Two rapid clicks on "Pay" with the SAME intent must coordinate onto ONE gateway order,
+#: and a changed intent (different amount, cart revision or snapshot hash) under a resumed key
+#: must be refused rather than silently paying the old amount. The key names the attempt; the
+#: fingerprint pins the intent, and the two are checked together.
+REQUEST_KEY_PREFIX = "REQUESTKEY#"
+
+#: The persisted binding of a created Razorpay gateway order to the attempt/account/mode/amount
+#: it was created for. Written BEFORE checkout options are exposed to the browser, so a callback
+#: can be checked against the stored order id/account/mode/amount rather than anything the browser
+#: relayed. A Razorpay GATEWAY order is NOT an internal/Wix purchase order and carries no public
+#: order number — that exists only after an authoritative capture. These are different objects.
+GATEWAY_ORDER_PREFIX = "GATEWAYORDER#"
+
+
+def reserve_checkout_request_key(table: Any,
+                                 *,
+                                 customer_id: str,
+                                 request_key: str,
+                                 intent_fingerprint: str,
+                                 payment_attempt_id: str,
+                                 key_attr: str = "orderId",
+                                 extra: Optional[Dict[str, Any]] = None
+                                 ) -> Tuple[Dict[str, Any], bool]:
+    """Reserve a customer-scoped request key before any external order-create. Idempotent.
+
+    Returns `(row, won)`:
+
+      won is True   this click is the first with this key; the caller proceeds to create the
+                    gateway order. The row records the intent fingerprint so a later resume can
+                    be checked against it.
+      won is False  this key already exists. The returned row is the EXISTING reservation. The
+                    caller MUST compare `intentFingerprint` before resuming: the same intent
+                    resumes onto the already-created order (concurrent clicks coordinate), and a
+                    DIFFERENT intent must be rejected rather than charged.
+
+    The key is namespaced by customer so one customer cannot reserve or resume another's request
+    key. The fingerprint is the caller's hash over the frozen intent (amount, currency, cart
+    revision, snapshot hash); this module stores and returns it but does not interpret it.
+    """
+    if not customer_id:
+        raise ValueError("customer_id is required")
+    if not request_key:
+        raise ValueError("request_key is required")
+    if not intent_fingerprint:
+        raise ValueError("intent_fingerprint is required")
+    if not payment_attempt_id:
+        raise ValueError("payment_attempt_id is required")
+    now = int(time.time())
+    item = {
+        "kind": "CHECKOUT_REQUEST_KEY",
+        "customerId": customer_id,
+        "requestKey": request_key,
+        "intentFingerprint": intent_fingerprint,
+        "paymentAttemptId": payment_attempt_id,
+        "reservedAt": now,
+    }
+    if extra:
+        item.update(extra)
+    key = REQUEST_KEY_PREFIX + customer_id + "#" + request_key
+    if _claim_row(table, key_attr, key, item):
+        return item, True
+    existing = _read_row(table, key_attr, key)
+    if existing is None:
+        # A lost race whose winner's row we then could not read is an outage, not a resume.
+        raise OrderIdentityUnavailable(
+            "request key %r is claimed but could not be read" % request_key)
+    return existing, False
+
+
+def bind_gateway_order(table: Any,
+                       *,
+                       gateway_order_id: str,
+                       payment_attempt_id: str,
+                       request_key: str,
+                       amount_paise: int,
+                       account_key_id: str,
+                       account_mode: str,
+                       currency: str = "INR",
+                       key_attr: str = "orderId",
+                       extra: Optional[Dict[str, Any]] = None) -> bool:
+    """Durably persist a created gateway order's id/account/mode/amount BEFORE exposing options.
+
+    True if this binding was written, False if the gateway order id was already bound (a resumed
+    create landing on the same provider order). The binding is what a callback is verified
+    against: the stored order id selects the HMAC input, and the stored account/mode/amount/currency
+    are what a result must match. Writes NOTHING financial and mints NO public order number — a
+    gateway order is only an intent to pay.
+    """
+    if not gateway_order_id:
+        raise ValueError("gateway_order_id is required")
+    if not payment_attempt_id:
+        raise ValueError("payment_attempt_id is required")
+    from lambda_utils.ecommerce.money import positive_paise
+    amount_paise = positive_paise(amount_paise)
+    item = {
+        "kind": "GATEWAY_ORDER_BINDING",
+        "gatewayOrderId": gateway_order_id,
+        "paymentAttemptId": payment_attempt_id,
+        "requestKey": request_key or "",
+        "amountPaise": amount_paise,
+        "currency": currency or "INR",
+        "accountKeyId": account_key_id or "",
+        "accountMode": account_mode or "",
+        "boundAt": int(time.time()),
+    }
+    if extra:
+        item.update(extra)
+    return _claim_row(table, key_attr, GATEWAY_ORDER_PREFIX + gateway_order_id, item)
+
+
+def resolve_gateway_order(table: Any, gateway_order_id: str, *,
+                          key_attr: str = "orderId") -> Optional[Dict[str, Any]]:
+    """The stored binding for a gateway order id, or None.
+
+    None means we never created this order — a callback naming an unknown gateway order id is
+    either a forgery or a lost write, and either way must not settle anything.
+    """
+    if not gateway_order_id:
+        return None
+    return _read_row(table, key_attr, GATEWAY_ORDER_PREFIX + gateway_order_id)
+
+
 __all__ = [
     "META_REFERENCE_ID_MAX_LENGTH",
     "RAZORPAY_RECEIPT_MAX_LENGTH",
@@ -702,4 +1097,18 @@ __all__ = [
     "reserve_order_number",
     "commerce_keys_table_name",
     "order_ids_table_name",
+    "QUARANTINE_PREFIX",
+    "TOPUP_INTENT_PREFIX",
+    "TOPUP_CREDIT_PREFIX",
+    "record_capture_quarantine",
+    "resolve_capture_quarantine",
+    "acknowledge_capture_quarantine",
+    "reserve_topup_intent",
+    "resolve_topup_intent",
+    "claim_topup_credit",
+    "REQUEST_KEY_PREFIX",
+    "GATEWAY_ORDER_PREFIX",
+    "reserve_checkout_request_key",
+    "bind_gateway_order",
+    "resolve_gateway_order",
 ]

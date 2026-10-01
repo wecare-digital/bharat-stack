@@ -75,13 +75,24 @@ def _seed_attempt(ddb, *, amount=AMOUNT, currency='INR'):
                'providerPaymentId': TXN})
 
 
-def _seed_invoice(ddb, *, reference_id=REFERENCE, total='599.00', status='sent'):
-    """A legacy invoice row keyed by referenceId, with NO PaymentAttempt."""
-    ddb.Table(INVOICES_TABLE).put_item(Item={
-        'invoiceId': 'INV-LEGACY-1', 'referenceId': reference_id,
+PROVIDER_ORDER = 'order_ABC'
+
+
+def _seed_invoice(ddb, *, reference_id=REFERENCE, total='599.00', status='sent',
+                  invoice_id='INV-LEGACY-1', provider_order_id=PROVIDER_ORDER):
+    """A legacy invoice row keyed by referenceId, with NO PaymentAttempt.
+
+    R2: a genuine legacy invoice carries a stored provider binding (providerOrderId) so a capture
+    can be positively tied to it. Pass provider_order_id='' to seed an UNBOUND invoice.
+    """
+    item = {
+        'invoiceId': invoice_id, 'referenceId': reference_id,
         'total': Decimal(total), 'status': status,
         'customerPhone': CONTACT, 'invoiceNumber': 'WD/2627/00001',
-    })
+    }
+    if provider_order_id:
+        item['providerOrderId'] = provider_order_id
+    ddb.Table(INVOICES_TABLE).put_item(Item=item)
 
 
 def _event(*, notes=None, amount=AMOUNT, payment_id=TXN, order_id='order_ABC',
@@ -296,11 +307,11 @@ def test_verified_paid_commerce_capture_fires_each_effect_exactly_once(webhook, 
 # ══════════════════════════════════════════════════════════════════════════════
 
 def test_verified_legacy_invoice_marks_paid_and_runs_post_payment(webhook, fake_ddb):
-    """No PaymentAttempt, but an invoice row exists AND the provider confirms the exact amount."""
+    """No PaymentAttempt, but a BOUND invoice row exists AND the provider confirms the amount."""
     _seed_invoice(fake_ddb, total='599.00')
     with _Spies(webhook) as spies:
-        with patch('lambda_utils.integrations.razorpay_verify.payment_is_captured',
-                   return_value=(True, AMOUNT, 'INR')):
+        with patch('lambda_utils.integrations.razorpay_verify.payment_capture_details',
+                   return_value=(True, AMOUNT, 'INR', PROVIDER_ORDER)):
             _drive(webhook, fake_ddb, _event(),
                    verifier=lambda _r: (True, TXN, AMOUNT, 'INR'))
 
@@ -316,8 +327,8 @@ def test_legacy_invoice_with_provider_amount_mismatch_quarantines(webhook, fake_
     """Invoice exists, but the provider captured a different amount. Do not mark it paid."""
     _seed_invoice(fake_ddb, total='599.00')
     with _Spies(webhook) as spies:
-        with patch('lambda_utils.integrations.razorpay_verify.payment_is_captured',
-                   return_value=(True, AMOUNT + 100, 'INR')):
+        with patch('lambda_utils.integrations.razorpay_verify.payment_capture_details',
+                   return_value=(True, AMOUNT + 100, 'INR', PROVIDER_ORDER)):
             _drive(webhook, fake_ddb, _event(),
                    verifier=lambda _r: (True, TXN, AMOUNT, 'INR'))
 
@@ -331,8 +342,8 @@ def test_legacy_invoice_not_captured_by_provider_quarantines(webhook, fake_ddb):
     """Invoice exists, but the provider says the payment is NOT captured. Nothing runs."""
     _seed_invoice(fake_ddb, total='599.00')
     with _Spies(webhook) as spies:
-        with patch('lambda_utils.integrations.razorpay_verify.payment_is_captured',
-                   return_value=(False, 0, '')):
+        with patch('lambda_utils.integrations.razorpay_verify.payment_capture_details',
+                   return_value=(False, 0, '', '')):
             _drive(webhook, fake_ddb, _event(),
                    verifier=lambda _r: (True, TXN, AMOUNT, 'INR'))
 

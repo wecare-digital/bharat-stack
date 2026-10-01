@@ -3395,13 +3395,15 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
         # and on the invoice from one Meta had confirmed. Asking "which captures did
         # we accept without verifying?" had no answer.
         #
-        # The accept/reject decision is deliberately UNCHANGED: only a lookup that
-        # actively contradicts the webhook rejects. Making this fail-closed would
-        # alter live payment acceptance, which is not a change to make silently and
-        # not one to make without payment traffic to validate against. It is
-        # available as PAYMENT_LOOKUP_REQUIRED, default off, so the decision can be
-        # taken deliberately by whoever owns it - and until then the exposure is at
-        # least visible.
+        # SUPERSEDED (2026-10-01, website-only ruling): this lookup no longer gates
+        # any financial side effect — the branch below creates NO paid state at all
+        # (see the SUPERSEDED block). The verification is retained ONLY to compute an
+        # auditable `verification_outcome` for the SUPERSEDED log, so the historical
+        # fail-open exposure stays visible. PAYMENT_LOOKUP_REQUIRED is intentionally
+        # LEFT DEFINED (its env-var contract is preserved) but is now dead on the
+        # financial path: regardless of its value, no paid invoice/order/receipt can be
+        # created here. The single authoritative payment producer is the Razorpay
+        # webhook (payments/razorpay-webhook/handler.py) via razorpay_verify.
         VERIFIED = 'verified'
         UNVERIFIED_NO_CONFIG = 'unverified_no_payment_config'
         UNVERIFIED_LOOKUP_FAILED = 'unverified_lookup_failed'
@@ -3510,62 +3512,41 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
                     'requestId': request_id,
                 }))
 
-        # A contradicting lookup always rejects. An absent one rejects only when
-        # PAYMENT_LOOKUP_REQUIRED is on.
-        reject = (
-            verification_outcome == REJECTED_MISMATCH
-            or (lookup_required and verification_outcome != VERIFIED)
-        )
-        if reject:
-            logger.error(json.dumps({
-                'event': 'payment_capture_unverified_skipping',
-                'verificationOutcome': verification_outcome,
-                'lookupRequired': lookup_required,
-                'referenceId': reference_id,
-                'requestId': request_id,
-            }))
-            return
-
-        if verification_outcome != VERIFIED:
-            # Accepted without confirmation. Logged at error level on purpose: it
-            # is the level an alarm can be built on, and an unverified capture is
-            # exactly the thing someone should be able to count.
-            logger.error(json.dumps({
-                'event': 'payment_capture_accepted_unverified',
-                'verificationOutcome': verification_outcome,
-                'referenceId': reference_id,
-                'requestId': request_id,
-            }))
-
-        # ── Direct invoice status update in InvoicesTable ──
-        # Ensures the invoice is marked paid even if the dedup path in
-        # create_invoice is skipped (e.g. invoice was created from dashboard).
-        _mark_invoice_paid_by_reference(reference_id, request_id)
-
-        _send_order_status_message(
-            recipient_id=recipient_id,
-            reference_id=reference_id,
-            order_status='completed',
-            amount=actual_amount,
-            description=PAY_MSG['paid'],
-            request_id=request_id,
-            phone_number_id=originating_phone_id
-        )
-        # Generate and send invoice after successful payment
-        _generate_invoice_for_captured_payment(
-            reference_id=reference_id,
-            recipient_id=recipient_id,
-            actual_amount=actual_amount,
-            phone_number_id=originating_phone_id,
-            request_id=request_id,
-        )
-        # Check for remaining pending dues and notify
-        _check_and_notify_balance_due(
-            recipient_id=recipient_id,
-            paid_reference_id=reference_id,
-            phone_number_id=originating_phone_id,
-            request_id=request_id,
-        )
+        # ── SUPERSEDED: in-WhatsApp payment capture retired (2026-10-01) ──
+        # The owner's 2026-10-01 ruling is website-only checkout ("yes no whatsapp
+        # all in the website"). In-WhatsApp payment has been removed from the active
+        # purchase flow, so this CAPTURED branch no longer creates ANY paid state.
+        #
+        # Previously this path marked the invoice paid, sent a 'completed' order_status,
+        # generated a GST invoice, and notified balance-due — all off a capture that was
+        # accepted FAIL-OPEN (the Meta Payment Lookup is advisory here and defaults off
+        # via PAYMENT_LOOKUP_REQUIRED). An unverified webhook body could therefore mint
+        # paid invoices/orders/receipts. That financial fall-through is now retired.
+        #
+        # The single authoritative payment producer going forward is the Razorpay
+        # webhook (amplify/functions/payments/razorpay-webhook/handler.py), which
+        # re-derives every financial decision from an authoritative provider readback
+        # via lambda_utils/integrations/razorpay_verify (payment_is_captured /
+        # verifier_for_event) — never from the event body. No weaker parallel path may
+        # create paid state.
+        #
+        # We still STORE the raw payment record above (non-financial, for audit) and we
+        # emit a clearly-labelled, type-only SUPERSEDED audit record here so the event
+        # stays visible to whoever reconciles it. We intentionally make NO financial
+        # state mutation: no _mark_invoice_paid_by_reference, no _send_order_status
+        # 'completed', no _generate_invoice_for_captured_payment, no balance-due notify.
+        # `verification_outcome` and `lookup_required` are retained in the log purely for
+        # audit; regardless of PAYMENT_LOOKUP_REQUIRED, no paid state can be created here.
+        logger.error(json.dumps({
+            'event': 'in_whatsapp_payment_capture_superseded',
+            'note': ('in-WhatsApp payment retired by the 2026-10-01 website-only '
+                     'ruling; no financial side effects — the Razorpay webhook is the '
+                     'single authoritative payment producer'),
+            'verificationOutcome': verification_outcome,
+            'lookupRequired': lookup_required,
+            'referenceId': reference_id,
+            'requestId': request_id,
+        }))
     elif effective_failed:
         logger.info(json.dumps({
             'event': 'payment_effective_failure',
@@ -3596,7 +3577,15 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
 def _mark_invoice_paid_by_reference(reference_id: str, request_id: str) -> None:
     """Directly update InvoicesTable: set status=paid for the given referenceId.
     This is a safety net so the invoice is always marked paid on capture,
-    regardless of whether the dedup path in create_invoice runs later."""
+    regardless of whether the dedup path in create_invoice runs later.
+
+    RETIRED (2026-10-01 website-only ruling, N1): this financial helper has NO caller on the
+    in-WhatsApp payment-capture path - that branch was retired to a type-only audit record (see
+    `_process_payment_status`). It is kept DEFINED, not deleted, so the env-var/code contract is
+    not silently removed, but it must stay unreachable from any capture path: the single
+    authoritative payment producer is the Razorpay webhook
+    (payments/razorpay-webhook/handler.py), which has its OWN `_mark_invoice_paid_by_reference`.
+    Do not re-wire this one into a money path."""
     if not reference_id:
         return
     try:
@@ -3656,6 +3645,12 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
     After WhatsApp payment captured: create invoice via unified invoice engine.
     Uses wecare-invoice-engine Lambda for proper GST sequencing (WD/FY/NNNNN).
     Also sends the invoice image on WhatsApp automatically.
+
+    RETIRED (2026-10-01 website-only ruling, N1): this financial helper has NO caller on the
+    in-WhatsApp payment-capture path, which was retired to a type-only audit record. Kept DEFINED
+    (not deleted) so the contract is not silently removed, but it must stay unreachable from any
+    capture path. The Razorpay webhook is the single authoritative payment/receipt producer; do
+    not re-wire this into a money path.
     """
     import datetime
     try:
@@ -3898,6 +3893,12 @@ def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
     """After a payment is captured, check InvoicesTable for remaining pending dues.
     If found, auto-send the next payment link (sequential pay) and notify user.
     Gated behind whatsapp_auto_next_due (default OFF) to avoid post-payment spam.
+
+    RETIRED (2026-10-01 website-only ruling, N1): this financial-adjacent helper has NO caller on
+    the in-WhatsApp payment-capture path, which was retired to a type-only audit record. Kept
+    DEFINED (not deleted) so the contract is not silently removed, but it must stay unreachable
+    from any capture path. The Razorpay webhook is the single authoritative payment producer; do
+    not re-wire this into a money path.
     """
     if not _auto_next_due_enabled():
         logger.info(json.dumps({'event': 'balance_due_followup_skipped',

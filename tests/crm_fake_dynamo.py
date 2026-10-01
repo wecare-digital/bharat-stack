@@ -12,8 +12,9 @@ shape, the tests fail here until this fake is taught it. That is the intended co
 
 Supported, and only this
 ------------------------
-    condition   attribute_exists(X) | attribute_not_exists(X) | X = :v , joined by AND
+    condition   attribute_exists(X) | attribute_not_exists(X) | X = :v | X <> :v , joined by AND
     update      SET a = :v, b = if_not_exists(b, :v2) [REMOVE c, d] [ADD n :delta]
+    delete      delete_item(Key), optional ConditionExpression in the same form as above
     query       one index, partition key .eq(value), optional range sort from the
                 index name, ScanIndexForward, Limit
 
@@ -55,6 +56,9 @@ class FakeClientError(_BotoClientError):
 _ATTR_EXISTS = re.compile(r"attribute_exists\(\s*([#\w]+)\s*\)")
 _ATTR_NOT_EXISTS = re.compile(r"attribute_not_exists\(\s*([#\w]+)\s*\)")
 _EQUALITY = re.compile(r"([#\w]+)\s*=\s*(:[\w]+)")
+#: `attr <> :v` — matched BEFORE equality so the `=` inside `<>` is not mistaken for one. Used by
+#: conditional settlements that must only write a row still in a given state (e.g. not-already-paid).
+_INEQUALITY = re.compile(r"([#\w]+)\s*<>\s*(:[\w]+)")
 _SET_CLAUSE = re.compile(r"\bSET\b(.*?)(?:\bREMOVE\b|\bADD\b|$)",
                         re.IGNORECASE | re.DOTALL)
 _REMOVE_CLAUSE = re.compile(r"\bREMOVE\b(.*?)(?:\bSET\b|\bADD\b|$)",
@@ -97,6 +101,17 @@ def _evaluate_condition(condition: Optional[str], row: Optional[Dict[str, Any]],
     for match in _ATTR_NOT_EXISTS.finditer(text):
         attr = _resolve(match.group(1), names)
         if row is not None and attr in row:
+            result = False
+        consumed = consumed.replace(match.group(0), "", 1)
+
+    # Inequality first: `<>` contains a `=` only in some writers' spelling, but matching it before
+    # equality keeps the two from overlapping and leaves no stray fragment behind.
+    for match in _INEQUALITY.finditer(text):
+        attr = _resolve(match.group(1), names)
+        expected = values[match.group(2)]
+        # DynamoDB's `<>` is false when the attribute is absent, so a missing attribute never
+        # satisfies "not equal to :v". Mirror that: absence -> condition fails.
+        if row is None or attr not in row or row.get(attr) == expected:
             result = False
         consumed = consumed.replace(match.group(0), "", 1)
 
@@ -254,6 +269,19 @@ class FakeTable:
         updated = _apply_update(UpdateExpression, base, values, names)
         self.rows[key] = updated
         return {"Attributes": dict(updated)} if ReturnValues else {}
+
+    def delete_item(self, Key=None, ConditionExpression=None,
+                    ExpressionAttributeValues=None, ExpressionAttributeNames=None, **_):
+        self.parent.calls.append((self.name, "delete_item"))
+        self._fail_if_armed("delete_item")
+        key = (Key or {})[self.key_attr]
+        existing = self.rows.get(key)
+        if not _evaluate_condition(ConditionExpression, existing,
+                                   ExpressionAttributeValues or {},
+                                   ExpressionAttributeNames or {}):
+            raise FakeClientError("ConditionalCheckFailedException")
+        self.rows.pop(key, None)
+        return {}
 
     def query(self, IndexName=None, KeyConditionExpression=None, Limit=None,
               ScanIndexForward=True, **_):

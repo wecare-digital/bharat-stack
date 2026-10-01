@@ -204,22 +204,8 @@ export const PRODUCTS: ProductDef[] = [
     // RENAMED TWICE, and the slug moved with the name both times: Swdhya -> Open
     // Possibility -> Anew.
     //
-    // ⛔ CORRECTED 2026-09-30. This comment used to read "Neither earlier address was ever
-    // published - this page exists only on an unmerged branch - so there is no external link
-    // or search equity to keep and no redirect to write. If this page HAD shipped, /swdhya/
-    // and /open-possibility/ would both need 301s and this comment would be a migration note
-    // instead."
-    //
-    // It shipped. Search Console's https://www.wecare.digital/ property - which holds 480 days
-    // of history the apex property does not - reports /swdhya at 531 impressions, 3 clicks,
-    // average position 6.0. So this IS the migration note the old text imagined, and by its own
-    // test the redirects are owed: "/swdhya" and "/open-possibility" both now point at /anew/
-    // in scripts/provision_legacy_redirects.py.
-    //
-    // WHY THE MISTAKE WAS EASY, because the same trap is still live for other URLs: the APEX
-    // Search Console property reports zero impressions for everything, so checking it tells you
-    // nothing about the old site. The equity is filed under the www host against URLs that no
-    // longer exist. Four more are in the same position, two of them still without a target.
+    // Legacy public aliases were retired by owner instruction on 2026-10-01.
+    // Link directly to /anew/; do not recreate SEO redirects.
     //
     // THE SANSKRIT STAYS, BUT ITS JOB HAS CHANGED. स्वाध्याय (svādhyāya, self-study) is
     // literally where the FIRST name came from, so the epigraph was originally the

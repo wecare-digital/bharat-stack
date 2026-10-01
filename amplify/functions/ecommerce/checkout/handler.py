@@ -44,6 +44,39 @@ Nothing plaintext is logged
 No full phone number, no customer id in a form that identifies a person beyond its own opaque id,
 no amount tied to a person, no exception text that could echo request content. Event names, opaque
 ids, states and counts only.
+
+Two coexisting flows: the retained in-chat path and the additive website contract (section 8)
+---------------------------------------------------------------------------------------------
+This handler's `_create` returns ``PAYMENT_REQUEST_SENT`` for the IN-WHATSAPP flow above. That is
+a RETAINED legacy response: callers still consume it, and it is NOT removed until they are migrated.
+The in-WhatsApp vs website decision is an owner decision flagged in
+``.agents/tasks/checkout-audit-2026-10-01/findings.md`` (the repo spec records "pay inside
+WhatsApp" / "WhatsApp-only receipts"; the task asks for a website Razorpay Standard Checkout). Both
+paths coexist behind the SAME ``CHECKOUT_INITIATION_ENABLED`` gate, default off.
+
+The ADDITIVE website path lives in
+``lambda_utils/ecommerce/website_checkout.py`` + ``lambda_utils/integrations/razorpay_orders.py``.
+Its documented contract, which replaces ``PAYMENT_REQUEST_SENT`` for the website without deleting
+it for the in-chat path, is:
+
+    create  (gate off, the default)  -> ``PAYMENT_INITIATION_DISABLED``
+            {paymentAttemptId}                 no gateway order, no payable attempt
+    create  (gate on)                -> ``CHECKOUT_OPTIONS_READY``
+            {keyId, orderId, amountPaise, currency, prefill, paymentAttemptId}
+                                               ONLY these fields; keyId is the PUBLIC key id,
+                                               orderId is the SERVER-STORED Razorpay gateway order
+                                               id, amountPaise is the FEAT-001 calculator total
+                                               (collection+fee+GST), never the raw Wix total.
+    create  (ownership/snapshot/intent fails) -> ``CHECKOUT_REJECTED`` (no order created)
+    create  (provider timeout/save ambiguity) -> ``CHECKOUT_AMBIGUOUS`` (never a 2nd payable order)
+
+    callback (browser relays payment id/order id/signature) ->
+            HMAC verified over the STORED gateway order id, then STILL requires
+            ``razorpay_verify`` authoritative capture -> ``VERIFIED_PAID`` only after capture.
+
+A Razorpay GATEWAY order exists before payment; an internal/Wix purchase order and public purchase
+number exist ONLY after an authoritative capture. They are different objects. Cart/resume data is
+kept until that verified-paid finalization. Partial payment is disabled for this release.
 """
 
 from __future__ import annotations

@@ -135,6 +135,28 @@ def payment_is_captured(payment_id: str) -> Tuple[bool, int, str]:
     )
 
 
+def payment_capture_details(payment_id: str) -> Tuple[bool, int, str, str]:
+    """`(captured, amount_paise, currency, provider_order_id)` for one Razorpay payment id.
+
+    The same authoritative readback as `payment_is_captured`, but it also returns the payment's
+    provider `order_id`. The legacy-invoice path needs that id to prove this capture belongs to the
+    provider order recorded against the invoice (R2 binding): amount equality alone cannot
+    establish that THIS payment settles THIS invoice. The order id is read from Razorpay's API
+    response, never from the webhook event body. Raises `RazorpayUnavailable` rather than reporting
+    "not paid" when the answer is unknown.
+    """
+    if not payment_id:
+        raise ValueError("payment_id is required")
+    payment = _get(f"/payments/{urllib.parse.quote(payment_id, safe='')}")
+    status = str(payment.get("status") or "")
+    return (
+        status == CAPTURED,
+        int(payment.get("amount") or 0),
+        str(payment.get("currency") or ""),
+        str(payment.get("order_id") or ""),
+    )
+
+
 def order_is_paid(order_id: str) -> Tuple[bool, str, int, str]:
     """`(paid, payment_id, amount_paise, currency)` for a Razorpay order.
 
@@ -210,6 +232,7 @@ __all__ = [
     "CAPTURED",
     "RazorpayUnavailable",
     "payment_is_captured",
+    "payment_capture_details",
     "order_is_paid",
     "verifier_for_event",
 ]

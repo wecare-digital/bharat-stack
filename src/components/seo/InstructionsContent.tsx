@@ -51,7 +51,7 @@ export default function InstructionsContent () {
   "datePublished": "2025-09-12T00:18:04.958Z",
   "dateModified": "2025-09-12T00:18:04.958Z",
   "wordCount": 75,
-  "author": { "@type": "Person", "name": "Swdhya Vaksetu", "url": "https://wecare.digital/swdhya" },
+  "author": { "@type": "Person", "name": "Swdhya Vaksetu", "url": "https://wecare.digital/anew/" },
   "publisher": { "@type": "Organization", "name": "WECARE.DIGITAL", "logo": { "@type": "ImageObject", "url": "https://wecare.digital/get/o/stream/media/m/wecare-digital.png" } },
   "mainEntityOfPage": { "@type": "WebPage", "@id": "https://wecare.digital/post/stand" },
   "inLanguage": "en-IN",
