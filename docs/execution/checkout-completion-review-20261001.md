@@ -115,3 +115,14 @@ At desktop 1440px and mobile 390px, all six customer routes have no horizontal
 overflow, headings below their fixed header and a footer/Shopping Bag. The
 existing default widget remains present. This measures layout; it does not
 replace the blocked OTP/payment acceptance run.
+
+Razorpay webhook artifact drift was also corrected: the existing stack source
+(including authoritative provider-readback gating, replay leases, quarantine,
+customer/account/mode/amount binding and monotonic settlement safety) was not
+in the deployed September 30 package. Built and validated the exact reviewed
+ZIP, ran 228 focused payment/reconciliation/receipt tests, captured live version
+45 as rollback, published version 46 and moved only that live alias.
+Unsigned live webhook requests still return 401. No payment initiation flag,
+capture/refund operation, customer message or provider configuration was changed.
+Before/after snapshots: checkout-webhook-*-20261001.json. This aligns the
+verification boundary; it does not connect the missing website purchase journey.

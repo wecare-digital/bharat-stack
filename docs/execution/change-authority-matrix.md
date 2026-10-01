@@ -589,3 +589,9 @@ A3_PRODUCTION/A4_DESTRUCTIVE, explicit latest owner instruction: reuse existing 
   query-only confirmation is refused. No new payment or download route invented.
   Full final tests: Python 5811 passed/1 skipped, frontend 697 passed; production
   build, typecheck and 28-page export gate green. Rollback via normal revert.
+
+- 2026-10-01 A3_PRODUCTION: align wecare-razorpay-webhook with the already-merged
+  payment verification/replay safety implementation on stack. Exact ZIP imports
+  validated without errors; 228 focused tests green; alias rollback 45 captured,
+  live -> 46 by revision-guarded publish/update. Inert unsigned probe returned
+  401. No payment capture/refund/configuration mutation or initiation activation.
