@@ -56,7 +56,7 @@ export default function CheckoutSuccess (): React.ReactElement {
         sub={ verified ? 'Your payment is confirmed and your order is created.' : checking
           ? 'We are checking your order securely.'
           : 'We could not confirm this order. If you have paid, do not pay again.' }
-        ariaLabel="Payment successful"
+        ariaLabel={ heading }
       >
         <section className="cs-card">
           {/* THE TICK IS DRAWN FROM BORDERS, NOT TYPED. The old mark was the literal character ✓

@@ -17,6 +17,7 @@ it( 'does not accept an order number in the URL as payment evidence', async () =
   expect( screen.getByRole( 'heading', { name: 'Order confirmation unavailable' } ) ).toBeTruthy();
   expect( fetchMock ).not.toHaveBeenCalled();
   expect( screen.queryByText( 'WD-ORD-FORGED' ) ).toBeNull();
+  expect( screen.queryByLabelText( 'Payment successful' ) ).toBeNull();
 } );
 
 it( 'shows only the paid order returned by the authenticated ownership check', async () => {

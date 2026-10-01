@@ -11,34 +11,122 @@ BRAND_INFO = {
     "store": "https://wecare.digital/shop/",
     "email": "one@wecare.digital",
     "phone": "+91 9330994400",
-    "whatsapp": "+91 9330994400",
-    "description": "Multi-channel messaging and e-commerce platform"
+    "whatsapp": "+91 9330994400"
 }
 
+FAQ_CONFIG = {'brand': {'name': 'WECARE.DIGITAL',
+           'website': 'https://wecare.digital',
+           'store': 'https://wecare.digital/shop/',
+           'email': 'one@wecare.digital',
+           'phone': '+91 9330994400',
+           'whatsapp': '+91 9330994400'},
+ 'faqs': [{'id': 'hours',
+           'keywords': ['hours', 'timing', 'open', 'close', 'available', 'when', 'time'],
+           'category': 'general',
+           'question': 'What are your business hours?',
+           'answer': 'Browse the website at any time. For help, contact +91 9330994400 or '
+                     'one@wecare.digital.',
+           'shortAnswer': 'Contact our team for support'},
+          {'id': 'contact',
+           'keywords': ['contact', 'reach', 'call', 'email', 'phone', 'support', 'help'],
+           'category': 'general',
+           'question': 'How can I contact you?',
+           'answer': 'You can reach us via:\\n• Phone/WhatsApp: +91 9330994400\\n• Email: '
+                     'one@wecare.digital\\n• Website: https://wecare.digital',
+           'shortAnswer': 'Call +91 9330994400 or email one@wecare.digital'},
+          {'id': 'order',
+           'keywords': ['order', 'buy', 'purchase', 'shop', 'product', 'cart'],
+           'category': 'orders',
+           'question': 'How do I place an order?',
+           'answer': 'Browse products at https://wecare.digital/shop/. Verify your WhatsApp number '
+                     'on the website to continue to checkout.',
+           'shortAnswer': 'Browse wecare.digital/shop/'},
+          {'id': 'payment',
+           'keywords': ['payment', 'pay', 'price', 'cost', 'fee', 'charge', 'upi', 'card'],
+           'category': 'payments',
+           'question': 'What payment methods do you accept?',
+           'answer': 'Razorpay Standard Checkout supports UPI, cards and net banking when checkout '
+                     'is available. Review the final taxes and 2.5% convenience fee before paying.',
+           'shortAnswer': 'Razorpay: UPI, cards and net banking'},
+          {'id': 'delivery',
+           'keywords': ['delivery', 'shipping', 'ship', 'courier', 'dispatch', 'send'],
+           'category': 'orders',
+           'question': 'What are your delivery options?',
+           'answer': 'We offer standard shipping across India. Delivery time varies by location '
+                     '(typically 3-7 business days). Track your order status in the My Orders '
+                     'section.',
+           'shortAnswer': '3-7 days across India'},
+          {'id': 'return',
+           'keywords': ['return', 'refund', 'cancel', 'exchange', 'money back'],
+           'category': 'orders',
+           'question': 'What is your return policy?',
+           'answer': 'Returns are accepted within 7 days of delivery for eligible items. Contact '
+                     'us at one@wecare.digital with your order number to initiate a return. '
+                     'Refunds are processed within 5-7 business days.',
+           'shortAnswer': '7-day return policy'},
+          {'id': 'track',
+           'keywords': ['track', 'status', 'where', 'order status', 'tracking'],
+           'category': 'orders',
+           'question': 'How do I track my order?',
+           'answer': 'Visit https://wecare.digital/orders/ and contact us with your order '
+                     'reference for the current status.',
+           'shortAnswer': 'Check wecare.digital/orders/'},
+          {'id': 'whatsapp',
+           'keywords': ['whatsapp', 'message', 'chat', 'wa', 'messenger'],
+           'category': 'general',
+           'question': 'Can I order via WhatsApp?',
+           'answer': 'Use WhatsApp to verify your number at '
+                     'https://wecare.digital/account/sign-in/ and contact us for help. Browse '
+                     'products at https://wecare.digital/shop/; payment checkout is on the '
+                     'website.',
+           'shortAnswer': 'WhatsApp verification; website checkout'},
+          {'id': 'invoice',
+           'keywords': ['invoice', 'bill', 'receipt', 'gst', 'tax'],
+           'category': 'payments',
+           'question': 'How do I get my invoice?',
+           'answer': 'For a receipt from an existing payment, contact us with your order reference '
+                     'through https://wecare.digital/orders/.',
+           'shortAnswer': 'Contact us with your order reference'},
+          {'id': 'account',
+           'keywords': ['account', 'login', 'register', 'signup', 'password', 'profile'],
+           'category': 'general',
+           'question': 'How do I create an account?',
+           'answer': 'Verify your WhatsApp number at https://wecare.digital/account/sign-in/ to '
+                     'continue to your cart or orders.',
+           'shortAnswer': 'Verify your WhatsApp number at wecare.digital/account/sign-in/'},
+          {'id': 'convenience-fee',
+           'keywords': ['convenience fee', 'extra charge', 'additional fee', 'why charge'],
+           'category': 'payments',
+           'question': 'What is the convenience fee?',
+           'answer': 'The checkout policy uses a 2.5% convenience fee on the approved collection '
+                     'amount and 18% GST on that fee. Review the server-confirmed tax and fee '
+                     'breakdown before payment.',
+           'shortAnswer': '2.5% convenience fee; review tax breakdown'},
+          {'id': 'bulk-order',
+           'keywords': ['bulk', 'wholesale', 'large order', 'quantity', 'discount'],
+           'category': 'orders',
+           'question': 'Do you offer bulk order discounts?',
+           'answer': 'Yes! For bulk orders, please contact us at one@wecare.digital or call +91 '
+                     '9330994400. We offer special pricing for large quantities.',
+           'shortAnswer': 'Contact us for bulk pricing'}],
+ 'greetings': {'keywords': ['hi', 'hello', 'hey', 'namaste', 'good morning', 'good evening'],
+               'response': 'Hi! 👋 Welcome to WECARE.DIGITAL. How can I help you today?'},
+ 'defaultResponse': "I don't have specific information about that. Please contact us at +91 "
+                    '9330994400 or one@wecare.digital for assistance.'}
+
 FAQ_DATABASE = [
-    {"keywords": ["hours", "timing", "open", "close", "available", "when", "time"], "question": "What are your business hours?", "answer": "We are available 24/7 for online orders and support. For urgent assistance, call us at +91 9330994400 or email one@wecare.digital."},
-    {"keywords": ["contact", "reach", "call", "email", "phone", "support", "help"], "question": "How can I contact you?", "answer": "You can reach us via:\n• Phone/WhatsApp: +91 9330994400\n• Email: one@wecare.digital\n• Website: https://wecare.digital"},
-    {"keywords": ["order", "buy", "purchase", "shop", "product", "cart"], "question": "How do I place an order?", "answer": "Visit our store at https://wecare.digital/shop/ to browse products and place orders. Verify your WhatsApp number on the website before checkout. Contact us on WhatsApp for help."},
-    {"keywords": ["payment", "pay", "price", "cost", "fee", "charge", "upi", "card"], "question": "What payment methods do you accept?", "answer": "We accept:\n• UPI (Google Pay, PhonePe, Paytm)\n• Credit/Debit Cards\n• Net Banking\n• Razorpay Payment Gateway\n\nA 2.2% convenience fee + 18% GST applies to all payments."},
+    {"keywords": ["hours", "timing", "open", "close", "available", "when", "time"], "question": "What are your business hours?", "answer": "Browse the website at any time. For help, contact +91 9330994400 or one@wecare.digital."},
+    {"keywords": ["contact", "reach", "call", "email", "phone", "support", "help"], "question": "How can I contact you?", "answer": "You can reach us via:\\n• Phone/WhatsApp: +91 9330994400\\n• Email: one@wecare.digital\\n• Website: https://wecare.digital"},
+    {"keywords": ["order", "buy", "purchase", "shop", "product", "cart"], "question": "How do I place an order?", "answer": "Browse products at https://wecare.digital/shop/. Verify your WhatsApp number on the website to continue to checkout."},
+    {"keywords": ["payment", "pay", "price", "cost", "fee", "charge", "upi", "card"], "question": "What payment methods do you accept?", "answer": "Razorpay Standard Checkout supports UPI, cards and net banking when checkout is available. Review the final taxes and 2.5% convenience fee before paying."},
     {"keywords": ["delivery", "shipping", "ship", "courier", "dispatch", "send"], "question": "What are your delivery options?", "answer": "We offer standard shipping across India. Delivery time varies by location (typically 3-7 business days). Track your order status in the My Orders section."},
     {"keywords": ["return", "refund", "cancel", "exchange", "money back"], "question": "What is your return policy?", "answer": "Returns are accepted within 7 days of delivery for eligible items. Contact us at one@wecare.digital with your order number to initiate a return. Refunds are processed within 5-7 business days."},
-    {"keywords": ["track", "status", "where", "order status", "tracking"], "question": "How do I track my order?", "answer": "Verify your WhatsApp number and view your orders at https://wecare.digital/orders/."},
-    {"keywords": ["whatsapp", "message", "chat", "wa", "messenger"], "question": "Can I order via WhatsApp?", "answer": "Yes! Send us a message on WhatsApp at +91 9330994400. Our AI assistant will help you browse products and place orders directly through chat."},
-    {"keywords": ["invoice", "bill", "receipt", "gst", "tax"], "question": "How do I get my invoice?", "answer": "Your invoice is automatically generated after payment and sent to your registered email. You can also download it from the My Orders section or request it via email."},
+    {"keywords": ["track", "status", "where", "order status", "tracking"], "question": "How do I track my order?", "answer": "Visit https://wecare.digital/orders/ and contact us with your order reference for the current status."},
+    {"keywords": ["whatsapp", "message", "chat", "wa", "messenger"], "question": "Can I order via WhatsApp?", "answer": "Use WhatsApp to verify your number at https://wecare.digital/account/sign-in/ and contact us for help. Browse products at https://wecare.digital/shop/; payment checkout is on the website."},
+    {"keywords": ["invoice", "bill", "receipt", "gst", "tax"], "question": "How do I get my invoice?", "answer": "For a receipt from an existing payment, contact us with your order reference through https://wecare.digital/orders/."},
     {"keywords": ["account", "login", "register", "signup", "password", "profile"], "question": "How do I create an account?", "answer": "Verify your WhatsApp number at https://wecare.digital/account/sign-in/ to continue to your cart or orders."},
-    {"keywords": ["convenience fee", "extra charge", "additional fee", "why charge"], "question": "What is the convenience fee?", "answer": "A 2.2% convenience fee is charged on the cart total, plus 18% GST on that fee. This covers payment gateway and processing costs. Total fee = (Cart × 2.2%) × 1.18"},
+    {"keywords": ["convenience fee", "extra charge", "additional fee", "why charge"], "question": "What is the convenience fee?", "answer": "The checkout policy uses a 2.5% convenience fee on the approved collection amount and 18% GST on that fee. Review the server-confirmed tax and fee breakdown before payment."},
     {"keywords": ["bulk", "wholesale", "large order", "quantity", "discount"], "question": "Do you offer bulk order discounts?", "answer": "Yes! For bulk orders, please contact us at one@wecare.digital or call +91 9330994400. We offer special pricing for large quantities."},
-    {"keywords": ["submit", "request", "service", "help", "issue", "problem", "complaint"], "question": "How do I submit a request?", "answer": "Submit a service request via WhatsApp (select 'Submit Request' from the menu) or via the web dashboard at Service → Submit Request. Select your order first, then describe your issue."},
-    {"keywords": ["track", "request", "status", "check", "progress", "follow"], "question": "How can I track my request?", "answer": "Track your request by Order ID via WhatsApp ('Track Request' menu) or the web dashboard (Service → Track Request). View all requests, status timeline, payments, and documents for that order."},
-    {"keywords": ["amend", "change", "modify", "update", "edit", "correct"], "question": "How do I request an amendment?", "answer": "Amend an existing request via WhatsApp ('Amend Request' menu) or web (Service → Amend Request). Select your order, choose the request to amend, describe changes, and submit."},
-    {"keywords": ["rx", "slot", "prescription", "pharmacy", "medicine", "medical"], "question": "How do I book or reschedule an RX slot?", "answer": "Book an RX slot via WhatsApp ('RX Slot' menu) or web (Booking → RX Slots). Choose date, time, and provider. Reschedule or cancel from the same page."},
-    {"keywords": ["document", "upload", "docs", "drop", "file", "prescription", "proof"], "question": "How do I upload supporting documents?", "answer": "Send documents via WhatsApp to +91 9330994400 (auto-ingested) or use Drop Docs on the web dashboard. Documents are reviewed by our team with status tracking."},
-    {"keywords": ["enterprise", "business", "corporate", "b2b", "company", "technical"], "question": "How do I get enterprise support?", "answer": "For enterprise support, select 'Enterprise Assist' on WhatsApp or go to Enterprise in the dashboard. Provide company details, describe the issue, and set priority."},
-    {"keywords": ["appointment", "book", "schedule", "consultation", "visit", "meeting"], "question": "How do I book an appointment?", "answer": "Book via WhatsApp ('Schedule Appointment' menu) or web (Booking → Appointments). Choose type, date/time, and location. Confirmations and reminders sent via WhatsApp."},
-    {"keywords": ["review", "feedback", "rating", "rate", "experience", "star"], "question": "How do I leave a review?", "answer": "Leave a review via WhatsApp ('Leave Review' menu) or the Reviews section on the web dashboard. Rate 1-5 stars and add comments. Reviews are moderated before publishing."},
-    {"keywords": ["app", "mobile", "android", "ios", "download", "install"], "question": "Is there a mobile app?", "answer": "Yes! WECARE.DIGITAL is available as a PWA. Visit wecare.digital on mobile and tap 'Add to Home Screen'. Native iOS and Android apps are coming soon."},
-    {"keywords": ["wecare", "about", "company", "who", "what", "platform"], "question": "What is WECARE.DIGITAL?", "answer": "WECARE.DIGITAL is a microservice company providing customer engagement solutions via WhatsApp Business API, multi-channel messaging, AI support, payments, and order management."},
-    {"keywords": ["gift", "card", "voucher", "present", "gifting"], "question": "Can I buy a gift card?", "answer": "Yes! Visit wecare.digital/gift-card to purchase a gift card for any amount with a personal message. Delivered digitally, redeemable at our store."},
 ]
 
 SERVICES_INFO = {

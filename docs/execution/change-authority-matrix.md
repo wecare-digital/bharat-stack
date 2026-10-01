@@ -676,3 +676,26 @@ that, and states the authority exactly as it stands rather than stronger.
   validated without errors; 228 focused tests green; alias rollback 45 captured,
   live -> 46 by revision-guarded publish/update. Inert unsigned probe returned
   401. No payment capture/refund/configuration mutation or initiation activation.
+
+- 2026-10-01 A1_LOCAL/A2_REMOTE_CODE/A3_PRODUCTION: reconcile FAQ authored source
+  and generated outputs, 2.5% fee policy and canonical destinations; CI/Amplify
+  regeneration check. Exact package imports validated and full Python tests
+  passed. Rollback aliases captured (FAQ 22, AI KB 23, AI generation 34), published
+  FAQ 23, AI KB 24 and AI generation 35. No message/OTP sent by this verification.
+
+- 2026-10-01 A1_LOCAL/A2_REMOTE_CODE: merge upstream 805c7517, preserve explicit
+  international country codes in frontend normalization and use state-accurate
+  confirmation accessibility text. Exact merged gates: 5953 Python passed/one
+  skipped, 698 frontend passed, typecheck/build, FAQ and 28-page export passed.
+  A3_PRODUCTION: deploy merged customer-whatsapp-auth live 11 (rollback 10) and
+  CloudFormation-owned customer-session live 4 (rollback 3, stack UPDATE_COMPLETE).
+  Exact ZIP imports validated; revision-guarded code/version/alias updates;
+  before/after snapshots in snapshots/checkout-auth-*-20261001.json. Inert live
+  refresh returned 401/no-store/no-cache. No OTP/payment side effects.
+
+- 2026-10-01 A1_LOCAL/A2_REMOTE_CODE: reconcile newer committed routing and
+  deployed-artifact verification work 8a48e5f9; preserve the fixed /access home
+  query marker that drops caller parameters. Exact final Python suite 5944
+  passed/one skipped; 100 live URL/host probes zero mismatches; FAQ and customer
+  export gates passed. Frontend source unchanged from the 698-test build.
+  Rollback by normal revert; no production configuration changed by this merge.

@@ -33,7 +33,7 @@ purchase journey. Payment initiation remains disabled.
 ## Deployment and rollback
 
 The new session stack reached CREATE_COMPLETE; the table is ACTIVE with KMS,
-PITR and TTL. The current live alias points to version 3 (initial provision was version 1). An unauthenticated live
+PITR and TTL. The current live alias points to version 4 (initial provision was version 1). An unauthenticated live
 refresh request returned 401 VERIFICATION_REQUIRED with no-store headers and
 cleared the cookie. No OTP was sent, no payment was attempted, and no customer
 order was created. Before-state metadata and exact versions are recorded in
@@ -65,8 +65,9 @@ certificate as part of rollback.
 3. Owner-controlled QA phone and Razorpay Test Mode are required for live OTP and
    payment acceptance evidence. No inferred business number will be used and
    no live capture/refund or initiation flag will be enabled by this review.
-4. After front-end publication, repeat real browser selection/cart/sign-in and
-   visual checks. HTTP 200 and static chrome checks alone are not purchase proof.
+Browser selection/cart/sign-in and visual checks passed through the sign-in
+boundary after publication. HTTP 200 and static chrome checks alone are not
+purchase proof; the live OTP/payment/receipt run above remains required.
 
 Official tax reference: https://www.pib.gov.in/FactsheetDetails.aspx?Id=150293&lang=1&reg=6
 Official Wix variant contract: https://dev.wix.com/docs/api-reference/business-solutions/stores/catalog-v3/products-v3/get-product
@@ -126,3 +127,46 @@ Unsigned live webhook requests still return 401. No payment initiation flag,
 capture/refund operation, customer message or provider configuration was changed.
 Before/after snapshots: checkout-webhook-*-20261001.json. This aligns the
 verification boundary; it does not connect the missing website purchase journey.
+
+Final FAQ source reconciliation: shared/faq-config.json now owns the commerce
+FAQ data, the handler imports the generated configuration, and the generator
+understands the current public/commerce schemas without recreating the retired
+frontend search utility. Old 2%/2.2% fee statements and claims that checkout is
+in WhatsApp or that the missing receipt download already exists were removed.
+Public FAQ CTA paths now name current pages. Both publication gates run
+sync_faq.py --check so manual output edits cannot regress the source.
+
+Final knowledge-base aliases: faq-handler 23, ai-query-kb 24,
+ai-generate-response 35. Before/after snapshots record rollback versions.
+Full Python suite after source reconciliation: 5,814 passed, one skipped.
+Frontend suite: 697 passed; typecheck/build and 28-page export gate passed.
+
+Final reconciliation with upstream 805c7517: 5,953 Python tests passed (one
+skipped), 698 frontend tests passed across 50 files, typecheck and production
+build passed. FAQ regeneration and the 28-page customer export gate passed.
+Explicit international `+` numbers now retain their supplied country code in
+the frontend as well as the merged backend. The confirmation section's accessible
+name follows its verified state; an unverified order URL cannot announce success.
+
+Authentication artifact reconciliation: validated the exact merged packages,
+captured customer WhatsApp auth version 10 and customer session version 3 as
+rollback, published WhatsApp auth live 11 and CloudFormation-owned session live
+4. The session stack is UPDATE_COMPLETE. An inert production refresh without
+credentials returned 401 with Cache-Control: no-store and Pragma: no-cache.
+Snapshots: snapshots/checkout-auth-before-20261001.json and checkout-auth-after-
+20261001.json. No QA OTP, customer message, payment, or provider configuration
+operation was performed. The unprovisioned legacy customer-registration and
+email-verification functions were not created merely to deploy dormant sources.
+
+These checks do not close the website quote/payment/receipt/history wiring or
+the accountant and owner-controlled QA requirements listed above.
+
+Merged the subsequently committed routing/provisioning verification work
+8a48e5f9 without changing its live rules. `/access` now deliberately uses the
+fixed home marker `?from=access` so Amplify drops the caller's query as well as
+the path; the home page does not consume that marker. The matching source probe
+passed all 100 live HTTP matrix rows with zero mismatches. The previous six
+mismatches were stale probe expectations, superseded by this committed fix.
+Full Python suite on the final combined tree: 5,944 passed, one skipped. Frontend
+source is unchanged from the 698-test/typecheck/production-build run above.
+FAQ regeneration and the 28-page customer export gate passed again.
