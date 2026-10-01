@@ -33,7 +33,7 @@ purchase journey. Payment initiation remains disabled.
 ## Deployment and rollback
 
 The new session stack reached CREATE_COMPLETE; the table is ACTIVE with KMS,
-PITR and TTL. The live alias points to version 1. An unauthenticated live
+PITR and TTL. The current live alias points to version 2 (initial provision was version 1). An unauthenticated live
 refresh request returned 401 VERIFICATION_REQUIRED with no-store headers and
 cleared the cookie. No OTP was sent, no payment was attempted, and no customer
 order was created. Before-state metadata and exact versions are recorded in
@@ -65,3 +65,17 @@ certificate as part of rollback.
 
 Official tax reference: https://www.pib.gov.in/FactsheetDetails.aspx?Id=150293&lang=1&reg=6
 Official Wix variant contract: https://dev.wix.com/docs/api-reference/business-solutions/stores/catalog-v3/products-v3/get-product
+
+## Verified publication gates
+
+Merged the newer origin/stack return-path fix and deployment evidence without
+changing its allowlist. Full merged-tree tests: 5,809 Python tests passed, one
+skipped; 692 frontend tests passed in 49 files. Typecheck and production build
+passed. The exported 28-page customer navigation/chrome gate passed.
+
+Updated only the reviewed Lambda packages after capturing rollback aliases:
+customer-session 1 -> 2; faq-handler 21 -> 22; ai-config-management 23 -> 24;
+ai-generate-response 33 -> 34; checkout 1 -> 2. Exact checksums and aliases are
+in snapshots/checkout-completion-after-20261001.json. The checkout initiation
+flag was not enabled. Existing customer/staff Cognito configuration, provider
+credentials, payment configuration and certificates were preserved.

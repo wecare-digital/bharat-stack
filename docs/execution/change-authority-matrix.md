@@ -566,3 +566,9 @@ A3_PRODUCTION/A4_DESTRUCTIVE, explicit latest owner instruction: reuse existing 
   KMS/table retained on deletion; rollback route first, then individual Lambda alias/version.
 - A2_REMOTE_CODE: publish exact reviewed paths to stack after green tests/build; non-force only.
   No payment activation, provider message, capture/refund, or new TLS certificate authorized here.
+
+- 2026-10-01 A3_PRODUCTION: exact reviewed packages, verified checksums, published
+  customer-session:2, faq-handler:22, ai-config-management:24, ai-generate-response:34,
+  checkout:2, then individually moved live aliases with revision guards. Before/after
+  snapshots in checkout-completion-*-20261001.json; rollback to recorded old alias
+  versions. No environment flags or provider payment settings changed.
