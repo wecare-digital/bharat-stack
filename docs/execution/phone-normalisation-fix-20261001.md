@@ -358,16 +358,54 @@ Awaiting an explicit owner decision. **Not applied.**
 ## Verification
 
 ```
-./.venv/bin/python -m pytest tests/test_phone_country_code_preservation.py -q     94 passed
+./.venv/bin/python -m pytest tests/test_phone_country_code_preservation.py -q     98 passed
 ./.venv/bin/python -m pytest tests/test_session_response_is_not_cacheable.py -q   21 passed
-./.venv/bin/python -m pytest tests/ -q                            5897 passed, 1 skipped
+./.venv/bin/python -m pytest tests/ -q                            5935 passed, 1 skipped
 npx tsc --noEmit                                                  clean
-npx vitest run SignInMessages / AccountSignIn / CartCheckout       3 files, 40 tests passed
+npx vitest run SignInMessages / AccountSignIn / CartCheckout       3 files, 42 tests passed
 git diff --stat -- src/ amplify/.../lambda_utils/response.py       empty
 ```
 
 Baseline before this work was 5875 Python tests passing; the measured 93-test
 (`test_customer_identity` + `test_customer_session`) group is unchanged.
+
+**Read the full-suite and vitest totals as dated, not as this change's arithmetic.** The two
+findings landed as separate commits (`456b5716`, `f8a73fb0`) into a working tree shared with
+several live sessions, so the totals move with their work as well as ours: the figures above were
+measured after the cross-seam pass below, by which point concurrent workstreams had added tests of
+their own. During that pass the suite twice reported transient failures in
+`test_url_host_routing_rules.py`, `test_provision_checkout_contract.py`,
+`test_legacy_redirect_rollback_snapshot.py` and `test_checkout_package_completeness.py` — each
+passed in isolation moments later, and all four belong to other workstreams and import nothing
+this change touches. That is a half-written file caught mid-run, not a regression. The counts
+attributable here are the two per-file figures, and they are exact.
+
+### Cross-seam verification, after both findings had landed
+
+The two commits were written independently, so the seams between them were checked separately
+rather than assumed:
+
+| Seam | Result |
+|---|---|
+| `normalize_phone` still byte-identical across **both** commits | ✅ `+120 / -0` for `customer.py`, zero deleted lines |
+| Exactly four call sites moved to the strict normaliser | ✅ `registration.begin`, `registration.complete`, the trigger's `_normalise_phone`, the email-verification throttle axis. `build_customer`, `validation.py::normalize_phone` and its five messaging callers, `sinch_rcs`, `outbound-whatsapp` and `core/contacts` all still call the legacy function |
+| The standalone trigger still imports nothing from `lambda_utils` | ✅ only `json`, `os`, `secrets`, `time`, `boto3`; the three `lambda_utils` mentions are a comment and a docstring |
+| The two implementations agree on all 17 rows | ✅ re-measured directly, 0 drift |
+| `email-verification/handler.py`, the one file **both** commits changed | ✅ the normalised throttle subject and the `_no_store` wrapper coexist; every one of its 12 returns is wrapped, including `otp_throttle.throttled_response`, which does not go through `cors_response` |
+| **Packaging.** Both header-fix handlers newly import `customer_session`; neither is `standalone`, so `build_zip` copies the whole `lambda_utils` tree | ✅ proved by staging the exact member set into a temp dir and importing `handler.py` with only that directory on `sys.path` — 114 modules, both import clean. `customer_session` pulls in no `boto3` client, reads no secret, and reads env only with defaults, so the new import adds no init-time dependency |
+| Header merge keeps what it was handed | ✅ `Retry-After` survives on the 429 and `Content-Type` on every response, while `no-store` overrides a weaker `max-age` |
+| `src/` and `response.py` untouched | ✅ `git diff --stat` empty for both. `src/pages/404.tsx` moved in `5114ae70`, another workstream's commit, not in either commit here |
+| No logging expression in any touched file carries a phone, an OTP or a secret | ✅ every site logs `type(exc).__name__`, a count, a boolean or an event name; `customer.py` logs nothing at all |
+
+One gap was found and closed. The log-safety AST guard in
+`tests/test_phone_country_code_preservation.py` enumerates its files by hand, and the list was
+written during Finding 1 — before Finding 2 edited `customer-registration/handler.py` and
+`customer_session.py`. Two of the six files this task changed were therefore outside the guard
+meant to cover the task's own edits. Both already satisfied it, so nothing was leaking; the fix is
+that the **next** edit to either is now checked rather than trusted. The parametrize ids were also
+disambiguated, because three of the six sources are named `handler.py` and the failure message
+said only `handler.py`. The detector was re-confirmed to fire on a deliberate violation rather
+than passing vacuously.
 
 | Gate | Result |
 |---|---|
