@@ -24,7 +24,7 @@ import hmac
 import hashlib
 import logging
 import boto3
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from decimal import Decimal
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
@@ -453,7 +453,7 @@ def _create_order_for_captured_payment(payment: Dict, reference_id: str,
         payment_id = str(payment.get('id') or '')
         order_id = str(payment.get('order_id') or '')
         if not payment_id and not order_id:
-            return {'outcome': 'NO_PROVIDER_ID', 'hasOrder': False}
+            return {'outcome': order_creation.NO_PROVIDER_ID, 'hasOrder': False}
 
         table = dynamodb.Table(order_keys.commerce_keys_table_name())
 
@@ -513,7 +513,8 @@ def _create_order_for_captured_payment(payment: Dict, reference_id: str,
             'referenceId': reference_id,
             'requestId': request_id,
         }))
-        return {'outcome': 'RECONCILIATION_ERROR', 'hasOrder': False}
+        from lambda_utils.ecommerce import order_creation
+        return {'outcome': order_creation.RECONCILIATION_ERROR, 'hasOrder': False}
 
 
 
@@ -570,6 +571,125 @@ def _dispatch_download_grant_confirmation(order_id: str, request_id: str) -> Non
 # ═══════════════════════════════════════════════════════════════════
 # PAYMENT EVENT HANDLERS
 # ═══════════════════════════════════════════════════════════════════
+
+def _verified_legacy_invoice(reference_id: str, payment: Dict, request_id: str) -> bool:
+    """True only when this reference is a genuine, provider-verified legacy invoice.
+
+    Legacy invoice-only payments predate the commerce checkout: they have an invoice row keyed by
+    referenceId but no PaymentAttempt (so reconcile returns UNKNOWN_REFERENCE). The brief forbids
+    treating that absence as proof of legacy origin - a forged event naming an unknown reference
+    would then mint a free invoice-paid. So identification is by a POSITIVE signal:
+
+      1. an existing InvoicesTable row for this referenceId, AND
+      2. an authoritative provider check (razorpay_verify, never the event body) that the payment
+         captured for that invoice's amount.
+
+    Only when BOTH hold is the invoice-paid / post-payment work allowed to run. Any lookup or
+    verification failure returns False, which routes the capture into quarantine rather than
+    guessing. Never raises.
+    """
+    if not reference_id:
+        return False
+    try:
+        from lambda_utils.ecommerce.money import positive_paise
+        from lambda_utils.integrations import razorpay_verify
+
+        # 1) Positive signal: an invoice row must already exist for this reference.
+        inv_table = dynamodb.Table(INVOICES_TABLE)
+        resp = inv_table.query(
+            IndexName='referenceId-index',
+            KeyConditionExpression='referenceId = :ref',
+            ExpressionAttributeValues={':ref': reference_id},
+            Limit=1,
+        )
+        items = resp.get('Items', [])
+        if not items:
+            # No invoice, no attempt: absence is not evidence. Let the caller quarantine it.
+            return False
+        invoice = items[0]
+
+        # The invoice's authoritative total, in integer paise. If it is unparseable OR carries
+        # sub-paise noise we cannot compare exactly, so we refuse rather than guess: paise() would
+        # otherwise truncate (599.999 -> 59999) and match against a rounded-down expectation.
+        try:
+            total_minor = Decimal(str(invoice.get('total', 0))) * 100
+            if total_minor != total_minor.to_integral_value():
+                return False
+            expected_paise = payment_status.paise(total_minor)
+        except (ValueError, ArithmeticError, TypeError):
+            return False
+        if expected_paise <= 0:
+            return False
+
+        # 2) Authoritative provider verification. The event body is never trusted: we ask
+        #    Razorpay directly for the named payment id and require a captured INR amount that
+        #    equals the invoice total to the paise.
+        payment_id = str(payment.get('id') or '')
+        if not payment_id:
+            return False
+        captured, provider_paise, provider_currency = razorpay_verify.payment_is_captured(
+            payment_id)
+        if not captured:
+            return False
+        if str(provider_currency or '') != 'INR':
+            return False
+        try:
+            provider_paise = positive_paise(provider_paise)
+        except ValueError:
+            return False
+        if provider_paise != expected_paise:
+            # Money moved but not for this invoice's amount. Do not mark it paid; a human decides.
+            logger.error(json.dumps({
+                'event': 'legacy_invoice_amount_mismatch',
+                'referenceId': reference_id,
+                'stage': 'legacy_verify',
+                'requestId': request_id,
+            }))
+            return False
+
+        logger.info(json.dumps({
+            'event': 'legacy_invoice_verified',
+            'referenceId': reference_id,
+            'stage': 'legacy_verify',
+            'requestId': request_id,
+        }))
+        return True
+    except Exception as exc:  # noqa: BLE001
+        # Type only. Provider error bodies and ClientError messages can echo request content.
+        logger.warning(json.dumps({
+            'event': 'legacy_invoice_verify_failed',
+            'referenceId': reference_id,
+            'stage': 'legacy_verify',
+            'error': type(exc).__name__,
+            'requestId': request_id,
+        }))
+        return False
+
+
+def _quarantine_unverified_capture(reference_id: str, payment_id: str,
+                                   outcome: Optional[Dict[str, Any]],
+                                   request_id: str) -> None:
+    """Park a capture that could not be authoritatively cleared. Writes nothing financial.
+
+    Reached when a commerce reference did not reconcile to an order and the reference is not a
+    provider-verified legacy invoice, or when reconciliation/verification/storage failed. It marks
+    NO invoice paid, runs NO post-payment, sends NO confirmation, and does NOT double-write; it
+    only emits a single staff alert. The event RECEIPT (the audit row and the 200 response) is
+    handled by the caller and is unaffected - this keeps the raw receipt separate from verified
+    financial state. The money may or may not have moved, so the customer is never told to retry.
+    """
+    from lambda_utils.ecommerce import order_creation
+    category = (outcome or {}).get('outcome') or order_creation.NEEDS_RECONCILIATION
+    logger.error(json.dumps({
+        'event': 'capture_needs_reconciliation',
+        'alert': order_creation.NEEDS_RECONCILIATION,
+        'outcome': category,
+        'paymentId': payment_id,
+        'referenceId': reference_id or None,
+        'stage': 'quarantine',
+        'requestId': request_id,
+    }))
+
 
 def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
     """Handle payment.captured — the main success event. Store payment + mark invoice paid + trigger invoice."""
@@ -636,43 +756,64 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
         try:
             reference_id = _lookup_reference_id_from_meta(order_id, contact, request_id)
         except Exception as lookup_err:
+            # A17: type only. A lookup error message can echo request content.
             logger.warning(json.dumps({
                 'event': 'meta_lookup_for_ref_failed',
                 'orderId': order_id,
-                'error': str(lookup_err),
+                'error': type(lookup_err).__name__,
                 'requestId': request_id,
             }))
 
+    # A17: the receipt of the event is worth recording, but the event body is not evidence and
+    # must not be dumped. Log only a correlation id (referenceId), the stage, the requestId, and
+    # the paymentId. No contact, no notes, no description, no email, no amount-as-free-text.
     logger.info(json.dumps({
         'event': 'payment_captured', 'paymentId': payment_id,
-        'amount': amount_rupees, 'contact': contact,
-        'referenceId': reference_id, 'notes': notes,
-        'orderId': order_id, 'description': description,
+        'referenceId': reference_id or None,
+        'stage': 'received',
         'requestId': request_id,
     }))
 
-    # Store payment record in DynamoDB
+    # ── C1: an authoritative PAID verdict, not the event, gates every financial-success effect ──
+    #
+    # The webhook body is a trigger, never proof: the signing secret is in this repository's public
+    # git history, so a valid signature proves only that someone read the history. So we reconcile
+    # against Razorpay's own API and act ONLY on the typed verdict it returns. A NOT_PAID /
+    # mismatch / unknown / unavailable / error / quarantine verdict produces ZERO of: a captured
+    # money-confirmed payment record, an invoice-paid write, the receipt/post-payment run, the
+    # CTWA purchase attribution, or the order_status confirmation to the customer.
+    outcome = None
+    if reference_id:
+        outcome = _create_order_for_captured_payment(payment, reference_id, request_id)
+
+    verified_paid = bool(outcome and outcome.get('hasOrder'))
+
+    # Is this a genuine legacy invoice-only payment? Identified by a POSITIVE signal only: an
+    # existing invoice row for this referenceId AND an authoritative provider check that the
+    # payment captured for that invoice's amount. A missing PaymentAttempt (UNKNOWN_REFERENCE) is
+    # NOT proof of legacy origin, so absence never qualifies.
+    legacy_invoice_verified = False
+    if reference_id and not verified_paid:
+        legacy_invoice_verified = _verified_legacy_invoice(
+            reference_id, payment, request_id)
+
+    financial_success = verified_paid or legacy_invoice_verified
+
+    if not financial_success:
+        # Nothing here is authoritatively paid. Do NOT write a money-confirmed 'captured' record,
+        # do NOT mark any invoice paid, do NOT run post-payment, do NOT attribute, do NOT confirm.
+        # For a commerce reference (or any reference we could not clear), park it for a human.
+        _quarantine_unverified_capture(reference_id, payment_id, outcome, request_id)
+        return
+
+    # Money is authoritatively ours. Record the captured financial state now, gated on the verdict
+    # rather than on the event body. Preserves the monotonic-rank ConditionExpression semantics.
     _store_payment_record(payment, 'captured', request_id)
 
-    # ── Create the commerce order, if this capture verifies against Razorpay ──
-    #
-    # Placed before the invoice work so the order exists first: an order is the thing the customer
-    # bought, and an invoice is a document about it. It is a no-op when no payment attempt exists
-    # for this reference, which is every payment that did not originate from the new checkout - so
-    # the existing invoice-only flows are untouched.
-    if reference_id:
-        _create_order_for_captured_payment(payment, reference_id, request_id)
+    # ── Direct invoice status update by referenceId (verified paths only) ──
+    _mark_invoice_paid_by_reference(reference_id, request_id)
 
-    # ── Direct invoice status update by referenceId ──
-    if reference_id:
-        _mark_invoice_paid_by_reference(reference_id, request_id)
-    else:
-        # Fallback: try to find invoice by customer phone
-        clean_phone = (contact or '').replace('+', '').replace(' ', '').replace('-', '')
-        if clean_phone:
-            _mark_invoice_paid_by_phone_and_amount(clean_phone, amount_rupees, request_id)
-
-    # Post-payment: create invoice, generate image, send on WhatsApp
+    # Post-payment: create invoice, generate image (internal reference only)
     _post_payment_handler(payment_id, amount_rupees, currency, contact, email, description, notes, request_id)
 
     # Conversions API: if this conversation started from a Click-to-WhatsApp ad,
@@ -792,7 +933,8 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
                                                 'amount': f'\u20b9{amount_rupees:.2f}',
                                                 'product': str(order_product)})
         except Exception as e:
-            logger.warning(json.dumps({'event': 'razorpay_order_status_error', 'error': str(e), 'requestId': request_id}))
+            # A17: type only. A ClientError message can echo request content.
+            logger.warning(json.dumps({'event': 'razorpay_order_status_error', 'error': type(e).__name__, 'requestId': request_id}))
 
 
 # Map phone-number-id -> WABA id (for building routable flow tokens)
@@ -1567,9 +1709,12 @@ def _post_payment_handler(payment_id: str, amount: float, currency: str, contact
         img_body = json.loads(img_result.get('body', '{}'))
         image_url = img_body.get('imageUrl', '')
 
-        logger.info(json.dumps({'event': 'invoice_image_generated', 'invoiceId': invoice_id, 'imageUrl': image_url, 'requestId': request_id}))
+        # A17: the image URL is a receipt/document link and must not reach CloudWatch. Log only
+        # the invoice id and whether an image was produced.
+        logger.info(json.dumps({'event': 'invoice_image_generated', 'invoiceId': invoice_id, 'hasImage': bool(image_url), 'requestId': request_id}))
     except Exception as e:
-        logger.error(json.dumps({'event': 'invoice_image_error', 'invoiceId': invoice_id, 'error': str(e), 'requestId': request_id}))
+        # A17: type only. An image-lambda error body can echo a signed URL or request content.
+        logger.error(json.dumps({'event': 'invoice_image_error', 'invoiceId': invoice_id, 'error': type(e).__name__, 'requestId': request_id}))
 
     # ── Step 3: Generate PDF (async, internal reference only) ──
     try:

@@ -65,6 +65,20 @@ PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
 IDENTITY_UNAVAILABLE = "IDENTITY_UNAVAILABLE"
 PROVIDER_PAYMENT_CONFLICT = "PROVIDER_PAYMENT_CONFLICT"
 
+# ── webhook-caller outcomes ──────────────────────────────────────────────────────
+# These are not produced by reconcile_payment itself; they are emitted by the
+# razorpay-webhook wrapper (_create_order_for_captured_payment) so the callback can
+# reason about a capture that never reached reconciliation. Named here so the vocabulary
+# stays in one place and the handler does not invent ad-hoc strings.
+NO_PROVIDER_ID = "NO_PROVIDER_ID"
+RECONCILIATION_ERROR = "RECONCILIATION_ERROR"
+
+#: A capture the callback could neither confirm as a commerce order nor prove is a genuine
+#: legacy invoice, or one whose storage/verification failed. It is parked for a human: no
+#: invoice is marked paid, no receipt runs, no confirmation is sent, and nothing is
+#: double-written. Money may or may not have moved, so the customer is never told to pay again.
+NEEDS_RECONCILIATION = "NEEDS_RECONCILIATION"
+
 #: Outcomes where the money did NOT move, so nothing was created and nothing is owed.
 NO_ORDER_OUTCOMES = frozenset({
     NOT_PAID, UNKNOWN_REFERENCE, ATTEMPT_NOT_PAYABLE, PROVIDER_UNAVAILABLE,
@@ -383,6 +397,10 @@ __all__ = [
     "ATTEMPT_NOT_PAYABLE",
     "PROVIDER_UNAVAILABLE",
     "IDENTITY_UNAVAILABLE",
+    "PROVIDER_PAYMENT_CONFLICT",
+    "NO_PROVIDER_ID",
+    "RECONCILIATION_ERROR",
+    "NEEDS_RECONCILIATION",
     "NO_ORDER_OUTCOMES",
     "PAID_BUT_BLOCKED_OUTCOMES",
     "ReconciliationOutcome",
