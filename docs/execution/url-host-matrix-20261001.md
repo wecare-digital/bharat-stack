@@ -1417,3 +1417,18 @@ what it reverses.
 Code rollback is `git revert` of the commits in §10.1. No DNS record, ACM certificate,
 CloudFront distribution, domain association, WAF or Security Hub setting was created, modified or
 deleted by this task.
+
+### 10.7 The closing commit SHA
+
+Recorded in a follow-up commit because §10.1 cannot contain its own hash.
+
+| | |
+|---|---|
+| Closing commit | **`342bdf3b`** — `Close the URL/host cleanup with its measured final state, and correct the subdomain gap` |
+| Paths in it | `.agents/tasks/url-host-cleanup/**` (9 files) and `docs/execution/url-host-matrix-20261001.md`. Nothing else — committed with `git commit --only`, so no other session's staged or dirty file could ride along |
+| Integration | merge commit **`0f184040`**, `origin/stack` merged into local `stack` with **no conflicts**; the remote had moved to `937924a3` during the run and the push fast-forwarded |
+| Pushed | `937924a3..0f184040 stack -> stack`; `git rev-list --left-right --count origin/stack...HEAD` = `0 0` |
+| Gates re-run **after** the merge, because the tree moved | typecheck 0, lint 0 errors / 188 warnings unmoved, vitest **50 files / 698 passed** (the merge brought one more test from the checkout workstream), pytest 17 passed on the two named files |
+
+`f8912068`, the last previously-unpushed commit of this task, is on `origin/stack` as of this
+push. Every commit in §10.1 is now on the branch of record.
