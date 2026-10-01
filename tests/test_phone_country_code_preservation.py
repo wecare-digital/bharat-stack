@@ -525,11 +525,19 @@ def test_the_email_subject_is_the_fallback_axis(email_handler):
 # 3.6 nothing sensitive reaches a log or a response body
 # ══════════════════════════════════════════════════════════════════════════════
 
+#: Every source this task changed, not just the ones the phone fix changed. The no-store work
+#: landed separately and touched `customer-registration/handler.py` and `customer_session.py`
+#: after this list was written, so the two files were edited inside the same task while sitting
+#: outside the guard that is supposed to cover the task's edits. Both already pass; the point of
+#: listing them is that the NEXT edit to either is checked rather than trusted. A log-safety guard
+#: that enumerates files by hand is only as good as the enumeration.
 TOUCHED_SOURCES = [
     ROOT / 'amplify/functions/shared/lambda_utils/identity/customer.py',
     ROOT / 'amplify/functions/shared/lambda_utils/identity/registration.py',
+    ROOT / 'amplify/functions/shared/lambda_utils/customer_session.py',
     TRIGGER_PATH,
     EMAIL_HANDLER_PATH,
+    REGISTRATION_HANDLER_PATH,
 ]
 
 #: Names that carry a phone number, a code or a secret. A logging expression must not reference
@@ -542,7 +550,14 @@ FORBIDDEN_IN_LOGS = ('e164', 'raw_phone', 'phone_number', 'pepper', 'otp',
 _LOG_CALL_RE = re.compile(r'^(logger\.|print$|print\(|log\.)')
 
 
-@pytest.mark.parametrize('path', TOUCHED_SOURCES, ids=lambda p: p.name)
+def _source_id(path: Path) -> str:
+    """`auth/email-verification/handler.py` rather than `handler.py`. Three of the six sources
+    are named `handler.py`, so the bare filename gave pytest ids `handler.py0/1/2` and an
+    assertion message that did not say which file had failed."""
+    return '/'.join(path.parts[-3:])
+
+
+@pytest.mark.parametrize('path', TOUCHED_SOURCES, ids=_source_id)
 def test_no_logging_expression_references_a_phone_or_a_code(path):
     tree = ast.parse(path.read_text(encoding='utf-8'))
     for node in ast.walk(tree):
@@ -554,14 +569,14 @@ def test_no_logging_expression_references_a_phone_or_a_code(path):
         rendered = ast.unparse(node)
         for forbidden in FORBIDDEN_IN_LOGS:
             assert not re.search(rf'\b{forbidden}\b', rendered), \
-                f'{path.name}: log call references {forbidden!r}: {rendered}'
+                f'{_source_id(path)}: log call references {forbidden!r}: {rendered}'
         # A bare `phone`/`code`/`digits` name is just as leaky as the fuller spellings.
         for forbidden in ('phone', 'code', 'digits'):
             assert not re.search(rf'\b{forbidden}\b', rendered), \
-                f'{path.name}: log call references {forbidden!r}: {rendered}'
+                f'{_source_id(path)}: log call references {forbidden!r}: {rendered}'
 
 
-@pytest.mark.parametrize('path', TOUCHED_SOURCES, ids=lambda p: p.name)
+@pytest.mark.parametrize('path', TOUCHED_SOURCES, ids=_source_id)
 def test_exception_logging_uses_the_type_name_only(path):
     """An exception message can echo the number or the code, so only the class name is logged."""
     tree = ast.parse(path.read_text(encoding='utf-8'))
@@ -580,7 +595,7 @@ def test_exception_logging_uses_the_type_name_only(path):
             rendered = ast.unparse(inner)
             if re.search(rf'\b{bound}\b', rendered):
                 assert f'type({bound}).__name__' in rendered, \
-                    f'{path.name}: logs the exception itself: {rendered}'
+                    f'{_source_id(path)}: logs the exception itself: {rendered}'
 
 
 def test_no_full_phone_number_reaches_a_registration_response_body(table):

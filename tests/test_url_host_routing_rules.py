@@ -350,11 +350,21 @@ def test_the_provisioner_emits_only_the_two_sanctioned_exceptions(redirects):
     )
 
     # Exactly the sanctioned set, no more. Anything else is the map regrowing.
+    #
+    # TARGET CHANGED 2026-10-01 (third convergence pass), from a bare `https://wecare.digital/`
+    # to `https://wecare.digital/?from=access`, and the query parameter is load-bearing rather
+    # than cosmetic. Amplify forwards the INCOMING query string to the target of a 301/302 by
+    # default, which was measured here: `/access/?next=https://evil.example` answered
+    # `302 -> https://wecare.digital/?next=https://evil.example`. The handoff requires untrusted
+    # path, query and fragment content to be dropped when a retired customer URL is sent home, so
+    # forwarding a caller-supplied parameter was a defect against it. Giving the destination its
+    # own query parameter is the documented way to stop the forwarding, so the parameter IS the
+    # mechanism - asserting the bare form again would reinstate the defect.
     assert emitted == [
         WWW_CANONICAL,
-        {"source": "/access", "target": "https://wecare.digital/", "status": "302"},
-        {"source": "/access/", "target": "https://wecare.digital/", "status": "302"},
-        {"source": "/access/<*>", "target": "https://wecare.digital/", "status": "302"},
+        {"source": "/access", "target": "https://wecare.digital/?from=access", "status": "302"},
+        {"source": "/access/", "target": "https://wecare.digital/?from=access", "status": "302"},
+        {"source": "/access/<*>", "target": "https://wecare.digital/?from=access", "status": "302"},
     ], "only www canonicalisation and /access -> home are sanctioned; anything else regrew"
 
     # The whole point of the task: no sanctioned exception may lead into the staff tree.
@@ -417,7 +427,13 @@ def test_provisioner_keeps_only_approved_home_redirects(redirects):
     approved = redirects.desired_redirects()
     assert approved[0] == WWW_CANONICAL
     assert {r['source'] for r in approved[1:]} == {'/access', '/access/', '/access/<*>'}
-    assert all(r['target'] == 'https://wecare.digital/' for r in approved[1:])
+    # The target must stay on the canonical apex AND must keep carrying its own query parameter.
+    # See the dated note in test_the_provisioner_emits_only_the_two_sanctioned_exceptions: the
+    # parameter is what stops Amplify forwarding the caller's query string, so a bare
+    # `https://wecare.digital/` here would silently reinstate the forwarding this closed. Both
+    # halves are asserted, because the host alone was what the previous version checked.
+    assert all(r['target'] == 'https://wecare.digital/?from=access' for r in approved[1:])
+    assert all(r['target'].startswith('https://wecare.digital/?') for r in approved[1:])
 
 
 def test_provisioner_preserves_www_and_runtime_rewrites(redirects, after, tmp_path, monkeypatch):

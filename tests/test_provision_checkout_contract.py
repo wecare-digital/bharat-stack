@@ -22,6 +22,7 @@ past the two consumers that exist.
 """
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import sys
@@ -434,12 +435,30 @@ def test_a_denied_action_the_inline_policy_grants_is_a_problem(grant_report):
 
 
 def test_verify_adds_the_grant_report_to_its_own_problem_list(provisioner):
-    """The one-line fix, pinned. `verify()` called `report_required_grants(members)` and dropped
-    the return value, so a REQUIRED GRANT printed while the function returned 0."""
+    """The one-line fix, pinned as a PROPERTY rather than as one spelling of the call.
+
+    `verify()` called `report_required_grants(...)` and dropped the return value, so a
+    REQUIRED GRANT printed while the function returned 0. Asserting the exact source line was how
+    this test was first written, and it broke the moment the argument changed from the local export
+    to the live artifact - a strictly better call, wrongly reported as a regression. What matters is
+    that the return value reaches `problems`, whatever it is passed.
+    """
+    import ast
     body = SCRIPT.read_text(encoding="utf-8").split("def verify(")[1].split("\ndef ")[0]
-    assert "problems.extend(report_required_grants(members))" in body
-    assert "\n    report_required_grants(members)\n" not in body, \
-        "the return value is discarded again"
+    tree = ast.parse("def verify(" + body)
+    extended = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute) and node.func.attr == "extend"
+        and isinstance(node.func.value, ast.Name) and node.func.value.id == "problems"
+        and any(isinstance(arg, ast.Call) and isinstance(arg.func, ast.Name)
+                and arg.func.id == "report_required_grants" for arg in node.args)]
+    assert extended, "report_required_grants' return value never reaches `problems`"
+    bare = [node for node in ast.walk(tree)
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "report_required_grants"]
+    assert not bare, "report_required_grants is called for its print side effect again"
     # And the exit code is still driven by that list.
     assert "if problems:" in body and "return 1" in body
 
@@ -548,11 +567,26 @@ def test_a_missing_deploy_export_falls_back_and_says_so(provisioner, tmp_path, m
 
 
 def test_the_verdict_is_never_anonymous(provisioner):
-    """Whichever root won, `verify` prints it. Finding the closure was judged from the wrong tree
-    is only possible if the tree is named in the output."""
+    """Every source a verdict could come from is named in the output.
+
+    Finding that the closure was judged from the wrong tree is only possible if the tree is named.
+    There are now TWO sources to name, not one: the comparison build (`source_note`) and the
+    artifact the verdict is actually scoped to (the `live_members` note, carrying its CodeSha256).
+    Asserted as "both are printed" rather than on either exact wording, because the wording changed
+    once already - the label used to read `grant report closure:` when the closure was all it
+    described.
+    """
     source = SCRIPT.read_text(encoding="utf-8")
     verify_body = source.split("def verify(")[1].split("\ndef ")[0]
-    assert "grant report closure:" in verify_body
+    prints = [ast.unparse(node) for node in ast.walk(ast.parse("def verify(" + verify_body))
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+              and node.func.id == "print"]
+    assert any("source_note" in p for p in prints), \
+        "the comparison package's source root is never printed"
+    assert any("deployed_note" in p for p in prints), \
+        "the live artifact the verdict is scoped to is never printed"
+    assert any("deployed_sha" in p for p in prints), \
+        "the live artifact is named without its CodeSha256, so it cannot be identified later"
     main_body = source.split("def main(")[1]
     assert "source_note=why" in main_body
     assert 'print(f"source root: {why}")' in main_body
@@ -627,3 +661,261 @@ def test_the_manifest_records_the_function_without_the_gate():
     assert entry["WIX_API_KEY_SECRET"] == "wecare/wix/headless-api-key"
     assert manifest["_functions"] == len(manifest["functions"])
     assert manifest["_variables"] == sum(len(v) for v in manifest["functions"].values())
+
+
+# ── the closure must follow relative imports ──────────────────────────────────
+#
+# The IAM verdict is scoped to `import_closure`, so anything the walker cannot see is a module the
+# grant report reasons as if it were absent. It used to do `if node.level: continue`, discarding
+# every `from .x import y` edge - 35 of them in `lambda_utils`, one inside this very closure. The
+# verdict was unchanged, but the failure direction is the dangerous one: a relatively-imported
+# module that opens a transaction yields a false "grant not required" with a green verifier.
+
+def test_a_relative_import_is_followed_into_the_closure(provisioner):
+    members = {
+        "handler.py": b"from lambda_utils import a\n",
+        "lambda_utils/__init__.py": b"",
+        "lambda_utils/a.py": b"from .b import THING\n",
+        "lambda_utils/b.py": b"THING = 1\n",
+    }
+    closure = provisioner.import_closure(members)
+    assert "lambda_utils/b.py" in closure, \
+        "a `from .b import ...` edge was dropped, so b.py is invisible to the IAM verdict"
+
+
+def test_a_transaction_behind_a_relative_import_is_still_found(provisioner):
+    """The exact false negative the old walker produced: the needle is one relative hop away."""
+    members = {
+        "handler.py": b"from lambda_utils import a\n",
+        "lambda_utils/__init__.py": b"",
+        "lambda_utils/a.py": b"from .b import go\n",
+        "lambda_utils/b.py": b"def go():\n    client.transact_write_items(TransactItems=[])\n",
+    }
+    assert provisioner._package_needs_transactions(members) != [], \
+        "a TransactWriteItems reached only by a relative import must still require the grant"
+
+
+def test_a_parent_relative_import_resolves_one_level_up(provisioner):
+    members = {
+        "handler.py": b"from lambda_utils.ecommerce import a\n",
+        "lambda_utils/__init__.py": b"",
+        "lambda_utils/ecommerce/__init__.py": b"",
+        "lambda_utils/ecommerce/a.py": b"from ..shared_thing import X\n",
+        "lambda_utils/shared_thing.py": b"X = 1\n",
+    }
+    closure = provisioner.import_closure(members)
+    assert "lambda_utils/shared_thing.py" in closure
+
+
+def test_relative_import_resolution_cases(provisioner):
+    """Unit-level, because the arithmetic is the part that is easy to get wrong by one.
+
+    A package's `__init__.py` is INSIDE its package, so `from .x import y` there resolves to a
+    sibling of the `__init__`, not to a sibling of the package directory.
+    """
+    resolve = provisioner.resolve_relative_import
+    assert resolve("lambda_utils/template_ttl.py", "whatsapp_types", 1) == \
+        "lambda_utils.whatsapp_types"
+    assert resolve("lambda_utils/ecommerce/a.py", "b", 1) == "lambda_utils.ecommerce.b"
+    assert resolve("lambda_utils/ecommerce/a.py", "b", 2) == "lambda_utils.b"
+    assert resolve("lambda_utils/ecommerce/__init__.py", "money", 1) == \
+        "lambda_utils.ecommerce.money"
+    assert resolve("lambda_utils/a.py", None, 1) == "lambda_utils"
+    # Climbing above the package root returns "" rather than raising mid-verdict.
+    assert resolve("lambda_utils/a.py", "x", 4) == ""
+
+
+def test_a_bare_from_dot_import_does_not_crash_the_walk(provisioner):
+    """`from . import sibling` has `module=None`, which the non-relative branch skips. It must be
+    followed, not treated as unparseable."""
+    members = {
+        "handler.py": b"from lambda_utils import a\n",
+        "lambda_utils/__init__.py": b"from . import b\n",
+        "lambda_utils/a.py": b"x = 1\n",
+        "lambda_utils/b.py": b"y = 1\n",
+    }
+    assert "lambda_utils/b.py" in provisioner.import_closure(members)
+
+
+# ── the grant report must describe the DEPLOYED bytes ─────────────────────────
+#
+# Every package-derived conclusion once described a local export while the alias pointed at a
+# version another session had published. The import validation, the closure and therefore the
+# ConditionCheckItem verdict all described v1; v2 had never had its imports walked. If a later
+# version wired `razorpay_orders` in, the role would be missing a Razorpay secret read and nothing
+# would have said so.
+
+def test_verify_scopes_the_grant_report_to_the_live_artifact(provisioner):
+    """Not the `members` argument, which is only a comparison build."""
+    import ast
+    body = SCRIPT.read_text(encoding="utf-8").split("def verify(")[1].split("\ndef ")[0]
+    tree = ast.parse("def verify(" + body)
+    passed = [arg.id for node in ast.walk(tree)
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+              and node.func.id == "report_required_grants"
+              for arg in node.args if isinstance(arg, ast.Name)]
+    assert passed == ["deployed"], \
+        f"the grant report is scoped to {passed}, not to the downloaded live artifact"
+    assert "live_members()" in body, "verify() never reads the deployed artifact back"
+
+
+def test_an_unreadable_live_artifact_is_a_problem_not_a_pass(provisioner):
+    """Same discipline as the simulate and closure cases: unmeasured is not a pass. `live_members`
+    returning `None` must reach `problems`, and must reach `report_required_grants` as `None` so it
+    reports NOT JUDGED rather than silently falling back to the local export."""
+    body = SCRIPT.read_text(encoding="utf-8").split("def verify(")[1].split("\ndef ")[0]
+    assert "if deployed is None:" in body
+    assert "could not be measured" in body
+
+
+def test_the_presigned_download_url_is_never_printed_or_stored(provisioner):
+    """`get_function` returns a presigned S3 URL carrying an `X-Amz-Signature`, so it is
+    credential-shaped material. secret-handling.md: it must not appear in a log line, an argument
+    or any logging expression. It is fetched in-process and discarded."""
+    body = SCRIPT.read_text(encoding="utf-8").split("def live_members(")[1].split("\ndef ")[0]
+    for node in ast.parse("def live_members(" + body).body[0].body:
+        for call in ast.walk(node):
+            if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+                    and call.func.id == "print"):
+                continue
+            rendered = " ".join(ast.unparse(a) for a in call.args)
+            assert "location" not in rendered.lower(), \
+                f"the presigned URL reaches a print: {rendered}"
+    assert "location" not in body.split("except Exception")[1].split("return")[0].lower(), \
+        "the download failure message must not carry the URL"
+
+
+def test_the_live_artifact_is_validated_with_the_fleets_own_checker(provisioner):
+    """`validate_members` must reuse `deploy_all_lambdas.validate`, so the bytes in production are
+    held to the identical import rule as the bytes in a build - not to a second implementation that
+    can drift from it."""
+    body = SCRIPT.read_text(encoding="utf-8").split(
+        "def validate_members(")[1].split("\ndef ")[0]
+    assert "_deploy_module" in body and "dal.validate(" in body
+    assert "dal.validate_handler(" in body
+
+
+# ── verify() drives its own expectations, and fails on the dangerous state ─────
+
+class _FakeLambdaForVerify:
+    def __init__(self, env, statements):
+        self.env, self.statements = env, statements
+
+    def get_function(self, **kwargs):  # noqa: N803
+        return {"Configuration": {"CodeSha256": "sha"}, "Code": {"Location": "https://x/y"}}
+
+    def get_alias(self, **kwargs):  # noqa: N803
+        return {"FunctionVersion": "2"}
+
+    def get_function_configuration(self, **kwargs):  # noqa: N803
+        return {"Environment": {"Variables": dict(self.env)}}
+
+    def get_policy(self, **kwargs):  # noqa: N803
+        return {"Policy": json.dumps({"Statement": self.statements})}
+
+
+class _FakeApiForVerify:
+    def __init__(self, integration_uri):
+        self.uri = integration_uri
+
+    def get_integrations(self, **kwargs):  # noqa: N803
+        return {"Items": [{"IntegrationId": "zkb6lxe", "IntegrationUri": self.uri}]}
+
+    def get_routes(self, **kwargs):  # noqa: N803
+        return {"Items": [{"RouteKey": key, "RouteId": f"r{n}",
+                           "Target": "integrations/zkb6lxe"}
+                          for n, key in enumerate(_ROUTE_KEYS_FOR_FAKE)]}
+
+
+_ROUTE_KEYS_FOR_FAKE: tuple = ()
+
+
+@pytest.fixture
+def verify_run(provisioner, monkeypatch):
+    """Run the real `verify()` against stubbed AWS. Returns (exit_code, printed, problems)."""
+    global _ROUTE_KEYS_FOR_FAKE
+    _ROUTE_KEYS_FOR_FAKE = provisioner.ROUTE_KEYS
+    monkeypatch.setattr(provisioner, "_account_id_cache", "775261844268")
+
+    def _run(env_overrides=None, drop=()):
+        env = dict(provisioner.expected_environment())
+        env.update(env_overrides or {})
+        for key in drop:
+            env.pop(key, None)
+        statements = [
+            {"Sid": provisioner.route_statement_id(key),
+             "Condition": {"ArnLike": {"AWS:SourceArn": provisioner.source_arn(key)}}}
+            for key in provisioner.ROUTE_KEYS]
+        monkeypatch.setattr(provisioner, "lam",
+                            lambda: _FakeLambdaForVerify(env, statements))
+        monkeypatch.setattr(provisioner, "api",
+                            lambda: _FakeApiForVerify(provisioner.function_arn(qualified=True)))
+        monkeypatch.setattr(provisioner, "live_members",
+                            lambda *a, **k: ({"handler.py": b""}, "sha", "1 file"))
+        monkeypatch.setattr(provisioner, "validate_members", lambda *a, **k: ([], []))
+        monkeypatch.setattr(provisioner, "report_required_grants", lambda members: [])
+        monkeypatch.setattr(provisioner, "import_closure", lambda members, entry="handler.py": set())
+        return provisioner.verify(members=None)
+    return _run
+
+
+def test_verify_passes_on_the_state_this_script_provisions(verify_run):
+    """The baseline, so a failure below is attributable to the override and not to the harness."""
+    assert verify_run() == 0
+
+
+def test_verify_fails_on_a_wrong_wix_site_id(verify_run):
+    """The hand-enumerated key list omitted WIX_SITE_ID, so a wrong Wix site id on live passed
+    verification. The list is now derived from `expected_environment()`, which is the only version
+    of this check that cannot drift out of date as keys are added."""
+    assert verify_run({"WIX_SITE_ID": "00000000-0000-0000-0000-000000000000"}) == 1
+
+
+def test_every_non_readiness_key_is_actually_checked(provisioner, verify_run):
+    """Stated over the whole key set rather than over one example, so a future key added to
+    `expected_environment` is covered the day it is added."""
+    for key, want in provisioner.expected_environment().items():
+        if key in provisioner.READINESS_KEYS:
+            continue
+        assert verify_run({key: f"wrong-{want}-x"}) == 1, f"{key} is not verified on live"
+
+
+def test_a_readiness_key_is_checked_for_presence_not_for_an_empty_value(provisioner, verify_run):
+    """Presence-only, and both halves of that matter.
+
+    An owner filling these in from a live Meta/Razorpay read is legitimate drift from what this
+    script writes, so a non-empty value must not be an env MISMATCH - it is reported by the
+    readiness check instead, with the right explanation. A missing key is a different fault:
+    `payment_readiness` has nothing to evaluate.
+    """
+    for key in provisioner.READINESS_KEYS:
+        assert verify_run(drop=(key,)) == 1, f"{key} absent from live is not reported"
+    # Present-but-empty is the provisioned state, and must stay clean.
+    assert verify_run() == 0
+
+
+def test_the_gate_being_on_is_a_problem(verify_run):
+    assert verify_run({"CHECKOUT_INITIATION_ENABLED": "true"}) == 1
+
+
+def test_readiness_set_with_the_gate_off_is_a_problem(verify_run):
+    """The state the evidence document singles out and the verifier used to PRINT.
+
+    The gate is the LAST check in `handler._create`. The measured order is
+    `wix_ecom.create_checkout` (a live Wix write) -> currency compare -> `payment_readiness`
+    -> `allocate_payment_reference` -> `put_item` on PaymentAttemptsTable -> `if not
+    INITIATION_ENABLED`. While readiness is empty it refuses early and the table stays at 0 rows.
+    The moment an owner fills the readiness values in with the flag still off, every authenticated
+    `action=create` performs a live Wix write and writes an attempt row before refusing. No money
+    moves, but "gate off" has stopped meaning "inert", and an operator who set those values
+    expecting inertness deserves a non-zero exit rather than a note.
+    """
+    assert verify_run({"EXPECTED_CONFIGURATION_NAME": "some-config"}) == 1
+    assert verify_run({"EXPECTED_PROVIDER_MID": "some-mid"}) == 1
+    assert verify_run({"EXPECTED_CONFIGURATION_NAME": "c", "EXPECTED_PROVIDER_MID": "m"}) == 1
+
+
+def test_readiness_set_with_the_gate_on_is_still_a_problem(verify_run):
+    """Both conditions report; neither masks the other."""
+    assert verify_run({"EXPECTED_CONFIGURATION_NAME": "c",
+                       "CHECKOUT_INITIATION_ENABLED": "true"}) == 1

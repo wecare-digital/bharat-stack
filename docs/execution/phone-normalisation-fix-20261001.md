@@ -206,7 +206,11 @@ no required request header, so `src/pages/cart.tsx` (~line 149) and `src/pages/c
 (~line 159), which gate on `getSession()` and send no CSRF header, cannot break. No `src/` file was
 modified; `npx tsc --noEmit` is clean and the three UI contract suites pass unchanged.
 
-### ⏳ PENDING — the deployed `wecare-customer-session` handler
+### ✅ COMPLETE — the deployed `wecare-customer-session` handler (reported here, fixed elsewhere)
+
+Reported as `⏳ PENDING` when this doc was written; closed by another workstream during the
+cross-seam pass. The original reasoning is kept below because it is what made the handover
+actionable, with the resolution recorded after it.
 
 `wecare-customer-session` is live on its own role `wecare-customer-sessions-Role-An9RPVcLOdkj`.
 **Its handler source does not exist in this tree** — another workstream owns it — so it could not be
@@ -226,6 +230,27 @@ forward-looking tripwire in `tests/test_session_response_is_not_cacheable.py` fa
 `amplify/functions/**/handler.py` ever returns a body with a `csrfToken` key without calling
 `harden_session_headers`. It matches nothing today, and it has a positive control so it cannot pass
 vacuously.
+
+#### ✅ RESOLVED by another workstream, and the tripwire is no longer vacuous
+
+Recorded during the cross-seam pass, because this was the one open item here that depended on
+somebody else's file. The sequence, which is worth keeping straight:
+
+1. When this section was written the source genuinely was absent — `git cat-file -e
+   f8a73fb0:amplify/functions/ecommerce/customer-session/handler.py` does not resolve. The premise
+   was correct, not a failure to look.
+2. It arrived afterwards in `722fa300`, at `amplify/functions/ecommerce/customer-session/` — under
+   `ecommerce/`, not the `auth/` directory the other two OTP doors live in, which is why a search
+   for it by sibling path would have missed it even a moment later.
+3. `6ed1426b` then routed **both** of its response sites through
+   `customer_session.harden_session_headers`, which is exactly the call named above, imported as
+   `sessions`.
+
+So the `csrfToken` tripwire now has a real subject rather than only its positive control: the one
+handler that actually returns a token is the one now covered. Nothing in this task was changed to
+make that true, and nothing here is deployed — per `lambda-snapstart-deploy.md` that handler, like
+the two in this change, keeps serving its old responses until a version is published and the `live`
+alias moves.
 
 ---
 
@@ -358,16 +383,54 @@ Awaiting an explicit owner decision. **Not applied.**
 ## Verification
 
 ```
-./.venv/bin/python -m pytest tests/test_phone_country_code_preservation.py -q     94 passed
+./.venv/bin/python -m pytest tests/test_phone_country_code_preservation.py -q     98 passed
 ./.venv/bin/python -m pytest tests/test_session_response_is_not_cacheable.py -q   21 passed
-./.venv/bin/python -m pytest tests/ -q                            5897 passed, 1 skipped
+./.venv/bin/python -m pytest tests/ -q                            5935 passed, 1 skipped
 npx tsc --noEmit                                                  clean
-npx vitest run SignInMessages / AccountSignIn / CartCheckout       3 files, 40 tests passed
+npx vitest run SignInMessages / AccountSignIn / CartCheckout       3 files, 42 tests passed
 git diff --stat -- src/ amplify/.../lambda_utils/response.py       empty
 ```
 
 Baseline before this work was 5875 Python tests passing; the measured 93-test
 (`test_customer_identity` + `test_customer_session`) group is unchanged.
+
+**Read the full-suite and vitest totals as dated, not as this change's arithmetic.** The two
+findings landed as separate commits (`456b5716`, `f8a73fb0`) into a working tree shared with
+several live sessions, so the totals move with their work as well as ours: the figures above were
+measured after the cross-seam pass below, by which point concurrent workstreams had added tests of
+their own. During that pass the suite twice reported transient failures in
+`test_url_host_routing_rules.py`, `test_provision_checkout_contract.py`,
+`test_legacy_redirect_rollback_snapshot.py` and `test_checkout_package_completeness.py` — each
+passed in isolation moments later, and all four belong to other workstreams and import nothing
+this change touches. That is a half-written file caught mid-run, not a regression. The counts
+attributable here are the two per-file figures, and they are exact.
+
+### Cross-seam verification, after both findings had landed
+
+The two commits were written independently, so the seams between them were checked separately
+rather than assumed:
+
+| Seam | Result |
+|---|---|
+| `normalize_phone` still byte-identical across **both** commits | ✅ `+120 / -0` for `customer.py`, zero deleted lines |
+| Exactly four call sites moved to the strict normaliser | ✅ `registration.begin`, `registration.complete`, the trigger's `_normalise_phone`, the email-verification throttle axis. `build_customer`, `validation.py::normalize_phone` and its five messaging callers, `sinch_rcs`, `outbound-whatsapp` and `core/contacts` all still call the legacy function |
+| The standalone trigger still imports nothing from `lambda_utils` | ✅ only `json`, `os`, `secrets`, `time`, `boto3`; the three `lambda_utils` mentions are a comment and a docstring |
+| The two implementations agree on all 17 rows | ✅ re-measured directly, 0 drift |
+| `email-verification/handler.py`, the one file **both** commits changed | ✅ the normalised throttle subject and the `_no_store` wrapper coexist; every one of its 12 returns is wrapped, including `otp_throttle.throttled_response`, which does not go through `cors_response` |
+| **Packaging.** Both header-fix handlers newly import `customer_session`; neither is `standalone`, so `build_zip` copies the whole `lambda_utils` tree | ✅ proved by staging the exact member set into a temp dir and importing `handler.py` with only that directory on `sys.path` — 114 modules, both import clean. `customer_session` pulls in no `boto3` client, reads no secret, and reads env only with defaults, so the new import adds no init-time dependency |
+| Header merge keeps what it was handed | ✅ `Retry-After` survives on the 429 and `Content-Type` on every response, while `no-store` overrides a weaker `max-age` |
+| `src/` and `response.py` untouched | ✅ `git diff --stat` empty for both. `src/pages/404.tsx` moved in `5114ae70`, another workstream's commit, not in either commit here |
+| No logging expression in any touched file carries a phone, an OTP or a secret | ✅ every site logs `type(exc).__name__`, a count, a boolean or an event name; `customer.py` logs nothing at all |
+
+One gap was found and closed. The log-safety AST guard in
+`tests/test_phone_country_code_preservation.py` enumerates its files by hand, and the list was
+written during Finding 1 — before Finding 2 edited `customer-registration/handler.py` and
+`customer_session.py`. Two of the six files this task changed were therefore outside the guard
+meant to cover the task's own edits. Both already satisfied it, so nothing was leaking; the fix is
+that the **next** edit to either is now checked rather than trusted. The parametrize ids were also
+disambiguated, because three of the six sources are named `handler.py` and the failure message
+said only `handler.py`. The detector was re-confirmed to fire on a deliberate violation rather
+than passing vacuously.
 
 | Gate | Result |
 |---|---|
@@ -376,11 +439,19 @@ Baseline before this work was 5875 Python tests passing; the measured 93-test
 | Secrets Manager reads | ➖ NOT REQUIRED — none performed, in any spelling |
 | `src/` modified | ➖ NOT REQUIRED — none |
 | Finding 3 applied | ⚠️ NEEDS CONFIRMATION — deliberately not applied |
+| Cross-seam verification between the two commits | ✅ COMPLETE — see the table above |
+| `wecare-customer-session` no-store headers | ✅ COMPLETE — closed by another workstream in `6ed1426b` |
 
 **Overall: ⚠️ COMPLETE WITH IMPROVEMENTS.** Findings 1 and 2 are fixed in source and pinned by
-tests. Two items remain outside this task's authority: the `wecare-customer-session` handler's
-no-store headers (another workstream's source) and the Finding 3 IAM change (owner approval).
-Neither is deployed, because nothing in this change is deployed.
+tests, and the seams between the two commits that delivered them are verified. **One** item remains
+outside this task's authority: the Finding 3 IAM change, which needs an owner decision. The
+`wecare-customer-session` handler, reported here as pending, has since been fixed by the workstream
+that owns it using the call this doc named.
+
+Nothing above is deployed. That is the one thing not to read as finished: under
+`lambda-snapstart-deploy.md` a published version and an alias move are what make a payments- or
+auth-path change live, and neither has happened, so all three handlers continue to serve their
+previous code.
 
 ## Related
 
