@@ -92,11 +92,20 @@ PUBLIC_PAGES = (
 
 
 def _row(group: str, url: str, expect: int, why: str, *, method: str = "GET",
-         terminal_url: str | None = None, body_contains: tuple[str, ...] = ()) -> dict:
+         terminal_url: str | None = None, body_contains: tuple[str, ...] = (),
+         informational: bool = False) -> dict:
+    """`informational=True` records the measured value WITHOUT failing the run.
+
+    Reserved for a host whose configuration belongs to a third party, where a mismatch is
+    news rather than a defect of ours. Use it sparingly: every other row is a hard gate, and
+    the value of this harness is that a red run means something. Do NOT reach for this to
+    silence one of our own rows - a drifting expectation on a surface we control is exactly
+    what this script exists to catch.
+    """
     return {
         "group": group, "method": method, "url": url, "expect_status": expect,
         "expect_terminal_url": terminal_url, "expect_body_contains": body_contains,
-        "why": why,
+        "why": why, "informational": informational,
     }
 
 
@@ -205,8 +214,20 @@ def matrix() -> list[dict]:
     # authority, recorded as an owner-decision item in the matrix document.
     rows.append(_row("subdomain", "https://shop.wecare.digital/", 0,
                      "no address; documented coverage gap, NOT fixed here"))
+    # xout is a WIX-managed second-label host. INFORMATIONAL, and the reason is worth stating
+    # because downgrading a row is otherwise how a harness rots:
+    #   measured 2026-10-01 earlier in the day : 404, served by Wix
+    #   measured 2026-10-01 later the same day : 302 -> https://wecare.digital/, terminal 200
+    # Nothing of ours changed between those two readings - no DNS, ACM or CloudFront change was
+    # made by this task, and none is permitted by it. The config belongs to Wix, so a change
+    # there is news, not a defect of ours, and asserting it as a hard gate makes OUR run red
+    # whenever a third party edits THEIR host. The new answer is also the benign direction: it
+    # lands on the canonical apex rather than serving our content under a host the
+    # *.wecare.digital certificate cannot cover (that wildcard matches one label only, §4).
+    # Kept in the matrix rather than deleted so the value is still measured and reported.
     rows.append(_row("subdomain", "https://xout.wecare.digital/", 404,
-                     "legacy Wix host, second-label, out of scope"))
+                     "legacy Wix host, second-label, out of scope - Wix-owned, so recorded "
+                     "not enforced", informational=True))
     # mta-sts is the MTA-STS policy endpoint under mode: enforce. Probed at / ONLY, read-only,
     # to confirm nothing about it moved. Its policy path is not touched by this or any probe.
     rows.append(_row("subdomain", "https://mta-sts.wecare.digital/", 403,
@@ -285,11 +306,19 @@ def follow(row: dict) -> dict:
         if needle not in body:
             failures.append(f"body missing {needle!r}")
 
+    # An informational row still reports every mismatch it found - it just does not fail the
+    # run. The mismatches move to `notes` rather than being discarded, so a reader sees the
+    # drift instead of a silently green row.
+    informational = row.get("informational", False)
+    notes = failures if informational else []
     return {
         "group": row["group"], "method": row["method"], "url": row["url"],
         "expect_status": row["expect_status"], "status": terminal["status"],
         "terminal_url": terminal["url"], "hops": hops, "hop_count": len(hops),
-        "why": row["why"], "ok": not failures, "failures": failures,
+        "why": row["why"], "informational": informational,
+        "ok": True if informational else not failures,
+        "failures": [] if informational else failures,
+        "notes": notes,
     }
 
 
@@ -324,13 +353,24 @@ def main(argv=None) -> int:
             if result["group"] != current:
                 current = result["group"]
                 print(f"\n── {current} ──")
-            mark = "ok  " if result["ok"] else "FAIL"
+            # An informational row that drifted is marked NOTE, not ok - it must not read as a
+            # clean pass, or downgrading a row becomes a way to hide a change.
+            if result["ok"] and result.get("notes"):
+                mark = "NOTE"
+            elif result["ok"]:
+                mark = "ok  "
+            else:
+                mark = "FAIL"
             chain = " -> ".join(str(h["status"]) for h in result["hops"])
             print(f"  {mark} {result['method']:<4} {result['url']:<{width}} "
                   f"[{chain}] expect {result['expect_status']}")
             for failure in result["failures"]:
                 print(f"       !! {failure}")
-        print(f"\nprobed {len(results)} row(s); {len(failed)} failed")
+            for note in result.get("notes", []):
+                print(f"       ~~ {note} (informational: {result['why']})")
+        noted = [r for r in results if r["ok"] and r.get("notes")]
+        print(f"\nprobed {len(results)} row(s); {len(failed)} failed; "
+              f"{len(noted)} informational row(s) drifted")
 
     for result in failed:
         print(f"FAIL {result['method']} {result['url']}: {'; '.join(result['failures'])} "

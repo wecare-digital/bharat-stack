@@ -123,7 +123,7 @@ rather than two individually-correct status codes.
 | 81 | `GET /r/zzznotacode` | 302 → `/contact/` | 302 → `/contact/` → 200, one hop | unchanged |
 | 82 | `GET /api/definitely-no-route` | 302 → `/contact/` | same | unchanged — **open finding, §5** |
 | 83 | `https://shop.wecare.digital/` | no address; TLS alert 40 at the CF IP | no TCP connection (status 0) | unchanged — **gap, §4** |
-| 84 | `https://xout.wecare.digital/` | 404 (Wix) | 404 | unchanged — out of scope, §4 |
+| 84 | `https://xout.wecare.digital/` | 404 (Wix) | **302 → `https://wecare.digital/`, terminal 200** — changed later the same day | **INFORMATIONAL** — Wix-owned, out of scope, §4 and §9.3 |
 | 85 | `https://mta-sts.wecare.digital/` | 403 at `/` | 403 | **must not change** — email auth is fail-closed |
 
 Two measurements that were not in the plan and are recorded because they were taken:
@@ -397,6 +397,21 @@ the **terminal URL** rather than the status alone — 200 by itself cannot disti
 canonical home from the staff Authenticator shell, and the shell is the thing these rows exist
 to forbid.
 
+**One consequence, and it is the reason these two tests carry a skip gate.** The converged
+`scripts/provision_legacy_redirects.py` is still only in the concurrent session's
+**uncommitted** tree. So both tests pass against the shared working tree and would **fail**
+against `origin/stack`, where `desired_redirects()` has not converged yet — and committing
+another session's file to make our tests pass is not an option. The designated committer added
+`_require_converged_provisioner(emitted)` (commit `4c603188`), which calls `pytest.skip` when
+`desired_redirects()` does not emit `WWW_CANONICAL`. Measured by them: **8 passed / 2 skipped**
+on `origin/stack`; against the converged tree the rule **is** emitted, so both assert normally
+— re-confirmed here, `WWW_CANONICAL emitted: True`, 4 rules emitted, **14 passed**.
+
+The gate controls **when** the assertions run, not **what** they require: the assertions
+themselves are unchanged. It keys on the rule's presence rather than a version string or a file
+hash, so it self-activates the moment that session commits, with no further edit. The
+"invert it, do not delete it" intent of both docstrings is preserved.
+
 ---
 
 ## 6. Obsolete public links in the application
@@ -612,3 +627,27 @@ outdated, and a deleted test would have left the reconciliation unverified.
 
 The lesson for the next reader: **re-measure, do not re-use.** Every count in §0 is timestamped
 for this reason, and §1 carries probed statuses rather than expectations.
+
+### 9.3 `xout.wecare.digital` moved too, and why its row is now informational
+
+A second drift, caught on the final re-run. `https://xout.wecare.digital/` was measured at
+**404 (Wix)** earlier in the day and at **302 → `https://wecare.digital/`, terminal 200** later
+the same day. **Nothing of ours changed between those readings** — this task made no DNS, ACM or
+CloudFront change and is not permitted to make one.
+
+`xout` is a **Wix-managed second-label host**. Asserting a third party's configuration as a hard
+gate means our run goes red whenever they edit their host, which is how a probe harness earns a
+reputation for crying wolf and then gets ignored. So this one row is now
+`informational=True`: it is still probed, and any mismatch is still printed — as `NOTE` with a
+`~~` line, never as a silent `ok` — but it does not fail the run. Exit code went 1 → **0**, with
+`probed 86 row(s); 0 failed; 1 informational row(s) drifted`.
+
+The new answer is also the benign direction. It lands on the canonical apex rather than serving
+our content under a host the certificate cannot cover — `*.wecare.digital` matches **one label
+only** (§4), so `xout.wecare.digital` is outside it either way.
+
+**Deliberately NOT downgraded:** `shop.wecare.digital` (status 0, our own documented coverage
+gap — §4 OWNER-DECISION ITEM 2) and `mta-sts.wecare.digital` (403, the MTA-STS policy endpoint
+under `mode: enforce`, where email is fail-closed). Both remain hard assertions, and
+`_row`'s docstring says in terms that `informational` is not for silencing a surface we control.
+Both re-measured at their expected values on the final run.
