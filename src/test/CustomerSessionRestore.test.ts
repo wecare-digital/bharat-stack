@@ -56,3 +56,9 @@ it( 'drops a cached token after logout in another tab', async () => {
   } ) );
   expect( auth.getSession() ).toBeNull();
 } );
+
+it( 'preserves an explicit country prefix rather than treating it as an Indian local number', async () => {
+  const auth = await import( '../lib/customerAuth' );
+  expect( auth.normaliseMobile( '+61 1234 5678' ) ).toBe( '+6112345678' );
+  expect( auth.normaliseMobile( '9876543210' ) ).toBe( '+919876543210' );
+} );

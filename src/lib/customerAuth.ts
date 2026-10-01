@@ -264,7 +264,8 @@ export function clearSession (): void {
  */
 export function normaliseMobile ( raw: string ): string {
   const digits = String( raw || '' ).replace( /\D/g, '' );
-  const withCountry = digits.length === 10 && /^[6-9]/.test( digits ) ? `91${digits}` : digits;
+  const explicitCountry = String( raw || '' ).trim().startsWith( '+' );
+  const withCountry = !explicitCountry && digits.length === 10 && /^[6-9]/.test( digits ) ? `91${digits}` : digits;
   if ( withCountry.length < 10 || withCountry.length > 15 )
   {
     throw new Error( 'Enter a valid mobile number' );

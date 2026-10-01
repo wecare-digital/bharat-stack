@@ -662,3 +662,13 @@ that, and states the authority exactly as it stands rather than stronger.
   regeneration check. Exact package imports validated and full Python tests
   passed. Rollback aliases captured (FAQ 22, AI KB 23, AI generation 34), published
   FAQ 23, AI KB 24 and AI generation 35. No message/OTP sent by this verification.
+
+- 2026-10-01 A1_LOCAL/A2_REMOTE_CODE: merge upstream 805c7517, preserve explicit
+  international country codes in frontend normalization and use state-accurate
+  confirmation accessibility text. Exact merged gates: 5953 Python passed/one
+  skipped, 698 frontend passed, typecheck/build, FAQ and 28-page export passed.
+  A3_PRODUCTION: deploy merged customer-whatsapp-auth live 11 (rollback 10) and
+  CloudFormation-owned customer-session live 4 (rollback 3, stack UPDATE_COMPLETE).
+  Exact ZIP imports validated; revision-guarded code/version/alias updates;
+  before/after snapshots in snapshots/checkout-auth-*-20261001.json. Inert live
+  refresh returned 401/no-store/no-cache. No OTP/payment side effects.

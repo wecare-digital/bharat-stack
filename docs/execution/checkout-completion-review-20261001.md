@@ -139,3 +139,23 @@ Final knowledge-base aliases: faq-handler 23, ai-query-kb 24,
 ai-generate-response 35. Before/after snapshots record rollback versions.
 Full Python suite after source reconciliation: 5,814 passed, one skipped.
 Frontend suite: 697 passed; typecheck/build and 28-page export gate passed.
+
+Final reconciliation with upstream 805c7517: 5,953 Python tests passed (one
+skipped), 698 frontend tests passed across 50 files, typecheck and production
+build passed. FAQ regeneration and the 28-page customer export gate passed.
+Explicit international `+` numbers now retain their supplied country code in
+the frontend as well as the merged backend. The confirmation section's accessible
+name follows its verified state; an unverified order URL cannot announce success.
+
+Authentication artifact reconciliation: validated the exact merged packages,
+captured customer WhatsApp auth version 10 and customer session version 3 as
+rollback, published WhatsApp auth live 11 and CloudFormation-owned session live
+4. The session stack is UPDATE_COMPLETE. An inert production refresh without
+credentials returned 401 with Cache-Control: no-store and Pragma: no-cache.
+Snapshots: snapshots/checkout-auth-before-20261001.json and checkout-auth-after-
+20261001.json. No QA OTP, customer message, payment, or provider configuration
+operation was performed. The unprovisioned legacy customer-registration and
+email-verification functions were not created merely to deploy dormant sources.
+
+These checks do not close the website quote/payment/receipt/history wiring or
+the accountant and owner-controlled QA requirements listed above.
