@@ -423,6 +423,43 @@ def build_clear_cookie() -> str:
             "Max-Age=0")
 
 
+#: The pair every session-bearing response must carry. `no-store` is the instruction that matters;
+#: `Pragma: no-cache` is included because that is the pair this repo already emits at
+#: `edge/get-miss-redirect/handler.py:83`. `ai/mcp/handler.py:568` and
+#: `core/site-language/handler.py:198` send `no-store` alone - the stricter existing pattern is the
+#: one copied here, because an HTTP/1.0-era intermediary that ignores `Cache-Control` still honours
+#: `Pragma`, and the cost of the extra header is one line.
+NO_STORE_HEADERS = {"Cache-Control": "no-store", "Pragma": "no-cache"}
+
+
+def harden_session_headers(headers: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """Merge the no-store pair into `headers`. Mandatory on any response carrying a csrfToken,
+    a session id, or a session-bound deadline.
+
+    Why this is necessary rather than defensive
+    -------------------------------------------
+    `SessionView.csrf_token` is a per-session secret that a handler returns in a response BODY, and
+    `lambda_utils/response.py::cors_headers` sets no `Cache-Control` at all. These responses do not
+    reach the browser directly either: the Amplify rewrite serves `/api/<*>` with status 200, so a
+    shared cache sits in front of them. A cache that stored one customer's session response and
+    replayed it to another would hand over that customer's CSRF token - and the token is exactly
+    what `build_set_cookie`'s deliberate `SameSite=Lax` choice relies on to guard the mutations Lax
+    still permits. Losing the token's secrecy therefore does not degrade the defence, it removes it.
+
+    `response.py` is deliberately NOT changed to do this globally: `core/contacts/handler.py:285`
+    removed `Cache-Control` on purpose, so a blanket header there would override a considered
+    decision in an unrelated handler. The contract lives here, beside the session it protects, and
+    each owning handler opts in.
+
+    Returns a NEW dict; the input is never mutated, and anything already set on it - including a
+    `Set-Cookie` or a caller's own `Cache-Control` - is preserved except that the no-store pair
+    wins. A weaker `Cache-Control` on a session response is a bug, not a preference.
+    """
+    merged: Dict[str, str] = dict(headers or {})
+    merged.update(NO_STORE_HEADERS)
+    return merged
+
+
 def read_cookie(headers: Optional[Dict[str, Any]]) -> str:
     """The opaque id out of a request's Cookie header, or ''. Case-insensitive header lookup."""
     if not headers:
@@ -462,4 +499,6 @@ __all__ = [
     "build_set_cookie",
     "build_clear_cookie",
     "read_cookie",
+    "NO_STORE_HEADERS",
+    "harden_session_headers",
 ]

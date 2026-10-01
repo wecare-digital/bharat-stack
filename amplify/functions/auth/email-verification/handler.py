@@ -57,13 +57,29 @@ from typing import Any, Dict, Optional
 
 import boto3
 
-from lambda_utils import otp_challenge, otp_throttle
+from lambda_utils import customer_session, otp_challenge, otp_throttle
 from lambda_utils.comms import verification_email
 from lambda_utils.identity import customer as identity
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, extract_origin, options_response
 
 logger = get_logger(__name__)
+
+
+def _no_store(response: Dict[str, Any]) -> Dict[str, Any]:
+    """Every response from this door is uncacheable. Applied at the return, not at the builder.
+
+    `response.py::cors_headers` sets no `Cache-Control`, and these responses travel through the
+    Amplify `/api/<*>` status-200 rewrite, so a shared cache sits in front of them. A cached
+    verification outcome replayed to another caller is an answer about someone else's address and
+    someone else's throttle budget. `response.py` is deliberately left alone -
+    `core/contacts/handler.py:285` removed `Cache-Control` there on purpose - so the contract is
+    applied here. The throttle rejection is wrapped too: it is built by `otp_throttle`, not by
+    `cors_response`, and a cached 429 would misreport another caller's budget.
+    """
+    hardened = dict(response)
+    hardened["headers"] = customer_session.harden_session_headers(response.get("headers") or {})
+    return hardened
 
 # ── configuration ────────────────────────────────────────────────────────────
 REGION = os.environ.get("AWS_REGION", "us-east-1")
@@ -165,7 +181,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     rc = event.get("requestContext", {}) or {}
     method = rc.get("http", {}).get("method", event.get("httpMethod", "")).upper()
     if method == "OPTIONS":
-        return options_response(origin)
+        return _no_store(options_response(origin))
 
     # No JWT requirement here, deliberately. Email verification runs DURING checkout, before the
     # customer has any session to present a token from — the same position as the WhatsApp OTP
@@ -184,7 +200,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Type only. An exception message can echo the address or the code.
         logger.error(json.dumps({"event": "email_verification_error",
                                   "action": action, "error": type(exc).__name__}))
-        return cors_response(500, {"error": "INTERNAL_ERROR"}, origin)
+        return _no_store(cors_response(500, {"error": "INTERNAL_ERROR"}, origin))
 
 
 def _request(event: Dict[str, Any], body: Dict[str, Any], origin: str) -> Dict[str, Any]:
@@ -192,7 +208,7 @@ def _request(event: Dict[str, Any], body: Dict[str, Any], origin: str) -> Dict[s
     try:
         email = identity.normalize_email(body.get("email"))
     except identity.InvalidEmailAddress:
-        return cors_response(400, {"error": "INVALID_EMAIL"}, origin)
+        return _no_store(cors_response(400, {"error": "INVALID_EMAIL"}, origin))
 
     first_name = str(body.get("firstName") or "").strip()
 
@@ -214,23 +230,24 @@ def _request(event: Dict[str, Any], body: Dict[str, Any], origin: str) -> Dict[s
     try:
         otp_throttle.check_and_consume(_table(), phone_e164=throttle_subject, event=event)
     except otp_throttle.OtpThrottled as throttled:
-        return otp_throttle.throttled_response(throttled, event)
+        return _no_store(otp_throttle.throttled_response(throttled, event))
     except otp_throttle.ThrottleStoreUnavailable:
-        return cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin)
+        return _no_store(cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin))
 
     try:
         issued = otp_challenge.issue(
             _table(), purpose=PURPOSE, subject=email, pepper=_pepper())
     except otp_challenge.ResendTooSoon as soon:
-        return cors_response(429, {"error": "RESEND_TOO_SOON",
-                                   "retryAfterSeconds": soon.retry_after_seconds}, origin)
+        return _no_store(cors_response(
+            429, {"error": "RESEND_TOO_SOON",
+                  "retryAfterSeconds": soon.retry_after_seconds}, origin))
     except otp_challenge.ResendLimitReached:
         # Deliberately not distinguished from success in the customer-visible shape beyond the
         # error code: it does not reveal whether the address exists, only that too many codes were
         # requested for it in the window.
-        return cors_response(429, {"error": "RESEND_LIMIT_REACHED"}, origin)
+        return _no_store(cors_response(429, {"error": "RESEND_LIMIT_REACHED"}, origin))
     except otp_challenge.OtpStorageUnavailable:
-        return cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin)
+        return _no_store(cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin))
 
     try:
         verification_email.send(
@@ -239,10 +256,10 @@ def _request(event: Dict[str, Any], body: Dict[str, Any], origin: str) -> Dict[s
     except verification_email.VerificationEmailFailed:
         # The code was issued but not delivered. Report a soft failure so the client can retry;
         # the issued row simply expires unused. No address or code is logged by the send module.
-        return cors_response(502, {"error": "SEND_FAILED"}, origin)
+        return _no_store(cors_response(502, {"error": "SEND_FAILED"}, origin))
 
     # Public payload carries no code and nothing that identifies the address.
-    return cors_response(200, {"status": "sent", **issued.as_public_dict()}, origin)
+    return _no_store(cors_response(200, {"status": "sent", **issued.as_public_dict()}, origin))
 
 
 def _verify(event: Dict[str, Any], body: Dict[str, Any], origin: str) -> Dict[str, Any]:
@@ -250,28 +267,28 @@ def _verify(event: Dict[str, Any], body: Dict[str, Any], origin: str) -> Dict[st
     try:
         email = identity.normalize_email(body.get("email"))
     except identity.InvalidEmailAddress:
-        return cors_response(400, {"error": "INVALID_EMAIL"}, origin)
+        return _no_store(cors_response(400, {"error": "INVALID_EMAIL"}, origin))
 
     code = str(body.get("code") or "").strip()
     if not code:
-        return cors_response(400, {"error": "CODE_REQUIRED"}, origin)
+        return _no_store(cors_response(400, {"error": "CODE_REQUIRED"}, origin))
 
     try:
         result = otp_challenge.verify(
             _table(), purpose=PURPOSE, subject=email, code=code, pepper=_pepper())
     except otp_challenge.OtpStorageUnavailable:
-        return cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin)
+        return _no_store(cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin))
 
     if not result.ok:
         # One shape for every failure, so the endpoint is not an existence oracle. The real
         # outcome stays server-side.
         logger.info(json.dumps({"event": "email_verification_failed",
                                  "outcome": result.outcome}))
-        return cors_response(400, {"status": result.public_outcome()}, origin)
+        return _no_store(cors_response(400, {"status": result.public_outcome()}, origin))
 
     stamped = _mark_email_verified(body.get("customerId"))
     logger.info(json.dumps({"event": "email_verified", "stamped": stamped}))
-    return cors_response(200, {"status": "VERIFIED"}, origin)
+    return _no_store(cors_response(200, {"status": "VERIFIED"}, origin))
 
 
 def _mark_email_verified(customer_id: Optional[Any]) -> bool:
