@@ -248,11 +248,21 @@ def test_the_four_verification_outcomes_are_named_in_source():
     The four states are: confirmed by Meta, not checked because there was no
     payment config, not checked because the lookup failed, and actively
     contradicted. Only the last used to be distinguishable from the first.
+
+    SUPERSEDED (2026-10-01, website-only ruling): the in-WhatsApp capture branch no
+    longer creates ANY paid state, so the old fail-open accept log
+    (``payment_capture_accepted_unverified``) is gone. The verification is retained
+    only to compute an auditable outcome, now recorded on the
+    ``in_whatsapp_payment_capture_superseded`` record. The three outcome CONSTANTS must
+    still be named so the outcome stays legible in that audit trail.
     """
     source = (FUNCTIONS / "messaging" / "inbound-whatsapp-handler" / "handler.py").read_text()
     for name in ("UNVERIFIED_NO_CONFIG", "UNVERIFIED_LOOKUP_FAILED",
-                 "REJECTED_MISMATCH", "payment_capture_accepted_unverified"):
+                 "REJECTED_MISMATCH", "in_whatsapp_payment_capture_superseded"):
         assert name in source, f"{name} missing"
+    # The retired fail-open accept log must be gone: an unverified capture no longer
+    # "accepts" anything financial — it is superseded.
+    assert "payment_capture_accepted_unverified" not in source
     # The old bool must be gone from live code.
     for line in source.splitlines():
         if "payment_verified" in line:
