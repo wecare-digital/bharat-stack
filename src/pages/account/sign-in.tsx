@@ -21,15 +21,20 @@
  * defaults to +91 because that is the market, not because the field is optional - it is `required`,
  * always submitted, and always applied.
  *
- * THE "NOT A WHATSAPP NUMBER" ERROR IS WIRED TO THE ONLY SIGNAL THAT EXISTS, and is worded for what
- * that signal actually proves. The registration front door answers 502 {status:'send_failed'} when
- * the challenge was stored but the WhatsApp message did not go - which is what happens when the
- * number is not reachable on WhatsApp, and ALSO what happens when Meta's send fails transiently.
- * So the copy says the number could not be reached and asks the shopper to check it, rather than
- * asserting it is not a WhatsApp number. Telling someone their number is invalid when the real
- * cause was our own outage is the kind of confident wrong answer this repo keeps removing. A
- * definitive message needs the recipient-not-found code from Meta surfaced by the backend; see
- * docs/execution/website-payment-handover.md.
+ * THE SEND-FAILURE ERROR NAMES NO CAUSE IT CANNOT PROVE. The registration front door answers 502
+ * {status:'send_failed'} when the challenge was stored but the WhatsApp message did not go - which
+ * is what happens when the number is not reachable on WhatsApp, and ALSO what happens when Meta's
+ * send fails transiently. The two are indistinguishable from the browser, so this page does NOT
+ * mention WhatsApp in that message: it says the code could not be sent and asks the shopper to
+ * check the number. An earlier version named WhatsApp explicitly ("Check the country code and that
+ * it is your WhatsApp number"), which is a confident wrong answer about our own outage every time
+ * the second cause is the real one. "Use a WhatsApp number." is reserved for the case where
+ * provider evidence supports it, which needs the recipient-not-found code from Meta surfaced by the
+ * backend; see docs/execution/website-payment-handover.md.
+ *
+ * A CONTRADICTORY PASTED PREFIX IS REJECTED RATHER THAN CONCATENATED. See composeE164 - the
+ * fifteen-digit case it describes produced a valid-looking number for a customer who does not
+ * exist, which is worse than an error.
  *
  * THE HONEST UNREGISTERED-NUMBER HANDLING. customerAuth.ts documents that Cognito returns a masked
  * challenge for an UNKNOWN number too (PreventUserExistenceErrors), and no code is ever sent to
@@ -87,6 +92,92 @@ const DIAL_CODES: { code: string; label: string }[] = [
 /** The market. The field is required, not optional - this is its starting value, not a fallback. */
 const DEFAULT_DIAL_CODE = '91';
 
+/**
+ * THE OWNER'S MESSAGE TABLE, verbatim, and the only strings this page shows for a failure.
+ *
+ * WHY A TABLE AND NOT INLINE LITERALS. Two of these are a hair apart in wording and far apart in
+ * meaning - CHECK_NUMBER points the shopper at their own number, TRY_LATER tells them it is our
+ * problem - and the entire honesty question on this page is which one a given server response earns.
+ * Naming them makes that choice reviewable at the call site instead of buried in a ternary.
+ *
+ * NOT_ON_WHATSAPP IS DEFINED BUT DELIBERATELY NEVER USED, and the comment is the point of it. The
+ * only signal the backend offers today is the registration front door's 502 {status:'send_failed'},
+ * which covers a number that is genuinely unreachable on WhatsApp AND a transient failure in Meta's
+ * send. Those are indistinguishable from the browser, so asserting the first would be a confident
+ * wrong answer about our own outage every time the second is the real cause. This message becomes
+ * usable only when the backend surfaces Meta's recipient-not-found code; until then the generic
+ * CHECK_NUMBER is the honest line. It is kept here, unused, so the next person to wire that signal
+ * finds the approved wording rather than inventing one.
+ *
+ * NONE OF THESE DISTINGUISH A REGISTERED NUMBER FROM AN UNKNOWN ONE. That is a hard requirement, not
+ * a nicety: the sign-in front door must not become a way to discover who is a customer, so the same
+ * string is shown for the same failure whether or not the number has an account behind it.
+ */
+const MSG = {
+  /** Missing country selection. Unreachable through the UI - see startPhone - kept as a backstop. */
+  NO_COUNTRY: 'Choose a country code.',
+  /** Invalid number or format, including a pasted prefix that contradicts the selection. */
+  BAD_NUMBER: 'Enter a valid number.',
+  /** Reserved for provider evidence this page does not yet receive. See the note above. */
+  NOT_ON_WHATSAPP: 'Use a WhatsApp number.',
+  /** Generic delivery failure, or unknown WhatsApp availability. */
+  CHECK_NUMBER: 'Couldn\u2019t send a code. Check your number.',
+  /** Provider temporary outage - our side, so it does not send the shopper to edit anything. */
+  TRY_LATER: 'Try again shortly.',
+  /** Invalid code, attempts remaining. */
+  BAD_CODE: 'Check your code.',
+  /** The challenge is no longer answerable. */
+  CODE_EXPIRED: 'Code expired. Send a new one.',
+  /** Send or guess limit reached. */
+  RATE_LIMITED: 'Wait before trying again.',
+} as const;
+
+/**
+ * Which message a thrown Cognito failure earns.
+ *
+ * cognito() in customerAuth.ts sets error.name from the __type Cognito returns, so the name is the
+ * classification and nothing has to be parsed out of a human-readable message. The distinction that
+ * matters: a dead challenge is the shopper's cue to SEND A NEW CODE, while a throttle is a cue to
+ * WAIT - telling someone who is rate-limited to request another code sends them straight back into
+ * the limit.
+ */
+function messageForAuthError ( error: unknown ): string {
+  const name = String( ( error as { name?: string } )?.name || '' );
+  if ( /TooManyRequests|LimitExceeded|TooManyFailedAttempts/i.test( name ) ) return MSG.RATE_LIMITED;
+  // NotAuthorizedException on a CUSTOM_AUTH challenge means the whole attempt is finished - the
+  // session is spent or timed out - so the only way forward is a fresh code, not another guess.
+  if ( /ExpiredCode|NotAuthorized|ExpiredToken|ResourceNotFound/i.test( name ) ) return MSG.CODE_EXPIRED;
+  if ( /CodeMismatch/i.test( name ) ) return MSG.BAD_CODE;
+  return MSG.TRY_LATER;
+}
+
+/**
+ * Which message a REJECTED registration code earns.
+ *
+ * Separate from messageForHttpStatus because the default is the opposite way round. On a send the
+ * unexplained failure is ours, so the shopper is told to wait; on a code submission the overwhelming
+ * cause is a mistyped code, so an unexplained 4xx says to check it. Only a 5xx is read as our fault.
+ * RATE_LIMITED and CODE_EXPIRED are split out first because "wait" and "send a new one" are opposite
+ * instructions - handing a throttled shopper the second walks them straight back into the limit.
+ */
+function messageForVerifyRejection ( status: number, payload: string ): string {
+  if ( status === 429 ) return MSG.RATE_LIMITED;
+  if ( status === 410 || /expired/i.test( payload ) ) return MSG.CODE_EXPIRED;
+  if ( status >= 500 ) return MSG.TRY_LATER;
+  return MSG.BAD_CODE;
+}
+
+/** Which message an HTTP status from the registration front door's SEND earns. */
+function messageForHttpStatus ( status: number, payload: string ): string {
+  if ( status === 429 ) return MSG.RATE_LIMITED;
+  if ( status === 410 || /expired/i.test( payload ) ) return MSG.CODE_EXPIRED;
+  // 502, or an explicit send_failed, is the only send-failure signal there is, and it cannot tell a
+  // number that is not on WhatsApp from a Meta outage. The generic line points at the number without
+  // asserting anything about it. See MSG.NOT_ON_WHATSAPP.
+  if ( status === 502 || /send_failed/i.test( payload ) ) return MSG.CHECK_NUMBER;
+  return MSG.TRY_LATER;
+}
+
 /** Where to send the shopper once signed in. Defaults to the cart. */
 function returnPathFromUrl (): string {
   if ( typeof window === 'undefined' ) return '/cart/';
@@ -138,18 +229,54 @@ export default function CustomerSignIn (): React.ReactElement {
     if ( typedInternational )
     {
       digits = digits.replace( /^0+/, '' );
-      if ( digits.startsWith( dialCode ) ) digits = digits.slice( dialCode.length );
+      if ( digits.startsWith( dialCode ) )
+      {
+        digits = digits.slice( dialCode.length );
+      }
+      else
+      {
+        // A PASTED PREFIX THAT CONTRADICTS THE SELECTION IS REJECTED, NOT CONCATENATED, and this
+        // branch is the reason the conflict is worth detecting at all. Select +971, paste
+        // "+919876543210", and the old code found no "971" to strip and handed normaliseMobile
+        // "971919876543210" - fifteen digits, which is exactly the upper bound it allows, so it
+        // passed the length check and returned a plausible, wrong, non-existent number. The
+        // shopper would then be told the code could not be sent, with no way to see why.
+        //
+        // IT REPORTS THE APPROVED "Enter a valid number." RATHER THAN NAMING THE CONFLICT. An
+        // earlier version said "That number does not match the country code," which is more
+        // diagnostic and is not one of the eight messages the owner specified. The number and the
+        // selection are both on screen and both editable, so the shopper has what they need to see
+        // the mismatch; inventing a ninth string to say so is not worth leaving the table.
+        throw new Error( MSG.BAD_NUMBER );
+      }
     }
-    if ( !digits ) throw new Error( 'Enter your mobile number' );
+    if ( !digits ) throw new Error( MSG.BAD_NUMBER );
     // normaliseMobile is the single source of the E.164 rule and the length bound, and is NOT
     // changed - it has to match the backend byte for byte. It is handed a string that already
-    // carries the country code, so its ten-digit +91 inference cannot fire.
-    return normaliseMobile( `${dialCode}${digits}` );
+    // carries the country code, so its ten-digit +91 inference cannot fire. Its own message is
+    // restated in this page's short form rather than surfaced raw.
+    try
+    {
+      return normaliseMobile( `${dialCode}${digits}` );
+    }
+    catch
+    {
+      throw new Error( MSG.BAD_NUMBER );
+    }
   }, [ dialCode, mobile ] );
 
   const startPhone = useCallback( async ( event: React.FormEvent ): Promise<void> => {
     event.preventDefault();
     setError( '' );
+    // THE SELECT CANNOT BE EMPTY THROUGH THE UI - it has a value from first paint, it is `required`,
+    // and every option carries a code - so this is a backstop rather than a reachable state. It is
+    // here because the alternative to a backstop is composing "undefined9876543210" if the control
+    // is ever changed to offer a blank first option, which is the obvious future edit.
+    if ( !dialCode )
+    {
+      setError( MSG.NO_COUNTRY );
+      return;
+    }
     let e164 = '';
     try
     {
@@ -191,16 +318,18 @@ export default function CustomerSignIn (): React.ReactElement {
         } );
         if ( !response.ok )
         {
-          // 502 send_failed is the one signal that distinguishes "we could not deliver to this
-          // number over WhatsApp" from any other refusal. It cannot prove the number is not on
-          // WhatsApp - a Meta outage looks identical from here - so the copy asks rather than
-          // asserts. Anything else is a generic failure and says so.
+          // 502 send_failed MUST NOT BE REPORTED AS "not a WhatsApp number", and this is the
+          // correction rather than the original wording. That status covers two causes which are
+          // indistinguishable from here - a number that is genuinely not reachable on WhatsApp,
+          // and a transient failure in Meta's send - so naming WhatsApp specifically is a
+          // confident wrong answer about our own outage on every occurrence of the second. The
+          // owner's message table reserves "Use a WhatsApp number." for the case where provider
+          // evidence supports it, which needs the recipient-not-found code surfaced by the
+          // backend; until then both causes take the generic line, which points at the number
+          // without asserting anything about it. The other refusals are an outage on our side and
+          // say to wait rather than to check anything.
           const data = ( await response.json().catch( () => ( {} ) ) ) as { status?: string };
-          const sendFailed = response.status === 502
-            || String( data.status || '' ).toLowerCase() === 'send_failed';
-          setError( sendFailed
-            ? 'We could not reach that number on WhatsApp. Check the country code and that it is your WhatsApp number.'
-            : 'We could not send a code. Please try again.' );
+          setError( messageForHttpStatus( response.status, String( data.status || '' ) ) );
           return;
         }
         setDestination( '' );
@@ -209,13 +338,19 @@ export default function CustomerSignIn (): React.ReactElement {
     }
     catch ( err )
     {
-      setError( ( err as Error ).message || 'We could not send a code. Please try again.' );
+      // requestOtp throws for two different reasons and they do not share a message. A rejected
+      // NUMBER is the shopper's to fix; a throttle or a Cognito fault is not. normaliseMobile's own
+      // rejection is restated in the approved short form rather than surfaced raw.
+      const raw = ( err as Error ).message || '';
+      setError( /valid mobile number|valid number/i.test( raw )
+        ? MSG.BAD_NUMBER
+        : messageForAuthError( err ) );
     }
     finally
     {
       setBusy( false );
     }
-  }, [ composeE164 ] );
+  }, [ composeE164, dialCode ] );
 
   const submitCode = useCallback( async ( event: React.FormEvent ): Promise<void> => {
     event.preventDefault();
@@ -234,7 +369,8 @@ export default function CustomerSignIn (): React.ReactElement {
         } );
         if ( !response.ok )
         {
-          setError( 'That code was not accepted. Please try again.' );
+          const data = ( await response.json().catch( () => ( {} ) ) ) as { status?: string };
+          setError( messageForVerifyRejection( response.status, String( data.status || '' ) ) );
           return;
         }
         // Leg two: start the Cognito CUSTOM_AUTH sign-in, which sends its own, SECOND code. Move to
@@ -256,23 +392,26 @@ export default function CustomerSignIn (): React.ReactElement {
       }
       catch ( err )
       {
-        // Cognito failed the whole attempt but may hand back a session for a retry.
+        // Cognito failed the whole attempt but may hand back a session for a retry. WHICH message
+        // this earns depends on WHY: a spent or timed-out challenge needs a new code, a throttle
+        // needs a pause, and telling a throttled shopper to send another code is the one answer
+        // that makes their situation worse.
         const next = nextSessionFrom( err );
         if ( next ) setSession( next );
-        setError( 'That code was not accepted. Please request a new code.' );
+        setError( messageForAuthError( err ) );
         return;
       }
       if ( !result )
       {
-        // Wrong code, attempts remain.
-        setError( 'That code was not right. Please try again.' );
+        // Cognito re-issued the challenge: wrong code, attempts remain.
+        setError( MSG.BAD_CODE );
         return;
       }
       window.location.replace( returnPathFromUrl() );
     }
     catch ( err )
     {
-      setError( ( err as Error ).message || 'Something went wrong. Please try again.' );
+      setError( messageForAuthError( err ) );
     }
     finally
     {
@@ -313,6 +452,11 @@ export default function CustomerSignIn (): React.ReactElement {
               </select>
 
               <label className="si-label" htmlFor="si-mobile">Mobile number</label>
+              {/* aria-invalid AND aria-describedby, because the error is rendered at the BOTTOM of
+                  the card rather than beside the field it concerns. role=alert announces it once,
+                  but without the association a screen-reader user who tabs back to the input to
+                  correct it gets no indication that this is the control at fault. The hint is in
+                  the same description list so it is not lost when the error appears. */}
               <input
                 id="si-mobile"
                 className="si-input"
@@ -320,13 +464,15 @@ export default function CustomerSignIn (): React.ReactElement {
                 inputMode="tel"
                 autoComplete="tel-national"
                 required
+                aria-invalid={ error ? 'true' : undefined }
+                aria-describedby={ error ? 'si-hint si-error' : 'si-hint' }
                 value={ mobile }
                 onChange={ e => setMobile( e.target.value ) }
                 disabled={ busy }
               />
               {/* A text node, so it translates. It is also the only place this form says the code
                   arrives on WhatsApp before asking for a number that has to be one. */}
-              <p className="si-hint">Use the number WhatsApp is on.</p>
+              <p className="si-hint" id="si-hint">Use the number WhatsApp is on.</p>
               <button className="si-cta" type="submit" disabled={ busy }>
                 { busy ? 'Sending…' : 'Send code' }
               </button>
@@ -335,14 +481,19 @@ export default function CustomerSignIn (): React.ReactElement {
 
           {( phase === 'code' || phase === 'register-code' || phase === 'signin-code' ) && (
             <form className="si-form" onSubmit={ submitCode }>
+              {/* SHORTENED, AND "all set up" IS LOAD-BEARING RATHER THAN DECORATIVE. On the
+                  signin-code leg the shopper has just answered one code and is being asked for a
+                  second one, which reads as a failure of the first unless the screen says the
+                  registration worked. "Enter it below" was dropped from all four: the labelled
+                  input directly beneath is the instruction. */}
               <p className="si-body">
                 { phase === 'signin-code'
                   ? ( destination
-                    ? `You're all set up. We've sent a new code over WhatsApp to ${destination} to sign you in. Enter it below.`
-                    : "You're all set up. We've sent a new code over WhatsApp to sign you in. Enter it below." )
+                    ? `You're all set up. New code sent on WhatsApp to ${destination}.`
+                    : "You're all set up. New code sent on WhatsApp." )
                   : ( phase === 'code' && destination
-                    ? `We sent a code over WhatsApp to ${destination}. Enter it below.`
-                    : 'We sent a code over WhatsApp. Enter it below to continue.' ) }
+                    ? `Code sent on WhatsApp to ${destination}.`
+                    : 'Code sent on WhatsApp.' ) }
               </p>
               <label className="si-label" htmlFor="si-code">WhatsApp code</label>
               <input
@@ -351,6 +502,8 @@ export default function CustomerSignIn (): React.ReactElement {
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
+                aria-invalid={ error ? 'true' : undefined }
+                aria-describedby={ error ? 'si-error' : undefined }
                 value={ code }
                 onChange={ e => setCode( e.target.value ) }
                 disabled={ busy }
@@ -361,7 +514,7 @@ export default function CustomerSignIn (): React.ReactElement {
             </form>
           )}
 
-          {error && <p className="si-error" role="alert">{ error }</p>}
+          {error && <p className="si-error" id="si-error" role="alert">{ error }</p>}
 
           <p className="si-back"><Link href="/cart/">Back to your cart</Link></p>
         </div>

@@ -15,9 +15,10 @@
  *
  * TRUTHFUL RESPONSE HANDLING - the honesty requirement. The create responses are mapped exactly as
  * checkout/handler.py documents them:
- *   PAYMENT_INITIATION_DISABLED (200) -> hand off to the hosted status screen
- *     /checkout/status/?a=<paymentAttemptId>, whose viewFor() maps this status to the neutral
- *     'unavailable' view. This NEVER implies a charge and offers NO pay-now button.
+ *   PAYMENT_INITIATION_DISABLED (200) -> INLINE, cart preserved: the server's initiation gate is
+ *     off, so it stopped before the payment rail and no charge can have been made. Offers NO
+ *     pay-now button. It does NOT hand off to /checkout/status/ - see NOT_PREPARED below for why
+ *     that screen cannot carry this claim.
  *   PAYMENT_REQUEST_SENT (200)        -> /checkout/status/?a=<paymentAttemptId> (in-flight view).
  *   payment_unavailable (409)         -> inline: no charge was made.
  *   SEND_FAILED (502)                 -> inline, with a retry: no charge was made.
@@ -26,11 +27,12 @@
  *   401                               -> session gone: back to sign-in.
  * There is NEVER a control that claims to take payment while initiation is off.
  *
- * "No charge was made" APPEARS ONLY WHERE THE SERVER HAS SAID SO. Each of the three notices below
- * is reached from a status that means the attempt never got as far as money moving - a readiness
- * block, a message that did not send, a request that was refused or never left the browser. It is
- * deliberately absent from every path that hands off to /checkout/status/, because once an attempt
- * is in flight the browser cannot know whether the money moved, and this screen must not guess.
+ * "No charge was made" APPEARS ONLY WHERE THE SERVER HAS SAID SO. Each notice below is reached from
+ * a status that means the attempt never got as far as money moving - the initiation gate was off, a
+ * readiness block, a message that did not send, a request that was refused or one that never left
+ * the browser. It is deliberately absent from the one path that hands off to /checkout/status/,
+ * because once an attempt is in flight the browser cannot know whether the money moved, and neither
+ * this page nor that one may guess.
  *
  * CHROME AND INDEXING. Customer-session route registered in the _app.tsx isPublic chain beside
  * /checkout/status and /checkout/success; noindex; imports no Layout/Header/Footer/SupportWidget.
@@ -58,6 +60,21 @@ const CHECKOUT_URL = `${API_BASE}/ecommerce/checkout`;
 
 /** Where an unauthenticated shopper is sent, and returned from, before checkout. */
 const SIGN_IN_PATH = '/account/sign-in/?return=/cart/';
+
+/**
+ * THE OWNER-APPROVED INITIATION-FAILURE SENTENCE, verbatim, in one place.
+ *
+ * ITS PLACEMENT IS THE WHOLE OF ITS CORRECTNESS. It asserts that no charge was made, so it may be
+ * shown only where the backend has said something that rules a charge out - the initiation gate was
+ * off, readiness refused, the request was rejected, or it never left the browser. Every use below is
+ * one of those. It is deliberately ABSENT from the two handoffs to /checkout/status/ and from that
+ * screen entirely: once an attempt is live, "pending", "unknown" and "captured but not finalised"
+ * are indistinguishable from here, and inviting a retry in any of them risks a second charge.
+ *
+ * A constant rather than four string literals so the claim has exactly one definition to audit, and
+ * so a future edit cannot drift one copy of it onto a path that cannot support it.
+ */
+const NOT_PREPARED = 'We could not prepare this order. No charge was made - please try again shortly.';
 
 /** The inline states this page can show without leaving it. Handoffs navigate instead. */
 type Notice =
@@ -130,28 +147,45 @@ export default function Cart (): React.ReactElement {
       };
       const status = String( data.status || data.error || '' ).toUpperCase();
 
-      // PAYMENT_INITIATION_DISABLED and PAYMENT_REQUEST_SENT both hand off to the hosted status
-      // screen, which owns the honest copy for each. No claim about a charge is made here, in
-      // either direction: the attempt now exists and only the server knows where it stands.
-      if (
-        ( status === 'PAYMENT_INITIATION_DISABLED' || status === 'PAYMENT_REQUEST_SENT' )
-        && data.paymentAttemptId
-      )
+      // PAYMENT_REQUEST_SENT hands off to the hosted status screen, which owns the honest copy for
+      // an attempt that is genuinely in flight. NO claim about a charge is made here in either
+      // direction: the request has left and only the server knows where it stands.
+      if ( status === 'PAYMENT_REQUEST_SENT' && data.paymentAttemptId )
       {
-        // The cart has been turned into a prepared attempt; it should not be re-submitted.
+        // The cart has been turned into a live attempt; it must not be re-submitted.
         clearCart();
         const a = encodeURIComponent( String( data.paymentAttemptId ) );
         window.location.assign( `/checkout/status/?a=${a}` );
         return;
       }
 
-      // 409 readiness-blocked. The server refused before reaching the payment rail.
+      // PAYMENT_INITIATION_DISABLED IS ANSWERED HERE, NOT ON THE STATUS SCREEN, and both halves of
+      // that are deliberate.
+      //
+      // WHY IT STAYS ON THIS PAGE. This status means the server's own initiation gate is off, so it
+      // stopped before the payment rail: there is backend evidence that nothing reached a provider,
+      // which is exactly the condition the approved sentence requires. The status screen cannot
+      // carry that sentence, because its viewFor() folds this status in with "we cannot find this
+      // attempt" and anything unrecognised - states where the money may in fact have moved - and a
+      // claim of no charge is the one wrong answer that cannot be taken back. Keeping the sentence
+      // on the page that received the response keeps it pinned to the evidence for it.
+      //
+      // WHY THE CART SURVIVES. It used to be cleared here, alongside the in-flight case. That was
+      // wrong twice over: a disabled gate leaves the shopper nothing to come back to, and the
+      // notice below renders inside the items list, so clearing the cart would have replaced the
+      // explanation with "Your cart is empty." The attempt the server recorded is not payable, so
+      // the cart is still the shopper's.
+      if ( status === 'PAYMENT_INITIATION_DISABLED' )
+      {
+        setNotice( { kind: 'quiet', message: NOT_PREPARED } );
+        return;
+      }
+
+      // 409 readiness-blocked. The server refused before reaching the payment rail, so the same
+      // evidence holds and the same sentence is the honest one.
       if ( status === 'PAYMENT_UNAVAILABLE' )
       {
-        setNotice( {
-          kind: 'quiet',
-          message: 'Payments are paused right now. No charge was made.',
-        } );
+        setNotice( { kind: 'quiet', message: NOT_PREPARED } );
         return;
       }
 
@@ -179,18 +213,15 @@ export default function Cart (): React.ReactElement {
         || status === 'CATALOGUE_UNAVAILABLE' || !response.ok
       )
       {
-        setNotice( {
-          kind: 'error',
-          message: 'We could not prepare this order. No charge was made - please try again shortly.',
-        } );
+        setNotice( { kind: 'error', message: NOT_PREPARED } );
         return;
       }
 
-      // Anything unrecognised: fail honestly rather than implying success.
-      setNotice( {
-        kind: 'error',
-        message: 'We could not prepare this order. No charge was made - please try again shortly.',
-      } );
+      // Anything unrecognised: fail honestly rather than implying success. Safe to claim no charge
+      // because this branch is reached only when the response carried NO attempt handed off above -
+      // i.e. the server did not report a live attempt, so there is nothing in flight to be wrong
+      // about.
+      setNotice( { kind: 'error', message: NOT_PREPARED } );
     }
     catch
     {

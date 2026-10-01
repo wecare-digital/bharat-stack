@@ -43,6 +43,17 @@ const BAND_PAGE_FILES = [
   'src/pages/shop/[slug].tsx',
 ];
 
+/**
+ * The surfaces the "no red" instruction covers: the five band pages plus the two shared components
+ * they mount. A per-page list alone would miss an error treatment that lives in a component, which
+ * is where a shared one would naturally go.
+ */
+const NO_RED_FILES = [
+  ...BAND_PAGE_FILES,
+  'src/components/PageTopBand.tsx',
+  'src/components/HeaderCart.tsx',
+];
+
 const read = ( rel: string ): string =>
   fs.readFileSync( path.join( process.cwd(), rel ), 'utf8' );
 
@@ -227,7 +238,7 @@ describe( 'no red anywhere on these pages, on owner instruction', () => {
      * survives forced-colors and reduced colour discrimination in a way a hue swap does not.
      */
     const RETIRED = [ '#fbe9e9', '#f0c0c0', '#8a1f1f', '#1f8f4e' ];
-    for ( const file of BAND_PAGE_FILES )
+    for ( const file of NO_RED_FILES )
     {
       // Comments stripped first: these files cite the values they replaced, and a substring search
       // cannot tell a citation from a declaration. This repo has had to correct that three times.
@@ -235,6 +246,81 @@ describe( 'no red anywhere on these pages, on owner instruction', () => {
       for ( const colour of RETIRED )
       {
         expect( code.toLowerCase(), `${file} still declares ${colour}` ).not.toContain( colour );
+      }
+    }
+  } );
+
+  it( 'declares no red by any notation: hex, rgb(), hsl() or name', () => {
+    /*
+     * A NAMED LIST OF FOUR HEXES IS NOT A SWEEP, which is why this test sits beside the one above
+     * rather than replacing it. That one pins the specific values this work removed - useful as a
+     * regression guard, useless against a NEW red arriving in a different notation. The obvious
+     * failure mode is someone reaching for `color:crimson` or `rgb(220,38,38)` on the next error
+     * state and no gate noticing.
+     *
+     * WHY NOT GREP FOR THE WORD "red". Because "required", "rendered", "border" and "reduce" all
+     * contain it, and this page is full of all four - a naive search reports twenty hits and zero
+     * are colours. The three patterns below match NOTATION instead:
+     *   - a 3- or 6-digit hex whose red channel dominates both others by a clear margin;
+     *   - rgb()/rgba() with the same dominance;
+     *   - CSS named colours that are actually red or pink, listed explicitly.
+     * hsl() is matched on hue rather than channels. The dominance margin rather than "any r > g" is
+     * what keeps #1a3a2a, #d1f470 and rgba(0,0,0,.898) from being reported.
+     *
+     * SCOPE. The five band pages PLUS the two components the band pages mount - PageTopBand and
+     * HeaderCart - because an error treatment living in a shared component would be just as red and
+     * is not covered by a per-page list.
+     */
+    const NAMED_RED = [
+      'red', 'crimson', 'maroon', 'firebrick', 'darkred', 'indianred', 'tomato', 'orangered',
+      'salmon', 'lightsalmon', 'darksalmon', 'pink', 'hotpink', 'deeppink', 'lightpink',
+      'palevioletred', 'mediumvioletred', 'lightcoral', 'rosybrown', 'brown', 'mistyrose',
+    ];
+
+    /** A hex is "red" when its red channel beats both others by more than a sixteenth of the range. */
+    function hexIsRed ( hex: string ): boolean {
+      const h = hex.length === 4
+        ? hex[ 1 ] + hex[ 1 ] + hex[ 2 ] + hex[ 2 ] + hex[ 3 ] + hex[ 3 ]
+        : hex.slice( 1 );
+      const r = parseInt( h.slice( 0, 2 ), 16 );
+      const g = parseInt( h.slice( 2, 4 ), 16 );
+      const b = parseInt( h.slice( 4, 6 ), 16 );
+      return r - g > 16 && r - b > 16;
+    }
+
+    for ( const file of NO_RED_FILES )
+    {
+      const code = read( file ).replace( /\/\*[\s\S]*?\*\//g, '' ).replace( /^\s*\/\/.*$/gm, '' );
+
+      const hexes = code.match( /#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b/g ) || [];
+      for ( const hex of hexes )
+      {
+        expect( hexIsRed( hex ), `${file} declares the red/pink hex ${hex}` ).toBe( false );
+      }
+
+      const rgbs = code.match( /rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+/g ) || [];
+      for ( const rgb of rgbs )
+      {
+        const [ r, g, b ] = ( rgb.match( /\d+/g ) || [] ).map( Number );
+        expect( r - g > 16 && r - b > 16, `${file} declares the red/pink ${rgb}…)` ).toBe( false );
+      }
+
+      // hsl() hues 0-20 and 330-360 are the red/pink arc.
+      const hsls = code.match( /hsla?\(\s*(\d+)/g ) || [];
+      for ( const hsl of hsls )
+      {
+        const hue = Number( ( hsl.match( /\d+/ ) || [ '0' ] )[ 0 ] );
+        expect( hue <= 20 || hue >= 330, `${file} declares the red/pink ${hsl}…)` ).toBe( false );
+      }
+
+      for ( const name of NAMED_RED )
+      {
+        // Anchored to a CSS value position - after a colon or a space inside a declaration - so
+        // "required", "rendered", "border" and "reduce" cannot match. \b alone is not enough:
+        // "border" contains no standalone "red", but "brown" would match inside "brownish" without
+        // the trailing boundary, and `color:red` must match while `aria-required` must not.
+        const asValue = new RegExp( `(?::|\\s)${name}\\s*(?:;|\\}|!|$)`, 'gmi' );
+        expect( asValue.test( code ), `${file} declares the named colour ${name}` ).toBe( false );
       }
     }
   } );
@@ -379,13 +465,14 @@ describe( 'the country code is an explicit field, on owner instruction', () => {
     await waitFor( () => expect( requestOtp ).toHaveBeenCalledWith( '+919876543210' ) );
   } );
 
-  it( 'says the number could not be reached on WhatsApp when the send fails', async () => {
+  it( 'does NOT blame WhatsApp when the send fails, because the 502 cannot prove that', async () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
     vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
       session: '', destination: '', expiresInSeconds: 600, registered: false,
     } );
-    // The registration front door's 502 {status:'send_failed'} is the only signal that distinguishes
-    // "we could not deliver to this number over WhatsApp" from any other refusal.
+    // The registration front door's 502 {status:'send_failed'} means the challenge was stored and
+    // the WhatsApp message did not go. That happens for a number which is not on WhatsApp AND for a
+    // transient failure in Meta's send, and the browser cannot tell them apart.
     vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
       ok: false, status: 502, json: async () => ( { status: 'send_failed' } ),
     } ) );
@@ -395,15 +482,17 @@ describe( 'the country code is an explicit field, on owner instruction', () => {
     sendCode();
 
     const alert = await screen.findByRole( 'alert' );
-    expect( alert.textContent ).toMatch( /could not reach that number on WhatsApp/ );
-    expect( alert.textContent ).toMatch( /country code/ );
-    // IT MUST NOT ASSERT THE NUMBER IS NOT ON WHATSAPP. The same 502 is returned when Meta's send
-    // fails transiently, so a flat "this is not a WhatsApp number" would be a confident wrong answer
-    // about our own outage.
+    // THE ASSERTION THAT CHANGED, AND WHY. This previously required the copy to say "could not
+    // reach that number on WhatsApp" and to name the "country code". Both were wrong to require:
+    // on a Meta outage - the same 502, indistinguishable from here - that sentence tells a shopper
+    // with a perfectly good WhatsApp number to go and edit it. The message now points at the number
+    // without naming a cause, and WhatsApp must not be mentioned at all in this state.
+    expect( alert.textContent ).toBe( 'Couldn\u2019t send a code. Check your number.' );
+    expect( alert.textContent ).not.toMatch( /WhatsApp/ );
     expect( alert.textContent ).not.toMatch( /is not a WhatsApp number/ );
   } );
 
-  it( 'falls back to a generic failure for any other refusal', async () => {
+  it( 'tells the shopper to wait, not to check the number, for any other refusal', async () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
     vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
       session: '', destination: '', expiresInSeconds: 600, registered: false,
@@ -417,7 +506,62 @@ describe( 'the country code is an explicit field, on owner instruction', () => {
     sendCode();
 
     const alert = await screen.findByRole( 'alert' );
-    expect( alert.textContent ).toMatch( /could not send a code/ );
+    // A 500 is OUR failure, so asking the shopper to check their own number would send them to fix
+    // something that is not broken. This is the one distinction between the two send-failure
+    // messages and it is the reason there are two.
+    expect( alert.textContent ).toBe( 'Try again shortly.' );
+    expect( alert.textContent ).not.toMatch( /Check your number/ );
     expect( alert.textContent ).not.toMatch( /WhatsApp/ );
+  } );
+
+  it( 'rejects a pasted prefix that contradicts the selected country code', async () => {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
+    const requestOtp = vi.spyOn( customerAuth, 'requestOtp' );
+    vi.stubGlobal( 'fetch', vi.fn() );
+
+    render( <SignIn /> );
+    fireEvent.change( screen.getByLabelText( 'Country code' ), { target: { value: '971' } } );
+    // THE DEFECT. "971" is not a prefix of "919876543210", so the old code stripped nothing and
+    // composed 971 + 919876543210 = "971919876543210" - FIFTEEN digits, which is exactly
+    // normaliseMobile's upper bound, so it passed validation and returned a plausible +971919...
+    // number belonging to nobody. The shopper then saw a send failure with no way to see why.
+    fireEvent.change( screen.getByLabelText( 'Mobile number' ), { target: { value: '+919876543210' } } );
+    sendCode();
+
+    const alert = await screen.findByRole( 'alert' );
+    // THE APPROVED STRING, not a ninth one invented to describe the conflict. An earlier revision
+    // asserted /does not match the country code/, which is more diagnostic and is outside the
+    // owner's eight-message table; both the number and the selection are on screen and editable, so
+    // the shopper can already see the mismatch.
+    expect( alert.textContent ).toBe( 'Enter a valid number.' );
+    // Nothing may leave the browser on a conflict.
+    expect( requestOtp ).not.toHaveBeenCalled();
+  } );
+
+  it( 'associates the error with the field so a correction is possible', async () => {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
+    vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
+      session: '', destination: '', expiresInSeconds: 600, registered: false,
+    } );
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
+      ok: false, status: 502, json: async () => ( { status: 'send_failed' } ),
+    } ) );
+
+    render( <SignIn /> );
+    const input = screen.getByLabelText( 'Mobile number' );
+    // No error yet: the field must not advertise itself as invalid on first paint.
+    expect( input.getAttribute( 'aria-invalid' ) ).toBeNull();
+
+    fireEvent.change( input, { target: { value: '9876543210' } } );
+    sendCode();
+    await screen.findByRole( 'alert' );
+
+    // role=alert announces the message once. WITHOUT THE ASSOCIATION, a screen-reader user who
+    // tabs back to the input to fix it gets no indication that this is the control at fault - the
+    // error is rendered at the bottom of the card, not beside the field.
+    expect( input.getAttribute( 'aria-invalid' ) ).toBe( 'true' );
+    expect( input.getAttribute( 'aria-describedby' ) ).toContain( 'si-error' );
+    // The hint survives the error rather than being replaced by it.
+    expect( input.getAttribute( 'aria-describedby' ) ).toContain( 'si-hint' );
   } );
 } );
