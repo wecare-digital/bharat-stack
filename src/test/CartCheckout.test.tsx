@@ -3,11 +3,14 @@ import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import fs from 'fs';
+import path from 'path';
 
 import * as cart from '../lib/cart';
 import type { ShopProduct } from '../content/shop';
 import * as customerAuth from '../lib/customerAuth';
 import Cart from '../pages/cart';
+import CheckoutStatus, { viewFor } from '../pages/checkout/status';
 
 /**
  * The /shop/ -> Cart V2 -> checkout wiring, tested the way ShopCatalogue.test.tsx tests the
@@ -209,7 +212,7 @@ describe( 'the cart page proceed flow', () => {
     expect( init.body as string ).not.toMatch( /price|amount|currency|formattedPrice/i );
   } );
 
-  it( 'sends PAYMENT_INITIATION_DISABLED to the hosted status screen with no pay button', async () => {
+  it( 'answers PAYMENT_INITIATION_DISABLED inline, keeps the cart, and offers no pay button', async () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
       accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
     } );
@@ -223,13 +226,32 @@ describe( 'the cart page proceed flow', () => {
     const { container } = render( <Cart /> );
     fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
 
-    // The honest outcome: hand off to the reused hosted status screen, which maps this status to
-    // the neutral 'unavailable' view. Never a pay-now / charge affordance anywhere on the page.
-    await waitFor( () => expect( navigatedTo ).toBe( '/checkout/status/?a=att-9' ) );
+    /*
+     * TWO PINNED BEHAVIOURS CHANGED HERE, AND BOTH WERE WRONG BEFORE.
+     *
+     * 1. IT NO LONGER NAVIGATES to /checkout/status/?a=att-9. The approved sentence asserts that no
+     *    charge was made, and this status - the server's own initiation gate being off - is one of
+     *    the few responses that can support that claim. The status screen cannot carry it: its
+     *    viewFor() folds this status in with "we cannot find this attempt" and anything
+     *    unrecognised, states where the money may in fact have moved, and PublicPageTopBand.test
+     *    pins that /checkout/status/ never says "no charge" in ANY state. So the sentence has to be
+     *    shown by the page that received the response, where it stays pinned to its evidence.
+     *
+     * 2. THE CART IS NO LONGER CLEARED. It was, alongside the genuinely-in-flight case. That left a
+     *    shopper nothing to come back to when the gate is simply off - and because the notice
+     *    renders inside the items list, clearing the cart would have replaced the explanation with
+     *    "Your cart is empty." The recorded attempt is not payable, so the cart is still theirs.
+     *
+     * What has NOT changed is the invariant the old test existed to protect: no pay-now affordance
+     * and no charge claim in the wrong direction.
+     */
+    expect( await screen.findByText(
+      'We could not prepare this order. No charge was made - please try again shortly.',
+    ) ).toBeTruthy();
+    expect( navigatedTo ).toBe( '' );
+    expect( cart.readCart() ).toHaveLength( 1 );
     expect( screen.queryByRole( 'button', { name: /pay/i } ) ).toBeNull();
     expect( container.textContent || '' ).not.toMatch( /pay now|pay \u20b9|make payment/i );
-    // The prepared cart is cleared so it cannot be re-submitted.
-    expect( cart.readCart() ).toHaveLength( 0 );
   } );
 
   it( 'routes PAYMENT_REQUEST_SENT to the hosted status screen', async () => {
@@ -266,6 +288,13 @@ describe( 'the cart page proceed flow', () => {
     fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
 
     expect( await screen.findByText( /No charge was made/ ) ).toBeTruthy();
+    // THE EXACT APPROVED SENTENCE, not merely something containing "No charge was made". A readiness
+    // refusal is the other response that genuinely never reached the payment rail, so it earns the
+    // same words as the disabled gate rather than a near-miss paraphrase. Note the server's own
+    // `message` field is deliberately NOT rendered: the copy on this page is ours to control.
+    expect( await screen.findByText(
+      'We could not prepare this order. No charge was made - please try again shortly.',
+    ) ).toBeTruthy();
     // It did not pretend to succeed or navigate away.
     expect( navigatedTo ).toBe( '' );
     expect( screen.queryByRole( 'button', { name: /pay/i } ) ).toBeNull();
@@ -306,5 +335,106 @@ describe( 'the cart page proceed flow', () => {
     render( <Cart /> );
     expect( await screen.findByText( 'Your cart is empty.' ) ).toBeTruthy();
     expect( screen.queryByRole( 'button', { name: 'Proceed to checkout' } ) ).toBeNull();
+  } );
+} );
+
+/**
+ * WHERE THE APPROVED SENTENCE MAY AND MAY NOT APPEAR.
+ *
+ * "We could not prepare this order. No charge was made - please try again shortly." asserts a
+ * financial fact. On an initiation refusal that fact is backed by the server's own response. On a
+ * pending, unknown or captured-but-unfinalised attempt it is not knowable from the browser at all,
+ * and offering a retry there risks a second charge for money that has already moved. So the sentence
+ * is tested from both directions: present where the evidence exists, absent everywhere else.
+ */
+describe( 'the initiation-failure sentence is pinned to its evidence', () => {
+  const SENTENCE = 'We could not prepare this order. No charge was made - please try again shortly.';
+
+  it( 'is the exact wording on every initiation-refusal branch', async () => {
+    // Four distinct refusals, all of which mean the request did not reach the payment rail. Each
+    // must produce the sentence CHARACTER FOR CHARACTER - a paraphrase is a different promise, and
+    // the hyphen in "made - please" is part of the approved string.
+    const refusals: Array<{ ok: boolean; status: number; body: unknown }> = [
+      { ok: true, status: 200, body: { status: 'PAYMENT_INITIATION_DISABLED', paymentAttemptId: 'att-d' } },
+      { ok: false, status: 409, body: { status: 'payment_unavailable' } },
+      { ok: false, status: 422, body: { status: 'UNSUPPORTED_CURRENCY' } },
+      { ok: false, status: 503, body: { status: 'CATALOGUE_UNAVAILABLE' } },
+    ];
+
+    for ( const refusal of refusals )
+    {
+      window.localStorage.clear();
+      navigatedTo = '';
+      vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
+        accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
+      } );
+      vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
+        ok: refusal.ok, status: refusal.status, json: async () => refusal.body,
+      } ) );
+      cart.addItem( PRODUCT, 1 );
+
+      const { unmount } = render( <Cart /> );
+      fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+      expect( await screen.findByText( SENTENCE ), JSON.stringify( refusal.body ) ).toBeTruthy();
+      // Nothing was handed off, so the claim stays attached to the response that justified it.
+      expect( navigatedTo ).toBe( '' );
+      unmount();
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+  } );
+
+  it( 'is absent from the in-flight handoff, which claims nothing either way', async () => {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
+      accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
+    } );
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
+      ok: true, status: 200,
+      json: async () => ( { status: 'PAYMENT_REQUEST_SENT', paymentAttemptId: 'att-5' } ),
+    } ) );
+    cart.addItem( PRODUCT, 1 );
+
+    const { container } = render( <Cart /> );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+
+    await waitFor( () => expect( navigatedTo ).toBe( '/checkout/status/?a=att-5' ) );
+    // ONCE A REQUEST HAS LEFT, the browser cannot rule out a capture, so neither the sentence nor
+    // any part of its claim may be rendered on the way out.
+    expect( container.textContent || '' ).not.toContain( SENTENCE );
+    expect( container.textContent || '' ).not.toMatch( /no charge/i );
+  } );
+
+  it( 'is absent from the status screen in pending, paid-finalizing and unknown states', () => {
+    /*
+     * THE DIRECTION THAT MATTERS MOST. These are the states where money may already have moved:
+     * PAYMENT_PENDING is in flight, PAYMENT_PAID without an order number is captured but not
+     * finalised, and an empty or unrecognised status means we simply do not know. Telling any of
+     * those three "no charge was made - please try again" invites a double charge.
+     */
+    for ( const [ status, orderNumber, expected ] of [
+      [ 'PAYMENT_PENDING', null, 'confirming' ],
+      [ 'PAYMENT_REQUEST_SENT', null, 'confirming' ],
+      [ 'PAYMENT_PAID', null, 'finalizing' ],
+      [ '', null, 'unavailable' ],
+      [ 'SOMETHING_NEW_FROM_THE_BACKEND', null, 'unavailable' ],
+      [ 'PAYMENT_INITIATION_DISABLED', null, 'unavailable' ],
+    ] as [ string, string | null, string ][] )
+    {
+      // The mapping is asserted alongside the copy so a future view rename cannot quietly route a
+      // pending attempt into a screen that does make the claim.
+      expect( viewFor( status, orderNumber ) ).toBe( expected );
+      const { container, unmount } = render( <CheckoutStatus /> );
+      expect( container.textContent || '' ).not.toContain( SENTENCE );
+      unmount();
+    }
+
+    // And the sentence is not in the file at all, in any state this test did not think to render.
+    // PAYMENT_INITIATION_DISABLED lands on 'unavailable' here TOO, shared with "we cannot find
+    // this attempt" - which is precisely why the sentence lives on /cart/ and not on this screen.
+    const source = fs.readFileSync(
+      path.join( process.cwd(), 'src/pages/checkout/status.tsx' ), 'utf8',
+    ).replace( /\/\*[\s\S]*?\*\//g, '' ).replace( /^\s*\/\/.*$/gm, '' );
+    expect( source ).not.toContain( SENTENCE );
+    expect( source.toLowerCase() ).not.toContain( 'no charge' );
   } );
 } );
