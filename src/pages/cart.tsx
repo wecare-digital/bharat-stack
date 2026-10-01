@@ -77,9 +77,26 @@ import type { CartItem } from '../lib/cart';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
 const CHECKOUT_URL = `${API_BASE}/ecommerce/checkout`;
+/**
+ * SECTION 2 REDEMPTION ENDPOINT. The coupon/gift-card apply/remove requests go here; the SERVER
+ * decides every amount (an authoritative Wix/backend discount, an authoritative gift-card balance),
+ * and this page only ever RENDERS what the server returns. The browser never computes a discount or
+ * a payable, and never sends an amount - it sends a code and an action, nothing more.
+ */
+const REDEMPTION_URL = `${API_BASE}/ecommerce/redemption`;
 
 /** Where an unauthenticated shopper is sent, and returned from, before checkout. */
 const SIGN_IN_PATH = '/account/sign-in/?return=/cart/';
+
+/**
+ * Rupees from authoritative integer paise, for DISPLAY ONLY. The server owns the arithmetic; this
+ * is a presentation of a number the server already decided, never a calculation the total depends
+ * on. ``₹1,214.81`` from ``121481``. Grouping is Indian (lakh/crore) via Intl.
+ */
+function paiseToDisplay ( paise: number ): string {
+  const rupees = Math.round( paise ) / 100;
+  return '₹' + rupees.toLocaleString( 'en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 } );
+}
 
 /**
  * THE OWNER-APPROVED INITIATION-FAILURE SENTENCE, verbatim, in one place.
@@ -101,6 +118,281 @@ type Notice =
   | { kind: 'none' }
   | { kind: 'quiet'; message: string }
   | { kind: 'error'; message: string };
+
+/**
+ * THE SERVER-AUTHORITATIVE REDEMPTION RESPONSE, projected to the browser-safe fields only. Every
+ * amount here was decided by the server; the browser renders them and never recomputes them.
+ *   state                      - the backend's typed outcome the UI branches on.
+ *   couponReason               - APPLIED / INVALID / EXPIRED / INELIGIBLE (coupon states).
+ *   giftCardReason             - APPLIED / INVALID / EXPIRED / INELIGIBLE / INSUFFICIENT_BALANCE.
+ *   discountPaise              - the authoritative coupon discount in integer paise.
+ *   giftCardAppliedPaise       - the authoritative verified gift-card redemption in integer paise.
+ *   remainingPayablePaise      - authoritative total - verified redemption, in integer paise.
+ */
+type RedemptionResponse = {
+  state?: string;
+  couponReason?: string;
+  giftCardReason?: string;
+  discountPaise?: number;
+  giftCardAppliedPaise?: number;
+  remainingPayablePaise?: number;
+};
+
+/** The honest copy for a gated-off / unavailable redemption surface. No provider name, ever. */
+const REDEMPTION_UNAVAILABLE = 'Discounts and gift cards are not available right now.';
+
+/** Human copy for each server-returned coupon reason. Keyed by the server's typed reason. */
+const COUPON_MESSAGES: Record<string, string> = {
+  INVALID: 'That coupon code is not valid.',
+  EXPIRED: 'That coupon has expired.',
+  INELIGIBLE: 'That coupon does not apply to the items in your cart.',
+};
+
+/** Human copy for each server-returned gift-card reason. */
+const GIFT_CARD_MESSAGES: Record<string, string> = {
+  INVALID: 'That gift-card code is not valid.',
+  EXPIRED: 'That gift card has expired.',
+  INELIGIBLE: 'That gift card cannot be used for this order.',
+  INSUFFICIENT_BALANCE: 'That gift card has no balance left to use.',
+};
+
+type RedeemKind = 'coupon' | 'giftCard';
+
+/**
+ * THE COUPON + GIFT-CARD PANEL, built but honest while the backend gate is off.
+ *
+ * WHAT IS TRUE ABOUT IT.
+ *   1. Every displayed amount - the applied discount, the applied gift-card amount, the remaining
+ *      payable balance - comes from the server response, never from browser arithmetic. The server
+ *      is Wix/backend-authoritative; a browser-calculated discount is never trusted.
+ *   2. With the gate off / the endpoint absent / a network failure, it shows an honest unavailable
+ *      state and offers no way to transact. A browser signal is never treated as proof.
+ *   3. It never fetches at render/prerender time - a request happens only on an Apply/Remove click,
+ *      so the static export is not broken.
+ *   4. No third-party provider name appears anywhere.
+ */
+function RedemptionPanel (): React.ReactElement {
+  const [ couponCode, setCouponCode ] = useState<string>( '' );
+  const [ giftCardCode, setGiftCardCode ] = useState<string>( '' );
+  const [ busy, setBusy ] = useState<RedeemKind | null>( null );
+  const [ unavailable, setUnavailable ] = useState<boolean>( false );
+  const [ couponApplied, setCouponApplied ] = useState<number | null>( null );
+  const [ couponMessage, setCouponMessage ] = useState<string>( '' );
+  const [ giftCardApplied, setGiftCardApplied ] = useState<number | null>( null );
+  const [ giftCardMessage, setGiftCardMessage ] = useState<string>( '' );
+  const [ remainingPayable, setRemainingPayable ] = useState<number | null>( null );
+
+  const send = useCallback( async ( kind: RedeemKind, action: 'apply' | 'remove', code: string ): Promise<void> => {
+    setBusy( kind );
+    setUnavailable( false );
+    try {
+      // CODE + ACTION ONLY. No amount, no discount, no price leaves the browser.
+      const response = await fetch( REDEMPTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify( { kind, action, code } ),
+      } );
+      if ( !response.ok ) {
+        setUnavailable( true );
+        return;
+      }
+      const data = ( await response.json().catch( () => ( {} ) ) ) as RedemptionResponse;
+      const state = String( data.state || '' ).toUpperCase();
+
+      // Gate off / rejected / ambiguous / anything unrecognised -> honest unavailable, no amounts.
+      if (
+        state === 'PAYMENT_INITIATION_DISABLED' || state === 'REDEMPTION_UNAVAILABLE'
+        || state === 'CHECKOUT_REJECTED' || state === 'CHECKOUT_AMBIGUOUS' || state === ''
+      ) {
+        setUnavailable( true );
+        return;
+      }
+
+      // The server-authoritative remaining payable, when the server reports one.
+      if ( typeof data.remainingPayablePaise === 'number' ) {
+        setRemainingPayable( data.remainingPayablePaise );
+      }
+
+      if ( kind === 'coupon' ) {
+        const reason = String( data.couponReason || '' ).toUpperCase();
+        if ( action === 'remove' ) {
+          setCouponApplied( null );
+          setCouponMessage( '' );
+          return;
+        }
+        if ( reason === 'APPLIED' && typeof data.discountPaise === 'number' ) {
+          setCouponApplied( data.discountPaise );   // server authority, never browser math
+          setCouponMessage( '' );
+        } else {
+          setCouponApplied( null );
+          setCouponMessage( COUPON_MESSAGES[ reason ] || COUPON_MESSAGES.INVALID );
+        }
+        return;
+      }
+
+      // gift card
+      const reason = String( data.giftCardReason || '' ).toUpperCase();
+      if ( action === 'remove' ) {
+        setGiftCardApplied( null );
+        setGiftCardMessage( '' );
+        return;
+      }
+      if ( reason === 'APPLIED' && typeof data.giftCardAppliedPaise === 'number' ) {
+        setGiftCardApplied( data.giftCardAppliedPaise );  // server authority, never browser math
+        setGiftCardMessage( '' );
+      } else {
+        setGiftCardApplied( null );
+        setGiftCardMessage( GIFT_CARD_MESSAGES[ reason ] || GIFT_CARD_MESSAGES.INVALID );
+      }
+    } catch {
+      // A lost response cannot prove a redemption; degrade to the honest unavailable state.
+      setUnavailable( true );
+    } finally {
+      setBusy( null );
+    }
+  }, [] );
+
+  return (
+    <section className="cart-redeem" aria-label="Discounts and gift cards">
+      {/* COUPON */}
+      <div className="cart-redeem-group">
+        <label className="cart-redeem-label" htmlFor="cart-coupon">Coupon code</label>
+        <div className="cart-redeem-row">
+          <input
+            id="cart-coupon"
+            className="cart-redeem-input"
+            type="text"
+            autoComplete="off"
+            value={ couponCode }
+            onChange={ e => setCouponCode( e.target.value ) }
+          />
+          <button
+            className="cart-redeem-apply"
+            type="button"
+            disabled={ busy !== null || couponCode.trim() === '' }
+            onClick={ () => send( 'coupon', 'apply', couponCode.trim() ) }
+          >
+            { busy === 'coupon' ? 'Applying…' : 'Apply' }
+          </button>
+          { couponApplied !== null && (
+            <button
+              className="cart-redeem-remove"
+              type="button"
+              disabled={ busy !== null }
+              onClick={ () => send( 'coupon', 'remove', '' ) }
+            >
+              Remove
+            </button>
+          ) }
+        </div>
+        { couponApplied !== null && (
+          <p className="cart-redeem-applied" role="status" data-wc-no-translate="true">
+            Applied discount: { paiseToDisplay( couponApplied ) }
+          </p>
+        ) }
+        { couponMessage && (
+          <p className="cart-redeem-msg" role="status">{ couponMessage }</p>
+        ) }
+      </div>
+
+      {/* GIFT CARD */}
+      <div className="cart-redeem-group">
+        <label className="cart-redeem-label" htmlFor="cart-giftcard">Gift-card code</label>
+        <div className="cart-redeem-row">
+          <input
+            id="cart-giftcard"
+            className="cart-redeem-input"
+            type="text"
+            autoComplete="off"
+            value={ giftCardCode }
+            onChange={ e => setGiftCardCode( e.target.value ) }
+          />
+          <button
+            className="cart-redeem-apply"
+            type="button"
+            disabled={ busy !== null || giftCardCode.trim() === '' }
+            onClick={ () => send( 'giftCard', 'apply', giftCardCode.trim() ) }
+          >
+            { busy === 'giftCard' ? 'Applying…' : 'Apply' }
+          </button>
+          { giftCardApplied !== null && (
+            <button
+              className="cart-redeem-remove"
+              type="button"
+              disabled={ busy !== null }
+              onClick={ () => send( 'giftCard', 'remove', '' ) }
+            >
+              Remove
+            </button>
+          ) }
+        </div>
+        { giftCardApplied !== null && (
+          <p className="cart-redeem-applied" role="status" data-wc-no-translate="true">
+            Applied gift card: { paiseToDisplay( giftCardApplied ) }
+          </p>
+        ) }
+        { giftCardApplied !== null && remainingPayable !== null && (
+          <p className="cart-redeem-remaining" role="status" data-wc-no-translate="true">
+            Remaining payable balance: { paiseToDisplay( remainingPayable ) }
+          </p>
+        ) }
+        { giftCardMessage && (
+          <p className="cart-redeem-msg" role="status">{ giftCardMessage }</p>
+        ) }
+      </div>
+
+      { unavailable && (
+        <p className="cart-redeem-off" role="status" data-phase="unavailable">
+          { REDEMPTION_UNAVAILABLE }
+        </p>
+      ) }
+
+      <style jsx>{`
+        .cart-redeem{margin:28px 0 0;padding:20px 0 0;border-block-start:1px solid #e5e7eb}
+        .cart-redeem-group{margin:0 0 20px}
+        .cart-redeem-group:last-of-type{margin-bottom:0}
+        .cart-redeem-label{display:block;font-size:14px;font-weight:700;color:#1a3a2a;margin:0 0 8px}
+        .cart-redeem-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+        .cart-redeem-input{
+          flex:1 1 220px;min-height:44px;padding:0 12px;border:1px solid #e5e7eb;border-radius:8px;
+          font-family:inherit;font-size:16px;color:#1a1a1a;
+        }
+        .cart-redeem-input:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
+        /* The apply control takes the site's lime, like the main CTA but at the secondary rung. */
+        .cart-redeem-apply{
+          display:inline-flex;align-items:center;justify-content:center;min-height:44px;
+          padding:0 20px;border:2px solid #d1f470;border-radius:50px;background:#d1f470;
+          color:#1a3a2a;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;
+          transition:background-color .2s;
+        }
+        .cart-redeem-apply:hover:not(:disabled){background:#fff}
+        .cart-redeem-apply:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
+        .cart-redeem-apply:disabled{opacity:.6;cursor:default}
+        .cart-redeem-remove{
+          display:inline-flex;align-items:center;min-height:44px;padding-inline:8px;border:none;
+          background:none;color:#1a3a2a;font-family:inherit;font-size:16px;font-weight:700;
+          cursor:pointer;text-decoration:underline;text-underline-offset:3px;
+        }
+        .cart-redeem-remove:hover{background:rgba(209,244,112,.22);border-radius:8px}
+        .cart-redeem-remove:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px;border-radius:2px}
+        .cart-redeem-remove:disabled{opacity:.6;cursor:default}
+        .cart-redeem-applied,.cart-redeem-remaining{
+          margin:10px 0 0;font-size:16px;font-weight:700;color:#1a3a2a;
+          font-variant-numeric:tabular-nums;
+        }
+        .cart-redeem-remaining{color:#1a1a1a}
+        .cart-redeem-msg{
+          margin:10px 0 0;padding:12px 14px;border-radius:10px;background:rgba(209,244,112,.22);
+          border-inline-start:3px solid #d1f470;font-size:16px;line-height:1.5;color:#1a3a2a;
+        }
+        .cart-redeem-off{
+          margin:16px 0 0;padding:12px 14px;border-radius:10px;background:rgba(209,244,112,.22);
+          border-inline-start:3px solid #d1f470;font-size:16px;line-height:1.5;color:#1a3a2a;
+        }
+      `}</style>
+    </section>
+  );
+}
 
 export default function Cart (): React.ReactElement {
   const [ items, setItems ] = useState<CartItem[]>( [] );
@@ -321,6 +613,10 @@ export default function Cart (): React.ReactElement {
                   </li>
                 ) ) }
               </ul>
+
+              {/* Coupon + gift card. Every amount shown is server-authoritative; with the backend
+                  gate off this shows an honest unavailable state and cannot transact. */}
+              <RedemptionPanel />
 
               {/* Catalogue prices are for display; the server approves the payable total. */}
               <p className="cart-note">
