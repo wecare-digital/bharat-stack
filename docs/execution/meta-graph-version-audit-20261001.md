@@ -680,8 +680,8 @@ and update `PENDING_ENV_DEPLOY`.
 |---|---|
 | `./.venv/bin/python -m pytest tests/ -q` | **6169 passed, 1 skipped** (baseline before this work: 5964 passed, 1 skipped) |
 | `tests/test_meta_version.py` | passed, behaviour unchanged |
-| `tests/test_meta_graph_base_is_validated.py` | **new** |
-| `tests/test_meta_version_sources.py` | **new** |
+| `tests/test_meta_graph_base_is_validated.py` | **new**, 27 passed |
+| `tests/test_meta_version_sources.py` | **new**, 12 passed |
 | `node scripts/check-versions.ts` | exit 0, `[ ok ] Meta Graph API / WhatsApp Cloud API  configured v26.0  latest v26.0` |
 | `npm run typecheck` | exit 0 |
 

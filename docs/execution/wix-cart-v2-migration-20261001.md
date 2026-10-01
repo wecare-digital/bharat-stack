@@ -798,7 +798,7 @@ delete in a follow-up commit. The V2 path writes `wixCheckoutId` as `""`, so not
 | Check | Result |
 |---|---|
 | `./.venv/bin/python -m pytest tests/ -q` | **6169 passed, 1 skipped** — baseline before this work **5964 passed, 1 skipped** |
-| New tests | `test_wix_cart_v2_delivery.py` (66), `test_wix_cart_v2_coupons_and_stock.py` (45), `test_purchase_intent_producer.py` (23), `test_checkout_cart_v2_authority.py` (18), `test_meta_graph_base_is_validated.py` (29), `test_meta_version_sources.py` (12) |
+| New tests | `test_wix_cart_v2_delivery.py` (66), `test_wix_cart_v2_coupons_and_stock.py` (45), `test_purchase_intent_producer.py` (23), `test_checkout_cart_v2_authority.py` (18), `test_meta_graph_base_is_validated.py` (27), `test_meta_version_sources.py` (12) — 191 total |
 | `npm run typecheck` | exit 0 |
 | `node scripts/check-versions.ts` | exit 0; `[ ok ] Wix eCommerce Orders / Transactions / Fulfillments  configured V1  latest V1` and `[ ok ] Wix eCommerce Cart / Checkout  configured V2  latest V2`. The old single `WIX_ECOM` row reported `[ ok ]` only because both its columns said V1, which is the conflation the split undid |
 | Pre-existing failures from other sessions | **none** |
