@@ -20,6 +20,8 @@
  *     pay-now button. It does NOT hand off to /checkout/status/ - see NOT_PREPARED below for why
  *     that screen cannot carry this claim.
  *   PAYMENT_REQUEST_SENT (200)        -> /checkout/status/?a=<paymentAttemptId> (in-flight view).
+ *     RETAINED legacy in-chat response: the server still returns it for the in-WhatsApp flow and
+ *     this mapping stays until that path is migrated. See the website contract note below.
  *   payment_unavailable (409)         -> inline: no charge was made.
  *   SEND_FAILED (502)                 -> inline, with a retry: no charge was made.
  *   LINE_ITEMS_REQUIRED (400)         -> empty-cart state.
@@ -33,6 +35,24 @@
  * the browser. It is deliberately absent from the one path that hands off to /checkout/status/,
  * because once an attempt is in flight the browser cannot know whether the money moved, and neither
  * this page nor that one may guess.
+ *
+ * ADDITIVE WEBSITE RAZORPAY STANDARD CHECKOUT CONTRACT (section 8), replacing PAYMENT_REQUEST_SENT
+ * for the website path without removing it for the in-chat path. The backend
+ * (lambda_utils/ecommerce/website_checkout.py) returns, behind the SAME initiation gate:
+ *   PAYMENT_INITIATION_DISABLED (gate off, the default) -> INLINE, cart preserved, no pay button:
+ *     the gate is off, no Razorpay gateway order was created and no charge can have been made.
+ *   CHECKOUT_OPTIONS_READY (gate on) -> the browser opens the Razorpay Standard Checkout hosted
+ *     modal with ONLY {keyId (public), orderId (server-stored gateway order id), amountPaise
+ *     (the FEAT-001 calculator total: collection+fee+GST, never the raw Wix total), currency,
+ *     prefill, paymentAttemptId}. The modal's result is POSTed back to the owned backend
+ *     callback, which verifies the signature over the STORED order id and STILL requires an
+ *     authoritative Razorpay capture before any paid state.
+ *   CHECKOUT_REJECTED -> inline, no charge was made (ownership/snapshot/intent failed).
+ *   CHECKOUT_AMBIGUOUS -> hand off to /checkout/status/; the browser must not claim a charge was
+ *     or was not made, exactly as the in-flight rule above requires.
+ * Cart/resume data is kept until a VERIFIED_PAID finalization. "No charge was made" still appears
+ * ONLY where the server has said so (the gate-off, rejected and unavailable paths), never once a
+ * gateway order exists.
  *
  * CHROME AND INDEXING. Customer-session route registered in the _app.tsx isPublic chain beside
  * /checkout/status and /checkout/success; noindex; imports no Layout/Header/Footer/SupportWidget.

@@ -837,6 +837,130 @@ def claim_topup_credit(table: Any,
     return _claim_row(table, key_attr, TOPUP_CREDIT_PREFIX + payment_id, item)
 
 
+# ── website Standard Checkout: request key + gateway-order binding (section 8) ──
+#: A customer-scoped, intent-fingerprinted request key reserved BEFORE the external order-create
+#: call. Two rapid clicks on "Pay" with the SAME intent must coordinate onto ONE gateway order,
+#: and a changed intent (different amount, cart revision or snapshot hash) under a resumed key
+#: must be refused rather than silently paying the old amount. The key names the attempt; the
+#: fingerprint pins the intent, and the two are checked together.
+REQUEST_KEY_PREFIX = "REQUESTKEY#"
+
+#: The persisted binding of a created Razorpay gateway order to the attempt/account/mode/amount
+#: it was created for. Written BEFORE checkout options are exposed to the browser, so a callback
+#: can be checked against the stored order id/account/mode/amount rather than anything the browser
+#: relayed. A Razorpay GATEWAY order is NOT an internal/Wix purchase order and carries no public
+#: order number — that exists only after an authoritative capture. These are different objects.
+GATEWAY_ORDER_PREFIX = "GATEWAYORDER#"
+
+
+def reserve_checkout_request_key(table: Any,
+                                 *,
+                                 customer_id: str,
+                                 request_key: str,
+                                 intent_fingerprint: str,
+                                 payment_attempt_id: str,
+                                 key_attr: str = "orderId",
+                                 extra: Optional[Dict[str, Any]] = None
+                                 ) -> Tuple[Dict[str, Any], bool]:
+    """Reserve a customer-scoped request key before any external order-create. Idempotent.
+
+    Returns `(row, won)`:
+
+      won is True   this click is the first with this key; the caller proceeds to create the
+                    gateway order. The row records the intent fingerprint so a later resume can
+                    be checked against it.
+      won is False  this key already exists. The returned row is the EXISTING reservation. The
+                    caller MUST compare `intentFingerprint` before resuming: the same intent
+                    resumes onto the already-created order (concurrent clicks coordinate), and a
+                    DIFFERENT intent must be rejected rather than charged.
+
+    The key is namespaced by customer so one customer cannot reserve or resume another's request
+    key. The fingerprint is the caller's hash over the frozen intent (amount, currency, cart
+    revision, snapshot hash); this module stores and returns it but does not interpret it.
+    """
+    if not customer_id:
+        raise ValueError("customer_id is required")
+    if not request_key:
+        raise ValueError("request_key is required")
+    if not intent_fingerprint:
+        raise ValueError("intent_fingerprint is required")
+    if not payment_attempt_id:
+        raise ValueError("payment_attempt_id is required")
+    now = int(time.time())
+    item = {
+        "kind": "CHECKOUT_REQUEST_KEY",
+        "customerId": customer_id,
+        "requestKey": request_key,
+        "intentFingerprint": intent_fingerprint,
+        "paymentAttemptId": payment_attempt_id,
+        "reservedAt": now,
+    }
+    if extra:
+        item.update(extra)
+    key = REQUEST_KEY_PREFIX + customer_id + "#" + request_key
+    if _claim_row(table, key_attr, key, item):
+        return item, True
+    existing = _read_row(table, key_attr, key)
+    if existing is None:
+        # A lost race whose winner's row we then could not read is an outage, not a resume.
+        raise OrderIdentityUnavailable(
+            "request key %r is claimed but could not be read" % request_key)
+    return existing, False
+
+
+def bind_gateway_order(table: Any,
+                       *,
+                       gateway_order_id: str,
+                       payment_attempt_id: str,
+                       request_key: str,
+                       amount_paise: int,
+                       account_key_id: str,
+                       account_mode: str,
+                       currency: str = "INR",
+                       key_attr: str = "orderId",
+                       extra: Optional[Dict[str, Any]] = None) -> bool:
+    """Durably persist a created gateway order's id/account/mode/amount BEFORE exposing options.
+
+    True if this binding was written, False if the gateway order id was already bound (a resumed
+    create landing on the same provider order). The binding is what a callback is verified
+    against: the stored order id selects the HMAC input, and the stored account/mode/amount/currency
+    are what a result must match. Writes NOTHING financial and mints NO public order number — a
+    gateway order is only an intent to pay.
+    """
+    if not gateway_order_id:
+        raise ValueError("gateway_order_id is required")
+    if not payment_attempt_id:
+        raise ValueError("payment_attempt_id is required")
+    from lambda_utils.ecommerce.money import positive_paise
+    amount_paise = positive_paise(amount_paise)
+    item = {
+        "kind": "GATEWAY_ORDER_BINDING",
+        "gatewayOrderId": gateway_order_id,
+        "paymentAttemptId": payment_attempt_id,
+        "requestKey": request_key or "",
+        "amountPaise": amount_paise,
+        "currency": currency or "INR",
+        "accountKeyId": account_key_id or "",
+        "accountMode": account_mode or "",
+        "boundAt": int(time.time()),
+    }
+    if extra:
+        item.update(extra)
+    return _claim_row(table, key_attr, GATEWAY_ORDER_PREFIX + gateway_order_id, item)
+
+
+def resolve_gateway_order(table: Any, gateway_order_id: str, *,
+                          key_attr: str = "orderId") -> Optional[Dict[str, Any]]:
+    """The stored binding for a gateway order id, or None.
+
+    None means we never created this order — a callback naming an unknown gateway order id is
+    either a forgery or a lost write, and either way must not settle anything.
+    """
+    if not gateway_order_id:
+        return None
+    return _read_row(table, key_attr, GATEWAY_ORDER_PREFIX + gateway_order_id)
+
+
 __all__ = [
     "META_REFERENCE_ID_MAX_LENGTH",
     "RAZORPAY_RECEIPT_MAX_LENGTH",
@@ -882,4 +1006,9 @@ __all__ = [
     "reserve_topup_intent",
     "resolve_topup_intent",
     "claim_topup_credit",
+    "REQUEST_KEY_PREFIX",
+    "GATEWAY_ORDER_PREFIX",
+    "reserve_checkout_request_key",
+    "bind_gateway_order",
+    "resolve_gateway_order",
 ]
