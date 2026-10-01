@@ -44,7 +44,7 @@ curlify==3.0.0
 decorator==5.3.1
 facebook_business==26.0.1
 frozenlist==1.8.0
-google-ads==32.0.0
+google-ads==33.0.0
 google-ads-admanager==0.10.5
 google-api-core==2.38.0
 google-auth==2.58.0

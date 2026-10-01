@@ -98,7 +98,15 @@ const HeaderCart: React.FC = () => {
           <path d="M220-80q-24 0-42-18t-18-42v-520q0-24 18-42t42-18h110v-10q0-63 43.5-106.5T480-880q63 0 106.5 43.5T630-730v10h110q24 0 42 18t18 42v520q0 24-18 42t-42 18H220Zm0-60h520v-520H630v90q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63-8.5-8.62-8.5-21.37v-90H390v90q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63-8.5-8.62-8.5-21.37v-90H220v520Zm170-580h180v-10q0-38-26-64t-64-26q-38 0-64 26t-26 64v10ZM220-140v-520 520Z" />
         </svg>
         { badge && (
-          <span className="hdr-cart-n" data-wc-no-translate="true">{ badge }</span>
+          // data-wide, not a second class name: styled-jsx scopes a STATIC className string, and a
+          // ternary there is a scoping risk for no gain. The attribute is only ever set for the
+          // three-character "99+" case - measured at 22.56px against a 19.5px hollow bag body, so
+          // it needs the tighter rung or it crosses the outline.
+          <span
+            className="hdr-cart-n"
+            data-wide={ badge.length > 2 ? 'true' : undefined }
+            data-wc-no-translate="true"
+          >{ badge }</span>
         ) }
       </span>
 
@@ -116,12 +124,23 @@ const HeaderCart: React.FC = () => {
           inline-size:44px;min-height:44px;padding:0;box-sizing:border-box;
           background:none;border:0;border-radius:50%;
           color:#1a3a2a;text-decoration:none;
-          transition:background-color .18s ease;
+          transition:color .18s ease;
         }
-        /* Hover is the state TINT, not a border and not the lime fill: rgba(209,244,112,.22) is
-           the documented transient-state value, and the full #d1f470 fill is reserved for the one
-           actionable surface a page is allowed - which /cart/ spends on Proceed to checkout. */
-        .hdr-cart:hover{background:rgba(209,244,112,.22)}
+        /* HOVER RECOLOURS THE GLYPH AND DRAWS NOTHING BEHIND IT, on owner instruction - the round
+           tinted disc that used to appear here is gone, so there is no background declaration in
+           this rule - by design, not by omission. (No backticks in this comment: it lives inside a
+           styled-jsx template literal, where one would close the string.)
+           #3da35a is the home page's green accent (seven occurrences in src/pages/index.tsx), and
+           it is the only palette colour that works here. Measured against this white header it is
+           3.19:1, which clears the 3:1 WCAG 1.4.11 floor for a non-text control, and against the
+           #1a3a2a rest colour it is 3.91:1, so the change is actually visible. The two rejected
+           alternatives: #d1f470 is 1.24:1 on white - invisible - and also means "actionable
+           surface" on this site, of which a page gets exactly one; #1a1a1a passes on white at
+           17.4:1 but sits 1.39:1 from the rest colour, i.e. dark green to dark grey, a hover a
+           sighted user cannot perceive.
+           The badge digits inherit currentColor, so the number recolours with the bag instead
+           of being left behind at the old green. */
+        .hdr-cart:hover{color:#3da35a}
         /* The focus ring STAYS. It is not decoration - removing the border is a visual request,
            and a keyboard user still has to see where they are (WCAG 2.4.7, and 1.4.11 for the
            indicator's own contrast). */
@@ -131,25 +150,40 @@ const HeaderCart: React.FC = () => {
            WCAG 1.4.11 on the sibling control. */
         .hdr-cart:focus-visible{box-shadow:0 0 0 2px #fff,0 0 0 5px #1a3a2a}
 
-        /* 30px of glyph inside the 44px target. The bag is drawn FILL@0, so its body is hollow -
-           which is the whole reason the number can sit inside it rather than on a separate dot
-           pinned to a corner. */
-        .hdr-cart-glyph{position:relative;display:inline-flex;flex-shrink:0;inline-size:30px;block-size:30px}
-        .hdr-cart-glyph svg{inline-size:30px;block-size:30px;display:block;fill:currentColor}
+        /* 36px of glyph inside the 44px target, up from 30px on owner instruction. 36 is the
+           largest even step that keeps a 4px inset on each side, so the bag still has air inside
+           the hit area and the focus ring is not drawn through the artwork. The 44px target itself
+           does NOT grow: it is the WCAG 2.5.8 floor and it is also what holds .hdr-in's row at the
+           pinned 108px / 96px header height, which Header.test.tsx asserts.
+           The bag is drawn FILL@0, so its body is hollow - which is the whole reason the number can
+           sit inside it rather than on a separate dot pinned to a corner. */
+        .hdr-cart-glyph{position:relative;display:inline-flex;flex-shrink:0;inline-size:36px;block-size:36px}
+        .hdr-cart-glyph svg{inline-size:36px;block-size:36px;display:block;fill:currentColor}
 
         /* CENTRED IN THE BAG'S BODY, NOT IN THE ICON BOX. The glyph's viewBox is 0 -960 960 960
            and the body runs from y=-660 to y=-140, so its centre is at y=-400 - which is 58.3%
            of the way down the box, not 50%. 60% is that, rounded to the nearest percent the
-           30px box can actually resolve (0.3px steps).
+           36px box can actually resolve (0.36px steps).
            Dark green digits on the hollow white interior, never lime: lime means actionable on
            this site and a page is allowed one lime surface, which /cart/ spends on its
            Proceed-to-checkout button. tabular-nums so 1 and 11 sit on the same centre. */
         .hdr-cart-n{
           position:absolute;inset-inline-start:50%;inset-block-start:60%;
           transform:translate(-50%,-50%);
-          font-size:11px;font-weight:700;line-height:1;letter-spacing:-.02em;
+          /* 12px, not the 13.2px a straight 30->36 scale would give: the hollow body is only
+             520/960 of the box wide, which is 19.5px at a 36px glyph, so the box grew by 20% but
+             the room for digits did not grow with the font. Measured at 12px: one digit 7.53px,
+             two 15.05px - both comfortably inside. Three characters do NOT fit at this size; they
+             get the narrower rung below rather than dragging every badge down with them. */
+          font-size:12px;font-weight:700;line-height:1;letter-spacing:-.02em;
           font-variant-numeric:tabular-nums;color:currentColor;pointer-events:none;
         }
+        /* THE "99+" CASE ONLY, and the numbers are measured on the built page: at 12px the three
+           characters render 22.56px wide against a hollow body 19.5px across, so they cross the
+           bag's outline by 1.53px on each side. 10px with tighter tracking brings them back inside.
+           One and two digits keep the full 12px - shrinking every badge to fit the rarest one would
+           undo the size increase that was asked for. */
+        .hdr-cart-n[data-wide]{font-size:10px;letter-spacing:-.04em}
 
         /* NO LABEL RULES AT ALL ANY MORE. The two clipped text nodes this component used to render
            are deleted, so their rules went with them. The name is an aria-label on the anchor - see
