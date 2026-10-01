@@ -1259,3 +1259,161 @@ auto-merging as predicted. `HEAD` now equals `origin/stack` and both convergence
 `xout.wecare.digital` and `www.xout.wecare.digital` are hard gates in the merged file and the
 deleted rationale is still deleted. They remain an owner call for the release-gating workstream
 that made them, not something to revert from here.
+
+---
+
+## 10. Final state — task `url-host-cleanup` closed, 2026-10-01
+
+Closing entry. Everything below was **measured on the exact tree and against the live site at
+closure time**, not carried forward from an earlier pass. Where an earlier section recorded a
+different number, this section says so rather than editing the earlier reading away.
+
+### 10.1 Commits
+
+| Commit | Subject | On `origin/stack` at the start of this pass |
+|---|---|---|
+| `25eace20` | `fix: stop the public surface sending customers into the staff workspace` (FEAT-001) | yes |
+| `d7dc0103` | `fix: restore www host canonicalisation and record the measured URL/host matrix` (FEAT-002) | yes |
+| `2ec84830` | `docs: record the measured propagation delay on the www canonicalisation rule` | yes |
+| `e080b209` `4c603188` `faccfbae` `023a385b` | review-response passes on the guards and the harness | yes |
+| `5114ae70` `f00d9b93` | convergence passes | yes |
+| `d0584e94` | `Close the post-sign-in open redirect, and narrow the allowlist to pages that exist` | yes |
+| `f8912068` | `Stop the retired /access redirect forwarding the caller's query string to home` | **no — unpushed, pushed by this closing pass** |
+
+The closing commit itself carries this section plus `status: "completed"` in
+`.agents/tasks/url-host-cleanup/task.json`; its SHA is recorded in §10.7 below, in a follow-up
+commit, because a commit cannot contain its own hash.
+
+Three commits belonging to **other** workstreams (`ac1b0c37`, `ed9fa198`, `8a48e5f9`) were also
+sitting unpushed on local `stack` at closure. They went to the remote with this push, which is
+what the one-committer rule means in a single-branch repo — not an absorption: they are their own
+commits under their own messages, and `git commit --only` bounded this pass's commit to its own
+paths.
+
+### 10.2 Live Amplify rule count — before and after, measured
+
+`aws amplify get-app --app-id d22dm4b0jn71jw --region us-east-1 --query 'length(app.customRules)'`
+
+| Point in time | Rules | Source of the number |
+|---|---:|---|
+| Before another session's owner-instructed removal | 146 | their snapshot, not this task's |
+| **This task's BEFORE** (post-removal) | **8** | `snapshots/amplify-custom-rules-before-url-host-cleanup-20261001.json`, 8 entries, re-parsed at closure |
+| After the host-rule restore | 9 | `snapshots/amplify-custom-rules-after-url-host-cleanup-20261001.json`, 9 entries |
+| Before the `/access` query-drop narrowing | 12 | `snapshots/amplify-custom-rules-before-access-query-drop-20261001.json`, `ruleCount: 12` |
+| **AFTER — live at closure** | **12** | read live, `length(app.customRules)` = 12 |
+
+Net for this task: **8 → 12**, four rules added and **zero removed or reordered**. One
+host-canonicalisation 301 restored verbatim from the 146-rule snapshot, and three `/access`
+sources at 302 whose target carries the literal `?from=access` — that query parameter **is** the
+mechanism that stops Amplify forwarding the caller's query, so it must not be tidied to a bare
+apex. The `/<*> → /404.html` 404-200 catch-all is still the last rule and was never touched.
+
+Amplify `get-app`/`update-app` expose **no ETag**. There is no concurrency token to record here.
+
+### 10.3 Gates, all run at closure on the exact tree
+
+| Gate | Result |
+|---|---|
+| `npm run typecheck` | **exit 0** |
+| `npm run lint` | **exit 0** — 0 errors, 188 warnings, all pre-existing; baseline count unmoved |
+| `npx vitest run` | **exit 0** — **50 files, 697 tests passed** (up from the 47/674 in §9 because the integration merge brought in other workstreams' test files) |
+| `npm run build` | **exit 0** — `out/404/index.html` present at 36,567 bytes; `out/sitemap.xml` holds **1,407 `<loc>`**, unchanged |
+| `pytest tests/test_url_host_routing_rules.py tests/test_legacy_redirect_rollback_snapshot.py -q` | **17 passed** |
+| `scripts/probe_url_host_matrix.py` | **exit 0** — **100 rows probed, 0 failed, 0 informational rows drifted** |
+| `scripts/retired_url_probe.py` | **exit 0** — no retired public URL answers 200; its own `www must 301 to the apex` row is `OK-redirect` |
+| `scripts/provision_legacy_redirects.py --verify` | **exit 0** — `Verified: only approved home/access redirects remain` |
+| `git diff --stat _routes.json` | **empty** — byte-identical, as required |
+
+Must-not-break set, re-measured independently with `curl` rather than through the harness:
+
+```
+POST /api/razorpay-webhook                     401
+POST /api/auth/validate                        401
+POST /api/payments/webhook                     404
+GET  /api/webhook/sinch-rcs                    200
+GET  /mcp                                      405
+POST /mcp                                      400
+GET  /get/o/stream/media/m/wecare-digital.png  200
+GET  /definitely-not-a-page/                   404
+GET  /workspace/                               200   (Authenticator shell, unchanged)
+GET  /account/sign-in/                         200
+GET  / /shop/ /cart/ /orders/ /blog/           200   (all five)
+GET  https://www.wecare.digital/shop/          301 -> https://wecare.digital/shop/   (path preserved)
+GET  /access/?next=https://evil.example        302 -> https://wecare.digital/?from=access   (caller's query dropped)
+```
+
+### 10.4 The exact subdomain coverage gap — CORRECTED at closure
+
+§4 and OWNER-DECISION ITEM 2 framed the wildcard as needing **both** an Amplify
+`update-domain-association` with prefix `*` **and** a Route 53 `*.wecare.digital` alias. Measured
+at closure, that framing is now wrong in its first half, and the correction matters because
+acting on the stale version would mutate the association serving the canonical home for no
+reason:
+
+- The Amplify domain association for `wecare.digital` is `AVAILABLE` and its subdomain prefixes
+  are **`["www"]`** — there is no `*` prefix and none was added.
+- Route 53 zone `Z03939753QJGZ6ZD6BXO8` **does** now hold `\052.wecare.digital` **A and AAAA**
+  alias records pointing at `d27evp2npt2kzr.cloudfront.net`. That is a CloudFront distribution,
+  **not** the Amplify association. The record is not listed under a literal `*` in the API
+  response — Route 53 returns it octal-escaped as `\052`, which is why a naive `'*' in name`
+  filter reports no wildcard on a zone that has one.
+- **This task did not create any of it.** This task made exactly **one** production write, the
+  `amplify update-app` in §10.2. The DNS, CloudFront and ACM work belongs to the sibling
+  home-fallback workstream and is recorded here as measured state, not as this task's output.
+
+So the single-label gap is **CLOSED** and the remaining gap is exactly one thing:
+
+| Host shape | Measured at closure | Verdict |
+|---|---|---|
+| `store.wecare.digital/` | DNS resolves; TLS verifies (`ssl_verify_result=0`); **302 → terminal 200** | covered |
+| `xout.wecare.digital/old/path?old=1` | 302 → 200 | covered (Wix-owned host, informational row) |
+| `release-check-unknown.wecare.digital/old/path?old=1` | 302 → 200 | covered |
+| `www.xout.wecare.digital/old/path?old=1` | 301 → 302 → 200 | covered (terminates through Wix TLS we do not control) |
+| **`a.b.wecare.digital/`** | DNS **resolves** to the wildcard alias, then TLS **fails**: `curl` 60, `no alternative certificate subject name matches target host name`, `ssl_verify_result=1`, HTTP `000` | **THE GAP** |
+
+The cause is not a missing DNS record and not a missing distribution. It is the certificate:
+`*.wecare.digital` matches **one label only**, so a two-label host like `a.b.wecare.digital`
+resolves to an address and is then refused at the TLS handshake. Closing it needs a **new SAN**
+on the certificate, re-associated on **both** the Amplify app **and** CloudFront `E1SZBXLQ4XNLJ7`
+— and `E1SZBXLQ4XNLJ7` is the **MTA-STS policy endpoint under `mode: enforce`**, where a broken
+TLS chain means senders refuse inbound mail rather than degrading quietly. That is why this stays
+an owner decision and was not attempted. `xout.wecare.digital` and `www.xout.wecare.digital` are
+existing second-label Wix hosts and are out of scope either way.
+
+### 10.5 Left open, with its owner
+
+| # | Item | Owner | State at closure |
+|---|---|---|---|
+| 1 | **Subdomain SAN / second-label coverage** — the `a.b.wecare.digital` TLS refusal in §10.4, needing a new SAN re-associated on the Amplify app and on `E1SZBXLQ4XNLJ7` | **owner decision** | OPEN. Single-label coverage closed by the sibling workstream; second-label deliberately not attempted (MTA-STS `enforce` blast radius) |
+| 2 | **Unknown API route answers `302 → /contact/`** — `GET /api/definitely-no-route` from the HTTP API's `GET /{code}` catch-all | **`amplify/functions` workstream** | OPEN, untouched here. Asserted in `probe_url_host_matrix.py` at its measured value, so a change becomes visible rather than silent |
+| 3 | **`public/sw.js:180` push-click destination `/workspace/dashboard/`** | **staff push / service-worker owner** | OPEN, needs-verification. Not reproduced as customer-reachable — it is a push-notification destination, not a navigation link — and changing it could break staff push, so it is recorded in `INTENTIONALLY_WORKSPACE_ONLY` rather than edited |
+| 4 | **`src/pages/account/sign-in.tsx` wiring handoff** | **`src/pages/account/**` workstream** | **CLOSED by that owner, not by this task.** `origin/stack`'s `sign-in.tsx` imports `safeLocalReturnPath` and returns it from `returnPathFromUrl()`, with `restoreSession()` and a persistent flag added around it. The three-line crossing recorded in `docs/execution/change-authority-matrix.md` was ratified twice: in writing by the orchestrator, and by that owner keeping the wiring when it resumed. The verbatim one-line handoff stays in §7 for the record |
+| 5 | **`/selfservice` and `/track` now 404** — both are printed inside approved provider template bodies (DLT `ivr-default`, nine Sinch RCS templates incl. `rcsmenu`, `wecare_order_update`) that cannot be edited | **owner** | OPEN and **accepted**, not an oversight: the owner's removal document acknowledges it. Reversal is two rules plus one instruction; both intended targets (`/submit-request/`, `/orders/`) measured 200 |
+| 6 | **`xout` / `www.xout` promoted to hard probe gates, and ~50 lines of deleted rationale** in `probe_url_host_matrix.py` | **release-gating workstream that made the edit** | OPEN. Survived the integration merge intact; reported, not reverted |
+| 7 | **`_routes.json` has zero code consumers** | unassigned | OPEN as information only. Left byte-identical on purpose |
+| 8 | **Four stale catch-all comments** at `src/pages/_app.tsx:938,999,1098` and `src/pages/workspace/commerce/catalog.tsx:28` | their file owners | OPEN, handed over unedited |
+
+OWNER-DECISION ITEM 3 (`--apply` deleting the host rule) is **CLOSED** — see §5.5 RESOLVED, and
+`--verify` exits 0 at closure with the host rule live.
+
+### 10.6 Rollback
+
+Unchanged from §8, restated here so the closing entry is self-contained. Amplify `update-app` is
+a **full replace** of `customRules` and exposes **no ETag**, so any rollback must start from a
+fresh `get-app`, never a stale array:
+
+```
+aws amplify update-app --app-id d22dm4b0jn71jw --region us-east-1 \
+  --custom-rules file://docs/execution/snapshots/amplify-custom-rules-before-url-host-cleanup-20261001.json
+```
+
+That returns the app to the 8-rule post-removal state, undoing **all four** rules this task
+added — the host 301 and the three `/access` 302s. To undo only the `/access` narrowing and keep
+the host rule, restore
+`snapshots/amplify-custom-rules-before-access-query-drop-20261001.json` (12 rules) instead. Do
+**not** restore the 146-rule or the 3-rule snapshots; §8 records why each would be worse than
+what it reverses.
+
+Code rollback is `git revert` of the commits in §10.1. No DNS record, ACM certificate,
+CloudFront distribution, domain association, WAF or Security Hub setting was created, modified or
+deleted by this task.
