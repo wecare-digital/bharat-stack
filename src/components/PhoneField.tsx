@@ -21,17 +21,44 @@ import { DIAL_CODES } from '../lib/dialCodes';
  * outlined container, a label above, supporting text below, and a leading section inside the
  * container. Two deliberate departures, both named so neither looks like an oversight:
  *
- *   1. CORNER RADIUS. M3's own token for this component is
- *      `--md-outlined-text-field-container-shape`, which defaults to `--md-sys-shape-corner-extra-small`
- *      = 4px. This uses 10px, which is the radius every other field on this site already has. Site
- *      consistency wins over importing a framework default into a page that is not otherwise M3,
- *      and 10px is the more "rounded corner" of the two, which is what was asked for.
+ *   1. CORNER RADIUS. The M3 default is `--md-sys-shape-corner-extra-small` = 4px. This uses 10px,
+ *      which is the radius every other field on this site already has. Site consistency wins over
+ *      importing a framework default into a page that is not otherwise M3, and 10px is the more
+ *      "rounded corner" of the two, which is what was asked for.
  *   2. THE DIVIDER IS NOT AN M3 FEATURE. M3 offers `prefix-text` for static in-field context (the
  *      "$" in a currency field) and leading/trailing icon slots. It has no interactive leading
  *      segment and no divider inside a text field, so there is no token to follow. The rule here is
  *      the site's own 1px #e5e7eb hairline, used as a segment separator on owner instruction.
  *
- * Reference: https://github.com/material-components/material-web/blob/main/docs/components/text-field.md
+ * WHICH M3 REPO IS AUTHORITATIVE, because they disagree and the answer changed.
+ *
+ * Google's material-components/material-web is the original and is where the component docs still
+ * live, but its own README is now carried forward by material-esm/material, a fork that states the
+ * upstream project "seems to be on hold". The fork is the maintained one, so it is the reference of
+ * record here. Both are cited: the doc prose is still only in Google's repo, the current code is in
+ * the fork.
+ *
+ *   - Fork (maintained, code):  https://github.com/material-esm/material
+ *   - Google (docs prose):      https://github.com/material-components/material-web/blob/main/docs/components/text-field.md
+ *
+ * WHAT THE FORK CHANGED, read from text/text-field.js rather than assumed:
+ *   - ONE ELEMENT, NOT TWO. `<md-text-field color="outlined">` replaces `<md-outlined-text-field>`,
+ *     so the token is `--md-text-field-container-shape`, NOT the `--md-outlined-text-field-...`
+ *     spelling an earlier version of this comment named. That older name is simply wrong against the
+ *     maintained library, which is why it is corrected rather than left as a second-best citation.
+ *   - THE 4px DEFAULT SURVIVED. It still resolves
+ *     `var(--md-text-field-container-shape, var(--md-sys-shape-corner-extra-small, 4px))`, so
+ *     departure (1) above is still a real departure and the 10px here is still a deliberate choice,
+ *     not a stale number.
+ *   - PER-CORNER LOGICAL SHAPE TOKENS: container-shape-start-start / start-end / end-end /
+ *     end-start. Worth recording because that is exactly the shape of what .pf-code and .pf-num do
+ *     by hand below - square against the divider, 9px on the outside, spelled logically so the two
+ *     segments swap in RTL. The approach matches the library's own, arrived at independently.
+ *
+ * NOTHING IS INSTALLED FROM EITHER REPO, and that is deliberate. Both ship Lit web components; this
+ * site is Next.js with styled-jsx and has no Lit dependency, so adopting them would mean a runtime,
+ * a custom-element registry and a second styling system on a page that currently has none of the
+ * three. M3 is used here as a SPEC to measure against, not as a dependency.
  *
  * FOCUS IS PER SEGMENT, NOT PER CONTAINER, AND THAT IS AN ACCESSIBILITY DECISION. The obvious way to
  * keep the one-field illusion is `:focus-within` on the container - but there are TWO focusable
