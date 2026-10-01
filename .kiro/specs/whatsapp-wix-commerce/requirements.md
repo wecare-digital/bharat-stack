@@ -2,7 +2,7 @@
 
 ## Owner architecture decision — 2026-10-01
 
-Use the existing self-managed Next.js/AWS headless application. WhatsApp/Razorpay collects payment externally; create the internal order and Wix order only after authoritative verification, then record the external payment without charging again. Velo and external PSP onboarding are not dependencies. Retain admin-only Cognito and WhatsApp-only receipts. Historical provider configuration claims below require live verification. See `docs/execution/headless-checkout-20261001.md` for the current partial audit and implementation gaps.
+Use the existing self-managed Next.js/AWS headless application. Payment is collected on the website via Razorpay Standard Checkout (the gated website checkout path); create the internal order and Wix order only after authoritative verification, then record the external payment without charging again. The customer receives a private, authenticated downloadable receipt on the website. Velo and external PSP onboarding are not dependencies. Retain admin-only Cognito for staff. Historical provider configuration claims below require live verification. See `docs/execution/headless-checkout-20261001.md` for the current partial audit and implementation gaps.
 
 Payment safety before wiring: reject unbound provider payments; enforce customer ownership before duplicate shortcuts; accept exact DynamoDB Decimal integers but no float coercion; pending/unknown is never retryable; prevent competing number assignments and repeating ambiguous Wix writes.
 
@@ -31,6 +31,15 @@ into a 64/64-Python fleet.
 
 ## The ten statements that override anything older in this document
 
+> **Reconciliation note, 2026-10-01.** This section implements the owner's website-only
+> ruling: payment is collected on the website via Razorpay Standard Checkout and the receipt
+> is a private, authenticated downloadable document on the website. This supersedes the prior
+> WhatsApp-only payment and WhatsApp-only receipt wording in statements 8 and 10 and in the
+> Goals and Non-goals. In-WhatsApp payment is removed from the active purchase flow; WhatsApp
+> remains for authentication, support and authorized order/receipt notifications. The
+> provider-driven readiness contract (statement 9), the paid-only order-creation rule and the
+> `reference_id` rules are unchanged.
+
 Recorded here, at the top, because each one reverses or narrows something the spec previously
 said and every one of them is load-bearing.
 
@@ -52,22 +61,26 @@ said and every one of them is load-bearing.
 7. **A failed, cancelled, expired or pending payment creates zero orders**, zero order numbers,
    zero Wix orders and zero receipts. It stays visible in payment history, labelled
    `Payment failed — no order created`.
-8. **The Meta payment configuration is currently absent.** A live read returns zero
-   configurations on WABA `2094615664435155`, so payment is disabled until the owner restores it.
+8. **In-WhatsApp payment is removed from the active purchase flow.** Payment is collected on
+   the website via Razorpay Standard Checkout. The website checkout initiation remains gated
+   and disabled until its full provider-driven readiness contract is met, so payment stays
+   disabled until the owner readies it.
 9. **Payment readiness is provider-driven, never constant-driven.** No local constant, and no
    environment variable, may enable payment. There is no fallback configuration name: an
    unrecognised one fails closed before the send.
-10. **The final confirmation and the receipt are WhatsApp-only.** No purchase-confirmation email
-    is sent; email is for verification and account security.
+10. **The receipt is a private, authenticated, bounded-expiry downloadable document on the
+    website**, rendered from the immutable paid snapshot. WhatsApp may still deliver authorized
+    order and receipt notifications. No purchase-confirmation email is sent; email is for
+    verification and account security.
 
 ---
 
 ## Goals
 
-Let a customer messaging `+919330994400` browse a Wix catalog, build a cart, pay inside
-WhatsApp, and receive exactly one order with exactly one charge, a billing document, and a
-tracking link — with a staff-facing view of every order, payment, reconciliation attempt
-and shipment.
+Let a customer messaging `+919330994400` browse a Wix catalog, build a cart, pay on the
+website via Razorpay Standard Checkout, and receive exactly one order with exactly one charge,
+a billing document, and a tracking link, with a staff-facing view of every order, payment,
+reconciliation attempt and shipment.
 
 ## Non-goals
 
