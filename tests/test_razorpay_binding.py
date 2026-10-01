@@ -303,14 +303,62 @@ def test_signed_browser_success_still_requires_provider_verified_capture():
         verify_capture=lambda _: (False, '', 0, ''))
     assert result.status == wc.CALLBACK_NOT_CAPTURED
 
-    # A valid signature AND an authoritative capture that matches the binding -> paid.
+    # A valid signature AND an authoritative capture that matches the binding -> paid. The stored
+    # account/mode cross-check (live key id -> live mode) agrees, so it does not block the settle.
     paid = wc.verify_callback(
         customer_id=CUSTOMER, presented_order_id='order_CB', payment_id='pay_1',
         signature='valid', keys_table=table, verify_signature=lambda **_: True,
-        verify_capture=lambda _: (True, 'pay_real', amount, 'INR'))
+        verify_capture=lambda _: (True, 'pay_real', amount, 'INR'), account_mode_of=_mode_of)
     assert paid.status == wc.CALLBACK_VERIFIED_PAID
     assert paid.payment_id == 'pay_real'
     assert paid.amount_paise == amount
+
+
+def test_callback_stored_mode_disagreeing_with_stored_key_does_not_settle():
+    # The binding persists accountMode AND accountKeyId expressly so a test-mode success never
+    # settles a live-mode order (order_keys.bind_gateway_order / razorpay_orders.account_mode).
+    # A binding whose stored mode ('test') disagrees with the mode its own stored key ('rzp_live_')
+    # resolves to is a tampered/cross-mode binding and MUST NOT settle, even with a valid signature
+    # and an authoritative capture that matches amount+currency.
+    table = _keys()
+    amount = compute_quote(COLLECTION_PAISE).total_payable_paise
+    _bind_an_order(table, amount=amount, key_id='rzp_live_K', mode='test')
+
+    result = wc.verify_callback(
+        customer_id=CUSTOMER, presented_order_id='order_CB', payment_id='pay_1',
+        signature='valid', keys_table=table, verify_signature=lambda **_: True,
+        verify_capture=lambda _: pytest.fail('a mode mismatch must not reach the capture readback'),
+        account_mode_of=_mode_of)
+    assert result.status == wc.CALLBACK_BINDING_MISMATCH
+
+
+def test_callback_unknown_account_mode_does_not_settle():
+    # A key id we cannot positively classify resolves to 'unknown', which must not settle a bound
+    # order rather than being treated as a match.
+    table = _keys()
+    amount = compute_quote(COLLECTION_PAISE).total_payable_paise
+    _bind_an_order(table, amount=amount, key_id='notarealkey', mode='unknown')
+
+    result = wc.verify_callback(
+        customer_id=CUSTOMER, presented_order_id='order_CB', payment_id='pay_1',
+        signature='valid', keys_table=table, verify_signature=lambda **_: True,
+        verify_capture=lambda _: pytest.fail('an unknown mode must not reach the capture readback'),
+        account_mode_of=_mode_of)
+    assert result.status == wc.CALLBACK_BINDING_MISMATCH
+
+
+def test_callback_matching_mode_settles():
+    # The positive control for the account/mode cross-check: a live key id + stored 'live' mode
+    # agree, so the check does not block an otherwise-valid settle.
+    table = _keys()
+    amount = compute_quote(COLLECTION_PAISE).total_payable_paise
+    _bind_an_order(table, amount=amount, key_id='rzp_live_K', mode='live')
+
+    paid = wc.verify_callback(
+        customer_id=CUSTOMER, presented_order_id='order_CB', payment_id='pay_1',
+        signature='valid', keys_table=table, verify_signature=lambda **_: True,
+        verify_capture=lambda _: (True, 'pay_real', amount, 'INR'), account_mode_of=_mode_of)
+    assert paid.status == wc.CALLBACK_VERIFIED_PAID
 
 
 def test_callback_capture_amount_mismatch_does_not_settle():

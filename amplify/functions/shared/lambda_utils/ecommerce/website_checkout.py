@@ -42,10 +42,12 @@ never assumes an undocumented Orders-API idempotency.
 What `verify_callback` guarantees
 ---------------------------------
 The browser relays `razorpay_payment_id|razorpay_order_id|razorpay_signature`. This verifies the
-HMAC using the SERVER-STORED gateway order id (never the browser's), rejects a result whose stored
-order/account/amount/currency do not match the binding, and — crucially — treats a valid signature
-as only a trigger: it STILL requires `razorpay_verify`'s authenticated captured-payment readback
-before returning a paid state. Cart/resume data is kept until that verified-paid finalization.
+HMAC using the SERVER-STORED gateway order id (never the browser's), re-checks the stored
+account/mode (a test-mode binding must never settle as live, and vice versa), rejects a result
+whose stored order/amount/currency do not match the binding, and — crucially — treats a valid
+signature as only a trigger: it STILL requires `razorpay_verify`'s authenticated captured-payment
+readback before returning a paid state. Cart/resume data is kept until that verified-paid
+finalization.
 """
 
 from __future__ import annotations
@@ -369,17 +371,30 @@ def verify_callback(*,
                     keys_table: Any,
                     verify_signature: Callable[..., bool],
                     verify_capture: Callable[[str], Tuple[bool, str, int, str]],
+                    account_mode_of: Optional[Callable[[str], str]] = None,
                     ) -> CallbackResult:
     """Verify a browser Standard Checkout result against the SERVER-STORED binding, then capture.
 
     `verify_signature(stored_order_id, payment_id, signature)` is the injected HMAC check (over the
     STORED order id). `verify_capture(reference_id)` is `razorpay_verify.verifier_for_event`'s
     closure, which performs the authenticated captured-payment readback bound to the attempt.
+    `account_mode_of(key_id)` is `razorpay_orders.account_mode`'s `test`/`live`/`unknown`
+    classifier, injected like the other provider dependencies; defaulting to None keeps the
+    account/mode cross-check off only when a caller has no classifier to offer.
 
     Order of checks, each load-bearing:
       - Resolve the binding by the stored gateway order id. An unknown order id is a mismatch.
       - Ownership: the attempt behind the binding must belong to this customer (checked by the
         caller via the attempt row; here we require the binding to resolve and carry the attempt).
+      - Account/mode: the binding persists `accountMode` and `accountKeyId` expressly so "a
+        test-mode success must never settle a live-mode order" (see `order_keys.bind_gateway_order`
+        and `razorpay_orders.account_mode`). We consult that stored field here rather than leave it
+        unenforced: the mode the stored `accountKeyId` resolves to must equal the stored
+        `accountMode`, and neither may be `unknown`/empty. A binding whose stored mode disagrees
+        with the mode its own stored key resolves to — a tampered or cross-mode binding — must not
+        settle. The capture readback itself runs against a single documented account
+        (`wecare/razorpay/api`), so a cross-account capture cannot authenticate; this check closes
+        the remaining gap at the stored binding, which is where the invariant was recorded.
       - HMAC over the STORED order id (never the browser's `presented_order_id`).
       - A valid signature is still only a trigger: require `verify_capture` to confirm a capture,
         and the captured amount/currency to equal the stored binding, before VERIFIED_PAID.
@@ -391,6 +406,19 @@ def verify_callback(*,
     attempt_id = str(binding.get("paymentAttemptId") or "")
     stored_amount = int(binding.get("amountPaise") or 0)
     stored_currency = str(binding.get("currency") or "")
+    stored_mode = str(binding.get("accountMode") or "")
+    stored_key_id = str(binding.get("accountKeyId") or "")
+
+    # Account/mode re-check against the stored binding, before anything else can settle it. The
+    # mode the stored key resolves to must equal the stored mode, and a result produced under a
+    # mode we cannot positively classify (`unknown`/empty) must not settle a bound order.
+    if account_mode_of is not None:
+        resolved_mode = account_mode_of(stored_key_id)
+        if (not stored_mode or stored_mode == "unknown"
+                or resolved_mode != stored_mode):
+            return CallbackResult(status=CALLBACK_BINDING_MISMATCH,
+                                  payment_attempt_id=attempt_id,
+                                  gateway_order_id=stored_order_id)
 
     # HMAC is computed over the STORED order id, not anything the browser relayed.
     if not verify_signature(stored_order_id=stored_order_id, payment_id=payment_id,
