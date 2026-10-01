@@ -1,50 +1,26 @@
 /**
  * The shop catalogue, read from the committed Wix snapshot.
  *
- * WHY A SNAPSHOT AND NOT A LIVE CALL. `src/content/wix-catalog.json` is produced by
- * `scripts/fetch-wix-catalog.js` and committed. next.config.js sets `output: 'export'`, so these
- * pages are built once and served as static HTML from CloudFront - there is no server to make a
- * live call from, and adding a client-side fetch would put an unauthenticated Wix read in the
- * browser. Reading the snapshot at build time means the catalogue costs nothing to serve and the
- * pages cannot break because Wix is slow. Measured in this sandbox: `GET /api/wix-store/products`
- * returns 401 without a staff session, so the authenticated route is not an option for a public
- * page even if there were a server to call it from.
+ * `src/content/wix-catalog.json` is produced by `scripts/fetch-wix-catalog.js` and committed.
+ * next.config.js sets `output: 'export'`, so these pages are built once and served as static HTML -
+ * there is no server to make a live call from, and a client-side fetch would put an unauthenticated
+ * Wix read in the browser. Refreshing the catalogue is a deliberate act: re-run the script and
+ * commit. The snapshot is credential-free by construction; it was taken with an anonymous visitor
+ * token, recorded in its own `source` field.
  *
- * The snapshot is credential-free by construction - it was taken with an anonymous visitor token,
- * which is recorded in its own `source` field - so it is safe in git.
+ * THE PRICES HERE ARE FOR DISPLAY AND MUST NEVER REACH A PAYMENT. The amount in a payment request
+ * comes from a live checkout read, compared in integer paise, and any mismatch fails closed - see
+ * amplify/functions/shared/order_creation.py. `formattedPrice` is passed through from Wix rather
+ * than reformatted locally, so a page cannot invent a different number from the one Wix would quote.
+ * `inStock` labels a card and never promises availability at payment time.
  *
- * REFRESHING IT IS A DELIBERATE ACT: re-run the fetch script and commit. That is the right shape
- * for a seven-product catalogue that changes rarely. It would be the wrong shape for live
- * inventory, which is why `inStock` here is only used to label a card and never to promise
- * availability at payment time.
- *
- * THE PRICES HERE ARE FOR DISPLAY AND MUST NEVER REACH A PAYMENT. This is the rule the whole
- * commerce architecture is built on: the amount in a payment request comes from a live checkout
- * read, compared in integer paise, and any mismatch fails closed - see
- * amplify/functions/shared/order_creation.py. A price rendered from a snapshot is a price that
- * was true when the snapshot was taken. `formattedPrice` is passed through from Wix rather than
- * reformatted locally, so the page cannot invent a different number from the one Wix would quote.
- *
- * THREE FIELDS IN THE SNAPSHOT ARE DELIBERATELY NOT RENDERED, and each omission is a measurement
- * rather than an oversight:
- *
- *   productType - reads "PHYSICAL" on all seven. Five of them (File Assist, Guided Resolution,
- *     Paperwork, Referral Partner, Viveka) are documents and coordination, not goods. That is
- *     Wix's default for a product with no shipping profile, not a claim about what is sold, so
- *     surfacing it would put a false statement on five pages. It is kept off the interface
- *     entirely so nobody can render it by reaching for the nearest field.
- *
- *   mediaCount - zero on all seven, so the snapshot carries no image URL for any product. The
- *     pages therefore ship no product image and no placeholder frame: an empty grey box is a
- *     promise that a picture exists. It also means the Product schema emits no `image`, which
- *     costs eligibility for Google's product rich result. That is the honest trade - a fabricated
- *     image reference would be worse, and this site has already had one invented
- *     `aggregateRating` removed for the same reason.
- *
- *   productUrl - points at https://xout.wecare.digital/product-page/<slug>, the old Wix-hosted
- *     storefront. `/product-page/*` was retired from this repo on owner instruction and the
- *     replacement is these pages, so linking there would send a visitor off the domain to the
- *     surface this one exists to replace.
+ * Three fields in the snapshot are deliberately not exposed on the interface:
+ *   productType  reads "PHYSICAL" on all seven, which is Wix's default for a product with no
+ *                shipping profile. Five of the seven are documents and coordination, so surfacing
+ *                it would put a false statement on five pages.
+ *   mediaCount   zero on all seven, so there is no image URL. The pages ship no product image and
+ *                no placeholder frame, and the Product schema emits no `image`.
+ *   productUrl   points at the retired Wix-hosted storefront these pages replace.
  */
 import catalog from './wix-catalog.json';
 
@@ -62,20 +38,14 @@ export interface ShopProduct {
   currency: string;
   inStock: boolean;
   /**
-   * Absolute URL of the product's primary image, when one exists. ABSENT ON ALL SEVEN TODAY, and
-   * that absence is what gates the Product structured data - see ShopProductHead.tsx.
-   *
-   * Two separate things have to change before this is ever populated, and neither is a code
-   * change here: the merchant has to upload images in Wix (all seven currently report
-   * `mediaCount: 0`), and scripts/fetch-wix-catalog.js has to capture the URL - its docblock
-   * states "IMAGES ARE NOT PULLED. Data only", which was the right call while there was nothing
-   * to pull. Then refresh the snapshot and the markup appears on its own.
+   * Absolute URL of the product's primary image, when one exists. Absent on all seven today, and
+   * that absence gates the Product structured data - see ShopProductHead.tsx. Populating it needs
+   * images uploaded in Wix and scripts/fetch-wix-catalog.js extended to capture the URL.
    */
   image?: string;
   /**
-   * The bold opening line of the Wix description. It is the product's own one-line statement of
-   * what it does - "Put your location to work.", "Think it through before you decide." - which is
-   * exactly what a card in a grid needs and what a meta description should open with.
+   * The bold opening line of the Wix description - the product's own one-line statement of what it
+   * does, which is what a card in a grid needs and what a meta description should open with.
    */
   tagline: string;
   /** The remaining paragraphs, in order, as plain text. */
@@ -95,54 +65,18 @@ interface RawProduct {
   image?: string;
 }
 
-/**
- * Wix description HTML reduced to plain paragraph strings.
- *
- * NOT rendered as HTML. `descriptionHtml` is merchant-authored rich text from a third-party CMS,
- * and putting it through dangerouslySetInnerHTML would make the storefront an XSS surface that
- * depends on Wix's sanitiser rather than ours. Tags are stripped and the text rendered as React
- * children, so the worst a malformed description can do is read badly.
- *
- * `<p>` and `<br>` become paragraph breaks because they are the only structure this copy uses -
- * measured across all seven descriptions, the only other tag present is
- * `<span style="font-weight: 700">`, which marks the opening line. Everything else is dropped
- * rather than approximated. Entities are decoded for the small set that actually appears; a full
- * decoder would be a dependency for no gain.
- *
- * THE COLLAPSE RUNS PER LINE, NOT ONCE OVER THE WHOLE STRING, and that ordering is load-bearing:
- * collapsing whitespace before splitting would eat the separators this function just inserted. A
- * near-identical helper elsewhere in this repo trimmed at every recursion instead and produced
- * "2 tbsptoastedsesame oil" - words fused where a tag boundary had been the only separator.
- *
- * THE SEPARATOR IS A CONTROL CHARACTER AND NOT '\n', which is a correction rather than a style
- * choice. Splitting on '\n' makes a RAW newline in the source a paragraph break, and in HTML it is
- * not - it is whitespace, and should collapse to a space like any other. `<p>one\ntwo</p>` was
- * coming out as two paragraphs instead of "one two". The seven descriptions in the committed
- * snapshot happen to be single-line, so nothing was visibly wrong today; it would have broken the
- * first time the snapshot was refreshed from a Wix editor that wraps its output.
- */
 /** U+0001, which cannot appear in Wix rich text and is not whitespace, so \s+ leaves it alone. */
 const BREAK = '\u0001';
 
 /**
- * Remove tag-shaped runs until the string stops changing.
+ * Remove tag-shaped runs until the string stops changing, then delete any surviving delimiter.
  *
- * ONE PASS IS NOT ENOUGH, and CodeQL caught this as a high-severity
- * js/incomplete-multi-character-sanitization on the first version of this file. A single
- * `.replace( /<[^>]+>/g, '' )` is defeated by nesting the delimiters, because removing the inner
- * match splices the outer one together:
- *
- *     <scr<script>ipt>   ->  one pass removes <script>  ->  <script>
- *     <a<b>c>            ->  one pass removes <b>       ->  <ac>
- *
- * So the single pass turns input that was not a tag into output that is. Looping to a fixed point
- * is the remediation: every pass either shortens the string or returns it unchanged, so it
- * terminates, and it cannot leave a tag behind for the next splice to assemble.
- *
- * This mattered even though the output is rendered as React children and therefore escaped. The
- * defect was in the function's contract rather than in today's rendering: ShopCatalogue.test.tsx
- * asserts that no `<span` survives into the DOM, and a crafted description could have satisfied
- * that assertion while carrying `<script>` in the text.
+ * BOTH HALVES ARE LOAD-BEARING AND NEITHER IS SAFE TO SIMPLIFY. One pass of `/<[^>]*>/g` is
+ * defeated by nesting, because removing the inner match splices the outer one together
+ * (`<scr<script>ipt>` -> `<script>`), so the loop runs to a fixed point. And an UNTERMINATED run
+ * never matches at all, so `<script` with no closing bracket passed through untouched - hence the
+ * final sweep of bare `[<>]`. A raw angle bracket surviving to that point cannot be legitimate
+ * content: well-formed HTML encodes one as an entity, and entities are decoded AFTER this runs.
  */
 const stripTags = ( value: string ): string => {
   let text = value;
@@ -151,23 +85,24 @@ const stripTags = ( value: string ): string => {
     if ( next === text ) break;
     text = next;
   }
-  /*
-   * THEN REMOVE WHAT IS LEFT OF THE DELIMITERS, and this is the half that closes the finding.
-   *
-   * The loop above only removes a `<` that has a matching `>` after it. An UNTERMINATED run does
-   * not match at all, so `<script` - no closing bracket - passed through untouched, which is
-   * literally what CodeQL reported: "this string may still contain <script". Nesting leaves the
-   * same residue from the other side: `a<scr<script>ipt>b` consumes `<scr<script>` and strands the
-   * `>` in `aipt>b`.
-   *
-   * A raw `<` or `>` surviving here cannot be legitimate content, and that is what makes deleting
-   * them safe rather than lossy: well-formed HTML encodes a literal angle bracket as `&lt;` or
-   * `&gt;`, and those are still entities at this point - they are decoded AFTER this runs, so
-   * `a &lt; b` keeps its bracket while markup debris does not.
-   */
   return text.replace( /[<>]/g, '' );
 };
 
+/**
+ * Wix description HTML reduced to plain paragraph strings.
+ *
+ * NOT an HTML sanitiser, and its result must never reach dangerouslySetInnerHTML: the safety
+ * property is that the output is rendered as React children, which escape on render. `<p>` and
+ * `<br>` become paragraph breaks because they are the only structure this copy uses; everything
+ * else is dropped rather than approximated.
+ *
+ * THE ORDER OF THE THREE STEPS IS LOAD-BEARING:
+ *   - the whitespace collapse runs PER LINE, after the split, or it would eat the separators this
+ *     function just inserted;
+ *   - the separator is a control character and not '\n', because a raw newline in HTML is
+ *     whitespace and must collapse to a space rather than break a paragraph;
+ *   - `&amp;` decodes LAST, or a literal "&amp;lt;" in the source would double-decode to "<".
+ */
 export function toParagraphs ( html: string ): string[] {
   const withBreaks = html
     // Any BREAK is stripped first, so a control character in the source cannot be mistaken for one
@@ -176,28 +111,12 @@ export function toParagraphs ( html: string ): string[] {
     .replace( /<\s*br\s*\/?\s*>/gi, BREAK )
     .replace( /<\/\s*p\s*>/gi, BREAK );
 
-  /*
-   * TAGS GO BEFORE ENTITIES, AND THE OUTPUT IS DISPLAY TEXT RATHER THAN MARKUP.
-   *
-   * Decoding runs last, so `&lt;b&gt;` in the source becomes the literal characters `<b>` in the
-   * output. That is correct and deliberate: this function produces text for React children, which
-   * React escapes on render, so a reader sees `<b>` on the page exactly as the merchant typed it.
-   * It is NOT an HTML sanitiser and its result must never reach dangerouslySetInnerHTML - the
-   * safety property is the render path, not the string.
-   *
-   * Stripping again after decoding was the alternative and it is worse: it would delete
-   * legitimate copy, turning `a &lt; b &gt; c` into `a  c` because `< b >` is tag-shaped.
-   * Corrupting the owner's words to make a string look safe in a context it never enters is the
-   * wrong trade.
-   */
   return stripTags( withBreaks )
     .replace( /&nbsp;/g, ' ' )
     .replace( /&lt;/g, '<' )
     .replace( /&gt;/g, '>' )
     .replace( /&quot;/g, '"' )
     .replace( /&#39;|&apos;/g, "'" )
-    // LAST, not first. Decoding &amp; before the others would turn a literal "&amp;lt;" in the
-    // source into "<", which is the classic double-decode hole.
     .replace( /&amp;/g, '&' )
     .split( BREAK )
     .map( line => line.replace( /\s+/g, ' ' ).trim() )
@@ -205,14 +124,12 @@ export function toParagraphs ( html: string ): string[] {
 }
 
 /**
- * Only visible products, and the filter is not cosmetic: `visible: false` in Wix means the
- * merchant has taken the product off the storefront, so publishing it here would contradict the
- * catalogue the business actually runs. A product with no slug is dropped for a harder reason -
- * the slug IS the route, so there would be no page to put it on.
+ * Only visible products. `visible: false` in Wix means the merchant has taken the product off the
+ * storefront; a product with no slug is dropped because the slug IS the route.
  *
- * Sorted by name, which is the only ordering the snapshot supports. Wix returns no sort weight
- * and every one of the seven carries the same `mainCategoryId`, so any other order would be the
- * order the API happened to answer in - stable until it is not.
+ * Sorted by name, which is the only ordering the snapshot supports - Wix returns no sort weight and
+ * all seven carry the same mainCategoryId, so any other order would be the order the API happened
+ * to answer in.
  */
 export const SHOP_PRODUCTS: ShopProduct[] = ( ( catalog as { products?: RawProduct[] } ).products || [] )
   .filter( raw => raw.visible !== false && !!raw.slug && !!raw.name )
@@ -226,10 +143,8 @@ export const SHOP_PRODUCTS: ShopProduct[] = ( ( catalog as { products?: RawProdu
       price: String( raw.price || '' ),
       currency: String( raw.currency || 'INR' ),
       inStock: raw.inStock !== false,
-      // Spread rather than `image: raw.image || undefined`, so a product with no image has no
-      // `image` KEY at all. ShopProductHead gates the Product node on the field's presence, and an
-      // explicit `undefined` would serialise away in JSON but still read as present to a truthiness
-      // check written carelessly later.
+      // Spread, not `image: raw.image || undefined`, so a product with no image has no `image` KEY
+      // at all. ShopProductHead gates the Product node on the field's presence.
       ...( raw.image ? { image: String( raw.image ) } : {} ),
       tagline: paragraphs[ 0 ] || '',
       body: paragraphs.slice( 1 ),
@@ -249,31 +164,23 @@ export const CATALOG_FETCHED_AT = String(
 export const catalogReadOn = (): string => {
   const at = new Date( CATALOG_FETCHED_AT );
   if ( Number.isNaN( at.getTime() ) ) return '';
-  // en-GB with an explicit UTC zone: the snapshot timestamp is UTC, and letting this resolve in
-  // the visitor's zone would render a different date either side of midnight for the same build,
-  // which is a hydration mismatch as well as a wrong answer.
+  // en-GB with an EXPLICIT UTC zone. The snapshot timestamp is UTC, and letting this resolve in the
+  // visitor's zone would render a different date either side of midnight for the same build - a
+  // hydration mismatch as well as a wrong answer.
   return at.toLocaleDateString( 'en-GB', {
     day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
   } );
 };
 
 /**
- * The meta description for a product page: the owner's own sentences, joined in order until the
- * next one would not fit, and NEVER cut mid-sentence.
+ * The meta description for a product page: the owner's own sentences, joined in order until the next
+ * one would not fit, and never cut mid-sentence.
  *
- * 160 characters is the budget because that is roughly where Google stops rendering. Truncating
- * at a word boundary with an ellipsis was the alternative and it is worse: this copy is written
- * as short, complete paragraphs, so a cut always lands inside the owner's argument. Measured
- * output for all seven, in characters:
- *
- *   File Assist        89     Merchandise      104
- *   Guided Resolution 159     Paperwork         60
- *   Kiosk              54     Referral Partner 110
- *   Viveka             68
- *
- * Four land between 54 and 89 characters, which is short for a description and is the right
- * answer anyway - Google supplements a thin description from the page, and it will not invent a
- * sentence the owner did not write.
+ * 160 characters is the budget because that is roughly where Google stops rendering. Truncating at a
+ * word boundary with an ellipsis was the alternative and it is worse: this copy is written as short,
+ * complete paragraphs, so a cut always lands inside an argument. Measured output runs 54 to 159
+ * characters across the seven; a thin description is the right answer anyway, because Google
+ * supplements from the page and will not invent a sentence nobody wrote.
  */
 export const shopMetaDescription = ( product: ShopProduct ): string => {
   const budget = 160;
@@ -289,13 +196,10 @@ export const shopMetaDescription = ( product: ShopProduct ): string => {
 /**
  * "Kiosk — price and what it includes | WECARE.DIGITAL".
  *
- * The shape is the site's: name, em-dash, a descriptor, then the brand suffix every other title
- * carries. The descriptor is the same on all seven because it is a statement about the PAGE, not
- * about the product - and the alternative, splicing in each product's own tagline, breaks the
- * length bound: Paperwork's is 60 characters, which with the name and suffix runs to 96 against
- * tools/browser/seocheck.js's 75-character ceiling.
- *
- * Measured: 50 characters for Kiosk, 62 for Guided Resolution - the longest of the seven.
+ * The descriptor is the same on all seven because it is a statement about the PAGE, not the product.
+ * Splicing in each product's own tagline breaks the length bound: Paperwork's is 60 characters,
+ * which with the name and suffix runs to 96 against tools/browser/seocheck.js's 75-character
+ * ceiling. The longest of the seven as written is 62.
  */
 export const shopPageTitle = ( product: ShopProduct ): string =>
   product.name + ' — price and what it includes | WECARE.DIGITAL';

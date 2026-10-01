@@ -30,6 +30,17 @@ Audit date: 20 September 2026. This is a repository/configuration snapshot, not 
 
 The active workspace file `.kiro/settings/mcp.json` is intentionally Git-ignored. Keep `.kiro/settings/mcp.example.json` as the tracked, credential-free source template and copy/merge it locally; never change the example to contain a resolved credential.
 
+**Razorpay MCP — enabling it is an owner action.** The tracked template carries the
+`razorpay` entry (Razorpay's official Model Context Protocol server over its payment
+APIs, `https://mcp.razorpay.com/mcp`) with `"disabled": true`, `autoApprove: []`, a
+`${RAZORPAY_MERCHANT_TOKEN}` placeholder and all nineteen money-moving tools in
+`disabledTools`. Enabling it requires credentials from the existing secret store
+(`wecare/razorpay`) and is therefore the owner's step, not an agent's: copy the
+template to the Git-ignored `mcp.json`, flip `disabled`, and supply the token after
+the leaked live key pair recorded above has been rotated. The placeholder variable is
+documented in `.env.local.example`. Nothing in `amplify/` or `src/` reads it — it is
+developer tooling and must never enter a Lambda environment.
+
 Kiro supports `${VARIABLE_NAME}` expansion in MCP environment values and headers after explicit approval. No MCP config may contain a resolved token. Do not use `autoApprove: ["*"]`. Pin executable packages, record package integrity/version, inspect tool schemas after connection and store a redacted capability inventory in `docs/mcp-capability-inventory.md`.
 
 Official sources:

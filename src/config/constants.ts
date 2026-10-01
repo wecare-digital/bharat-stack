@@ -76,8 +76,15 @@ export const GST_RATES = [
 // The public checkout is AWS-owned. Server-side checkout/order code must use
 // the same values when composing the final payable amount; do not duplicate
 // these rates in a Wix Editor/Velo project.
+//
+// 2.5% ON OWNER INSTRUCTION, AND THE THREE COPIES NOW AGREE. They did not: this file
+// said 2.2%, outbound-whatsapp/handler.py defaulted to 0.022 and
+// payments/invoice-engine/handler.py hardcoded 0.02 - so the fee a customer was quoted
+// depended on which surface composed the order. All three are 2.5% / 18% in this commit.
+// If this value moves again, those two move with it; no test pins the rate, so nothing
+// else will tell you.
 export const CONVENIENCE_FEE = {
-  percent: 2.2,
+  percent: 2.5,
   gstPercent: 18.0,
 };
 

@@ -32,6 +32,15 @@ import type { ShopProduct } from '../content/shop';
 /** localStorage key. Namespaced and versioned so a shape change can be migrated, not guessed. */
 const CART_KEY = 'wecare.cart.v1';
 
+/**
+ * Fired on `window` after every write, so the header's Shopping Bag badge can re-read the count.
+ *
+ * The browser's own `storage` event is not enough on its own: it fires in OTHER tabs and never in
+ * the one that made the write, so adding an item on /shop/<slug>/ would leave the badge in the
+ * same document stale until the next navigation. The header listens for both.
+ */
+export const CART_CHANGED_EVENT = 'wecare:cart-changed';
+
 export interface CartItem {
   /** The catalogue reference: the product's Wix catalogue id. Never a price. */
   ref: string;
@@ -102,6 +111,16 @@ export function readCart (): CartItem[] {
 function writeCart ( items: CartItem[] ): void {
   if ( !hasWindow() ) return;
   window.localStorage.setItem( CART_KEY, JSON.stringify( items ) );
+  announce();
+}
+
+/**
+ * Tell this document the cart moved. Guarded on CustomEvent as well as window, because the SSR
+ * guard above only proves there is a window - and jsdom-less environments have neither.
+ */
+function announce (): void {
+  if ( !hasWindow() || typeof window.CustomEvent !== 'function' ) return;
+  window.dispatchEvent( new window.CustomEvent( CART_CHANGED_EVENT ) );
 }
 
 /**
@@ -161,6 +180,7 @@ export function removeItem ( ref: string ): CartItem[] {
 export function clearCart (): void {
   if ( !hasWindow() ) return;
   window.localStorage.removeItem( CART_KEY );
+  announce();
 }
 
 /** Total number of units across all lines - for a header badge or an empty check. */

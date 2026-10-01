@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import BrandLockup from './BrandLockup';
+import HeaderCart from './HeaderCart';
 import { PRODUCTS } from '../content/products';
 
 /**
@@ -459,6 +460,17 @@ const Header: React.FC = () => {
             </nav>
           </div>
         </div>
+
+        {/* THE SHOPPING BAG, AND IT MUST STAY AFTER .logo-nav IN THE DOM.
+            Header.test.tsx reaches the menu trigger with container.querySelector('button') to
+            assert the chevron is drawn rather than typed, so the trigger has to remain the FIRST
+            button in this header. This control is an anchor, like the logo and every nav row, so
+            it adds no button at all - but putting it earlier in the tree would still move the
+            reading and tab order ahead of the brand.
+            It paints itself: styled-jsx cannot scope a capitalised component, so the <style jsx>
+            block below cannot reach it and HeaderCart owns its CSS, including the
+            margin-inline-start:auto that pushes it to the end of this flex row. */}
+        <HeaderCart />
       </div>
       <style jsx>{`
         /* OPAQUE BY DEFAULT, translucent only where the blur actually works.
@@ -821,6 +833,22 @@ const Header: React.FC = () => {
            needed. It still has to beat the base rule's compiled :lang() selector, which the
            extra .hdr-in ancestor class does. */
         @media(max-width:767px){.hdr-in{height:96px;padding:14px 16px}.logo-nav{gap:8px}.hdr-in .nav-menu{position:fixed;top:100px;left:16px;right:16px;width:auto;max-height:calc(100dvh - 140px)}.nav-cols,.nav-results{grid-template-columns:minmax(0,1fr)}.nav-item{font-size:19px;min-height:52px}.nav-sub{font-size:17px;min-height:46px}}
+
+        /* ROOM FOR THE SHOPPING BAG ON THE NARROWEST DEVICE THAT SHIPS, derived rather than
+           nudged. Measured on the built header at 280px (Galaxy Fold, folded) before the bag
+           existed: the 16px gutter leaves a 248px content box, and .logo-nav occupies 212.8px of
+           it, so 35.2px remained - 8.8px short of the 44px tap target devicecheck.js enforces on
+           every header control.
+           10px of gutter returns 12px and a 6px .logo-nav gap returns 2px, giving 49.2px: a 44px
+           chip with 5.2px of air beside the menu trigger. Neither height moves, and the trigger
+           stays 46x46 at border-box - both re-measured after this change.
+           340px is RotatingHero's own narrow rung, reused so the site has one narrow breakpoint
+           rather than a new one invented for the header. 344px (Z Fold cover) is above it and
+           keeps the full 16px gutter, which is why the ceiling is 340 and not 360.
+           padding-inline is symmetric, so Lightning CSS emits a plain left/right pair with no
+           :lang() specificity class - it cannot out-specify the 767px rule above it, which is the
+           trap documented on .nav-menu. */
+        @media(max-width:340px){.hdr-in{padding-inline:10px}.logo-nav{gap:6px}}
 
         @media(prefers-reduced-motion:reduce){
           .nav-menu{transition:none}

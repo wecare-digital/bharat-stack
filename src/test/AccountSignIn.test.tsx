@@ -89,8 +89,55 @@ describe( 'the registered happy path', () => {
     await enterPhone();
     await enterCode( '000000' );
 
-    expect( await screen.findByText( /was not right/i ) ).toBeTruthy();
+    // PINNED STRING CHANGED, DELIBERATELY. This asserted /was not right/i against "That code was
+    // not right. Please try again." The owner's message table specifies the exact copy for each
+    // failure, and for an invalid code with attempts remaining that is "Check your code." - so the
+    // old assertion and the required string cannot both hold. The CONTRACT under test is unchanged:
+    // a null from submitOtp means wrong code, attempts remain, invite a retry, do not navigate.
+    expect( await screen.findByText( 'Check your code.' ) ).toBeTruthy();
     expect( navigatedTo ).toBe( '' );
+  } );
+
+  it( 'tells the shopper to send a new code when Cognito has failed the whole attempt', async () => {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
+    vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
+      session: 'sess-A', destination: '********3210', expiresInSeconds: 600, registered: true,
+    } );
+    // cognito() in customerAuth.ts sets error.name from Cognito's __type. NotAuthorizedException on
+    // a CUSTOM_AUTH challenge means the session is spent - another guess cannot succeed.
+    const dead = new Error( 'Invalid session for the user.' );
+    dead.name = 'NotAuthorizedException';
+    vi.spyOn( customerAuth, 'submitOtp' ).mockRejectedValue( dead );
+    vi.stubGlobal( 'fetch', vi.fn() );
+
+    render( <SignIn /> );
+    await enterPhone();
+    await enterCode( '000000' );
+
+    expect( await screen.findByText( 'Code expired. Send a new one.' ) ).toBeTruthy();
+    // NOT "check your code": a spent challenge cannot be fixed by retyping.
+    expect( screen.queryByText( 'Check your code.' ) ).toBeNull();
+    expect( navigatedTo ).toBe( '' );
+  } );
+
+  it( 'tells a throttled shopper to wait, never to send another code', async () => {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
+    vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
+      session: 'sess-A', destination: '********3210', expiresInSeconds: 600, registered: true,
+    } );
+    const throttled = new Error( 'Too many requests' );
+    throttled.name = 'TooManyRequestsException';
+    vi.spyOn( customerAuth, 'submitOtp' ).mockRejectedValue( throttled );
+    vi.stubGlobal( 'fetch', vi.fn() );
+
+    render( <SignIn /> );
+    await enterPhone();
+    await enterCode( '000000' );
+
+    // THE DISTINCTION THAT MATTERS. "Send a new one" to someone who is rate-limited walks them
+    // straight back into the limit, so a throttle must not borrow the expiry message.
+    expect( await screen.findByText( 'Wait before trying again.' ) ).toBeTruthy();
+    expect( screen.queryByText( 'Code expired. Send a new one.' ) ).toBeNull();
   } );
 } );
 
@@ -159,9 +206,104 @@ describe( 'the register-then-sign-in path (two codes, not one)', () => {
     await enterPhone();
     await enterCode( 'WRONG' );
 
-    expect( await screen.findByText( /was not accepted/i ) ).toBeTruthy();
+    // PINNED STRING CHANGED, DELIBERATELY, for the same reason as /was not right/i above. This read
+    // /was not accepted/i against "That code was not accepted. Please try again." A rejected
+    // registration code with no explanatory status is, overwhelmingly, a mistyped one, so it takes
+    // the table's invalid-code line. The contract under test - an error is shown, nothing navigates,
+    // and sign-in is never attempted - is unchanged.
+    expect( await screen.findByText( 'Check your code.' ) ).toBeTruthy();
     expect( navigatedTo ).toBe( '' );
     // Sign-in is never attempted when registration fails.
     expect( submitOtp ).not.toHaveBeenCalled();
+  } );
+
+  it( 'reads a 429 from the front door as a throttle, not as a bad code', async () => {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
+    vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
+      session: '', destination: '', expiresInSeconds: 600, registered: false,
+    } );
+    const submitOtp = vi.spyOn( customerAuth, 'submitOtp' );
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce( { ok: true, status: 200, json: async () => ( {} ) } )
+      .mockResolvedValueOnce( { ok: false, status: 429, json: async () => ( {} ) } );
+    vi.stubGlobal( 'fetch', fetchMock );
+
+    render( <SignIn /> );
+    await enterPhone();
+    await enterCode( '123456' );
+
+    expect( await screen.findByText( 'Wait before trying again.' ) ).toBeTruthy();
+    expect( submitOtp ).not.toHaveBeenCalled();
+  } );
+} );
+
+describe( 'the error copy is the owner\'s table and nothing else', () => {
+  /**
+   * THE HONESTY RULE, ASSERTED AS AN ABSENCE. "Use a WhatsApp number." is an approved string that
+   * this page must NOT reach, because the only send-failure signal the backend offers today - the
+   * registration front door's 502 {status:'send_failed'} - also covers a transient Meta outage. A
+   * grep for the literal is the right instrument: any future edit that wires it up without first
+   * wiring a provider signal that can prove it will fail here and have to justify itself.
+   */
+  it( 'never renders the WhatsApp-specific message for a generic send failure', async () => {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
+    vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
+      session: '', destination: '', expiresInSeconds: 600, registered: false,
+    } );
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
+      ok: false, status: 502, json: async () => ( { status: 'send_failed' } ),
+    } ) );
+
+    render( <SignIn /> );
+    await enterPhone();
+
+    const alert = await screen.findByRole( 'alert' );
+    expect( alert.textContent ).toBe( 'Couldn\u2019t send a code. Check your number.' );
+    expect( alert.textContent ).not.toMatch( /WhatsApp/ );
+  } );
+
+  it( 'keeps the number-is-not-on-WhatsApp claim out of the rendered page entirely', async () => {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
+    vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
+      session: '', destination: '', expiresInSeconds: 600, registered: false,
+    } );
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
+      ok: false, status: 502, json: async () => ( { status: 'send_failed' } ),
+    } ) );
+
+    const { container } = render( <SignIn /> );
+    await enterPhone();
+    await screen.findByRole( 'alert' );
+
+    expect( container.textContent || '' ).not.toContain( 'Use a WhatsApp number.' );
+  } );
+
+  it( 'does not leak whether the number is already registered', async () => {
+    /*
+     * NON-ENUMERATION. The two paths diverge on `registered`, and a 502 can arrive on either. The
+     * failure a shopper sees must therefore be identical in both, or the error message itself
+     * becomes a way to ask "is this number a customer?".
+     */
+    const texts: string[] = [];
+    for ( const registered of [ true, false ] )
+    {
+      vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
+      vi.spyOn( customerAuth, 'requestOtp' ).mockRejectedValue(
+        Object.assign( new Error( 'Rate exceeded' ), { name: 'TooManyRequestsException' } ),
+      );
+      vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
+        ok: false, status: 429, json: async () => ( { registered } ),
+      } ) );
+
+      const { unmount } = render( <SignIn /> );
+      await enterPhone();
+      const alert = await screen.findByRole( 'alert' );
+      texts.push( String( alert.textContent ) );
+      unmount();
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+    expect( texts[ 0 ] ).toBe( texts[ 1 ] );
+    expect( texts[ 0 ] ).toBe( 'Wait before trying again.' );
   } );
 } );
