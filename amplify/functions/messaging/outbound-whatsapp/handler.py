@@ -3078,12 +3078,16 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             # Use tax value from order_data as fallback
             gst_paise = int(order_data.get('tax', {}).get('value', 0))
         
-        # Convenience Fee: configurable rate (default 2.2%) + GST on that rate (default 18%)
+        # Convenience Fee: configurable rate (default 2.5%) + GST on that rate (default 18%)
         # Can be overridden per-order via convenienceFeeRate and convenienceFeeGstRate.
-        # The public checkout is AWS-owned, so this server-side default and
-        # CONVENIENCE_FEE in src/config/constants.ts are the two copies that must
-        # remain aligned until fee calculation is centralized in the checkout service.
-        conv_fee_rate = Decimal(str(order_details.get('convenienceFeeRate', '0.022')))
+        # The public checkout is AWS-owned, so this server-side default,
+        # CONVENIENCE_FEE in src/config/constants.ts and the literal in
+        # payments/invoice-engine/handler.py are THREE copies that must remain aligned
+        # until fee calculation is centralized in the checkout service. They did not agree
+        # before this commit - 0.022 here, 2.2 there and 0.02 in the invoice engine - so the
+        # fee depended on which surface composed the order. All three are 2.5% on owner
+        # instruction.
+        conv_fee_rate = Decimal(str(order_details.get('convenienceFeeRate', '0.025')))
         conv_fee_gst_rate = Decimal(str(order_details.get('convenienceFeeGstRate', '0.18')))
         skip_conv_fee = order_details.get('skipConvenienceFee', False)
 

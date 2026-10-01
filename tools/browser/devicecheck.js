@@ -57,10 +57,19 @@ const launchEngine = async () => {
 const ROUTES = [ '/', '/grahak-os/', '/vayulok/', '/bharat-rx/', '/contact/', '/orders/',
   '/terms/', '/privacy/', '/anew/', '/clear-closure/', '/dastavez/', '/elsewhere/',
   '/expo-week/', '/niji-setu/', '/ritual-guru/', '/hunar/', '/vault/', '/404/', '/blog/', '/get/',
-  // The catalogue. /shop/ for the grid's three-to-two-to-one reflow, /shop/kiosk/ because its top
-  // band is hand-written rather than RotatingHero's - so the 108px/96px header clearance and the
-  // h1's clamp are this file's numbers and nobody else's, across all fifteen devices.
+  // The catalogue. /shop/ for the grid's three-to-two-to-one reflow, /shop/kiosk/ because it is the
+  // one catalogue route whose band is not RotatingHero's - it uses components/PageTopBand, so that
+  // component's 108px/96px clearance and its h1 clamp are proved here across all fifteen devices.
   '/shop/', '/shop/kiosk/',
+  // THE TRANSACTIONAL ROUTES, AND THEIR ABSENCE WAS THE DEFECT. All four are public (registered in
+  // the isPublic chain in _app.tsx) and all four were invisible to this harness, which carries a
+  // hardcoded list. Two of them - /checkout/status/ and /checkout/success/ - shipped with NO header
+  // clearance at all: they centred a card inside min-height:100vh, so the heading painted under the
+  // 108px fixed header, and nothing here could see it. They share components/PageTopBand now, and
+  // this is where that is measured.
+  // The Shopping Bag is in the header on EVERY one of these routes, so the 44px tap-target
+  // assertion below now covers it at 280px, where the header has the least room.
+  '/cart/', '/account/sign-in/', '/checkout/status/', '/checkout/success/',
   '/post/a-bad-event-and-a-catastrophic-forecast-are-not-the-same/' ];
 
 // CSS pixels. DevTools presets where one exists, marked approx where modelled.

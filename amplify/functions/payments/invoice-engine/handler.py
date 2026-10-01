@@ -579,12 +579,15 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
     )
     tax = round(tax, 2)
 
-    # Convenience fee: 2% of total collection + 18% GST on that 2%
+    # Convenience fee: 2.5% of total collection + 18% GST on that 2.5%
     # "Total collection" = subtotal - discount + shipping + handling + tax + GP + NF
+    # 2.5% on owner instruction. This was 0.02 while src/config/constants.ts said 2.2% and
+    # outbound-whatsapp/handler.py defaulted to 0.022 - three copies, three answers. All
+    # three are 2.5% now and must move together.
     convenience_fee = float(body.get('convenienceFee', 0))
     if convenience_fee == 0 and entry_point in ('pay_flow', 'manual', 'whatsapp_payment'):
         collection = subtotal - discount + shipping + effective_gp + effective_nf + handling + tax
-        conv_base = round(collection * 0.02, 2)
+        conv_base = round(collection * 0.025, 2)
         conv_gst = round(conv_base * 0.18, 2)
         convenience_fee = round(conv_base + conv_gst, 2)
 
