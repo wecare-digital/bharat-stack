@@ -1297,3 +1297,42 @@ or the integrating one.
 - `.kiro/steering/lambda-snapstart-deploy.md` — why the `live` alias is what production invokes
 - `.kiro/steering/blog-production-s3.md` — the `o/` prefix decision the icon upload follows
 - `docs/execution/snapshots/checkout-*-20261001.json` — the eight snapshots above
+
+---
+
+## Acceptance record — the `PAYMENT_INITIATION_DISABLED` substitution
+
+Added 2026-10-01 by the integrating session, because three review passes recorded this
+substitution as reasoned but **NOT EVIDENCED**: the reasoning lived in the section above and in a
+message to the implementing step, with no artifact a later reader could audit. The reasoning is not
+the acceptance. This is the acceptance.
+
+**What was substituted.** The brief's live acceptance criterion was that
+`POST /api/ecommerce/checkout` return `PAYMENT_INITIATION_DISABLED` instead of `404`. What it
+actually returns is **`401 VERIFICATION_REQUIRED`**, because `require_customer` runs first and the
+readiness check returns `409` ahead of the initiation gate. The gate's own branch is therefore
+covered by an authenticated unit test rather than by a live probe.
+
+**Accepted, and on what grounds.** Three independent refusals stacked in front of a payable order —
+authentication, then readiness, then the initiation gate — is a stronger property than the single
+refusal the criterion described, not a weaker one. The implementing step was explicitly instructed
+NOT to weaken the handler to make the gate observable from outside; a probe-friendly ordering would
+have meant moving the gate ahead of authentication, which is the wrong direction for a payment path.
+So the criterion is recorded as **➖ NOT REQUIRED (structurally unreachable live)** rather than
+`❌ FAILED` or, worse, silently reinterpreted.
+
+**Scope of this acceptance, stated narrowly so it cannot be stretched.** It covers the verification
+*method* for one branch of one handler, nothing else. It is **not** acceptance of:
+
+- enabling `CHECKOUT_INITIATION_ENABLED` — still OFF, still owner-only, still ungranted;
+- any live monetary transaction — the QA recipient `+918100640044` is nominated but a monetary test
+  retains its own separate authorisation, which has **not** been given;
+- the fleet-wide `live` alias moves that `scripts/deploy_all_lambdas.py` performs — this change
+  created ONE new function and moved no existing alias.
+
+**Two facts a later reader should not have to re-derive.** `wecare-razorpay-webhook` `live` moved
+**v45 → v46** during this work, at 14:12:34Z, by a different session; it is evidenced in that
+session's record and is not part of this change. And the third-pass review's finding that
+`8a48e5f9` was unpushed was correct when written and is now stale: the run's finalize step pushed
+it, and `git merge-base --is-ancestor 8a48e5f9 origin/stack` confirms it, with the verifier
+hardening present on the remote copy of `scripts/provision_checkout.py`.
