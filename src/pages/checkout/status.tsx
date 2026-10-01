@@ -40,6 +40,7 @@
  */
 
 import Head from 'next/head';
+import Link from 'next/link';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { getSession } from '../../lib/customerAuth';
@@ -192,8 +193,8 @@ export default function CheckoutStatus (): React.ReactElement {
               {/* Retry returns to the cart, where a NEW checkout (new reference, re-priced) is
                   created. This page never re-sends a payment itself. Only shown on a
                   backend-confirmed terminal failure. */}
-              <a className="co-btn co-btn-primary" href="/shop/">Try again</a>
-              <a className="co-btn co-btn-quiet" href="/">Back to home</a>
+              <Link className="co-btn co-btn-primary" href="/shop/">Try again</Link>
+              <Link className="co-btn co-btn-quiet" href="/">Back to home</Link>
             </div>
           )}
           {view === 'finalizing' && (
@@ -201,7 +202,7 @@ export default function CheckoutStatus (): React.ReactElement {
           )}
           {view === 'unavailable' && (
             <div className="co-actions">
-              <a className="co-btn co-btn-quiet" href="/shop/">Return to the store</a>
+              <Link className="co-btn co-btn-quiet" href="/shop/">Return to the store</Link>
             </div>
           )}
         </section>

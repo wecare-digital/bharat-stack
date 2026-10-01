@@ -29,6 +29,7 @@
  */
 
 import Head from 'next/head';
+import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 
 function orderNumberFromUrl (): string {
@@ -69,8 +70,8 @@ export default function CheckoutSuccess (): React.ReactElement {
           )}
 
           <div className="cs-actions">
-            <a className="cs-btn cs-btn-primary" href="/shop/">Continue shopping</a>
-            <a className="cs-btn cs-btn-quiet" href="/">Back to home</a>
+            <Link className="cs-btn cs-btn-primary" href="/shop/">Continue shopping</Link>
+            <Link className="cs-btn cs-btn-quiet" href="/">Back to home</Link>
           </div>
         </section>
       </main>
