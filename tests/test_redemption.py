@@ -368,17 +368,58 @@ def test_zero_remaining_commit_uses_the_attempt_marker():
     assert second is False
 
 
-def test_refund_releases_a_committed_redemption_back_to_the_card():
+def test_refund_releases_a_live_reserved_redemption_with_the_refunded_reason():
+    # refund_redemption is release_redemption with reason=REFUNDED, and release is CONDITIONAL on
+    # the row still being RESERVED. Against a LIVE (reserved, never committed) row it succeeds and
+    # stamps releaseReason=REFUNDED. This is the only state the current refund path can act on; the
+    # committed-row behaviour is asserted separately below.
     table = _keys()
     result = _apply()
     rd.reserve_redemption(keys_table=table, code='GC', payment_attempt_id='att-A', result=result)
-    # Note: a committed reservation is no longer RESERVED, so refund (a RELEASED-conditional write)
-    # is a no-op on a committed row; the refund path releases a reservation that is still live.
     refunded = rd.refund_redemption(keys_table=table, code='GC', payment_attempt_id='att-A')
     assert refunded is True
     row = rd.reconcile_reservation(keys_table=table, code='GC', payment_attempt_id='att-A')
     assert row['state'] == 'RELEASED'
     assert row['releaseReason'] == 'REFUNDED'
+
+
+def test_refund_on_a_committed_redemption_is_a_conditional_no_op_and_leaves_it_committed():
+    """The TRUE behaviour of refund_redemption against a COMMITTED row (the real refund path).
+
+    This commits a reservation first (reserve -> commit_redemption) so the row is genuinely
+    COMMITTED, then calls refund_redemption and asserts the actual code behaviour rather than an
+    aspirational one. Because refund_redemption delegates to release_gift_card_redemption, whose
+    DynamoDB write is CONDITIONAL on ``state == RESERVED``, a COMMITTED row cannot be released: the
+    conditional write fails and the function returns False. The row stays COMMITTED, keeps its
+    providerPaymentId, and is NEVER stamped RELEASED/REFUNDED.
+
+    DOCUMENTED GAP (see findings and the coupon-giftcard runbook): the runbook describes a refund as
+    "RELEASES a committed redemption back to the card", but the current code's refund path can only
+    act on a still-RESERVED row, so a refund AFTER capture/commit is a no-op at this layer and does
+    NOT record a REFUNDED release on the committed row. The actual provider-side balance credit is
+    the concrete binding's job (deferred, BLOCKED-ON-ENVIRONMENT). This test pins the real behaviour
+    so a future change that makes committed-row refund restore the card is a DELIBERATE, visible
+    edit to money code, not a silent one. Money behaviour is NOT changed here to make a test green.
+    """
+    table = _keys()
+    result = _apply()
+    rd.reserve_redemption(keys_table=table, code='GC', payment_attempt_id='att-A', result=result)
+    committed = rd.commit_redemption(keys_table=table, code='GC', payment_attempt_id='att-A',
+                                     provider_payment_id='pay_123', redemption_paise=40000)
+    assert committed is True
+    row = rd.reconcile_reservation(keys_table=table, code='GC', payment_attempt_id='att-A')
+    assert row['state'] == 'COMMITTED'  # the row really is committed before we try to refund it
+
+    # The real refund-of-committed path: a conditional no-op, not a release back to the card.
+    refunded = rd.refund_redemption(keys_table=table, code='GC', payment_attempt_id='att-A')
+    assert refunded is False  # the RESERVED-conditional write cannot touch a COMMITTED row
+
+    # The committed row is untouched: still COMMITTED, still carrying its payment id, never REFUNDED.
+    row = rd.reconcile_reservation(keys_table=table, code='GC', payment_attempt_id='att-A')
+    assert row['state'] == 'COMMITTED'
+    assert row['providerPaymentId'] == 'pay_123'
+    assert row.get('releaseReason') != 'REFUNDED'
+    assert 'releaseReason' not in row or row['releaseReason'] != 'REFUNDED'
 
 
 def test_reconcile_reservation_reads_the_stored_authoritative_row():
