@@ -1,8 +1,8 @@
 {
   "_comment": "Recorded state of live Lambda environment variables. Not deployed by anything - this is the source of truth to diff against. Regenerate with scripts/env_manifest.py --export; verify with no arguments.",
   "_region": "us-east-1",
-  "_functions": 67,
-  "_variables": 397,
+  "_functions": 68,
+  "_variables": 399,
   "_fingerprinted": 14,
   "functions": {
     "stack-wecare-url-shortener": {
@@ -131,6 +131,10 @@
       "CRM_STAGES_TABLE": "stack-wecare-digital-CrmStages",
       "INVOICES_TABLE": "stack-wecare-digital-InvoicesTable",
       "PAYMENTS_TABLE": "stack-wecare-digital-PaymentsTable"
+    },
+    "wecare-customer-session": {
+      "CUSTOMER_SESSIONS_TABLE": "stack-wecare-digital-CustomerSessionsTable",
+      "CUSTOMER_SESSION_KMS_KEY_ID": "b749509f-f93f-4451-9015-60ec29c4b9c1"
     },
     "wecare-customer-whatsapp-auth": {
       "MAX_ATTEMPTS": "3",

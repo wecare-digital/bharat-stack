@@ -24,11 +24,11 @@
  * Token storage
  * -------------
  * The access token goes in `sessionStorage`, not `localStorage`: it is valid for
- * 60 minutes, and sessionStorage dies with the tab, so a shared or public browser
- * does not keep a usable session after the tab closes. It is still readable by
- * script on this origin, which is the normal tradeoff for a browser SPA session -
- * the mitigation is that these tokens reach only the customer's own file list and
- * expire quickly.
+ * 60 minutes. A server-owned session uses an HttpOnly cookie and an encrypted
+ * refresh token. Only a CSRF/expiry hint is kept in localStorage; it cannot
+ * authorize a request. Customers may opt out of a persistent cookie on shared
+ * devices. Short access tokens remain readable by same-origin script and expire
+ * quickly; customer APIs validate them against the customer pool.
  */
 
 const REGION = process.env.NEXT_PUBLIC_COGNITO_REGION || 'us-east-1';
@@ -38,6 +38,54 @@ const CLIENT_ID = process.env.NEXT_PUBLIC_CUSTOMER_CLIENT_ID || '4avmt9n4gpmkvkd
 const ENDPOINT = `https://cognito-idp.${REGION}.amazonaws.com/`;
 const TOKEN_KEY = 'wecare.customer.accessToken';
 const EXPIRY_KEY = 'wecare.customer.expiresAt';
+
+const SESSION_ENDPOINT = '/api/ecommerce/customer-session';
+const SESSION_HINT_KEY = 'wecare.customer.sessionHint';
+interface SessionHint { csrfToken: string; expiresAt: number; persistent: boolean; }
+let refreshInFlight: Promise<CustomerSession | null> | null = null;
+
+// Logout in another tab invalidates this tab's cached access token as well.
+if ( typeof window !== 'undefined' ) window.addEventListener( 'storage', event => {
+  if ( event.key === SESSION_HINT_KEY && event.newValue === null ) {
+    window.sessionStorage.removeItem( TOKEN_KEY );
+    window.sessionStorage.removeItem( EXPIRY_KEY );
+  }
+} );
+
+function sessionHint (): SessionHint | null {
+  if ( typeof window === 'undefined' ) return null;
+  try {
+    const hint = JSON.parse( window.localStorage.getItem( SESSION_HINT_KEY ) || 'null' ) as SessionHint | null;
+    if ( !hint?.csrfToken || hint.expiresAt <= Date.now() ) return null;
+    return hint;
+  } catch { return null; }
+}
+
+/** Restore the server-owned session. A transient failure keeps the hint for a later retry. */
+export async function restoreSession (): Promise<CustomerSession | null> {
+  const current = getSession();
+  if ( current ) return current;
+  const hint = sessionHint();
+  if ( !hint ) return null;
+  if ( refreshInFlight ) return refreshInFlight;
+  refreshInFlight = ( async () => {
+    const response = await fetch( SESSION_ENDPOINT, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-Customer-CSRF': hint.csrfToken },
+      body: JSON.stringify( { action: 'refresh' } ),
+    } );
+    if ( response.status === 401 ) {
+      window.localStorage.removeItem( SESSION_HINT_KEY );
+      return null;
+    }
+    if ( !response.ok ) throw new Error( 'Sign-in is temporarily unavailable. Please try again.' );
+    const renewed = await response.json() as CustomerSession;
+    if ( !renewed.accessToken || renewed.expiresAt <= Date.now() ) throw new Error( 'Sign-in could not be renewed.' );
+    storeSession( renewed.accessToken, renewed.expiresAt );
+    return renewed;
+  } )();
+  try { return await refreshInFlight; } finally { refreshInFlight = null; }
+}
 
 export interface OtpChallenge {
   session: string;
@@ -123,10 +171,11 @@ export async function submitOtp (
   mobile: string,
   code: string,
   session: string,
+  persistent = true,
 ): Promise<CustomerSession | null> {
   const normalised = normaliseMobile( mobile );
   const result = await cognito<{
-    AuthenticationResult?: { AccessToken?: string; ExpiresIn?: number };
+    AuthenticationResult?: { AccessToken?: string; RefreshToken?: string; ExpiresIn?: number };
     Session?: string;
     ChallengeName?: string;
   }>( 'RespondToAuthChallenge', {
@@ -139,11 +188,29 @@ export async function submitOtp (
   const token = result.AuthenticationResult?.AccessToken;
   if ( !token )
   {
-    // Cognito re-issued the challenge: wrong code, attempts left.
+    // Cognito rotates the challenge session after a wrong code; preserve it for the next try.
+    if ( result.Session ) {
+      const mismatch = new Error( 'Check the code and try again.' ) as Error & { session: string };
+      mismatch.name = 'CodeMismatchException';
+      mismatch.session = result.Session;
+      throw mismatch;
+    }
     return null;
   }
 
   const expiresAt = Date.now() + ( result.AuthenticationResult?.ExpiresIn || 3600 ) * 1000;
+  const refreshToken = result.AuthenticationResult?.RefreshToken;
+  if ( refreshToken )
+  {
+    const response = await fetch( SESSION_ENDPOINT, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify( { action: 'exchange', refreshToken, persistent } ),
+    } );
+    if ( !response.ok ) throw new Error( 'We could not remember this sign-in. Please try again.' );
+    const hint = await response.json() as SessionHint;
+    window.localStorage.setItem( SESSION_HINT_KEY, JSON.stringify( hint ) );
+  }
   storeSession( token, expiresAt );
   return { accessToken: token, expiresAt };
 }
@@ -169,7 +236,8 @@ export function getSession (): CustomerSession | null {
   // mid-flight and surface as a confusing 401.
   if ( Date.now() > expiresAt - 30_000 )
   {
-    clearSession();
+    window.sessionStorage.removeItem( TOKEN_KEY );
+    window.sessionStorage.removeItem( EXPIRY_KEY );
     return null;
   }
   return { accessToken, expiresAt };
@@ -177,8 +245,15 @@ export function getSession (): CustomerSession | null {
 
 export function clearSession (): void {
   if ( typeof window === 'undefined' ) return;
+  const hint = sessionHint();
   window.sessionStorage.removeItem( TOKEN_KEY );
   window.sessionStorage.removeItem( EXPIRY_KEY );
+  window.localStorage.removeItem( SESSION_HINT_KEY );
+  if ( hint ) void fetch( SESSION_ENDPOINT, {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-Customer-CSRF': hint.csrfToken },
+    body: JSON.stringify( { action: 'logout' } ),
+  } ).catch( () => undefined );
 }
 
 /**

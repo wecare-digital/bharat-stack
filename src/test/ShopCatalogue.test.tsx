@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { readCart, toLineItems } from '../lib/cart';
 import ShopIndex from '../pages/shop/index';
 import ShopProductPage from '../pages/shop/[slug]';
 import { shopProductSchema } from '../components/ShopProductHead';
@@ -44,6 +45,25 @@ const SYNTHETIC: ShopProduct = {
 const ld = ( value: unknown ): Record<string, unknown> => value as Record<string, unknown>;
 
 describe( 'the Wix snapshot is read correctly', () => {
+  it( 'requires a merchandise variant and keeps distinct sizes in distinct cart lines', () => {
+    window.localStorage.clear();
+    const merchandise = shopProductBySlug( 'merchandise' )!;
+    render( <ShopProductPage product={ merchandise } /> );
+    const button = screen.getByRole( 'button', { name: 'Add Merchandise to cart' } );
+    expect( button ).toBeDisabled();
+    const variants = merchandise.variants!;
+    fireEvent.change( screen.getByRole( 'combobox' ), { target: { value: variants[0].id } } );
+    fireEvent.click( button );
+    fireEvent.change( screen.getByRole( 'combobox' ), { target: { value: variants[1].id } } );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Add Merchandise to cart' } ) );
+    expect( readCart() ).toHaveLength( 2 );
+    expect( readCart().map( item => item.name ) ).toEqual( [
+      `Merchandise (${variants[0].label})`, `Merchandise (${variants[1].label})`,
+    ] );
+    expect( toLineItems().map( item => item.catalogReference.options?.variantId ) ).toEqual( [ variants[0].id, variants[1].id ] );
+    expect( JSON.stringify( toLineItems() ) ).not.toMatch( /price|amount|formattedPrice/ );
+    window.localStorage.clear();
+  } );
   it( 'reads the seven visible products the snapshot holds', () => {
     // Pinned at seven, not derived from the file. Derived, it would agree with whatever the
     // snapshot said, including an empty array - which is how a catalogue page ships blank.
@@ -262,9 +282,9 @@ describe( 'the listing page', () => {
      * nothing. Dropping the date loses a freshness cue and was the owner's call.
      */
     render( <ShopIndex products={ SHOP_PRODUCTS } /> );
-    expect( screen.getByText( /Prices here are from the store catalogue/ ) ).toBeTruthy();
-    expect( screen.getByText( /The store confirms the amount when you proceed/ ) ).toBeTruthy();
-    expect( screen.getByText( /charges you nothing/ ) ).toBeTruthy();
+    expect( screen.getByText( /Review your final total in the cart before payment/ ) ).toBeTruthy();
+    expect( screen.queryByText( /Live payment is not on yet/ ) ).toBeNull();
+    expect( screen.getByText( /before payment/ ) ).toBeTruthy();
   } );
 
   it( 'says nothing about stock while everything is in stock', () => {
@@ -354,8 +374,8 @@ describe( 'the product page', () => {
     // It no longer claims "this page is not a checkout" now that a cart path exists.
     const kiosk = shopProductBySlug( 'kiosk' ) as ShopProduct;
     render( <ShopProductPage product={ kiosk } /> );
-    expect( screen.getByText( /Live payment is not on yet/ ) ).toBeTruthy();
-    expect( screen.getByText( /charges you nothing/ ) ).toBeTruthy();
+    expect( screen.getByText( /Review your final total in the cart before payment/ ) ).toBeTruthy();
+    expect( screen.getByText( /before payment/ ) ).toBeTruthy();
     expect( screen.queryByText( /This page is not a checkout/ ) ).toBeNull();
   } );
 

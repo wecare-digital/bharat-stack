@@ -42,6 +42,8 @@ const CART_KEY = 'wecare.cart.v1';
 export const CART_CHANGED_EVENT = 'wecare:cart-changed';
 
 export interface CartItem {
+  productId?: string;
+  variantId?: string;
   /** The catalogue reference: the product's Wix catalogue id. Never a price. */
   ref: string;
   /** The product slug, so the cart can link back to /shop/<slug>/. */
@@ -56,7 +58,7 @@ export interface CartItem {
 
 /** One entry of the checkout `create` payload: a catalogue reference and a quantity, nothing else. */
 export interface CheckoutLineItem {
-  catalogReference: string;
+  catalogReference: { appId: string; catalogItemId: string; options?: { variantId: string } };
   quantity: number;
 }
 
@@ -92,6 +94,8 @@ function parseCart ( raw: string | null ): CartItem[] {
     if ( !ref ) continue;
     out.push( {
       ref,
+      ...( item.productId ? { productId: String( item.productId ) } : {} ),
+      ...( item.variantId ? { variantId: String( item.variantId ) } : {} ),
       slug: String( item?.slug || '' ),
       name: String( item?.name || '' ),
       formattedPrice: String( item?.formattedPrice || '' ),
@@ -128,8 +132,11 @@ function announce (): void {
  * product's catalogue id (its stable reference), not its name, so a renamed product still merges.
  * Returns the updated cart.
  */
-export function addItem ( product: ShopProduct, qty = 1 ): CartItem[] {
-  const ref = String( product.id || product.slug || '' );
+export function addItem ( product: ShopProduct, qty = 1, selectedVariantId?: string ): CartItem[] {
+  const variantId = selectedVariantId || ( product.variants?.length === 1 ? product.variants[0].id : undefined );
+  if ( product.variants && product.variants.length > 1 && !variantId ) throw new Error( 'Choose an option first.' );
+  if ( variantId && !product.variants?.some( variant => variant.id === variantId && variant.inStock ) ) throw new Error( 'Choose an available option.' );
+  const ref = String( product.id || product.slug || '' ) + ( variantId ? `:${variantId}` : '' );
   if ( !ref ) return readCart();
   const quantity = normaliseQuantity( qty );
   const items = readCart();
@@ -141,9 +148,13 @@ export function addItem ( product: ShopProduct, qty = 1 ): CartItem[] {
   else
   {
     items.push( {
+      productId: product.id,
+      ...( variantId ? { variantId } : {} ),
       ref,
       slug: String( product.slug || '' ),
-      name: String( product.name || '' ),
+      name: product.variants && product.variants.length > 1
+        ? `${product.name} (${product.variants.find( variant => variant.id === variantId )!.label})`
+        : String( product.name || '' ),
       formattedPrice: String( product.formattedPrice || '' ),
       quantity,
     } );
@@ -200,5 +211,5 @@ export function cartCount (): number {
 export function toLineItems ( items: CartItem[] = readCart() ): CheckoutLineItem[] {
   return items
     .filter( item => item.ref && item.quantity > 0 )
-    .map( item => ( { catalogReference: item.ref, quantity: item.quantity } ) );
+    .map( item => ( { catalogReference: { appId: '215238eb-22a5-4c36-9e7b-e7c08025e04e', catalogItemId: item.productId || item.ref, ...( item.variantId ? { options: { variantId: item.variantId } } : {} ) }, quantity: item.quantity } ) );
 }

@@ -703,10 +703,13 @@ def test_frontend_phone_normalisation_matches_the_backend():
 
 
 def test_customer_token_is_not_in_localstorage():
-    """sessionStorage dies with the tab; localStorage would outlive a shared browser."""
+    """Only a non-credential CSRF/expiry hint may survive in localStorage."""
     source = _strip_comments(CUSTOMER_AUTH.read_text())
     assert "sessionStorage" in source
-    assert "localStorage" not in source
+    writes = [line.strip() for line in source.splitlines() if 'localStorage.setItem' in line]
+    assert writes == ['window.localStorage.setItem( SESSION_HINT_KEY, JSON.stringify( hint ) );']
+    assert 'window.sessionStorage.setItem( TOKEN_KEY, accessToken );' in source
+    assert 'interface SessionHint { csrfToken: string; expiresAt: number; persistent: boolean; }' in source
 
 
 def test_provisioner_preserves_a_manually_enabled_payment_flag():

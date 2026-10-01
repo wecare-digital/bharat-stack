@@ -171,7 +171,7 @@ def create_session(store: Any, *,
     """Mint a new session row and return `(opaque_id, view)`.
 
     The opaque id is returned ONCE, to be set in the cookie; only its hash is stored. `refresh_ref`
-    is a reference to the Cognito refresh token in Secrets Manager, never the token itself - this
+    is an encrypted custody reference to the Cognito refresh token, never the token itself - this
     module never holds a credential value.
 
     The absolute deadline is anchored to `now` and, per section 16, nothing afterwards moves it.

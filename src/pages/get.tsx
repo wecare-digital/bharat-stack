@@ -38,7 +38,7 @@ import SEO from '../components/SEO';
 import * as api from '../api/client';
 import type { SecureFile } from '../api/client';
 import {
-    requestOtp, submitOtp, getSession, clearSession, normaliseMobile,
+    requestOtp, submitOtp, getSession, restoreSession, clearSession, normaliseMobile, nextSessionFrom,
 } from '../lib/customerAuth';
 
 function formatBytes ( bytes: number ): string {
@@ -87,18 +87,18 @@ export default function FilesPage () {
 
     // Resume an existing tab session rather than making the customer re-verify.
     useEffect( () => {
-        if ( !getSession() ) return;
-        api.listMySecureFiles().then( result => {
+        void restoreSession().then( session => session ? api.listMySecureFiles() : null ).then( result => {
+            if ( !result ) return;
             if ( result.ok )
             {
                 setFiles( result.data.files || [] );
                 setPrice( result.data.pricePaise || 4900 );
                 setStage( 'files' );
-            } else
+            } else if ( result.failure.status === 401 )
             {
                 clearSession();
             }
-        } );
+        } ).catch( () => setError( 'Sign-in is temporarily unavailable. Please try again.' ) );
     }, [] );
 
     const handleRequestOtp = async () => {
@@ -150,6 +150,8 @@ export default function FilesPage () {
             await loadFiles();
         } catch ( err: any )
         {
+            const next = nextSessionFrom( err );
+            if ( next ) setSession( next );
             if ( err?.name === 'NotAuthorizedException' )
             {
                 setError( 'Too many incorrect attempts. Start again.' );

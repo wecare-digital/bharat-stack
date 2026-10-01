@@ -41,12 +41,13 @@ const ShopProductPage: React.FC<ShopProductPageProps> = ( { product } ) => {
   // "added" flips once the item is in the cart, turning the CTA into a link to the cart rather
   // than re-adding on every press. Client-only state; the settled markup is the add button, so a
   // no-JS load still shows a coherent page.
+  const [ variantId, setVariantId ] = useState<string>( '' );
   const [ added, setAdded ] = useState<boolean>( false );
 
   const onAdd = useCallback( (): void => {
-    addItem( product, 1 );
+    addItem( product, 1, variantId || undefined );
     setAdded( true );
-  }, [ product ] );
+  }, [ product, variantId ] );
 
   return (
     <>
@@ -85,12 +86,23 @@ const ShopProductPage: React.FC<ShopProductPageProps> = ( { product } ) => {
 
             {/* The page's single lime surface. A button before the item is added (a client action)
                 and a link once it is, so a shopper is never stranded. */}
+            { product.variants && product.variants.length > 1 && (
+              <label className="shopd-options">
+                Fit and size
+                <select value={ variantId } onChange={ e => { setVariantId( e.target.value ); setAdded( false ); } }>
+                  <option value="">Choose your fit and size</option>
+                  { product.variants.filter( variant => variant.inStock ).map( variant => (
+                    <option key={ variant.id } value={ variant.id }>{ variant.label }</option>
+                  ) ) }
+                </select>
+              </label>
+            ) }
             { added
               ? (
                 <Link className="shopd-cta" href="/cart/">Go to your cart</Link>
               )
               : (
-                <button className="shopd-cta shopd-cta-btn" type="button" onClick={ onAdd }>
+                <button className="shopd-cta shopd-cta-btn" type="button" disabled={ !!product.variants && product.variants.length > 1 && !variantId } onClick={ onAdd }>
                   Add { product.name } to cart
                 </button>
               ) }
@@ -100,9 +112,7 @@ const ShopProductPage: React.FC<ShopProductPageProps> = ( { product } ) => {
                 with nothing dropped: where the price came from, who decides the amount, and that
                 nothing is charged. */}
             <p className="shopd-note">
-              Prices here are from the store catalogue. The store confirms the amount when you
-              proceed. Live payment is not on yet, so proceeding prepares your order and charges
-              you nothing.
+              Review your final total in the cart before payment.
             </p>
 
             <p className="shopd-back"><Link href="/shop/">All items in the shop</Link></p>
@@ -115,6 +125,9 @@ const ShopProductPage: React.FC<ShopProductPageProps> = ( { product } ) => {
              the whole reason this page stopped hand-rolling them: a page that states its own
              clearance has to restate it at both header heights, and getting that wrong paints the
              first line under the header. This div only sets its own reading measure. */
+          .shopd-options{display:flex;flex-direction:column;gap:8px;color:#1a3a2a;margin:20px 0;font-weight:700}
+          .shopd-options select{font:inherit;padding:14px;border:1px solid #c7d3b4;border-radius:14px;background:#f5f7eb;color:#1a3a2a}
+          .shopd-cta-btn:disabled{opacity:.5;cursor:not-allowed}
           .shopd-in{width:100%;max-width:700px;margin:0}
 
           /* The card rung - 22px/700/lh1.27/-.25px - in dark green rather than lime, for the

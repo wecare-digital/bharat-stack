@@ -132,6 +132,8 @@ class Spec:
 #   wecare-docs-scraper — PackageType=Image, ships via
 #                         .github/workflows/docs-scraper-deploy.yml.
 SPECS: List[Spec] = [
+    Spec("wecare-customer-session", "ecommerce/customer-session",
+         provisioned_by="CloudFormation amplify/infra/customer-sessions.json"),
     # --- core ---
     Spec("wecare-auth-middleware", "core/auth-middleware"),
     Spec("wecare-automation-rules", "core/automation-rules"),

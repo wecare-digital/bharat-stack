@@ -570,11 +570,11 @@ INSTRUCTIONS:
 - End with a clear action (website, phone, or next step)
 
 BRANDS:
-- Travel/Hotels/Visa → BNB Club (bnbclub.in)
-- Documents/Registration/GST → Legal Champ (legalchamp.in)
-- Disputes/Complaints → No Fault (nofault.in)
-- Puja/Rituals → Ritual Guru (ritualguru.in)
-- Self-inquiry/Reflection → Swdhya (swdhya.in)
+- Travel/Hotels/Visa → BNB Club (wecare.digital/elsewhere/)
+- Documents/Registration/GST → Legal Champ (wecare.digital/dastavez/)
+- Disputes/Complaints → No Fault (wecare.digital/clear-closure/)
+- Puja/Rituals → Ritual Guru (wecare.digital/ritual-guru/)
+- Self-inquiry/Reflection → Swdhya (wecare.digital/anew/)
 
 CONTACT: +91 9330994400 | one@wecare.digital"""
 

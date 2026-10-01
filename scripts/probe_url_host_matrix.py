@@ -276,34 +276,15 @@ def matrix() -> list[dict]:
                      "unknown single-segment API path -> /contact/ (another workstream owns it)",
                      terminal_url=f"{SITE}/contact/"))
 
-    # ── subdomains: documented gaps, asserted so they cannot change silently ────────
-    # shop.wecare.digital. RE-MEASURED AND MOVED 2026-10-01T13:15Z, kept as a HARD row.
-    #   originally  0 - no TCP connection at all. The name had no address in Route 53 and
-    #               CloudFront refused the TLS handshake for an unregistered host (alert 40).
-    #               Recorded as a coverage gap needing an Amplify update-domain-association
-    #               AND a Route 53 wildcard, both outside this task's authority.
-    #   now         302 -> https://wecare.digital/, terminal 200.
-    # The gap was CLOSED by the concurrent home-fallback workstream, not by this task and not
-    # by a third party: `docs/execution/home-fallback-20261001.md` records CloudFront
-    # `E1ZZ786I3YH65O` (alias `*.wecare.digital`, comment "Redirect unused WECARE subdomains
-    # and retired Wix hosts to home") plus `\052.wecare.digital` A+AAAA aliases in
-    # `Z03939753QJGZ6ZD6BXO8`. Amplify still registers only the apex and `www`, so the close
-    # came from that distribution rather than from a domain-association change.
-    # Deliberately NOT downgraded to informational: this is a surface WE control, so a drifting
-    # expectation on it is exactly what this harness exists to catch - see `_row`'s docstring.
-    # The row is asserted on the TERMINAL URL as well as the status, because 200 alone cannot
-    # tell the canonical home from our own content being served under a second hostname.
-    rows.append(_row("subdomain", "https://shop.wecare.digital/", 200,
-                     "unused subdomain lands on the canonical home (home-fallback workstream)",
-                     terminal_url=f"{SITE}/"))
-    # The path is DROPPED, not preserved, and that is the home-fallback function's documented
-    # behaviour rather than an accident - it returns a 302 to the exact apex URL with no path or
-    # query. Pinned so that a future change to path handling is visible here: this row and the
-    # `www /shop/` row above assert OPPOSITE things on purpose, because www is a canonicalisation
-    # (path preserved) and an unused subdomain is a fallback (path dropped).
-    rows.append(_row("subdomain", "https://shop.wecare.digital/shop/", 200,
-                     "unused-subdomain fallback DROPS the path, unlike the www canonicalisation",
-                     terminal_url=f"{SITE}/"))
+    # First-level unused hosts are owned by our wildcard fallback distribution.
+    # A failed DNS or TLS connection is a release failure, never a successful fallback.
+    for host in ('shop', 'store', 'xout', 'release-check-unknown'):
+        rows.append(_row('subdomain', f'https://{host}.wecare.digital/old/path?old=1',
+                         200, 'unused host must discard path/query and reach canonical home',
+                         terminal_url=f'{SITE}/'))
+    # This nested hostname retains its existing Wix TLS redirect before our xout fallback.
+    rows.append(_row('subdomain', 'https://www.xout.wecare.digital/old/path?old=1',
+                     200, 'existing certificate chain reaches home', terminal_url=f'{SITE}/'))
     # The residual gap, now the only one: the certificate covers ONE label. a.b.wecare.digital
     # DOES resolve - a DNS wildcard matches multiple labels (RFC 4592) - so the failure is at
     # TLS, not at DNS: `curl` reports "no alternative certificate subject name matches target
@@ -316,34 +297,6 @@ def matrix() -> list[dict]:
     rows.append(_row("subdomain", "https://a.b.wecare.digital/", 0,
                      "second-label host: resolves, but no certificate covers it - documented "
                      "coverage gap, NOT fixed here"))
-    # xout is a WIX-managed second-label host. INFORMATIONAL, and the reason is worth stating
-    # because downgrading a row is otherwise how a harness rots:
-    #   measured 2026-10-01 earlier in the day : 404, served by Wix
-    #   measured 2026-10-01 later the same day : 302 -> https://wecare.digital/, terminal 200
-    # Nothing of ours changed between those two readings - no DNS, ACM or CloudFront change was
-    # made by this task, and none is permitted by it. The config belongs to Wix, so a change
-    # there is news, not a defect of ours, and asserting it as a hard gate makes OUR run red
-    # whenever a third party edits THEIR host. The new answer is also the benign direction: it
-    # lands on the canonical apex rather than serving our content under a host the
-    # *.wecare.digital certificate cannot cover (that wildcard matches one label only, §4).
-    # Kept in the matrix rather than deleted so the value is still measured and reported.
-    #
-    # CORRECTED 2026-10-01T13:15Z: "nothing of ours changed" was true of THIS TASK and false of
-    # the repository. The concurrent home-fallback workstream deployed CloudFront E1ZZ786I3YH65O
-    # and cut `xout`/`www.xout` DNS over to it between the two readings
-    # (docs/execution/home-fallback-20261001.md), so the drift was ours, authorized and
-    # deliberate. The downgrade still stands, for the reason that survives the correction rather
-    # than the one originally given: `xout` is a second-label host outside the certificate, and
-    # `www.xout` is still served from a Wix TLS endpoint (`pointing.wixdns.net`) that we do not
-    # control, so the terminal behaviour of this name remains partly a third party's to change.
-    # The expectation is MOVED to the measured truth (2026-10-01T13:15Z) rather than left at the
-    # stale 404, for the same reason the shop row above was moved: a row that reports a
-    # permanent NOTE nobody acts on is read no more carefully than a permanent FAIL. It stays
-    # informational because `www.xout` still terminates through a Wix TLS endpoint we do not own.
-    rows.append(_row("subdomain", "https://xout.wecare.digital/", 200,
-                     "legacy Wix host, second-label, now lands on the canonical home - recorded "
-                     "not enforced because its TLS endpoint is Wix-owned",
-                     terminal_url=f"{SITE}/", informational=True))
     # mta-sts is the MTA-STS policy endpoint under mode: enforce. Probed at / ONLY, read-only,
     # to confirm nothing about it moved. Its policy path is not touched by this or any probe.
     rows.append(_row("subdomain", "https://mta-sts.wecare.digital/", 403,

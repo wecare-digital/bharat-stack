@@ -613,3 +613,40 @@ that, and states the authority exactly as it stands rather than stronger.
   `url-host-matrix-20261001.md` is the state to return to if that is the decision.
   Do **not** revert `src/lib/safeReturnPath.ts` or `src/test/SafeReturnPath.test.ts` either way -
   both are new files in permitted paths and are correct standalone.
+
+# 2026-10-01 - Checkout completion review
+
+- A0_READ: latest origin/stack, checkout/session Lambda metadata, customer Cognito client,
+  rendered public pages, route/host matrix, Wix catalogue variants and manual tax mappings.
+  No credential values or customer order data were returned.
+- A1_LOCAL: remembered-session adapter/frontend, cart preservation, live catalogue-reference
+  validation, explicit merchandise variants, stale source links, customer release gate.
+  Evidence and limits: `checkout-completion-review-20261001.md`.
+- A3_PRODUCTION: additive `wecare-customer-sessions` CloudFormation stack and customer-session
+  API route. CREATE_COMPLETE, live version 1, unauthenticated refresh rejected with 401/no-store.
+  KMS/table retained on deletion; rollback route first, then individual Lambda alias/version.
+- A2_REMOTE_CODE: publish exact reviewed paths to stack after green tests/build; non-force only.
+  No payment activation, provider message, capture/refund, or new TLS certificate authorized here.
+
+- 2026-10-01 A3_PRODUCTION: exact reviewed packages, verified checksums, published
+  customer-session:2, faq-handler:22, ai-config-management:24, ai-generate-response:34,
+  checkout:2, then individually moved live aliases with revision guards. Before/after
+  snapshots in checkout-completion-*-20261001.json; rollback to recorded old alias
+  versions. No environment flags or provider payment settings changed.
+
+- 2026-10-01 A1_LOCAL/A2_REMOTE_CODE/A3_PRODUCTION: add the customer export gate
+  after npm run build in GitHub CI and Amplify. The pre-change build specification
+  remains recoverable in commit da8d7d12; rollback by normal revert. Export gate
+  passed on the exact rendered build; live matrix 90/90 expected states.
+
+- 2026-10-01 A1_LOCAL/A3_PRODUCTION: session provider-outage/revocation response
+  correction, CloudFormation UPDATE_COMPLETE -> live version 3, retain old
+  versions for rollback. A1_LOCAL/A2_REMOTE_CODE: display selected cart variant
+  and replace internal release prose with concise final-total copy. Focused
+  tests and production export passed; no OTP/payment side effects.
+
+- 2026-10-01 A1_LOCAL/A2_REMOTE_CODE: require a customer-authenticated owned
+  PAYMENT_PAID attempt and server order number before showing payment success;
+  query-only confirmation is refused. No new payment or download route invented.
+  Full final tests: Python 5811 passed/1 skipped, frontend 697 passed; production
+  build, typecheck and 28-page export gate green. Rollback via normal revert.

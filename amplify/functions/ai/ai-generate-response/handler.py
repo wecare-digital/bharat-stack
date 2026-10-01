@@ -532,11 +532,11 @@ RULES:
 - For pricing, legal terms, or medical info, add: "Please verify this with our team for confirmation."
 
 BRANDS:
-- Travel/Hotels/Visa \u2192 BNB Club (bnbclub.in)
-- Documents/Registration/GST \u2192 Legal Champ (legalchamp.in)
-- Disputes/Complaints \u2192 No Fault (nofault.in)
-- Puja/Rituals \u2192 Ritual Guru (ritualguru.in)
-- Self-inquiry/Reflection \u2192 Swdhya (swdhya.in)
+- Travel/Hotels/Visa \u2192 BNB Club (wecare.digital/elsewhere/)
+- Documents/Registration/GST \u2192 Legal Champ (wecare.digital/dastavez/)
+- Disputes/Complaints \u2192 No Fault (wecare.digital/clear-closure/)
+- Puja/Rituals \u2192 Ritual Guru (wecare.digital/ritual-guru/)
+- Self-inquiry/Reflection \u2192 Swdhya (wecare.digital/anew/)
 
 CONTACT: +91 9330994400 | one@wecare.digital
 
@@ -3170,35 +3170,35 @@ def _get_brand_info(brand_name: str) -> str:
         'bnb club': {
             'name': 'BNB Club',
             'domain': 'Travel, Hotels, Visa Services',
-            'website': 'https://bnbclub.in',
+            'website': 'https://wecare.digital/elsewhere/',
             'services': 'Hotel bookings, travel packages, visa assistance, flight bookings',
             'contact': '+91 9330994400',
         },
         'legal champ': {
             'name': 'Legal Champ',
             'domain': 'Documents, Registration, GST',
-            'website': 'https://legalchamp.in',
+            'website': 'https://wecare.digital/dastavez/',
             'services': 'Company registration, GST filing, trademark, legal documents',
             'contact': '+91 9330994400',
         },
         'no fault': {
             'name': 'No Fault',
             'domain': 'Disputes, Complaints Resolution',
-            'website': 'https://nofault.in',
+            'website': 'https://wecare.digital/clear-closure/',
             'services': 'Consumer complaints, dispute resolution, legal notices',
             'contact': '+91 9330994400',
         },
         'ritual guru': {
             'name': 'Ritual Guru',
             'domain': 'Puja, Rituals, Spiritual Services',
-            'website': 'https://ritualguru.in',
+            'website': 'https://wecare.digital/ritual-guru/',
             'services': 'Online puja booking, ritual services, pandit booking',
             'contact': '+91 9330994400',
         },
         'swdhya': {
             'name': 'Swdhya',
             'domain': 'Self-inquiry, Reflection, Wellness',
-            'website': 'https://swdhya.in',
+            'website': 'https://wecare.digital/anew/',
             'services': 'Self-reflection tools, wellness programs, mindfulness',
             'contact': '+91 9330994400',
         },

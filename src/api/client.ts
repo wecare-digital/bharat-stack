@@ -6717,8 +6717,16 @@ export async function revokeSecureFile ( fileId: string ): Promise<ApiResult<{
  * verification loop forever.
  */
 async function customerApiCall<T> ( url: string, options?: RequestInit ): Promise<ApiResult<T>> {
-  const { getSession } = await import( '../lib/customerAuth' );
-  const session = getSession();
+  const { getSession, restoreSession } = await import( '../lib/customerAuth' );
+  let session;
+  try { session = getSession() || await restoreSession(); }
+  catch {
+    return { ok: false, failure: {
+      kind: 'unavailable', status: 503,
+      message: 'Sign-in is temporarily unavailable. Please try again.',
+      url, retryable: true, at: Date.now(),
+    } };
+  }
 
   if ( !session )
   {
