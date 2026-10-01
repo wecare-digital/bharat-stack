@@ -3,7 +3,12 @@
 **Date:** 2026-10-01 · **Account:** 775261844268 · **Region:** us-east-1
 **HTTP API:** `zllr9lrg7j` ("wecare-digital-api"), stage `prod`, `AutoDeploy: true`
 **Deployed source revision:** `4c603188fd859be28c269db0b2250f76dbb378e5` — the `origin/stack` tip
-at deploy time, and what the live function still runs.
+at deploy time, and what this document's measurements were taken against.
+
+> **⚠️ `wecare-checkout:live` is now v2, published by a different session.** Every "v1 /
+> `CodeSha256 917moZkE…`" statement below is a **dated measurement**, correct when taken and no
+> longer live. The code changed; what this work owns did not — see
+> [the v2 reconciliation](#the-alias-moved-to-v2-while-this-review-response-was-in-flight).
 **`origin/stack` now:** `83a8d60d` (this work landed as `13c9f7a2`). The two are not the same, and
 the difference is recorded in
 [the staleness note](#the-deployed-artifact-is-now-stale-and-that-is-recorded-not-fixed) rather
@@ -22,7 +27,7 @@ two independent blocks have to be removed by an owner before anything can.
 
 | Task | Status |
 |---|---|
-| `wecare-checkout` provisioned (python3.12, v1, `live` alias) | ✅ COMPLETE |
+| `wecare-checkout` provisioned (python3.12, v1, `live` alias) | ✅ COMPLETE — `live` since moved to **v2** by another session, [reconciled](#the-alias-moved-to-v2-while-this-review-response-was-in-flight) |
 | `/ecommerce/*` routes + alias-qualified integration on `zllr9lrg7j` | ✅ COMPLETE |
 | Invoke permission scoped to the two exact routes, no wildcard | ✅ COMPLETE — [narrowed twice](#the-invoke-permission-was-narrowed-twice-and-the-second-step-is-the-one-worth-reading) |
 | All eight review findings addressed | ✅ COMPLETE — [review response](#review-response-2026-10-01-second-iteration) |
@@ -396,6 +401,10 @@ missing from the ZIP surfaces here as `Unable to import module 'handler'`. It di
 `scripts/deploy_all_lambdas.py` was **never run without a target**. One function was created; no
 existing function's code, configuration or alias was touched.
 
+Re-checked after the review follow-up: `wecare-razorpay-webhook` is still **v45**. The only alias in
+this account that has moved is `wecare-checkout`'s own, v1 → v2, and
+[not by this session](#the-alias-moved-to-v2-while-this-review-response-was-in-flight).
+
 ### Route surface diff
 
 ```
@@ -603,6 +612,40 @@ Measured three times, because "the tests fail" needs a scope before it means any
 | `83a8d60d` (merged `origin/stack`), clean `git archive` | **5757 passed, 1 skipped, 0 failed** |
 | live working tree at the same HEAD | **22 failed, 5735 passed** |
 
+Re-measured after the review follow-up, same conclusion:
+
+| Tree | Result |
+|---|---|
+| `643a86e0` (this work's tip), clean `git archive` | **5773 passed, 7 skipped, 0 failed** |
+| live working tree at the same HEAD | **22 failed, 5757 passed** |
+
+Six of the seven skips are the new `committed` fixture declining to run when the suite is *already*
+executing from an export — see the note below. The 22 working-tree failures are the same foreign
+cluster, now across five files (`test_razorpay_webhook_captured_gating.py`,
+`test_legacy_invoice_settlement_safety.py`, `test_quarantine_recovery.py`,
+`test_razorpay_webhook_order_creation.py`, `test_order_creation.py`), every one raising
+`AttributeError: module 'lambda_utils.ecommerce.order_creation' has no attribute
+'NEEDS_RECONCILIATION'` from the uncommitted `order_creation.py` on this task's DO-NOT-TOUCH list.
+`test_payment_vocabulary_at_decision_points.py` now passes and has left the cluster.
+
+#### A trap worth recording: `git archive` from a subdirectory succeeds at doing nothing
+
+Found while verifying the review-response commit the way everything here is verified — export `HEAD`
+and run the suite against it. All six `committed` tests errored with `tarfile.ReadError`.
+
+`git archive` run from a subdirectory **restricts its output to that subdirectory**. The fixture
+passed `git -C ROOT`, and when the suite runs from an export, `ROOT` is a gitignored directory
+*inside* the repository — so git resolved the parent repo, found no tracked files under that path,
+and emitted a valid-but-empty 10,240-byte tar with **exit 0 and no stderr**. `check=True` cannot
+catch a command that succeeded at doing nothing, which is the same failure shape as the grant report
+that printed a finding and exited 0.
+
+Fixed by resolving `rev-parse --show-toplevel` first and skipping with a stated reason when it is not
+`ROOT`: a suite running from an export is already testing committed state, so a second build of it
+asserts nothing. When `ROOT` is the toplevel, `git archive` runs with `cwd` at the toplevel, the tar
+is opened as uncompressed rather than left to autodetect, and the extracted tree is checked for the
+handler before use.
+
 The committed tree is green at both revisions. Every working-tree failure traces to one
 uncommitted file belonging to another session —
 `amplify/functions/shared/lambda_utils/ecommerce/order_creation.py`, on this task's
@@ -615,6 +658,64 @@ suite against a clean archive before concluding anything from a red local run, b
 shared tree a red run is the normal state rather than a signal.
 
 ---
+
+---
+
+## The alias moved to v2 while this review response was in flight
+
+Caught by the final `--verify`, which printed `live v2` where every earlier measurement said `v1`.
+Measured, not inferred:
+
+```
+$LATEST  1Ho3NbcbR3mlX8n3UBVth0wSSnBqh5OXPb1r1XETMHM=  13:49:45Z
+v2       1Ho3NbcbR3mlX8n3UBVth0wSSnBqh5OXPb1r1XETMHM=  13:49:45Z
+         "Checkout completion review - session, catalogue and canonical link fixes"   <- live
+v1       917moZkEBIyIzGRQvChUup2PMoWfw4Ebmr863jnQBKI=  10:48:01Z
+         "initial checkout release (initiation off)"
+```
+
+**Not this session.** The v2 description names a different piece of work, and this session published
+no version: `ensure_live_alias` returns `exists` once the alias is there, and the only live mutations
+made here were the invoke-permission statements. A concurrent session ran a code update and moved the
+alias — which is the normal deploy path for a function that now exists, and exactly what
+`.kiro/steering/multi-session-parallel-agents.md` says to expect from a shared tree.
+
+**It does not disturb anything this work is responsible for**, and each of those was re-measured
+against v2 rather than assumed:
+
+| Property | On v2 | How |
+|---|---|---|
+| `CHECKOUT_INITIATION_ENABLED` | **absent** | `get-function-configuration --qualifier 2` |
+| `EXPECTED_CONFIGURATION_NAME` / `EXPECTED_PROVIDER_MID` | both `''` | same |
+| Execution role | `wecare-checkout-role` (unchanged) | same |
+| Runtime | `python3.12` | same |
+| The two per-route invoke statements | present, exact ARNs | `get-policy --qualifier live` |
+| Both routes reachable | **401 from the handler** | live probe |
+| `PaymentAttemptsTable` | **0 items** | `scan --select COUNT` |
+
+The probe result is the load-bearing one: an alias-level resource policy is independent of the
+version the alias points at, so a version move cannot invalidate the narrowed permissions — and the
+handler's `401` JSON (rather than API Gateway's own `500 {"message":"Internal Server Error"}`) is the
+proof that API Gateway was still authorised to invoke after the move.
+
+**What cannot be reproduced here**, stated rather than guessed: v2's `CodeSha256` matches none of the
+three packages this session can build.
+
+```
+live v2                     1Ho3NbcbR3mlX8n3UBVth0wSSnBqh5OXPb1r1XETMHM=
+git archive HEAD            6rZOb4KeOvbvst2yTBYBsgQNbsYfHx01f7ng6oVeXRM=   112 files
+the working tree, now       c6KXs2i3KMjgOQh+l0Idz7UMJqrIKbYsh54S0WUcJ9A=   114 files
+v1 (this work's deploy)     917moZkEBIyIzGRQvChUup2PMoWfw4Ebmr863jnQBKI=   112 files
+```
+
+The working tree has kept moving since 13:49 — three more files changed under
+`lambda_utils/` while this response was being written — so a non-match proves nothing beyond
+"not reproducible from here now". Identifying v2's source revision belongs to the session that
+published it. The practical consequence for a reader: **the
+[staleness note](#the-deployed-artifact-is-now-stale-and-that-is-recorded-not-fixed) is superseded as
+to its remedy** — `order_keys.py` is no longer the gap, because newer code has since shipped — while
+its rule stands unchanged: verify what is on `live` immediately before the gate is enabled, rather
+than trusting any sha recorded in a document.
 
 ---
 
