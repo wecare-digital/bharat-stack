@@ -58,6 +58,25 @@ Applied at **2026-10-01T08:59:52Z** (`2026-10-01T14:29:52+05:30`). Readback conf
 first rule the host canonicalisation, last rule the 404-200 fallback, **+1 added / −0 removed /
 0 reordered** (diffed, not assumed).
 
+### Propagation, measured — and why one attempt would have given the wrong answer
+
+An Amplify custom-rule change reaches the CDN without a rebuild, but it is not instant and it
+does not evict what the edge already holds. **~25 minutes after applying**, `GET` on
+`https://www.wecare.digital/` correctly returned `301` with `x-cache: Miss from cloudfront`,
+while **`HEAD` on the same URL returned `200` with `x-cache: Hit from cloudfront` and
+`age: 1501`** — a cached object from before the change. The apex home page carries
+`cache-control: public, max-age=0, s-maxage=31536000`, a one-year shared cache, which is what
+let a stale 200 sit at an edge; a cache-busting query string did not shift it either, because
+the distribution's cache key ignores the query string for static objects.
+
+It resolved on its own. Re-measured shortly afterwards and five consecutive times: `HEAD` and
+`GET` both return `301` on `/` and `/shop/`, every attempt `x-cache: Miss`, apex steady at
+`200`. **No invalidation was created** — the GET path, which is what a crawler and a browser
+navigation use, was correct throughout, and the stale entry expired without intervention.
+
+Recorded because the first reading looked like a failed change and was not one. This is the
+re-probe-rather-than-conclude rule earning its place rather than being quoted.
+
 Structural properties that hold and are pinned by `tests/test_url_host_routing_rules.py`: no
 rule targets `/workspace/**`; all seven passthrough rewrites precede every redirect; the
 catch-all is last and keeps `404-200`; the host rule's source and target are **bare origins
