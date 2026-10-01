@@ -33,7 +33,7 @@ purchase journey. Payment initiation remains disabled.
 ## Deployment and rollback
 
 The new session stack reached CREATE_COMPLETE; the table is ACTIVE with KMS,
-PITR and TTL. The current live alias points to version 3 (initial provision was version 1). An unauthenticated live
+PITR and TTL. The current live alias points to version 4 (initial provision was version 1). An unauthenticated live
 refresh request returned 401 VERIFICATION_REQUIRED with no-store headers and
 cleared the cookie. No OTP was sent, no payment was attempted, and no customer
 order was created. Before-state metadata and exact versions are recorded in
@@ -65,8 +65,9 @@ certificate as part of rollback.
 3. Owner-controlled QA phone and Razorpay Test Mode are required for live OTP and
    payment acceptance evidence. No inferred business number will be used and
    no live capture/refund or initiation flag will be enabled by this review.
-4. After front-end publication, repeat real browser selection/cart/sign-in and
-   visual checks. HTTP 200 and static chrome checks alone are not purchase proof.
+Browser selection/cart/sign-in and visual checks passed through the sign-in
+boundary after publication. HTTP 200 and static chrome checks alone are not
+purchase proof; the live OTP/payment/receipt run above remains required.
 
 Official tax reference: https://www.pib.gov.in/FactsheetDetails.aspx?Id=150293&lang=1&reg=6
 Official Wix variant contract: https://dev.wix.com/docs/api-reference/business-solutions/stores/catalog-v3/products-v3/get-product
@@ -159,3 +160,13 @@ email-verification functions were not created merely to deploy dormant sources.
 
 These checks do not close the website quote/payment/receipt/history wiring or
 the accountant and owner-controlled QA requirements listed above.
+
+Merged the subsequently committed routing/provisioning verification work
+8a48e5f9 without changing its live rules. `/access` now deliberately uses the
+fixed home marker `?from=access` so Amplify drops the caller's query as well as
+the path; the home page does not consume that marker. The matching source probe
+passed all 100 live HTTP matrix rows with zero mismatches. The previous six
+mismatches were stale probe expectations, superseded by this committed fix.
+Full Python suite on the final combined tree: 5,944 passed, one skipped. Frontend
+source is unchanged from the 698-test/typecheck/production-build run above.
+FAQ regeneration and the 28-page customer export gate passed again.

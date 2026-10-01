@@ -692,3 +692,10 @@ that, and states the authority exactly as it stands rather than stronger.
   Exact ZIP imports validated; revision-guarded code/version/alias updates;
   before/after snapshots in snapshots/checkout-auth-*-20261001.json. Inert live
   refresh returned 401/no-store/no-cache. No OTP/payment side effects.
+
+- 2026-10-01 A1_LOCAL/A2_REMOTE_CODE: reconcile newer committed routing and
+  deployed-artifact verification work 8a48e5f9; preserve the fixed /access home
+  query marker that drops caller parameters. Exact final Python suite 5944
+  passed/one skipped; 100 live URL/host probes zero mismatches; FAQ and customer
+  export gates passed. Frontend source unchanged from the 698-test build.
+  Rollback by normal revert; no production configuration changed by this merge.
