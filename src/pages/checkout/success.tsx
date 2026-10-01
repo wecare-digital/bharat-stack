@@ -97,7 +97,7 @@ export default function CheckoutSuccess (): React.ReactElement {
           /* No top padding, no measure, no font stack: PageTopBand owns all three. */
           .cs-card{width:100%;max-width:700px;margin:0}
 
-          /* The disc is the palette's grassy green #3da35a, not #1f8f4e - that value appears
+          /* The disc is the palette's grassy green #3da35a, not a non-palette green - that value appears
              nowhere in the home design. 56px matches the status screen's mark, so the two
              checkout screens agree on the size of their one piece of iconography. */
           .cs-mark{
@@ -131,7 +131,7 @@ export default function CheckoutSuccess (): React.ReactElement {
           .cs-actions{
             margin-block-start:32px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;
           }
-          /* THE SITE CTA, NOT A 10px GREEN RECTANGLE. These were #1f8f4e fills with white text on
+          /* THE SITE CTA, NOT A 10px GREEN RECTANGLE. These were non-palette green fills with white text on
              a 10px radius. The primary is the one lime surface this page is allowed: 52px, #d1f470
              with #1a3a2a type, 2px border (2px means hoverable), 50px pill radius, 2px lift.
              :global() IS MANDATORY - these are next/link, and styled-jsx does not scope a

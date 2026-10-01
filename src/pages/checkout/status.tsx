@@ -258,7 +258,7 @@ export default function CheckoutStatus (): React.ReactElement {
           .co-card{width:100%;max-width:700px;margin:0}
 
           /* 56px spinner, and the ONLY colour in it is the palette's own grassy green #3da35a.
-             It was #1f8f4e, which appears nowhere in the home design. The track is the site's
+             It was a non-palette green, which appears nowhere in the home design. The track is the site's
              rgba(0,0,0,.12) hairline. */
           .co-mark{
             inline-size:56px;block-size:56px;margin-block-end:24px;border-radius:50%;
@@ -282,7 +282,7 @@ export default function CheckoutStatus (): React.ReactElement {
           .co-actions{
             margin-block-start:28px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;
           }
-          /* THE SITE CTA, NOT A 10px GREEN RECTANGLE. These were #1f8f4e fills with white text on
+          /* THE SITE CTA, NOT A 10px GREEN RECTANGLE. These were non-palette green fills with white text on
              a 10px radius - a colour and a shape the home design does not use. The primary is now
              the one lime surface this page is allowed: 52px, #d1f470 with #1a3a2a type, a 2px
              border because 2px means hoverable, the 50px pill radius, and the 2px lift with the
