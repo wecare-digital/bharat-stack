@@ -220,46 +220,93 @@ def test_the_www_rule_is_first_and_carries_no_path(after):
 
 # ─────────────────── the superseded policy, cross-referenced not duplicated ───────────────────
 
-def test_the_provisioner_still_converges_to_zero_redirects(redirects):
+def test_the_provisioner_emits_only_the_two_sanctioned_exceptions(redirects):
     """The owner's 2026-10-01 instruction. Owned by test_legacy_redirect_rollback_snapshot.py.
 
     Asserted here only so that a future change to `desired_redirects()` fails in BOTH the
     file that implements the removal policy and the file that pins the rule array, rather
     than passing here and looking structurally fine.
+
+    SUPERSEDED, 2026-10-01 (convergence step). This test read
+    `assert redirects.desired_redirects() == []` and was correct when written: the owner's
+    instruction was "delete all url redirects now", and the provisioner returned an empty
+    list. It then FAILED, which is precisely the cross-file alarm the docstring above
+    describes working as intended - another session narrowed the policy from "no redirects
+    at all" to "no redirects EXCEPT two named exceptions" while this task was converging:
+
+      1. www -> apex canonicalisation, now emitted as config-as-code rather than restored
+         by hand. This is the fix the KNOWN HAZARD below was waiting for - see that test.
+      2. /access (bare, slashed and wildcard) -> the canonical home at 302. /access was a
+         CONVERT prefix in the original plan, so this lands the planned destination for it.
+
+    The old assertion is kept above in prose rather than deleted, because the reason it
+    existed - a redirect map that quietly regrows is how the staff-shell defect happened in
+    the first place - is still the reason this test exists. What changed is the approved
+    set, not the need to pin it. So it now asserts the set EXACTLY: a third entry appearing
+    fails here just as loudly as the second one did.
     """
-    assert redirects.desired_redirects() == [], (
-        "recreating redirects contradicts the owner's removal instruction"
+    emitted = redirects.desired_redirects()
+
+    assert WWW_CANONICAL in emitted, (
+        "www canonicalisation must stay config-as-code, or --apply deletes it again"
     )
 
+    # Exactly the sanctioned set, no more. Anything else is the map regrowing.
+    assert emitted == [
+        WWW_CANONICAL,
+        {"source": "/access", "target": "https://wecare.digital/", "status": "302"},
+        {"source": "/access/", "target": "https://wecare.digital/", "status": "302"},
+        {"source": "/access/<*>", "target": "https://wecare.digital/", "status": "302"},
+    ], "only www canonicalisation and /access -> home are sanctioned; anything else regrew"
 
-def test_the_provisioner_would_strip_the_host_rule_KNOWN_HAZARD(redirects, after, tmp_path, monkeypatch):
-    """PINNED DEFECT, 2026-10-01, deliberately left unfixed. Read this before running --apply.
+    # The whole point of the task: no sanctioned exception may lead into the staff tree.
+    for rule in emitted:
+        assert not str(rule["target"]).startswith("/workspace"), (
+            f"{rule['source']} targets the staff workspace: {rule['target']}"
+        )
 
-    `is_ours()` in the rewritten provisioner claims any rule whose status is in
-    {301,302,307,308,404}. The host-canonicalisation rule is a 301. So
-    `provision_legacy_redirects.py --apply` WILL DELETE IT, and `--verify` reports
-    `FAIL: custom redirect rules remain` and exits 1 while it is live.
 
-    This is asserted rather than fixed because the fix is not this task's to make: it means
-    exempting host canonicalisation in a file another session owns and currently has
-    uncommitted, plus editing that session's test, which explicitly lists this same rule
-    among the ones it expects to be removed. Recorded as an owner-decision item in
-    docs/execution/url-host-matrix-20261001.md.
+def test_the_provisioner_now_PRESERVES_the_host_rule(redirects, after, tmp_path, monkeypatch):
+    """HAZARD FIXED 2026-10-01, by another session, while this task was converging. INVERTED.
 
-    The hazard is bounded, not latent: `.github/workflows/public-surface-deploy.yml` is
-    `workflow_dispatch` only, so nothing runs this on push. It takes a manual dispatch of
-    `apply`/`redirects`, or a local `--apply`.
+    HISTORY, kept because the failure mode is worth remembering rather than because it is
+    still live. As written, this test was called
+    `test_the_provisioner_would_strip_the_host_rule_KNOWN_HAZARD` and asserted the OPPOSITE
+    of what it asserts now. The defect it pinned was real and measured:
 
-    WHEN SOMEONE FIXES IT, THIS TEST SHOULD FAIL. Invert it then - do not delete it.
+        `is_ours()` claimed any rule whose status was in {301,302,307,308,404}. The
+        host-canonicalisation rule is a 301, so `--apply` DELETED it - silently restoring
+        the duplicate-host state where the whole site answered 200 under www - and
+        `--verify` exited 1 with `FAIL: custom redirect rules remain` while it was live.
+
+    It was left unfixed deliberately, because the fix meant editing a file another session
+    owned and had uncommitted. That session has now fixed it the right way: the rule is
+    emitted by `desired_redirects()`, so it is rebuilt rather than merely spared, which also
+    means a future `--apply` RESTORES it if it ever goes missing. The old docstring said
+    "WHEN SOMEONE FIXES IT, THIS TEST SHOULD FAIL. Invert it then - do not delete it." That
+    is what this is.
+
+    The sibling assertion also had to change shape, not just polarity: `client.written` can
+    no longer equal `after[1:]`, because the host rule is now rebuilt into position 0 rather
+    than stripped. It is asserted as first-and-present instead.
     """
     monkeypatch.setattr(redirects, "ROOT", tmp_path)
     client = _CapturingAmplify()
     assert redirects.apply(client, [dict(rule) for rule in after]) == 0
     assert client.written is not None, "apply() should have written"
-    assert WWW_CANONICAL not in client.written, (
-        "if this now passes the hazard is fixed - invert this assertion and update the matrix"
+
+    assert WWW_CANONICAL in client.written, (
+        "the host rule must survive --apply; if this fails the duplicate-host regression is back"
     )
-    assert client.written == after[1:], (
-        "apply() must strip ONLY the 301 and preserve all 8 rewrites in order"
+    assert client.written[0] == WWW_CANONICAL, (
+        "host canonicalisation must be FIRST - a later rule would be shadowed by a 200 rewrite"
     )
+
+    # Every passthrough rewrite that was live must still be live, in its original order.
+    passthroughs_before = [r for r in after if _is_passthrough(r)]
+    passthroughs_after = [r for r in client.written if _is_passthrough(r)]
+    assert passthroughs_after == passthroughs_before, (
+        "apply() must preserve every /api, /get, /r and /mcp rewrite in order"
+    )
+
     assert client.written[-1] == CATCH_ALL
