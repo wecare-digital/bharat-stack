@@ -67,6 +67,7 @@ import { DEFAULT_DIAL_CODE } from '../../lib/dialCodes';
 import {
   requestOtp, submitOtp, normaliseMobile, getSession, nextSessionFrom,
 } from '../../lib/customerAuth';
+import * as signInMessages from '../../lib/signInMessages';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
 const REGISTRATION_URL = `${API_BASE}/auth/customer-registration`;
@@ -94,31 +95,35 @@ const REGISTRATION_URL = `${API_BASE}/auth/customer-registration`;
  */
 const MSG = {
   /*
-   * MISSING_CODE IS GONE, and its absence is deliberate rather than an oversight.
+   * SOURCED FROM ../../lib/signInMessages, which holds all seven section-6 strings verbatim in one
+   * auditable place. This page no longer re-types the copy; it references the approved constants, so
+   * the wording cannot drift between the page and the test that pins it.
    *
-   * It read "Include your country code, like +91." and existed for the single-input version of this
-   * field, where the shopper had to type the code and could leave it out. The field is now divided
-   * and its leading segment always carries a code, so the state the message described cannot occur -
-   * there is no input that produces it. The owner's §25 table wording for a selector, "Choose a
-   * country code.", is unreachable for the same reason: a <select> with a default always has a value.
-   *
-   * Kept out rather than kept dead. A message no code path can reach is one the next person wires to
-   * the wrong condition to make it appear.
+   * MISSING_CODE IS PRESENT BUT DELIBERATELY NOT WIRED TO A REACHABLE STATE. It read "Include your
+   * country code, like +91." and existed for the single-input version of this field, where the
+   * shopper had to type the code and could leave it out. The field is now divided (PhoneField) and
+   * its leading segment always carries a code, so the state the message described cannot occur -
+   * there is no input that produces it. The owner's §25 selector wording "Choose a country code." is
+   * unreachable for the same reason: a <select> with a default always has a value. The approved
+   * string is kept as a named constant so the sanctioned wording is present and auditable, NOT
+   * forced into a code path just to make it render - a message no state earns is one the next person
+   * wires to the wrong condition.
    */
+  MISSING_CODE: signInMessages.MISSING_CODE,
   /** Invalid number or format. */
-  BAD_NUMBER: 'Enter a valid number.',
-  /** Reserved for provider evidence this page does not yet receive. See the note above. */
-  NOT_ON_WHATSAPP: 'Use a WhatsApp number.',
+  BAD_NUMBER: signInMessages.BAD_NUMBER,
+  /** Reserved for provider evidence this page does not yet receive. See signInMessages. */
+  NOT_ON_WHATSAPP: signInMessages.NOT_ON_WHATSAPP,
   /** Generic delivery failure, or unknown WhatsApp availability. */
-  CHECK_NUMBER: 'Couldn\u2019t send a code. Check your number.',
+  CHECK_NUMBER: signInMessages.CHECK_NUMBER,
   /** Provider temporary outage - our side, so it does not send the shopper to edit anything. */
-  TRY_LATER: 'Try again shortly.',
+  TRY_LATER: signInMessages.TRY_LATER,
   /** Invalid code, attempts remaining. */
-  BAD_CODE: 'Check your code.',
+  BAD_CODE: signInMessages.BAD_CODE,
   /** The challenge is no longer answerable. */
-  CODE_EXPIRED: 'Code expired. Send a new one.',
+  CODE_EXPIRED: signInMessages.CODE_EXPIRED,
   /** Send or guess limit reached. */
-  RATE_LIMITED: 'Wait before trying again.',
+  RATE_LIMITED: signInMessages.RATE_LIMITED,
 } as const;
 
 /**
