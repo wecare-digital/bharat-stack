@@ -70,29 +70,6 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api
 const REGISTRATION_URL = `${API_BASE}/auth/customer-registration`;
 
 /**
- * The dial codes this store sells into.
- *
- * SHORT AND NAMED, not a generated list of all 249 calling codes. A select a shopper has to scroll
- * through to find the one they almost certainly want is worse than a short list plus a clear way to
- * ask us; these are India plus the places this catalogue's customers write in from. Each entry is
- * the dial code and the country, so the option text says which is which rather than leaving a bare
- * +1 ambiguous. The option LABEL is a text node, so it translates; the dial code is a number and
- * carries data-wc-no-translate on the control for the same reason prices do.
- */
-const DIAL_CODES: { code: string; label: string }[] = [
-  { code: '91', label: 'India +91' },
-  { code: '971', label: 'United Arab Emirates +971' },
-  { code: '966', label: 'Saudi Arabia +966' },
-  { code: '65', label: 'Singapore +65' },
-  { code: '44', label: 'United Kingdom +44' },
-  { code: '1', label: 'United States / Canada +1' },
-  { code: '61', label: 'Australia +61' },
-];
-
-/** The market. The field is required, not optional - this is its starting value, not a fallback. */
-const DEFAULT_DIAL_CODE = '91';
-
-/**
  * THE OWNER'S MESSAGE TABLE, verbatim, and the only strings this page shows for a failure.
  *
  * WHY A TABLE AND NOT INLINE LITERALS. Two of these are a hair apart in wording and far apart in
@@ -114,9 +91,13 @@ const DEFAULT_DIAL_CODE = '91';
  * string is shown for the same failure whether or not the number has an account behind it.
  */
 const MSG = {
-  /** Missing country selection. Unreachable through the UI - see startPhone - kept as a backstop. */
-  NO_COUNTRY: 'Choose a country code.',
-  /** Invalid number or format, including a pasted prefix that contradicts the selection. */
+  /**
+   * No country code in the single field. The owner's table says "Choose a country code." for a
+   * separate selector; with one combined field there is nothing to choose, so this names the action
+   * the shopper can actually take in the control in front of them.
+   */
+  MISSING_CODE: 'Include your country code, like +91.',
+  /** Invalid number or format. */
   BAD_NUMBER: 'Enter a valid number.',
   /** Reserved for provider evidence this page does not yet receive. See the note above. */
   NOT_ON_WHATSAPP: 'Use a WhatsApp number.',
@@ -198,8 +179,8 @@ type Phase = 'phone' | 'code' | 'register-code' | 'signin-code';
 
 export default function CustomerSignIn (): React.ReactElement {
   const [ phase, setPhase ] = useState<Phase>( 'phone' );
-  const [ dialCode, setDialCode ] = useState<string>( DEFAULT_DIAL_CODE );
-  const [ mobile, setMobile ] = useState<string>( '' );
+  // Prefilled, not inferred: the shopper sees the expected shape and can replace the code.
+  const [ mobile, setMobile ] = useState<string>( '+91 ' );
   const [ normalised, setNormalised ] = useState<string>( '' );
   const [ code, setCode ] = useState<string>( '' );
   const [ session, setSession ] = useState<string>( '' );
@@ -213,43 +194,27 @@ export default function CustomerSignIn (): React.ReactElement {
   }, [] );
 
   /**
-   * Dial code + the typed number, as the E.164 string the backend will key the customer on.
+   * The single field's contents, as the E.164 string the backend will key the customer on.
    *
-   * A LEADING + OR 00 IS THE ONLY THING THAT MAKES A TYPED PREFIX A COUNTRY CODE, and the
-   * distinction is load-bearing rather than fussy. "+91 98765 43210" with India selected must not
-   * become +919198765..., so the selected code is stripped back off when the shopper has pasted a
-   * full international number. But a BARE "9198765432" is a perfectly valid ten-digit Indian
-   * number, and stripping "91" off that would sign in a different, non-existent customer - so the
-   * prefix is only ever removed when the shopper typed it as one.
+   * ONE FIELD, SO THE COUNTRY CODE HAS TO BE IN WHAT WAS TYPED. There is no select to fall back on
+   * any more, and it is still never guessed: a value with no leading + or 00 is refused with
+   * MISSING_CODE rather than quietly assumed to be Indian. That matters because
+   * normaliseMobile() infers +91 for any ten digits starting 6-9 - correct for the store's main
+   * market and wrong for everyone else - and a shopper in Dubai typing ten digits would otherwise
+   * be signed in as a non-existent Indian customer with no way to see why. The field is prefilled
+   * with "+91 " so the required shape is visible before anyone types, which is a default the
+   * shopper can see and edit, not an inference.
+   *
+   * "00" is accepted as well as "+" because it is how the international prefix is dialled across
+   * much of Europe and the Gulf, and a shopper who types it means exactly the same thing.
    */
   const composeE164 = useCallback( (): string => {
     const raw = String( mobile || '' ).trim();
-    const typedInternational = /^(\+|00)/.test( raw );
-    let digits = raw.replace( /\D/g, '' );
-    if ( typedInternational )
-    {
-      digits = digits.replace( /^0+/, '' );
-      if ( digits.startsWith( dialCode ) )
-      {
-        digits = digits.slice( dialCode.length );
-      }
-      else
-      {
-        // A PASTED PREFIX THAT CONTRADICTS THE SELECTION IS REJECTED, NOT CONCATENATED, and this
-        // branch is the reason the conflict is worth detecting at all. Select +971, paste
-        // "+919876543210", and the old code found no "971" to strip and handed normaliseMobile
-        // "971919876543210" - fifteen digits, which is exactly the upper bound it allows, so it
-        // passed the length check and returned a plausible, wrong, non-existent number. The
-        // shopper would then be told the code could not be sent, with no way to see why.
-        //
-        // IT REPORTS THE APPROVED "Enter a valid number." RATHER THAN NAMING THE CONFLICT. An
-        // earlier version said "That number does not match the country code," which is more
-        // diagnostic and is not one of the eight messages the owner specified. The number and the
-        // selection are both on screen and both editable, so the shopper has what they need to see
-        // the mismatch; inventing a ninth string to say so is not worth leaving the table.
-        throw new Error( MSG.BAD_NUMBER );
-      }
-    }
+    if ( !raw ) throw new Error( MSG.BAD_NUMBER );
+    if ( !/^(\+|00)/.test( raw ) ) throw new Error( MSG.MISSING_CODE );
+    // Strip the international prefix itself, then any leading zeros it was padded with, so "+0091…"
+    // and "0091…" and "+91…" all reduce to the same digits.
+    const digits = raw.replace( /^(\+|00)/, '' ).replace( /\D/g, '' ).replace( /^0+/, '' );
     if ( !digits ) throw new Error( MSG.BAD_NUMBER );
     // normaliseMobile is the single source of the E.164 rule and the length bound, and is NOT
     // changed - it has to match the backend byte for byte. It is handed a string that already
@@ -257,26 +222,19 @@ export default function CustomerSignIn (): React.ReactElement {
     // restated in this page's short form rather than surfaced raw.
     try
     {
-      return normaliseMobile( `${dialCode}${digits}` );
+      return normaliseMobile( digits );
     }
     catch
     {
       throw new Error( MSG.BAD_NUMBER );
     }
-  }, [ dialCode, mobile ] );
+  }, [ mobile ] );
 
   const startPhone = useCallback( async ( event: React.FormEvent ): Promise<void> => {
     event.preventDefault();
     setError( '' );
-    // THE SELECT CANNOT BE EMPTY THROUGH THE UI - it has a value from first paint, it is `required`,
-    // and every option carries a code - so this is a backstop rather than a reachable state. It is
-    // here because the alternative to a backstop is composing "undefined9876543210" if the control
-    // is ever changed to offer a blank first option, which is the obvious future edit.
-    if ( !dialCode )
-    {
-      setError( MSG.NO_COUNTRY );
-      return;
-    }
+    // The missing-country-code case is no longer a separate guard: with one combined field it is
+    // just one of the shapes composeE164 refuses, and it throws MISSING_CODE from there.
     let e164 = '';
     try
     {
@@ -350,7 +308,7 @@ export default function CustomerSignIn (): React.ReactElement {
     {
       setBusy( false );
     }
-  }, [ composeE164, dialCode ] );
+  }, [ composeE164 ] );
 
   const submitCode = useCallback( async ( event: React.FormEvent ): Promise<void> => {
     event.preventDefault();
@@ -434,24 +392,15 @@ export default function CustomerSignIn (): React.ReactElement {
         <div className="si-card">
           {phase === 'phone' && (
             <form className="si-form" onSubmit={ startPhone }>
-              {/* The country code is its own labelled, required control rather than something
-                  guessed from the digits. */}
-              <label className="si-label" htmlFor="si-dial">Country code</label>
-              <select
-                id="si-dial"
-                className="si-input si-select"
-                value={ dialCode }
-                required
-                data-wc-no-translate="true"
-                onChange={ e => setDialCode( e.target.value ) }
-                disabled={ busy }
-              >
-                { DIAL_CODES.map( entry => (
-                  <option key={ entry.code } value={ entry.code }>{ entry.label }</option>
-                ) ) }
-              </select>
-
-              <label className="si-label" htmlFor="si-mobile">Mobile number</label>
+              {/* ONE FIELD, country code included, on owner instruction. It was a separate
+                  <select> for the dial code beside a national-number input; the owner asked for the
+                  country code and the number in a single field, so the shopper types the whole
+                  thing and the page parses it.
+                  The country code is still never GUESSED - it has to be present in what was typed,
+                  and the field is prefilled with "+91 " so the shape is obvious before anyone types.
+                  autoComplete is "tel" rather than "tel-national" now that the value is the full
+                  international number. */}
+              <label className="si-label" htmlFor="si-mobile">WhatsApp number</label>
               {/* aria-invalid AND aria-describedby, because the error is rendered at the BOTTOM of
                   the card rather than beside the field it concerns. role=alert announces it once,
                   but without the association a screen-reader user who tabs back to the input to
@@ -462,7 +411,8 @@ export default function CustomerSignIn (): React.ReactElement {
                 className="si-input"
                 type="tel"
                 inputMode="tel"
-                autoComplete="tel-national"
+                autoComplete="tel"
+                placeholder="+91 9876543210"
                 required
                 aria-invalid={ error ? 'true' : undefined }
                 aria-describedby={ error ? 'si-hint si-error' : 'si-hint' }
@@ -470,9 +420,12 @@ export default function CustomerSignIn (): React.ReactElement {
                 onChange={ e => setMobile( e.target.value ) }
                 disabled={ busy }
               />
-              {/* A text node, so it translates. It is also the only place this form says the code
-                  arrives on WhatsApp before asking for a number that has to be one. */}
-              <p className="si-hint" id="si-hint">Use the number WhatsApp is on.</p>
+              {/* A text node, so it translates. It names the country code because that is now the
+                  shopper's job in this field, and says the code arrives on WhatsApp before asking
+                  for a number that has to be one. */}
+              <p className="si-hint" id="si-hint">
+                Include your country code. Use the number WhatsApp is on.
+              </p>
               <button className="si-cta" type="submit" disabled={ busy }>
                 { busy ? 'Sending…' : 'Send code' }
               </button>
@@ -540,7 +493,6 @@ export default function CustomerSignIn (): React.ReactElement {
           }
           /* The select keeps the platform's own disclosure arrow - a CSS-drawn one would be a
              second chevron on a page that already has the header's, drawn by different means. */
-          .si-select{width:100%;appearance:none;-webkit-appearance:none;padding-inline-end:40px}
           .si-input:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
           .si-hint{
             margin:0 0 20px;font-size:16px;line-height:1.55;color:rgba(0,0,0,.54);

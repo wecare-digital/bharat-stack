@@ -331,7 +331,7 @@ describe( 'no red anywhere on these pages, on owner instruction', () => {
     vi.stubGlobal( 'fetch', vi.fn() );
 
     render( <SignIn /> );
-    fireEvent.change( screen.getByLabelText( 'Mobile number' ), { target: { value: '1' } } );
+    fireEvent.change( screen.getByLabelText( 'WhatsApp number' ), { target: { value: '1' } } );
     fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
 
     // An alert, not a colour. A reader who cannot see the tint still gets the interruption.
@@ -401,167 +401,114 @@ describe( 'the money copy survived being shortened', () => {
   } );
 } );
 
-describe( 'the country code is an explicit field, on owner instruction', () => {
+describe( 'the country code lives in the one number field, on owner instruction', () => {
+  /*
+   * THIS BLOCK REPLACED A SEPARATE-SELECT CONTRACT, and the reversal is the owner's: the dial code
+   * was its own <select> beside a national-number input until the instruction "phone number and
+   * whatsapp country code should be in one field". The invariant that had to survive the change is
+   * the one the select existed for - the country is never GUESSED from the digits - because
+   * customerAuth.normaliseMobile() turns any ten digits beginning 6-9 into a +91 number, and that
+   * function is not changed (it must match the backend byte for byte). With one field the code has
+   * to be present in what was typed, and bare digits are refused rather than assumed Indian.
+   */
   const sendCode = (): void => {
     fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
   };
+  const typeNumber = ( value: string ): void => {
+    fireEvent.change( screen.getByLabelText( 'WhatsApp number' ), { target: { value } } );
+  };
 
-  it( 'is a required, labelled control rather than something inferred from the digits', () => {
+  it( 'is one labelled, required field carrying the whole international number', () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
     render( <SignIn /> );
-    const select = screen.getByLabelText( 'Country code' ) as HTMLSelectElement;
-    expect( select.tagName ).toBe( 'SELECT' );
-    expect( select.required ).toBe( true );
-    // Prefilled with the market, not left blank: the field is always submitted and always applied.
-    expect( select.value ).toBe( '91' );
+    const field = screen.getByLabelText( 'WhatsApp number' ) as HTMLInputElement;
+    expect( field.tagName ).toBe( 'INPUT' );
+    expect( field.required ).toBe( true );
+    expect( field.type ).toBe( 'tel' );
+    // Prefilled so the shape is visible, and autoComplete is the full number now, not tel-national.
+    expect( field.value ).toBe( '+91 ' );
+    expect( field.getAttribute( 'autocomplete' ) ).toBe( 'tel' );
+    // There is no separate country control any more.
+    expect( screen.queryByLabelText( 'Country code' ) ).toBeNull();
   } );
 
-  it( 'composes the selected code with the typed national number', async () => {
+  it( 'sends the typed international number through unchanged', async () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
     const requestOtp = vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
-      session: 's', destination: '****1234', expiresInSeconds: 600, registered: true,
+      session: 's', destination: '****4567', expiresInSeconds: 600, registered: true,
     } );
     vi.stubGlobal( 'fetch', vi.fn() );
-
     render( <SignIn /> );
-    fireEvent.change( screen.getByLabelText( 'Country code' ), { target: { value: '971' } } );
-    fireEvent.change( screen.getByLabelText( 'Mobile number' ), { target: { value: '501234567' } } );
+    typeNumber( '+971 50 123 4567' );
     sendCode();
-
-    // THE DEFECT THIS FIXES. customerAuth.normaliseMobile() turns any ten digits beginning 6-9 into
-    // a +91 number, so a foreign number was silently signed in as an Indian one. That function is
-    // NOT changed - it has to match the backend byte for byte - so the code is composed ahead of it,
-    // which leaves it nothing to infer.
+    // Spaces are not significant; the country is read from what was typed, not inferred.
     await waitFor( () => expect( requestOtp ).toHaveBeenCalledWith( '+971501234567' ) );
   } );
 
-  it( 'does not strip a dial code out of a bare national number', async () => {
+  it( 'refuses bare national digits instead of assuming the main market', async () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
-    const requestOtp = vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
-      session: 's', destination: '****5432', expiresInSeconds: 600, registered: true,
-    } );
+    const requestOtp = vi.spyOn( customerAuth, 'requestOtp' );
     vi.stubGlobal( 'fetch', vi.fn() );
-
     render( <SignIn /> );
-    // "9198765432" is a VALID ten-digit Indian number that happens to start with 91. Stripping a
-    // prefix on the strength of the digits alone would sign in a different, non-existent customer -
-    // so a prefix is only removed when the shopper typed it as one, with a + or 00.
-    fireEvent.change( screen.getByLabelText( 'Mobile number' ), { target: { value: '9198765432' } } );
+    typeNumber( '501234567' );
     sendCode();
-    await waitFor( () => expect( requestOtp ).toHaveBeenCalledWith( '+919198765432' ) );
+    await waitFor( () => expect(
+      screen.getByText( 'Include your country code, like +91.' ) ).toBeTruthy() );
+    expect( requestOtp ).not.toHaveBeenCalled();
   } );
 
-  it( 'does strip it when the shopper pasted a full international number', async () => {
+  it( 'treats 00 as the international prefix', async () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
     const requestOtp = vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
       session: 's', destination: '****3210', expiresInSeconds: 600, registered: true,
     } );
     vi.stubGlobal( 'fetch', vi.fn() );
-
     render( <SignIn /> );
-    fireEvent.change( screen.getByLabelText( 'Mobile number' ), { target: { value: '+91 98765 43210' } } );
+    typeNumber( '0091 98765 43210' );
     sendCode();
-    // Not +919198765..., which is what a naive concatenation produces.
     await waitFor( () => expect( requestOtp ).toHaveBeenCalledWith( '+919876543210' ) );
+  } );
+
+  it( 'rejects a number the E.164 rule cannot accept', async () => {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
+    const requestOtp = vi.spyOn( customerAuth, 'requestOtp' );
+    vi.stubGlobal( 'fetch', vi.fn() );
+    render( <SignIn /> );
+    typeNumber( '+9' );
+    sendCode();
+    await waitFor( () => expect( screen.getByText( 'Enter a valid number.' ) ).toBeTruthy() );
+    expect( requestOtp ).not.toHaveBeenCalled();
   } );
 
   it( 'does NOT blame WhatsApp when the send fails, because the 502 cannot prove that', async () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
     vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
-      session: '', destination: '', expiresInSeconds: 600, registered: false,
+      session: '', destination: '', expiresInSeconds: 0, registered: false,
     } );
-    // The registration front door's 502 {status:'send_failed'} means the challenge was stored and
-    // the WhatsApp message did not go. That happens for a number which is not on WhatsApp AND for a
-    // transient failure in Meta's send, and the browser cannot tell them apart.
     vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
       ok: false, status: 502, json: async () => ( { status: 'send_failed' } ),
     } ) );
-
     render( <SignIn /> );
-    fireEvent.change( screen.getByLabelText( 'Mobile number' ), { target: { value: '9876543210' } } );
+    typeNumber( '+919876543210' );
     sendCode();
-
-    const alert = await screen.findByRole( 'alert' );
-    // THE ASSERTION THAT CHANGED, AND WHY. This previously required the copy to say "could not
-    // reach that number on WhatsApp" and to name the "country code". Both were wrong to require:
-    // on a Meta outage - the same 502, indistinguishable from here - that sentence tells a shopper
-    // with a perfectly good WhatsApp number to go and edit it. The message now points at the number
-    // without naming a cause, and WhatsApp must not be mentioned at all in this state.
-    expect( alert.textContent ).toBe( 'Couldn\u2019t send a code. Check your number.' );
-    expect( alert.textContent ).not.toMatch( /WhatsApp/ );
-    expect( alert.textContent ).not.toMatch( /is not a WhatsApp number/ );
-  } );
-
-  it( 'tells the shopper to wait, not to check the number, for any other refusal', async () => {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
-    vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
-      session: '', destination: '', expiresInSeconds: 600, registered: false,
-    } );
-    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
-      ok: false, status: 500, json: async () => ( { error: 'INTERNAL_ERROR' } ),
-    } ) );
-
-    render( <SignIn /> );
-    fireEvent.change( screen.getByLabelText( 'Mobile number' ), { target: { value: '9876543210' } } );
-    sendCode();
-
-    const alert = await screen.findByRole( 'alert' );
-    // A 500 is OUR failure, so asking the shopper to check their own number would send them to fix
-    // something that is not broken. This is the one distinction between the two send-failure
-    // messages and it is the reason there are two.
-    expect( alert.textContent ).toBe( 'Try again shortly.' );
-    expect( alert.textContent ).not.toMatch( /Check your number/ );
-    expect( alert.textContent ).not.toMatch( /WhatsApp/ );
-  } );
-
-  it( 'rejects a pasted prefix that contradicts the selected country code', async () => {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
-    const requestOtp = vi.spyOn( customerAuth, 'requestOtp' );
-    vi.stubGlobal( 'fetch', vi.fn() );
-
-    render( <SignIn /> );
-    fireEvent.change( screen.getByLabelText( 'Country code' ), { target: { value: '971' } } );
-    // THE DEFECT. "971" is not a prefix of "919876543210", so the old code stripped nothing and
-    // composed 971 + 919876543210 = "971919876543210" - FIFTEEN digits, which is exactly
-    // normaliseMobile's upper bound, so it passed validation and returned a plausible +971919...
-    // number belonging to nobody. The shopper then saw a send failure with no way to see why.
-    fireEvent.change( screen.getByLabelText( 'Mobile number' ), { target: { value: '+919876543210' } } );
-    sendCode();
-
-    const alert = await screen.findByRole( 'alert' );
-    // THE APPROVED STRING, not a ninth one invented to describe the conflict. An earlier revision
-    // asserted /does not match the country code/, which is more diagnostic and is outside the
-    // owner's eight-message table; both the number and the selection are on screen and editable, so
-    // the shopper can already see the mismatch.
-    expect( alert.textContent ).toBe( 'Enter a valid number.' );
-    // Nothing may leave the browser on a conflict.
-    expect( requestOtp ).not.toHaveBeenCalled();
+    // The front door's 502 also covers a transient Meta send failure, so the specific
+    // "Use a WhatsApp number." claim would be a guess. The generic line is the honest one.
+    await waitFor( () => expect(
+      screen.getByText( 'Couldn\u2019t send a code. Check your number.' ) ).toBeTruthy() );
+    expect( screen.queryByText( 'Use a WhatsApp number.' ) ).toBeNull();
   } );
 
   it( 'associates the error with the field so a correction is possible', async () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
-    vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
-      session: '', destination: '', expiresInSeconds: 600, registered: false,
-    } );
-    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
-      ok: false, status: 502, json: async () => ( { status: 'send_failed' } ),
-    } ) );
-
+    vi.stubGlobal( 'fetch', vi.fn() );
     render( <SignIn /> );
-    const input = screen.getByLabelText( 'Mobile number' );
-    // No error yet: the field must not advertise itself as invalid on first paint.
-    expect( input.getAttribute( 'aria-invalid' ) ).toBeNull();
-
-    fireEvent.change( input, { target: { value: '9876543210' } } );
+    typeNumber( '501234567' );
     sendCode();
-    await screen.findByRole( 'alert' );
-
-    // role=alert announces the message once. WITHOUT THE ASSOCIATION, a screen-reader user who
-    // tabs back to the input to fix it gets no indication that this is the control at fault - the
-    // error is rendered at the bottom of the card, not beside the field.
-    expect( input.getAttribute( 'aria-invalid' ) ).toBe( 'true' );
-    expect( input.getAttribute( 'aria-describedby' ) ).toContain( 'si-error' );
-    // The hint survives the error rather than being replaced by it.
-    expect( input.getAttribute( 'aria-describedby' ) ).toContain( 'si-hint' );
+    await waitFor( () => expect(
+      screen.getByText( 'Include your country code, like +91.' ) ).toBeTruthy() );
+    const field = screen.getByLabelText( 'WhatsApp number' );
+    expect( field.getAttribute( 'aria-invalid' ) ).toBe( 'true' );
+    // The hint stays in the description list alongside the error, so it is not lost.
+    expect( field.getAttribute( 'aria-describedby' ) ).toBe( 'si-hint si-error' );
   } );
 } );

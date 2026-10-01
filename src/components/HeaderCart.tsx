@@ -97,19 +97,28 @@ const HeaderCart: React.FC = () => {
            logical, so the control moves to the left edge in a mirrored document on its own.
            flex-shrink:0 because the brand lockup beside it is nowrap - without it a narrow
            viewport squeezes the bag instead of the empty space. */
+        /* THE BAG ONLY - NO LABEL, NO BORDER, NO FILL AT REST, on owner instruction. "Shopping
+           Bag" was how the icon was identified, not copy to render. The chip treatment that
+           matched .nav-trigger is gone with it.
+           44px square is kept: it is the WCAG 2.5.8 target floor, and it is now pure hit area
+           rather than a visible box. margin-inline-start:auto puts it on the right of .hdr-in's
+           flex row and mirrors on its own in an RTL document. flex-shrink:0 because the brand
+           lockup beside it is nowrap, so without it a narrow viewport squeezes the bag. */
         .hdr-cart{
           margin-inline-start:auto;flex-shrink:0;
-          display:inline-flex;align-items:center;gap:10px;
-          min-height:44px;padding:0 12px;box-sizing:border-box;
-          background:#f4f7ee;border:1px solid #cfe0a6;border-radius:10px;
+          display:inline-flex;align-items:center;justify-content:center;
+          inline-size:44px;min-height:44px;padding:0;box-sizing:border-box;
+          background:none;border:0;border-radius:50%;
           color:#1a3a2a;text-decoration:none;
-          font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-          font-size:15px;font-weight:700;letter-spacing:-.01em;line-height:1;
-          transition:background-color .18s ease,border-color .18s ease,border-width .18s ease;
+          transition:background-color .18s ease;
         }
-        .hdr-cart:hover,.hdr-cart:focus-visible{
-          background:#d1f470;border-color:#1a3a2a;border-width:2px;outline:none;
-        }
+        /* Hover is the state TINT, not a border and not the lime fill: rgba(209,244,112,.22) is
+           the documented transient-state value, and the full #d1f470 fill is reserved for the one
+           actionable surface a page is allowed - which /cart/ spends on Proceed to checkout. */
+        .hdr-cart:hover{background:rgba(209,244,112,.22)}
+        /* The focus ring STAYS. It is not decoration - removing the border is a visual request,
+           and a keyboard user still has to see where they are (WCAG 2.4.7, and 1.4.11 for the
+           indicator's own contrast). */
         /* The two-tone ring .nav-trigger uses: a 2px white spacer so the ring is not drawn flush
            against the chip it surrounds, then 3px of opaque #1a3a2a, which measures 12.48:1
            against the white header. A single translucent stop was measured at 1.44:1 and failed
@@ -136,7 +145,16 @@ const HeaderCart: React.FC = () => {
           font-variant-numeric:tabular-nums;color:currentColor;pointer-events:none;
         }
 
-        .hdr-cart-label{white-space:nowrap}
+        /* ALWAYS CLIPPED, NEVER DELETED, and the distinction is the whole point. The owner wants no
+           visible text; the control still needs an accessible name. Keeping it as a clipped TEXT
+           NODE rather than moving it to an aria-label is deliberate: the translation walker rewrites
+           text nodes and never attribute text, so an aria-label would stay English in every one of
+           the catalogue's languages. clip rather than display:none or opacity:0 - display:none drops
+           it from the accessible name, and opacity:0 would still occupy layout. */
+        .hdr-cart-label{
+          position:absolute;inline-size:1px;block-size:1px;padding:0;margin:-1px;
+          overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+        }
 
         /* The spoken count is always clipped - it exists so the accessible name carries the
            number, which the decorative digits inside the aria-hidden glyph cannot. clip rather
@@ -147,20 +165,10 @@ const HeaderCart: React.FC = () => {
           overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
         }
 
-        /* BELOW 768px THE LABEL IS SPOKEN ONLY, and that is a width calculation rather than a
-           preference. Measured on the built header at 280px (Galaxy Fold, folded): the brand
-           lockup plus the menu trigger occupy 212.8px of a 248px content box, leaving 35.2px.
-           Header.tsx tightens its own gutter below 340px to make room for the 44px chip; there
-           is no width at which "Shopping Bag" also fits, and clipping the text keeps it in the
-           accessible name while taking no space. The bag is the affordance on a phone, which is
-           the convention every storefront already uses. */
-        @media(max-width:767px){
-          .hdr-cart{gap:0;padding:0;inline-size:44px;justify-content:center}
-          .hdr-cart-label{
-            position:absolute;inline-size:1px;block-size:1px;padding:0;margin:-1px;
-            overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
-          }
-        }
+        /* NO WIDTH BREAKPOINT IS NEEDED ANY MORE. This used to clip the label below 768px because
+           the measured header at 280px leaves only 35.2px beside the brand lockup and the trigger,
+           and "Shopping Bag" fits at no width. The label is now clipped at every width, so the
+           control is a constant 44px square and the calculation is moot. */
         @media(prefers-reduced-motion:reduce){
           .hdr-cart{transition:none}
         }

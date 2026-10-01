@@ -41,8 +41,16 @@ afterEach( () => {
 } );
 
 /** Type the number and click "Send code". */
-async function enterPhone ( value = '9876543210' ): Promise<void> {
-  fireEvent.change( screen.getByLabelText( 'Mobile number' ), { target: { value } } );
+/*
+ * ONE FIELD NOW, SO THE VALUE CARRIES THE COUNTRY CODE. The dial-code <select> is gone on owner
+ * instruction ("phone number and whatsapp country code should be in one field"), so the default
+ * here is the full international string rather than ten national digits. fireEvent.change REPLACES
+ * the field's "+91 " prefill, which is exactly what a shopper pasting a number does - and a value
+ * with no +/00 is now refused with MISSING_CODE instead of being assumed Indian, so a test that
+ * typed bare digits would (correctly) never reach requestOtp.
+ */
+async function enterPhone ( value = '+919876543210' ): Promise<void> {
+  fireEvent.change( screen.getByLabelText( 'WhatsApp number' ), { target: { value } } );
   fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
 }
 
@@ -276,6 +284,38 @@ describe( 'the error copy is the owner\'s table and nothing else', () => {
     await screen.findByRole( 'alert' );
 
     expect( container.textContent || '' ).not.toContain( 'Use a WhatsApp number.' );
+  } );
+
+  it( 'refuses a number with no country code instead of assuming India', async () => {
+    /*
+     * THE WHOLE REASON THE COMBINED FIELD STILL DEMANDS A "+". customerAuth.normaliseMobile()
+     * infers +91 for any ten digits starting 6-9 - right for the main market, wrong for everyone
+     * else - so a shopper in Dubai typing ten national digits would otherwise be signed in as a
+     * non-existent Indian customer with no way to see why. Bare digits are refused here, before
+     * requestOtp is ever called.
+     */
+    const requestOtp = vi.spyOn( customerAuth, 'requestOtp' );
+    render( <SignIn /> );
+    await enterPhone( '9876543210' );
+    expect( screen.getByText( 'Include your country code, like +91.' ) ).toBeTruthy();
+    expect( requestOtp ).not.toHaveBeenCalled();
+  } );
+
+  it( 'accepts 00 as the international prefix, not just +', async () => {
+    // 00 is how the international prefix is dialled across much of Europe and the Gulf; a shopper
+    // typing it means exactly what + means.
+    const requestOtp = vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
+      session: 'sess-Z', destination: '+91 ******3210', registered: true,
+    } as Awaited<ReturnType<typeof customerAuth.requestOtp>> );
+    render( <SignIn /> );
+    await enterPhone( '00919876543210' );
+    await waitFor( () => expect( requestOtp ).toHaveBeenCalledWith( '+919876543210' ) );
+  } );
+
+  it( 'prefills the field so the expected shape is visible', () => {
+    // A default the shopper can see and edit, which is not the same as inferring a country.
+    render( <SignIn /> );
+    expect( ( screen.getByLabelText( 'WhatsApp number' ) as HTMLInputElement ).value ).toBe( '+91 ' );
   } );
 
   it( 'does not leak whether the number is already registered', async () => {
