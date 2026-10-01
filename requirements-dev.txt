@@ -62,7 +62,10 @@ iniconfig==2.3.0
 jiter==0.17.0
 jmespath==1.1.0
 lxml==6.1.3
-multidict==7.0.0
+# 6.9.0, not 7.0.0: aiohttp==3.14.3 (line 30) requires multidict<7.0,>=4.5, so Dependabot
+# PR #173's bump to 7.0.0 made this file unresolvable (pip ResolutionImpossible). Hold at the
+# newest <7.0 release until aiohttp ships a build that accepts multidict 7.x, then bump both together.
+multidict==6.9.0
 # 4.0.0, not 3.3.1: Dependabot 58 (GHSA-hj66-6f7g-4r5v, `<= 3.3.1`) and 59
 # (GHSA-xpv3-w29h-x7cv, `>= 3.0.0, < 4.0.0`) together mean every 3.x release is affected and
 # only the 4.x line clears both. `requests-oauthlib` declares `oauthlib >= 3.0.0` with no
