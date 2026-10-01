@@ -121,6 +121,10 @@ next-env.d.ts
 
 # Local MCP config — contains secrets (Wix API key). Do not commit.
 .kiro/settings/mcp.json
+# ...and its timestamped backups. The live file is ignored because an MCP server block can
+# carry an `env` with provider credentials; a backup of it carries the same risk, so the
+# rotation copies (mcp.json.backup-*, mcp.json.before-*.bak) must never be committed either.
+.kiro/settings/mcp.json.*
 
 # Agent scratch output. Kept inside the workspace on purpose: the per-workspace
 # Kiro permissions file grants fs_read/fs_write for the root, while anything in
