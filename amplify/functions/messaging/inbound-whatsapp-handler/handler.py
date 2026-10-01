@@ -2038,7 +2038,7 @@ def _process_message(
         # ── Keyword: "gift card" / "gift" ──
         GIFT_KEYWORDS = {'gift card', 'gift cards', 'gift', 'buy gift card', '\U0001f381 gift cards'}
         if content_lower in GIFT_KEYWORDS:
-            _send_cta_button(contact_id, aws_phone_number_id, 'Gift Cards', 'https://wecare.digital/gift-card', request_id)
+            _send_cta_button(contact_id, aws_phone_number_id, 'Gift Cards', 'https://wecare.digital/perks/', request_id)
             return
 
         # ── Keyword: "faq" / "faqs" / "help" / "questions" ──
@@ -6802,7 +6802,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         return
 
     if action == '_cta_gift_card':
-        _send_cta_button(contact_id, phone_number_id, 'View Gift Cards', 'https://wecare.digital/gift-card', request_id,
+        _send_cta_button(contact_id, phone_number_id, 'View Gift Cards', 'https://wecare.digital/perks/', request_id,
             body_text="Send a digital gift card in just a few taps \u2014 quick, easy, and thoughtful.\n\nTap below to continue. \U0001f447",
             footer_text='WECARE.DIGITAL')
         _send_followup_buttons(contact_id, phone_number_id, request_id)

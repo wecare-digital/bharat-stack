@@ -66,17 +66,23 @@ describe( 'Header', () => {
     expect( products ).not.toBeNull();
     expect( products?.textContent ).toContain( 'Bharat Rx' );
 
-    // The group is 'Requests', renamed from 'Selfservice' on 2026-09-27. Found by TEXT,
-    // not by role=link: the heading used to double as a link to a landing page, that page
-    // no longer exists at any address, and the heading is now a plain group label - so
-    // getByRole('link') would throw here.
-    const requests = screen.getByText( 'Requests' ).closest( '.nav-group' );
+    // The group is 'Request' (singular), the exact customer-facing label the owner mandates in
+    // Section 1 - renamed from 'Selfservice' -> 'Requests' -> 'Request'. Found by TEXT, not by
+    // role=link: the heading is a plain group label, not a destination, so getByRole('link')
+    // would throw here.
+    const requests = screen.getByText( 'Request' ).closest( '.nav-group' );
     expect( requests ).not.toBeNull();
     expect( requests?.textContent ).not.toContain( 'Bharat Rx' );
 
     // And it must NOT be a link - that is the actual requirement, so assert it
     // rather than leaving it implied by the lookup above happening to work.
-    expect( screen.queryByRole( 'link', { name: 'Requests' } ) ).toBeNull();
+    expect( screen.queryByRole( 'link', { name: 'Request' } ) ).toBeNull();
+
+    // The banned labels must never appear: Section 1 forbids 'Get Help', 'Self-Service',
+    // 'Selfservice' and 'Help Hub' as the customer-facing group label.
+    expect( screen.queryByText( /Get Help/i ) ).toBeNull();
+    expect( screen.queryByText( /Self-Service/i ) ).toBeNull();
+    expect( screen.queryByText( /Help Hub/i ) ).toBeNull();
 
     // The retired word must not come back anywhere in the menu. This is the guard for the
     // owner instruction, not a restatement of the rename: a new row or heading carrying
@@ -105,10 +111,64 @@ describe( 'Header', () => {
     const legalCol = screen.getByText( 'Legal Stuff' ).closest( '.nav-col' );
     expect( legalCol ).not.toBeNull();
     expect( legalCol?.textContent ).toContain( 'Refer & Earn' );
-    // And it is no longer beside the request actions. The group was renamed from
-    // 'Selfservice' to 'Requests' on 2026-09-27; this looks it up by the new label.
-    const requestsCol = screen.getByText( 'Requests' ).closest( '.nav-col' );
+    // And it is no longer beside the request actions. The group is now labelled 'Request'
+    // (singular); this looks it up by that label.
+    const requestsCol = screen.getByText( 'Request' ).closest( '.nav-col' );
     expect( requestsCol?.textContent ).not.toContain( 'Legal Stuff' );
+  } );
+
+  it( 'adds a Zip row to the Request group, right after Orders', () => {
+    render( <Header /> );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
+
+    // Zip is a real public page under the Request group (Section 3), so it is a working link
+    // to /zip/ carrying the trailing slash the static host needs.
+    expect( screen.getByRole( 'link', { name: 'Zip' } ) ).toHaveAttribute( 'href', '/zip/' );
+
+    // It lives in the Request group, not somewhere else.
+    const request = screen.getByText( 'Request' ).closest( '.nav-group' );
+    expect( request?.textContent ).toContain( 'Zip' );
+
+    // Order: Orders then Zip then Submit Request, per the owner's suggested order.
+    const labels = Array.from( request?.querySelectorAll( '.nav-item' ) || [] )
+      .map( node => node.textContent );
+    expect( labels.indexOf( 'Zip' ) ).toBe( labels.indexOf( 'Orders' ) + 1 );
+    expect( labels.indexOf( 'Submit Request' ) ).toBe( labels.indexOf( 'Zip' ) + 1 );
+  } );
+
+  it( 'marks Zip active on its public route', () => {
+    routerState.pathname = '/zip';
+    render( <Header /> );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
+    expect( screen.getByRole( 'link', { name: 'Zip' } ) ).toHaveAttribute( 'aria-current', 'page' );
+    routerState.pathname = '/';
+  } );
+
+  it( 'adds a Perks group immediately above Legal Stuff', () => {
+    render( <Header /> );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
+
+    // The group heading exists and is not a link (it is a plain label).
+    expect( screen.getByText( 'Perks' ) ).toBeInTheDocument();
+    expect( screen.queryByRole( 'link', { name: 'Perks' } ) ).toBeNull();
+
+    // Its three rows: Gift Cards (the repaired gift-card destination), Rewards and Offers.
+    expect( screen.getByRole( 'link', { name: 'Gift Cards' } ) ).toHaveAttribute( 'href', '/perks/#gift-cards' );
+    expect( screen.getByRole( 'link', { name: 'Rewards' } ) ).toHaveAttribute( 'href', '/perks/#rewards' );
+    expect( screen.getByRole( 'link', { name: 'Offers' } ) ).toHaveAttribute( 'href', '/perks/#offers' );
+
+    // Perks sits in the SAME column as Legal Stuff, and immediately above it: the Perks group
+    // node precedes the Legal Stuff group node among that column's groups.
+    const perksCol = screen.getByText( 'Perks' ).closest( '.nav-col' );
+    expect( perksCol?.textContent ).toContain( 'Legal Stuff' );
+    const groups = Array.from( perksCol?.querySelectorAll( '.nav-group' ) || [] );
+    const perksIndex = groups.findIndex( g => g.textContent?.startsWith( 'Perks' ) );
+    const legalIndex = groups.findIndex( g => g.textContent?.startsWith( 'Legal Stuff' ) );
+    expect( perksIndex ).toBeGreaterThanOrEqual( 0 );
+    expect( legalIndex ).toBe( perksIndex + 1 );
+
+    // No third-party gift-card provider name may appear in the menu.
+    expect( screen.queryByText( /Gift ?Up/i ) ).toBeNull();
   } );
 
   it( 'uses the approved public header dimensions and brand navigation colors', () => {

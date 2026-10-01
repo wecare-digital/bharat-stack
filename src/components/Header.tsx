@@ -158,8 +158,12 @@ const COLUMNS: NavColumn[] = [
         // address - the in-repo /selfservice route went in PR #47 on 2026-09-24 and nothing
         // replaced it, so the label promised a destination that did not exist. The only
         // /selfservice route left is the ADMIN flow dashboard under /workspace/forms/.
-        // 'Requests' describes what the rows beneath it actually do.
-        heading: 'Requests',
+        // 'Requests' described what the rows beneath it do; the owner's instruction (Section 1)
+        // is the singular 'Request' as the exact customer-facing label, and never 'Get Help',
+        // 'Self-Service', 'Selfservice' or 'Help Hub'. This is a label change only - no internal
+        // `selfservice` identifier, config/public-pages.json group id, workspace route, provider
+        // template, API or historical integration id is touched.
+        heading: 'Request',
         links: [
           // ORDERS IS FIRST, on owner instruction - it is the row customers reach for
           // most, and it is the one real local page in this group (the others land on
@@ -173,6 +177,14 @@ const COLUMNS: NavColumn[] = [
           // the static host 308s before resolving. The old path 301s here - see RETIRED in
           // scripts/provision_legacy_redirects.py.
           { label: 'Orders', href: '/orders/', match: '/orders' },
+          // ZIP SITS DIRECTLY AFTER ORDERS, on owner instruction (Section 3): it is the single
+          // place that gathers "track it, arrange it, keep it moving" for a request, delivery or
+          // pickup, so it leads the request actions beside Orders. It is a real public page -
+          // /zip/, registered in PUBLIC_PAGE_META / PUBLIC_EXACT / config/public-pages.json - and
+          // so carries `match` and lights up on its own route. It surfaces the real request routes
+          // (orders, request-amendment, drop-docs, vault, leave-review) and renders anything with
+          // no backend (pickup/visit/delivery-status) as a clearly non-transacting affordance.
+          { label: 'Zip', href: '/zip/', match: '/zip' },
           // FAQ removed on request. The local /faq page was already deleted; this
           // drops the menu row too, so there is no FAQ entry point left anywhere.
           // EACH ROW NOW HAS ITS OWN PAGE. These four, plus Refer & Earn below, used to
@@ -224,6 +236,22 @@ const COLUMNS: NavColumn[] = [
       // column (where it sat beneath Selfservice) on owner instruction, so the third
       // column carries the "about the company" rows - Refer & Earn plus the policies -
       // and the middle column is purely the Selfservice actions.
+      // PERKS SITS IMMEDIATELY ABOVE LEGAL STUFF, on owner instruction (Section 4): gift cards,
+      // rewards and offers gathered in one place. Gift Cards is the repaired /gift-card
+      // destination - the Gift Cards section of /perks/, reached by the #gift-cards anchor - so
+      // the several systems that still link customers to a gift-card URL land on a real page.
+      // Rewards and Offers are anchors into the same /perks/ page. No third-party gift-card
+      // provider name ('Gift Up'/'GiftUp'/any vendor) appears here or on the page. Any affordance
+      // without a verified backend (buy/redeem/check-balance/rewards) renders as a clearly
+      // non-transacting 'coming soon' rather than a working-looking button.
+      {
+        heading: 'Perks',
+        links: [
+          { label: 'Gift Cards', href: '/perks/#gift-cards', match: '/perks' },
+          { label: 'Rewards', href: '/perks/#rewards' },
+          { label: 'Offers', href: '/perks/#offers' },
+        ],
+      },
       {
         heading: 'Legal Stuff',
         links: [
