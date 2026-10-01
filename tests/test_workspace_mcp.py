@@ -288,3 +288,40 @@ def test_route_audit_only_exempts_nonce_callback():
 def test_generic_deployer_delegates_workspace_bundle():
     source = (ROOT / "scripts/deploy_all_lambdas.py").read_text()
     assert '"wecare-workspace-mcp": "scripts/build_workspace_mcp.py + scripts/deploy_workspace_mcp.py' in source
+
+
+@pytest.mark.parametrize("owner,provider", [("../owner", "meta-social"), ("a" * 64, "unknown"), ("a" * 63, "whatsapp")])
+def test_invalid_custody_context_is_refused(module, owner, provider):
+    with pytest.raises(module.Refusal): module.custody_context(owner, provider)
+
+
+def test_missing_cloud_config_has_safe_error(module, monkeypatch):
+    monkeypatch.delenv("TOKEN_KEY", raising=False)
+    with pytest.raises(module.Refusal, match="configuration is incomplete"):
+        module.configured("TOKEN_KEY")
+
+
+def test_refresh_rereads_after_acquiring_lease(module, memory, monkeypatch):
+    owner = "a" * 64
+    key = "connection:" + owner + ":whatsapp"
+    memory.rows[key] = {"expiresAt": 1, "cipher": json.dumps({"access_token": "fixture-old", "refresh_token": "fixture-refresh"}).encode()}
+    updates = []
+    def update(**kwargs):
+        updates.append(kwargs)
+        if kwargs["UpdateExpression"].startswith("SET refreshLockUntil"):
+            # A preceding refresher completed between this reader's first read
+            # and successful acquisition of its own lease.
+            memory.rows[key] = {"expiresAt": int(time.time()) + 3600,
+                "cipher": json.dumps({"access_token": "fixture-new", "refresh_token": "fixture-refresh-new"}).encode()}
+    memory.update_item = update
+    monkeypatch.setattr(module, "http", lambda *a, **kw: pytest.fail("already refreshed credential must not be refreshed again"))
+    assert module.token(owner, "whatsapp") == "fixture-new"
+    assert updates[-1]["ConditionExpression"] == "refreshLease = :lease"
+    assert updates[0]["ExpressionAttributeValues"][":lease"] == updates[-1]["ExpressionAttributeValues"][":lease"]
+
+
+def test_empty_patch_chunk_is_rejected():
+    sys.path.insert(0, str(DIRECTORY))
+    from patch_policy import validate_patch
+    with pytest.raises(ValueError, match="Empty patch chunk"):
+        validate_patch("diff --git ")

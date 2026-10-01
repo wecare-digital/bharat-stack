@@ -22,8 +22,8 @@ reference; no provider credential values were printed or entered context.
 
 ## Verification
 
-* Complete Python suite on the final source tree: 6042 passed, one skipped.
-* Focused administrative MCP tests: 40 passed.
+* Complete Python suite on the final source tree: 6059 passed, one skipped.
+* Focused administrative MCP tests: 46 passed; ten media-flow regression tests passed.
 * 698 frontend tests passed; typecheck and production static build passed.
 * Public-page manifest and exported-bundle credential checks passed.
 * Workflow YAML parsed successfully. It was not dispatched against production.
@@ -57,3 +57,25 @@ provider mutations are outside the first-release supplied-patch allowlist.
 Rollback for branch work is a normal revert. After a future rollout, capture and
 restore the administrative live alias version only; retained KMS/DynamoDB resources
 must not be destroyed as a shortcut. See `docs/workspace-mcp.md`.
+
+## Follow-up review and connection check
+
+Fresh Codex MCP reads succeeded for AWS account identity, Meta Social app-list
+(WECARE.DIGITAL app 2238810740192680) and WhatsApp business-list. AWS returned no
+administrative `/workspace/mcp` routes: the newly built backend is not deployed or
+authenticated in AWS. Existing desktop connections do not imply cloud connection.
+
+Automated review prompted stricter credential-context/environment validation,
+lease-safe token refresh with a fresh read under the lock, bounded in-checkout
+patch inputs, explicit empty-chunk refusal and managed commit-runner authentication.
+Callback principals remain exclusively server-written state records and KMS context,
+never a query parameter. Remote response strings remain untrusted data, never shell
+commands or executable expressions; escaping them as shell syntax would not be a
+protocol-level command-injection fix.
+
+CI's first build hit HTTP 429 on an existing blog read; rerunning the same commit
+passed. Its media source gate also reproduced a baseline false positive on the
+receipt suffix `stack/receipts/`, which is wrapped by `media_paths.secure()` before
+it is used. The feature fixes the checker rather than changing checkout source:
+every local reference must be inside a known rooting helper. Ten regression cases
+keep bare, aliased, returned, indirectly transformed and unproven prefixes failing.

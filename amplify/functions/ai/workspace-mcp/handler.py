@@ -132,14 +132,31 @@ def row(key):
     return table().get_item(Key={"pk": key}, ConsistentRead=True).get("Item", {})
 
 
+def custody_context(owner, provider):
+    # These values come only from gateway identity or its server-written flow row.
+    if not isinstance(owner, str) or not re.fullmatch(r"[a-f0-9]{64}", owner):
+        raise Refusal("Invalid credential principal")
+    provider_config(provider)
+    return {"purpose": "workspace-mcp", "owner": owner, "provider": provider}
+
+
+def configured(name):
+    value = os.environ.get(name)
+    if not value:
+        raise Refusal("Cloud adapter configuration is incomplete")
+    return value
+
+
 def encrypt(value, owner, provider):
-    return client("kms").encrypt(KeyId=os.environ["TOKEN_KEY"], Plaintext=json.dumps(value).encode(),
-        EncryptionContext={"purpose": "workspace-mcp", "owner": owner, "provider": provider})["CiphertextBlob"]
+    context = custody_context(owner, provider)
+    return client("kms").encrypt(KeyId=configured("TOKEN_KEY"), Plaintext=json.dumps(value).encode(),
+        EncryptionContext=context)["CiphertextBlob"]
 
 
 def decrypt(value, owner, provider):
-    return json.loads(client("kms").decrypt(KeyId=os.environ["TOKEN_KEY"], CiphertextBlob=bytes(value),
-        EncryptionContext={"purpose": "workspace-mcp", "owner": owner, "provider": provider})["Plaintext"])
+    context = custody_context(owner, provider)
+    return json.loads(client("kms").decrypt(KeyId=configured("TOKEN_KEY"), CiphertextBlob=bytes(value),
+        EncryptionContext=context)["Plaintext"])
 
 
 def provider_config(name):
@@ -169,12 +186,19 @@ def oauth_begin(owner, provider):
         "redirectUri": CALLBACK, "expiresIn": 600, "status": "consent_required"}
 
 
-def save_tokens(owner, provider, token_data):
+def save_tokens(owner, provider, token_data, lease=None):
     if not isinstance(token_data.get("access_token"), str) or not token_data["access_token"]:
         raise Refusal("Provider did not issue an access token")
     lifetime = int(token_data.get("expires_in", 3600))
     if lifetime < 1 or lifetime > 31536000:
         raise Refusal("Provider token lifetime invalid")
+    if lease:
+        table().update_item(Key={"pk": "connection:" + owner + ":" + provider},
+            UpdateExpression="SET cipher = :cipher, expiresAt = :expires, #s = :status",
+            ConditionExpression="refreshLease = :lease", ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={":cipher": encrypt(token_data, owner, provider),
+                ":expires": int(time.time()) + lifetime, ":status": "authorized_unverified", ":lease": lease})
+        return
     table().put_item(Item={"pk": "connection:" + owner + ":" + provider,
         "owner": owner, "provider": provider, "status": "authorized_unverified",
         "expiresAt": int(time.time()) + lifetime,
@@ -221,20 +245,30 @@ def token(owner, provider):
         if not tokens.get("refresh_token"):
             raise Refusal("Provider OAuth consent expired")
         key = "connection:" + owner + ":" + provider
+        lease = secrets.token_hex(16)
         try:
-            table().update_item(Key={"pk": key}, UpdateExpression="SET refreshLockUntil = :lock",
+            table().update_item(Key={"pk": key}, UpdateExpression="SET refreshLockUntil = :lock, refreshLease = :lease",
                 ConditionExpression="attribute_exists(pk) AND (attribute_not_exists(refreshLockUntil) OR refreshLockUntil < :now)",
-                ExpressionAttributeValues={":lock": int(time.time()) + 30, ":now": int(time.time())})
+                ExpressionAttributeValues={":lock": int(time.time()) + 30, ":now": int(time.time()), ":lease": lease})
         except ClientError:
             raise Refusal("Provider token refresh is in progress; retry shortly") from None
         try:
+            # Another request may have refreshed between our initial read and lock.
+            latest = row(key)
+            tokens = decrypt(latest["cipher"], owner, provider)
+            if int(latest["expiresAt"]) > time.time() + 60:
+                return tokens["access_token"]
             refreshed, _ = http(META_TOKEN, {"grant_type": "refresh_token", "refresh_token": tokens["refresh_token"],
                 "client_id": config["clientId"], "resource": config["endpoint"]}, form=True)
             refreshed.setdefault("refresh_token", tokens["refresh_token"])
-            save_tokens(owner, provider, refreshed)
+            save_tokens(owner, provider, refreshed, lease=lease)
             tokens = refreshed
         finally:
-            table().update_item(Key={"pk": key}, UpdateExpression="REMOVE refreshLockUntil")
+            try:
+                table().update_item(Key={"pk": key}, UpdateExpression="REMOVE refreshLockUntil, refreshLease",
+                    ConditionExpression="refreshLease = :lease", ExpressionAttributeValues={":lease": lease})
+            except ClientError:
+                pass  # Never clear a newer caller's lock after our lease expired.
     return tokens["access_token"]
 
 
@@ -347,7 +381,7 @@ def code_submit(owner, args):
     existing = row("job:" + owner + ":" + job_id)
     if existing and (existing["status"] != "dispatch_pending" or os.environ.get("CODE_JOBS_ENABLED") != "true"):
         return {"jobId": job_id, "status": existing["status"]}
-    bucket = os.environ["PATCH_BUCKET"]
+    bucket = configured("PATCH_BUCKET")
     if not existing:
         client("s3").put_object(Bucket=bucket, Key=key, Body=patch.encode(), ServerSideEncryption="AES256")
         table().put_item(Item={"pk": "job:" + owner + ":" + job_id, "owner": owner,

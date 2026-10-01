@@ -50,6 +50,8 @@ flowchart LR
   binds a provider and caller. A new consent request invalidates the previous one.
   PKCE verifiers and provider tokens are encrypted with principal/provider KMS
   context. Access-token expiry is not DynamoDB TTL: refresh credentials survive it.
+  Refresh uses a per-connection lease, rereads the latest credential after acquiring
+  it, and releases only its own lease; a delayed caller cannot clear a newer lock.
 * IAM and Cognito identities have separate connection namespaces. Authorize through
   the same client identity that will use the connection.
 
@@ -153,6 +155,10 @@ stack. A moved branch fails; it must be resubmitted and retested against the new
 base. The workflow runs typecheck, frontend tests, build, public manifest and export
 secret gates. It does not directly deploy backend resources. Ordinary stack CI and
 the existing Amplify frontend pipeline follow its push.
+
+The final commit runner uses checkout's managed GitHub authentication. The patch
+test runner has no write authentication. Supplied patch paths must resolve inside
+the checkout and meet the size bound before reading.
 
 After merge, set repository variable `WORKSPACE_MCP_PATCH_READ_ROLE_ARN` to the stack
 output. The role only reads the patch prefix. Confirm workflow dispatch permission

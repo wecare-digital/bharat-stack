@@ -19,7 +19,10 @@ def validate_patch(patch):
         raise ValueError("A git-format patch is required")
     seen = set()
     for chunk in chunks[1:]:
-        header = chunk.splitlines()[0]
+        lines = chunk.splitlines()
+        if not lines:
+            raise ValueError("Empty patch chunk")
+        header = lines[0]
         match = re.fullmatch(r"a/(\S+) b/(\S+)", header)
         if not match or match[1] != match[2] or match[1] not in ALLOWED or match[1] in seen:
             raise ValueError("Patch path is outside the public-component allowlist")

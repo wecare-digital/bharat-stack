@@ -14,7 +14,7 @@
   checkout. Owner explicitly requested a separate branch and a later merge;
   `feature/workspace-mcp` is the authorized branch exception.
 - A2_REMOTE_CODE: explicit-path commit and non-force feature-branch push only.
-  Final source verification: 6042 Python tests passed/one skipped, 40 focused MCP
+  Final source verification: 6059 Python tests passed/one skipped, 46 focused MCP
   tests, 698 frontend tests, typecheck, production build, public manifest, exported
   bundle secret gate, workflow YAML and CloudFormation validation passed. Draft PR
   targets stack; no merge or production deployment is included. Rollback: normal
@@ -25,6 +25,12 @@
 Evidence and activation limits: `workspace-mcp-build-20261001.md` and
 `../workspace-mcp.md`. No provider credentials were rotated or replaced; no
 WhatsApp number, messages, payments, ad spend or existing certificate was changed.
+
+The same feature branch received review fixes for token-refresh leases, custody
+context and patch bounds, managed commit-runner authentication, and a demonstrated
+baseline media-checker false positive. Ten rooting-flow regression cases passed;
+checkout source was preserved. Fresh Codex AWS/Meta/WhatsApp reads succeeded; AWS
+still has no administrative MCP routes. No production deployment was attempted.
 
 ## Classes
 
