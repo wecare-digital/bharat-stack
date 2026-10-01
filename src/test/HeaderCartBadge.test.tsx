@@ -239,43 +239,73 @@ describe( 'the control itself', () => {
     expect( css ).toContain( '.hdr-cart:focus-visible' );
   } );
 
-  it( 'recolours the glyph on hover and paints no disc behind it', () => {
+  it( 'wears the MENU ICON\'S hover, same colour and same shape', () => {
     /*
-     * OWNER INSTRUCTION: "in hover effect dont show back grund rounc cicilr card ticon may cnage
-     * color". So the tinted round disc that used to appear on hover is gone and the bag itself
-     * changes colour instead.
+     * OWNER INSTRUCTION: "cart hover color should match menu hover color".
      *
-     * Asserted on the HOVER RULE'S BODY rather than on the whole stylesheet, because the comment
-     * above that rule necessarily explains which background was removed and why - a bare
-     * `not.toContain('background')` would fail on the explanation instead of on a real declaration.
+     * .nav-trigger's hover in Header.tsx is `background:#d1f470` with the chevron left at #1a3a2a -
+     * a LIME SURFACE, not a glyph recolour. Matching it therefore means painting the surface and
+     * leaving the bag dark, which reverses an earlier pass that recoloured the glyph to #3da35a.
+     * That earlier value measured well (3.19:1 on white) but is not a colour the menu icon uses, so
+     * it answered the wrong question.
      *
-     * THE COLOUR IS NOT A TASTE CALL, IT IS THE ONLY ONE THAT MEASURES. #3da35a is the home page's
-     * green accent and sits 3.19:1 against this white header (clearing the 3:1 WCAG 1.4.11 floor
-     * for a non-text control) and 3.91:1 against the #1a3a2a rest colour, so the state change is
-     * perceptible. #d1f470 is 1.24:1 on white - invisible, and reserved for the one actionable
-     * surface a page gets. #1a1a1a is 17.4:1 on white but only 1.39:1 from the rest colour, i.e. a
-     * hover a sighted user cannot see. If someone swaps the value, this assertion is the record of
-     * what has to be re-measured.
+     * THIS DOES NOT CONTRADICT "dont show back grund rounc cicilr". That rejected a round CIRCLE.
+     * The menu chip is a 10px rounded square, so this control's radius is 10px too and the shapes
+     * now match - which is why the radius assertion below is part of THIS test rather than a
+     * separate one: colour and shape are one instruction.
+     *
+     * Read from the rule BODY, not the whole sheet: the comment above the rule necessarily discusses
+     * the background that was removed and the colours that were rejected, so a substring check
+     * against the stylesheet would match the explanation instead of a declaration.
      */
     const { container } = render( <HeaderCart /> );
     const css = container.querySelector( 'style' )?.textContent || '';
+
     const hover = /\.hdr-cart:hover\{([^}]*)\}/.exec( css )?.[ 1 ] || '';
-    expect( hover ).toContain( 'color:#3da35a' );
-    // No disc, by any route: no background shorthand, no background-color, no border, no shadow.
-    expect( hover ).not.toMatch( /background/ );
+    expect( hover ).toContain( 'background:#d1f470' );
+    // The glyph is NOT recoloured - it stays #1a3a2a, which is 10.03:1 on lime. A colour declaration
+    // here would be the reverted treatment creeping back.
+    expect( hover ).not.toMatch( /(^|;)\s*color:/ );
+    // The menu grows a 2px dark edge on hover; this control does not, because its border was removed
+    // outright on a separate instruction ("only cart icon no text or boder").
     expect( hover ).not.toMatch( /border/ );
-    expect( hover ).not.toMatch( /box-shadow/ );
 
     const rest = /\.hdr-cart\{([^}]*)\}/.exec( css )?.[ 1 ] || '';
-    // The transition follows the property that actually animates now. A leftover
-    // `transition:background-color` would animate nothing and the recolour would snap.
-    expect( rest ).toContain( 'transition:color' );
-    expect( rest ).not.toContain( 'transition:background-color' );
-    // border-radius STAYS even with no fill: it is what shapes the focus ring into a circle.
-    expect( rest ).toContain( 'border-radius:50%' );
-    // The focus ring is untouched by a hover change - re-asserted here because this is the test
-    // most likely to be edited by whoever next changes the hover treatment.
+    // 10px, matching .nav-trigger's chip - NOT 50%. The circle is what was objected to.
+    expect( rest ).toContain( 'border-radius:10px' );
+    expect( rest ).not.toContain( 'border-radius:50%' );
+    // The transition follows the property that actually animates. A leftover `transition:color`
+    // would leave the lime fill snapping in with no glide.
+    expect( rest ).toContain( 'transition:background-color' );
+    // Still nothing drawn at REST: lime is a hover state, not a permanent chip.
+    expect( rest ).toContain( 'background:none' );
+    // The focus ring is untouched by a hover change - re-asserted because this is the test most
+    // likely to be edited by whoever next changes the hover treatment.
     expect( css ).toContain( '.hdr-cart:focus-visible' );
+  } );
+
+  it( 'uses the same hover colour the menu trigger uses, read from Header.tsx', () => {
+    /*
+     * THE MATCH IS ASSERTED AGAINST THE SOURCE OF TRUTH, not against a copy of the hex.
+     *
+     * "Match the menu" is a relationship between two files, and a test that hard-codes #d1f470 in
+     * both places would keep passing after someone restyled the menu - which is exactly when this
+     * needs to fail. So Header.tsx is read and its .nav-trigger hover background is extracted, then
+     * compared with the bag's.
+     */
+    const header = fs.readFileSync(
+      path.join( process.cwd(), 'src', 'components', 'Header.tsx' ), 'utf8',
+    );
+    const menuHover = /\.nav-trigger:hover[^{]*\{([^}]*)\}/.exec( header )?.[ 1 ] || '';
+    const menuColour = /background:(#[0-9a-f]{3,8})/i.exec( menuHover )?.[ 1 ];
+    expect( menuColour ).toBeTruthy();
+
+    const { container } = render( <HeaderCart /> );
+    const css = container.querySelector( 'style' )?.textContent || '';
+    const bagHover = /\.hdr-cart:hover\{([^}]*)\}/.exec( css )?.[ 1 ] || '';
+    const bagColour = /background:(#[0-9a-f]{3,8})/i.exec( bagHover )?.[ 1 ];
+
+    expect( bagColour ).toBe( menuColour );
   } );
 
   it( 'draws a 36px glyph inside an unchanged 44px target', () => {
