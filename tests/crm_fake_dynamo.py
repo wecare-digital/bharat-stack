@@ -55,6 +55,9 @@ class FakeClientError(_BotoClientError):
 _ATTR_EXISTS = re.compile(r"attribute_exists\(\s*([#\w]+)\s*\)")
 _ATTR_NOT_EXISTS = re.compile(r"attribute_not_exists\(\s*([#\w]+)\s*\)")
 _EQUALITY = re.compile(r"([#\w]+)\s*=\s*(:[\w]+)")
+#: `attr <> :v` — matched BEFORE equality so the `=` inside `<>` is not mistaken for one. Used by
+#: conditional settlements that must only write a row still in a given state (e.g. not-already-paid).
+_INEQUALITY = re.compile(r"([#\w]+)\s*<>\s*(:[\w]+)")
 _SET_CLAUSE = re.compile(r"\bSET\b(.*?)(?:\bREMOVE\b|\bADD\b|$)",
                         re.IGNORECASE | re.DOTALL)
 _REMOVE_CLAUSE = re.compile(r"\bREMOVE\b(.*?)(?:\bSET\b|\bADD\b|$)",
@@ -97,6 +100,17 @@ def _evaluate_condition(condition: Optional[str], row: Optional[Dict[str, Any]],
     for match in _ATTR_NOT_EXISTS.finditer(text):
         attr = _resolve(match.group(1), names)
         if row is not None and attr in row:
+            result = False
+        consumed = consumed.replace(match.group(0), "", 1)
+
+    # Inequality first: `<>` contains a `=` only in some writers' spelling, but matching it before
+    # equality keeps the two from overlapping and leaves no stray fragment behind.
+    for match in _INEQUALITY.finditer(text):
+        attr = _resolve(match.group(1), names)
+        expected = values[match.group(2)]
+        # DynamoDB's `<>` is false when the attribute is absent, so a missing attribute never
+        # satisfies "not equal to :v". Mirror that: absence -> condition fails.
+        if row is None or attr not in row or row.get(attr) == expected:
             result = False
         consumed = consumed.replace(match.group(0), "", 1)
 

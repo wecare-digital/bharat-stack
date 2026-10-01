@@ -767,6 +767,47 @@ def acknowledge_capture_quarantine(table: Any,
     return resolve_capture_quarantine(table, payment_id, key_attr=key_attr)
 
 
+def claim_legacy_invoice_payment(table: Any,
+                                 *,
+                                 payment_id: str,
+                                 invoice_id: str,
+                                 reference_id: str = "",
+                                 key_attr: str = "orderId",
+                                 extra: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
+    """Claim the right to settle exactly one legacy invoice for one Razorpay payment. Idempotent.
+
+    Returns `(won, invoiceIdRef)`. `won` is True only when THIS call wrote the claim. When the
+    marker already exists, `won` is False and `invoiceIdRef` is the invoice the claim is already
+    bound to - which is what defeats a replay: a second signature-valid `payment.captured`
+    carrying the SAME `payment_id` under a DIFFERENT referenceId finds the claim already held for
+    the first invoice and settles nothing.
+
+    Shares the `PROVIDERPAYMENT#<payment_id>` namespace with `claim_order_for_payment`, so a single
+    provider payment can fund at most one thing across BOTH the commerce and the legacy paths: if
+    the commerce reconciler already claimed this payment for an order, the legacy claim loses, and
+    vice-versa. The marker is claimed BEFORE any invoice write, so one payment settles one invoice.
+    """
+    if not payment_id:
+        raise ValueError("payment_id is required")
+    if not invoice_id:
+        raise ValueError("invoice_id is required")
+    now = int(time.time())
+    item = {
+        "kind": "LEGACY_INVOICE_PAYMENT_CLAIM",
+        "invoiceIdRef": invoice_id,
+        "providerTransactionId": payment_id,
+        "referenceId": reference_id or "",
+        "claimedAt": now,
+    }
+    if extra:
+        item.update(extra)
+    key = PROVIDER_PAYMENT_PREFIX + payment_id
+    if _claim_row(table, key_attr, key, item):
+        return True, invoice_id
+    existing = _read_row(table, key_attr, key) or {}
+    return False, str(existing.get("invoiceIdRef") or "")
+
+
 def reserve_topup_intent(table: Any,
                          *,
                          reference_id: str,
