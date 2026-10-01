@@ -48,8 +48,28 @@
  *
  * A NOTE ON SUBDOMAINS, since the instruction covered them: a request to a subdomain that
  * does not exist never reaches this application. It fails at DNS, or at the CDN, before any
- * JavaScript or HTML of ours is involved. Sending wrong subdomains to the home page is a
- * Route 53 / Amplify domain-management change and cannot be done from this repository.
+ * JavaScript or HTML of ours is involved. That first half is still true and is why this page
+ * cannot help with a wrong host.
+ *
+ * CORRECTED IN PLACE 2026-10-01. The paragraph used to end: "Sending wrong subdomains to the
+ * home page is a Route 53 / Amplify domain-management change and cannot be done from this
+ * repository." The first clause was right about the layer and the second was wrong about the
+ * repository, and it is now demonstrably wrong: amplify/infra/home-fallback.json and
+ * scripts/home_fallback_dns.py live HERE and did exactly that job. A `*.wecare.digital` A+AAAA
+ * alias in Z03939753QJGZ6ZD6BXO8 points every unused single-label name at a dedicated
+ * CloudFront distribution, E1ZZ786I3YH65O, which 302s to https://wecare.digital/ and serves no
+ * content of its own. Measured 2026-10-01: shop.wecare.digital and zzz-not-a-host.wecare.digital
+ * both 302 to the apex with the path AND query dropped - unlike the www canonicalisation, which
+ * preserves both on purpose.
+ *
+ * The residual limit is TLS, not DNS, and it is one label deep: a DNS wildcard matches multiple
+ * labels (RFC 4592) so a.b.wecare.digital does resolve, but `*.wecare.digital` on the
+ * certificate matches exactly ONE label, so that request dies at the handshake
+ * (measured ssl_verify_result=1, http_code 000). Closing that needs a new SAN on a re-requested
+ * certificate re-associated on both consumers of the shared cert - the Amplify app and
+ * CloudFront E1SZBXLQ4XNLJ7, which is the MTA-STS policy endpoint under `mode: enforce`, where a
+ * failure makes senders refuse inbound mail. No product surface needs a second-label host today.
+ * See docs/execution/home-fallback-20261001.md and url-host-matrix-20261001.md §4.1.
  */
 import React, { useEffect } from 'react';
 import Head from 'next/head';

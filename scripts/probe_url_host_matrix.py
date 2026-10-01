@@ -133,6 +133,21 @@ def matrix() -> list[dict]:
                      terminal_url=f"{SITE}/blog/"))
     rows.append(_row("host", f"http://{SITE.split('://')[1]}/", 200,
                      "http apex reaches https apex", terminal_url=f"{SITE}/"))
+    # ADDED 2026-10-01, third convergence pass. The apex IS the Cognito OAuth redirect URI:
+    # src/pages/_app.tsx registers `redirectSignIn`/`redirectSignOut` as
+    # NEXT_PUBLIC_APP_URL || 'https://wecare.digital/', and that URI is registered on the
+    # stack-wecare-digital-web client. So the apex answering 200 is not just "the home page is
+    # up" - it is the sign-in round trip's landing surface, and these two rows say so.
+    # The second row is the one that matters: Cognito returns the authorization code in the
+    # QUERY STRING, so the www canonicalisation must carry `?code=` across or sign-in breaks for
+    # anyone who began at www. The host rule's source is a bare origin, which is what preserves
+    # both path and query; a source with a path would drop them. `zzz`-prefixed values are
+    # deliberately invalid - nothing is exchanged, the probe only measures where they land.
+    rows.append(_row("host", f"{SITE}/?code=zzztest&state=zzz", 200,
+                     "the Cognito OAuth redirect URI itself (_app.tsx redirectSignIn)"))
+    rows.append(_row("host", f"{WWW}/?code=zzztest&state=zzz", 200,
+                     "the www 301 must preserve the OAuth ?code=, or sign-in breaks from www",
+                     terminal_url=f"{SITE}/?code=zzztest&state=zzz"))
 
     # ── the 404 fallback ─────────────────────────────────────────────────────────────
     # 404 is load-bearing and must never become 200: a non-404 status on /<*> matches
@@ -165,6 +180,30 @@ def matrix() -> list[dict]:
                          "Authenticator shell", terminal_url=f"{SITE}/"))
     rows.append(_row("legacy-workspace", f"{SITE}{ACCESS_PREFIX}/anything/deep", 200,
                      "the /access/<*> wildcard lands on home too", terminal_url=f"{SITE}/"))
+    # ADDED 2026-10-01, third convergence pass, because the plan's design note D1 asserted
+    # something that was never probed and is HALF FALSE: "the target is a literal /, so no path,
+    # query or fragment is forwarded". The PATH is dropped. The QUERY is not - Amplify appends
+    # the incoming query string to the redirect target. Measured here rather than reasoned about,
+    # and pinned on the exact terminal URL so the retained query is visible in the row itself.
+    #
+    # Why this is recorded and not "fixed": the Location HOST is a fixed literal, so a retained
+    # query cannot redirect anyone anywhere - this is not an open redirect. And nothing consumes
+    # it: neither src/pages/index.tsx nor src/pages/_app.tsx reads location.search,
+    # URLSearchParams or router.query, so the parameter arrives at a page that never looks at it.
+    # The asymmetry is the point worth pinning: the OTHER two routes home DO drop everything
+    # (src/pages/404.tsx calls router.replace with a literal '/', and the home-fallback
+    # viewer-request function discards path and query), so one of three paths home behaves
+    # differently from the written requirement and that difference is now measured.
+    # A fragment is never sent by any client, so it cannot be probed and is not claimed.
+    for access_query, expected_home in (
+        (f"{ACCESS_PREFIX}/?next=https://evil.example", f"{SITE}/?next=https://evil.example"),
+        (f"{ACCESS_PREFIX}?a=b&c=d", f"{SITE}/?a=b&c=d"),
+        (f"{ACCESS_PREFIX}/x/y?return=//evil", f"{SITE}/?return=//evil"),
+    ):
+        rows.append(_row("legacy-workspace", f"{SITE}{access_query}", 200,
+                         "redirect home DROPS the path and RETAINS the query - inert, because "
+                         "the Location host is a literal and nothing on home reads a query param",
+                         terminal_url=expected_home))
 
     # ── retired content aliases ─────────────────────────────────────────────────────
     for path in RETIRED_CONTENT:
@@ -197,6 +236,29 @@ def matrix() -> list[dict]:
     rows.append(_row("api", f"{SITE}/api/wa-business/webhooks", 401,
                      "WhatsApp webhook delivery address", method="POST"))
     rows.append(_row("api", f"{SITE}/api/webhook/sinch-rcs", 200, "RCS webhook verification GET"))
+    # ADDED 2026-10-01, third convergence pass. `auth/validate` above was the ONLY protected
+    # operational row, which is too thin to evidence "unauthenticated REJECTION semantics are
+    # preserved" for the class as a whole: one route can keep answering 401 while a rewrite
+    # change quietly turns its neighbours into pages. These three are probed by GET and asserted
+    # on the BODY as well as the status, because 401 alone cannot tell the API's own rejection
+    # from an edge-level one - the JSON is what proves the request reached the Lambda.
+    for protected in ("/api/invoices", "/api/contacts", "/api/wix-store/products"):
+        rows.append(_row("api", f"{SITE}{protected}", 401,
+                         "protected operational endpoint: rejects an unauthenticated read with "
+                         "the API's own JSON, not a page",
+                         body_contains=("No authorization token provided",)))
+    # ADDED 2026-10-01, third convergence pass. Two surfaces the task brief names that have NO
+    # live route yet. They are probed so the document can say "unprovisioned, measured" instead
+    # of leaving a reader unable to tell an absent route from an unchecked one. A 404 here is the
+    # CORRECT answer and the row exists to notice it changing: the day either ships, this row
+    # fails and the matrix has to be updated deliberately rather than drifting.
+    #   signed receipt links   - no receipt path is referenced from src/ either
+    #   verified-email callback - the function is built but deliberately not provisioned, and is
+    #                             owned by the customer-registration workstream, not this task
+    rows.append(_row("api", f"{SITE}/api/checkout/download-receipt", 404,
+                     "signed receipt link: NOT provisioned yet - 404 is the measured truth"))
+    rows.append(_row("api", f"{SITE}/api/auth/verify-email", 404,
+                     "verified-email callback: built but NOT provisioned (other workstream)"))
     rows.append(_row("api", f"{SITE}/mcp", 405, "MCP rejects GET"))
     rows.append(_row("api", f"{SITE}/mcp", 400, "MCP accepts POST and rejects an empty body",
                      method="POST"))
