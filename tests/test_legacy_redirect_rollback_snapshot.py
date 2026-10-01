@@ -155,7 +155,15 @@ def test_owner_policy_preserves_rewrites_without_restoring_legacy_destinations(r
     approved = redirects.desired_redirects()
     assert client.written == approved + rewrites
     assert approved[0] == removals[0]
-    assert all(r["target"] == "https://wecare.digital/" for r in approved[1:])
+    # TARGET CHANGED 2026-10-01 (third convergence pass). This read
+    # `== "https://wecare.digital/"` and the bare form was the defect: Amplify forwards the
+    # incoming query string to a 301/302 target by default, so `/access/?next=https://evil.example`
+    # answered `302 -> https://wecare.digital/?next=https://evil.example`, forwarding
+    # caller-supplied content the handoff requires to be dropped. Giving the destination its own
+    # query parameter is the documented way to stop that, so the parameter is the fix rather than
+    # noise. Asserted as host-plus-query so neither half can be dropped silently: a bare apex
+    # reinstates the forwarding, and a different host leaves the canonical home.
+    assert all(r["target"] == "https://wecare.digital/?from=access" for r in approved[1:])
     assert all("/workspace" not in r["target"] for r in approved)
     client.written = None
     assert redirects.apply(client, approved + rewrites) == 0

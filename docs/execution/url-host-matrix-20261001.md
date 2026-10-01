@@ -188,9 +188,10 @@ rather than two individually-correct status codes.
 | **90** | `GET https://www.wecare.digital/?code=…&state=…` | not measured before | **301 → `https://wecare.digital/?code=…&state=…`**, terminal 200 | **the `?code=` survives the host 301** — §1.2 |
 | **91** | `GET /api/checkout/download-receipt` | not measured before | **404** `{"message":"Not Found"}` | **no live route — unprovisioned, not broken** — §1.3 |
 | **92** | `GET /api/auth/verify-email` | not measured before | **404** `{"message":"Not Found"}` | **no live route — unprovisioned, not broken** — §1.3 |
-| **93** | `/access/?next=https://evil.example` | not measured before | **302 → `https://wecare.digital/?next=https://evil.example`**, terminal 200 | **path dropped, query RETAINED** — §1.4 |
-| **94** | `/access?a=b&c=d` | not measured before | **302 → `https://wecare.digital/?a=b&c=d`** | path dropped, query retained — §1.4 |
-| **95** | `/access/x/y?return=//evil` | not measured before | **302 → `https://wecare.digital/?return=//evil`** | path dropped, query retained — §1.4 |
+| **93** | `/access/?next=https://evil.example` | **302 → `https://wecare.digital/?next=https://evil.example`** (measured 2026-10-01, before the fix) | **302 → `https://wecare.digital/?from=access`**, terminal 200 | **FIXED — path and caller's query both dropped** — §1.4 |
+| **94** | `/access?a=b&c=d` | **302 → `https://wecare.digital/?a=b&c=d`** | **302 → `https://wecare.digital/?from=access`** | **FIXED** — §1.4 |
+| **95** | `/access/x/y?return=//evil` | **302 → `https://wecare.digital/?return=//evil`** | **302 → `https://wecare.digital/?from=access`** | **FIXED** — §1.4 |
+| 23a/59 (restated) | `/access`, `/access/`, `/access/anything/deep` | 302 → `https://wecare.digital/` | **302 → `https://wecare.digital/?from=access`**, terminal 200 | target narrowed by the same fix — §1.4 |
 
 Rows 86–95 were **added in the third convergence pass, 2026-10-01**, after a review found that
 four of the surface categories the brief names had no row at all, so a reader could not tell
@@ -266,12 +267,15 @@ either surface ships, its row fails and this document has to be updated delibera
 drifting into silence. Receipts stay private and off the public media prefix regardless — that
 constraint is unaffected by this task.
 
-### 1.4 The redirect home drops the path and RETAINS the query
+### 1.4 The redirect home retained the untrusted query — FIXED 2026-10-01
 
-Added 2026-10-01, third convergence pass, correcting a claim this task carried without probing
-it. The plan's design note **D1** asserted that `/access/**` → `/` *"drops the untrusted path
-entirely (the target is a literal `/`, so no path, query or fragment is forwarded)"*. **That is
-half false.** Measured (rows 93–95):
+Found in the third convergence pass, correcting a claim this task carried without probing it. The
+plan's design note **D1** asserted that `/access/**` → `/` *"drops the untrusted path entirely
+(the target is a literal `/`, so no path, query or fragment is forwarded)"*. **That was half
+false**, and the half that was false is a real defect against the handoff's requirement that
+untrusted path, query and fragment content be dropped when a retired customer URL is sent home.
+
+**Before the fix**, measured:
 
 ```
 /access/?next=https://evil.example   302 -> https://wecare.digital/?next=https://evil.example
@@ -279,29 +283,57 @@ half false.** Measured (rows 93–95):
 /access/x/y?return=//evil             302 -> https://wecare.digital/?return=//evil
 ```
 
-The **path** is dropped, as claimed. The **query is appended** to the redirect target, because
-that is what Amplify does with an incoming query string. A fragment is never transmitted by any
-client, so it cannot be probed and is not claimed either way.
+The **path** was dropped, as claimed. The **query was appended** to the redirect target, because
+that is Amplify's default for a 301/302.
 
-**Why this is recorded rather than changed**, stated so the scope is not misread as a shrug:
+**After the fix**, measured on six consecutive readings roughly 25 seconds apart:
 
-- The `Location` **host is a fixed literal** (`https://wecare.digital/`), so a retained query
-  cannot send anyone anywhere. This is not an open redirect, and `?next=https://evil.example`
-  lands on our own home page with a parameter nobody reads.
-- **Nothing consumes it.** Neither `src/pages/index.tsx` nor `src/pages/_app.tsx` reads
-  `location.search`, `URLSearchParams` or `router.query` — verified by grep over both files.
-- The behaviour is now **pinned on the exact terminal URL** in the harness, so if it ever starts
-  mattering — a query consumer on the home page, or a change to the redirect target — the row
-  fails rather than passing as "302 to home, fine".
+```
+/access/?next=https://evil.example   302 -> https://wecare.digital/?from=access   terminal 200
+/access?a=b&c=d                      302 -> https://wecare.digital/?from=access   terminal 200
+/access/x/y?return=//evil             302 -> https://wecare.digital/?from=access   terminal 200
+/access/                             302 -> https://wecare.digital/?from=access   terminal 200
+```
 
-**The asymmetry is the finding, and it is worth keeping visible.** The other two routes home do
-drop everything: `src/pages/404.tsx` calls `router.replace` with a literal `'/'`, and the
-home-fallback viewer-request function discards path *and* query, measured here as
-`https://shop.wecare.digital/some/path?q=1` → `302` → bare `https://wecare.digital/`. So one of
-three paths home diverges from the requirement's wording, inertly, and that divergence is now
-written down instead of assumed away. Stripping the query at the edge is possible — the
-home-fallback function already does it for the subdomain case — and is deliberately **not** done
-here, because it would be a live rule change for no measurable gain.
+**How, and why the fix is a query parameter rather than its removal.** Amplify's documented
+behaviour is that it forwards all query parameters to a 301/302 destination *except* when "the
+destination address for the matching rule has query parameters", in which case they are not
+forwarded. So the way to drop the caller's query is to give the destination one of our own.
+`scripts/provision_legacy_redirects.py` now emits
+`https://wecare.digital/?from=access` for all three `/access` sources, and `ACCESS_HOME_TARGET`
+carries the reasoning at the point of definition.
+
+`from=access` is deliberately inert and deliberately ours:
+
+- **Nothing reads it.** Neither `src/pages/index.tsx` nor `src/pages/_app.tsx` references
+  `location.search`, `URLSearchParams` or `router.query` — verified by grep over both.
+- The status is **302**, so no index equity moves, and the home page's own canonical already
+  points at the bare apex.
+- It is a **literal we emit**, so the property that matters holds: nothing from the request
+  survives the redirect. If a consumer for it ever appears it must still not be treated as input.
+- A fragment is never transmitted by any client, so it cannot be probed and is not claimed either
+  way.
+
+**All three routes home now agree**, which was the asymmetry worth closing rather than
+documenting: `src/pages/404.tsx` calls `router.replace` with a literal `'/'`, and the home-fallback
+viewer-request function discards path *and* query — measured as
+`https://shop.wecare.digital/some/path?q=1` → `302` → bare `https://wecare.digital/`.
+
+**Pinned so it cannot regress silently.** Rows 93–95 assert the **exact terminal URL**, so a
+return to forwarding fails the harness with the caller's parameter visible in the failure. Three
+test sites assert the target with its query — `test_url_host_routing_rules.py` twice and
+`test_legacy_redirect_rollback_snapshot.py` once — each with a dated note saying the parameter is
+the mechanism, so re-asserting the bare apex reinstates the defect rather than tidying it.
+
+**Live-change record.** `amplify update-app` via the provisioner, which snapshots first: committed
+pre-change state in
+`docs/execution/snapshots/amplify-custom-rules-before-access-query-drop-20261001.json` (12 rules,
+with the no-ETag fact recorded — Amplify `get-app`/`update-app` expose none) plus the
+provisioner's own timestamped `.scratch/` rollback. Blast radius is the three `/access` sources;
+the host 301, every passthrough rewrite and the `/<*>` → `/404.html` `404-200` catch-all are
+rebuilt unchanged by construction, and `apply()` refuses to write without exactly one catch-all.
+Propagation was immediate — the first probe after the write already showed the new target.
+Rollback is one `--apply` after restoring `ACCESS_HOME_TARGET` to `SITE + "/"`.
 
 ---
 
@@ -1109,12 +1141,12 @@ authority gaps, and all four are now closed without any live rule change.
 |---|---|---|
 | `src/pages/account/sign-in.tsx` edited on an authority attested only inside the change | clearance appeared in the commit message, `safeReturnPath.ts`'s header and §7.1/§9.4 — all inside the change | recorded **outside** the change in `docs/execution/change-authority-matrix.md`, with the class, the target, the owner handoff item it rests on, the collision evidence, an honest "not pre-cleared in writing" ratification line, and the rollback. **The collision argument was then overtaken by a better one on the same day — see §9.6:** the owning workstream resumed and *kept* the wiring |
 | Three surface categories the brief names had no row | OAuth callbacks, signed receipt links and verified-email callbacks were absent; protected operational endpoints had exactly one row | **§1.1–§1.3** and rows **86–92**, all added to the probe harness so they are re-measured every run, not a dated `curl` |
-| The redirect home retains the query string | the plan's design note D1 claimed path, query and fragment were all dropped; never probed | **§1.4** and rows **93–95**, pinned on the exact terminal URL; D1 corrected in place and dated, with the old reading kept |
+| The redirect home retains the query string | the plan's design note D1 claimed path, query and fragment were all dropped; never probed | **FIXED, not just documented** — the target now carries its own query parameter, which is the documented way to stop Amplify forwarding the caller's. `§1.4` holds the before/after probes, rows **93–95** pin the exact terminal URL, and three test sites pin the target. D1 corrected in place and dated, old reading kept |
 | `src/pages/404.tsx` carried a stale subdomain paragraph | said sending wrong subdomains home "cannot be done from this repository" | corrected in place and dated: the IaC is in this repository, the wildcard plus `E1ZZ786I3YH65O` is live, and the residual limit is the one-label certificate, measured `ssl_verify_result=1` |
 
-The harness grew from **88 rows to 98**. Nothing was removed, no expectation was relaxed, and no
-row was downgraded to informational — the two informational rows are unchanged and both are hosts
-we do not control.
+The harness grew from **88 rows to 98** in this pass, and to **100** once the concurrent
+subdomain rewrite described in §9.6 merged. Nothing was removed and no expectation was relaxed by
+this pass.
 
 ### Gates, on the exact tree
 
@@ -1125,7 +1157,7 @@ we do not control.
 | `npx vitest run` | **48 files, 684 tests, all passed** |
 | `npm run build` | **0**; `out/404/index.html` **36,567 bytes**; `out/sitemap.xml` **1,407 `<loc>`** — both unchanged |
 | `pytest test_legacy_redirect_rollback_snapshot.py test_url_host_routing_rules.py -q` | **17 passed**, 0 skipped (13 + 4; an earlier write-up said 20, which counted a wider file set) |
-| `scripts/probe_url_host_matrix.py --json` | **98 probed, 0 failed, 0 informational drift**, exit 0 |
+| `scripts/probe_url_host_matrix.py --json` | **98 probed, 0 failed, 0 informational drift**, exit 0 — **100 after the §9.6 merge, still 0 failed** |
 | `scripts/retired_url_probe.py` | exit **0** — no retired public URL answers 200 |
 | `scripts/provision_legacy_redirects.py --verify` | exit **0** — 12 rules, only the approved host 301 and three `/access` 302s |
 | `git diff --stat _routes.json` | **empty** — byte-identical, and clean in `git status` |
@@ -1187,7 +1219,7 @@ reverting it, which is stronger ratification than the absent-owner argument. Cor
 and dated in `docs/execution/change-authority-matrix.md`; the original reading is kept there
 because it is the reasoning that was actually used at the time.
 
-### 2. `scripts/probe_url_host_matrix.py`'s subdomain block was rewritten concurrently — FLAGGED, not reconciled
+### 2. `scripts/probe_url_host_matrix.py`'s subdomain block was rewritten concurrently — MERGED by the committer, flags still open
 
 `origin/stack` replaces the subdomain rows with a loop over four hosts probing
 `/old/path?old=1`, and reports a 90-row matrix. This pass's tree reports 98. The two edits sit in
@@ -1206,10 +1238,24 @@ eyes rather than a silent overwrite:
   the record of why the `shop` row moved from status 0 to 302 and why the `xout` downgrade stands.
   This repo's convention is to correct a rationale in place with a date and never delete it.
 
-**Why this was not merged here.** `amplify/functions/shared/lambda_utils/customer_session.py` is
-**modified in the shared working tree by a live session** and is also changed on `origin/stack`,
-so a merge would have to update a file another session is holding uncommitted. `git merge` refuses
-that, and the alternatives — stash, reset, force — are all prohibited. So the convergence commit
-stays local on `stack` and the integration belongs to whichever session owns the tree when it is
-clean. Recorded rather than forced: the loser of a concurrent-push race leaving its work committed
-and reporting is the documented behaviour, not a failure.
+**Why this pass did not merge it, and who did.** `amplify/functions/shared/lambda_utils/customer_session.py`
+was **modified in the shared working tree by a live session** and also changed on `origin/stack`,
+so a merge would have had to update a file another session was holding uncommitted. `git merge`
+refuses that, and the alternatives — stash, reset, force — are all prohibited. The convergence
+commits were therefore left local and the race was reported rather than resolved here.
+
+**RESOLVED by the single committer, 2026-10-01.** The one-committer rule is why: four workstreams
+had unpushed commits on local `stack` at that moment (this one, the checkout-deployment run and the
+phone-normalisation run), and four independent merges of the same divergence is how the absorption
+incidents in `.kiro/steering/multi-session-parallel-agents.md` started. One integration, once:
+merge `805c7517` on top of `0068f871`, with the `change-authority-matrix.md` conflict taken as the
+keep-both resolution `git merge-tree` had pre-identified, and `probe_url_host_matrix.py`
+auto-merging as predicted. `HEAD` now equals `origin/stack` and both convergence commits
+(`5114ae70`, `f00d9b93`) are on the branch of record. **The merged harness reports 100 rows,
+0 failed** — this pass's 98 plus the concurrent subdomain rewrite's net +2, which is the
+"roughly 100" predicted above, measured.
+
+**The two flags above are NOT closed by the merge.** Both edits survived it intact, so
+`xout.wecare.digital` and `www.xout.wecare.digital` are hard gates in the merged file and the
+deleted rationale is still deleted. They remain an owner call for the release-gating workstream
+that made them, not something to revert from here.

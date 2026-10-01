@@ -82,6 +82,17 @@ LEGACY_WORKSPACE_PREFIXES = (
 # asserted on the terminal URL below: a customer who types /access must never be handed a staff
 # login. Landing on the canonical home satisfies that; so did the 404.
 ACCESS_PREFIX = "/access"
+# Where /access** lands, and why the query parameter is part of the expectation rather than noise.
+# CHANGED 2026-10-01: the target was a bare `https://wecare.digital/`, and Amplify forwarded the
+# INCOMING query string to it - measured as
+# `/access/?next=https://evil.example -> 302 -> https://wecare.digital/?next=https://evil.example`.
+# The handoff requires untrusted path, query and fragment content to be dropped when a retired
+# customer URL is sent home, so the target now carries its own parameter, which is the documented
+# way to stop Amplify forwarding the caller's: "if the destination address for the matching rule
+# has query parameters, query parameters aren't forwarded". `from=access` is a literal WE emit and
+# nothing reads it. Asserting the exact terminal URL is what proves the drop rather than assuming
+# it: if forwarding ever resumes, the terminal carries the caller's parameter and the row fails.
+ACCESS_HOME = f"{SITE}/?from=access"
 
 # The legacy content/SEO aliases. Owner-retired 2026-10-01; 404 is the intended answer and a
 # 301 reappearing here would mean the removal was reverted.
@@ -177,33 +188,41 @@ def matrix() -> list[dict]:
     for access_url in (f"{SITE}{ACCESS_PREFIX}/", f"{SITE}{ACCESS_PREFIX}"):
         rows.append(_row("legacy-workspace", access_url, 200,
                          "retired staff entry point: 302 to the canonical HOME, never the "
-                         "Authenticator shell", terminal_url=f"{SITE}/"))
+                         "Authenticator shell", terminal_url=ACCESS_HOME))
     rows.append(_row("legacy-workspace", f"{SITE}{ACCESS_PREFIX}/anything/deep", 200,
-                     "the /access/<*> wildcard lands on home too", terminal_url=f"{SITE}/"))
-    # ADDED 2026-10-01, third convergence pass, because the plan's design note D1 asserted
-    # something that was never probed and is HALF FALSE: "the target is a literal /, so no path,
-    # query or fragment is forwarded". The PATH is dropped. The QUERY is not - Amplify appends
-    # the incoming query string to the redirect target. Measured here rather than reasoned about,
-    # and pinned on the exact terminal URL so the retained query is visible in the row itself.
+                     "the /access/<*> wildcard lands on home too", terminal_url=ACCESS_HOME))
+    # The rows that exist because the plan's design note D1 asserted something nobody probed:
+    # "the target is a literal /, so no path, query or fragment is forwarded". When first measured
+    # the PATH was dropped and the QUERY was NOT - Amplify appended the caller's query string to
+    # the target. These three probes carry a query ON PURPOSE, so that the drop is proven rather
+    # than assumed, and they are pinned on the exact terminal URL: the caller's parameter appearing
+    # there is what failure looks like.
     #
-    # Why this is recorded and not "fixed": the Location HOST is a fixed literal, so a retained
-    # query cannot redirect anyone anywhere - this is not an open redirect. And nothing consumes
-    # it: neither src/pages/index.tsx nor src/pages/_app.tsx reads location.search,
-    # URLSearchParams or router.query, so the parameter arrives at a page that never looks at it.
-    # The asymmetry is the point worth pinning: the OTHER two routes home DO drop everything
-    # (src/pages/404.tsx calls router.replace with a literal '/', and the home-fallback
-    # viewer-request function discards path and query), so one of three paths home behaves
-    # differently from the written requirement and that difference is now measured.
-    # A fragment is never sent by any client, so it cannot be probed and is not claimed.
-    for access_query, expected_home in (
-        (f"{ACCESS_PREFIX}/?next=https://evil.example", f"{SITE}/?next=https://evil.example"),
-        (f"{ACCESS_PREFIX}?a=b&c=d", f"{SITE}/?a=b&c=d"),
-        (f"{ACCESS_PREFIX}/x/y?return=//evil", f"{SITE}/?return=//evil"),
+    # FIXED 2026-10-01 rather than documented-and-left, because the handoff requires untrusted
+    # path, query and fragment content to be dropped when a retired customer URL goes home, and a
+    # forwarded attacker-supplied parameter is a defect against that requirement even though it was
+    # inert in effect (the Location host is a literal, and nothing on the home page reads a query
+    # parameter - neither src/pages/index.tsx nor src/pages/_app.tsx references location.search,
+    # URLSearchParams or router.query). The fix is in the redirect target, not here: see
+    # ACCESS_HOME above and scripts/provision_legacy_redirects.py.
+    #
+    # Measured before the fix : /access/?next=https://evil.example
+    #                           -> 302 -> https://wecare.digital/?next=https://evil.example
+    # Measured after the fix  : -> 302 -> https://wecare.digital/?from=access
+    #
+    # All three routes home now agree, which was the asymmetry worth closing: src/pages/404.tsx
+    # calls router.replace with a literal '/', and the home-fallback viewer-request function
+    # discards path and query (confirmed at the edge). A fragment is never transmitted by a client,
+    # so it cannot be probed and is not claimed either way.
+    for access_query in (
+        f"{ACCESS_PREFIX}/?next=https://evil.example",
+        f"{ACCESS_PREFIX}?a=b&c=d",
+        f"{ACCESS_PREFIX}/x/y?return=//evil",
     ):
         rows.append(_row("legacy-workspace", f"{SITE}{access_query}", 200,
-                         "redirect home DROPS the path and RETAINS the query - inert, because "
-                         "the Location host is a literal and nothing on home reads a query param",
-                         terminal_url=expected_home))
+                         "redirect home must DROP both the path and the caller's query - the "
+                         "terminal must carry our from=access and nothing of the request",
+                         terminal_url=ACCESS_HOME))
 
     # ── retired content aliases ─────────────────────────────────────────────────────
     for path in RETIRED_CONTENT:
