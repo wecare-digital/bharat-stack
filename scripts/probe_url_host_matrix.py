@@ -60,8 +60,21 @@ MAX_HOPS = 5
 # was worse for staff: it 301d to a /workspace/settings/ page that 404s.
 LEGACY_WORKSPACE_PREFIXES = (
     "/dm", "/engage", "/dashboard", "/contacts", "/commerce", "/pay", "/forms",
-    "/service", "/docs", "/seo", "/admin", "/access", "/link", "/task", "/settings",
+    "/service", "/docs", "/seo", "/admin", "/link", "/task", "/settings",
 )
+
+# /access is handled separately, NOT because it is special but because its sanctioned answer
+# changed after this file was first written. 2026-10-01, in order:
+#   1. originally  301 -> /workspace/access/ -> 200 staff Authenticator shell   (the defect)
+#   2. then        404, when the owner's "delete all url redirects now" removed 138 rules
+#   3. now         302 -> https://wecare.digital/ -> 200, emitted by desired_redirects()
+# Step 3 is the destination the task plan asked for in the first place (/access was a CONVERT
+# prefix, target '/' at 302) and is config-as-code rather than a hand-applied rule, so it is
+# rebuilt by --apply rather than merely surviving it. The 404 in step 2 was the stale middle
+# state, not the goal. What has to stay true across all three is the SAFETY property, which is
+# asserted on the terminal URL below: a customer who types /access must never be handed a staff
+# login. Landing on the canonical home satisfies that; so did the 404.
+ACCESS_PREFIX = "/access"
 
 # The legacy content/SEO aliases. Owner-retired 2026-10-01; 404 is the intended answer and a
 # 301 reappearing here would mean the removal was reverted.
@@ -125,6 +138,17 @@ def matrix() -> list[dict]:
                      "the one-hop channel alias is gone with its prefix"))
     rows.append(_row("legacy-workspace", f"{SITE}/admin/anything/deep", 404,
                      "a deep path under a retired prefix"))
+
+    # /access - see ACCESS_PREFIX above. Asserted on the TERMINAL URL, not just the status,
+    # because 200 alone cannot tell the canonical home from the staff Authenticator shell -
+    # and the shell is exactly what this row exists to forbid. Pinning the URL is what makes
+    # a regression into /workspace/access/ fail here instead of passing as "200, fine".
+    for access_url in (f"{SITE}{ACCESS_PREFIX}/", f"{SITE}{ACCESS_PREFIX}"):
+        rows.append(_row("legacy-workspace", access_url, 200,
+                         "retired staff entry point: 302 to the canonical HOME, never the "
+                         "Authenticator shell", terminal_url=f"{SITE}/"))
+    rows.append(_row("legacy-workspace", f"{SITE}{ACCESS_PREFIX}/anything/deep", 200,
+                     "the /access/<*> wildcard lands on home too", terminal_url=f"{SITE}/"))
 
     # ── retired content aliases ─────────────────────────────────────────────────────
     for path in RETIRED_CONTENT:

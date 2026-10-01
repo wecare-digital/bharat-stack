@@ -102,8 +102,9 @@ rather than two individually-correct status codes.
 | 6 | `/definitely-not-a-page` | 301 → `…/` → 404 | same | unchanged |
 | 7 | `/definitely-not-a-page/` | 404, `"page":"/404"`, `noindex`, canonical `/` | same, all three asserted in the body | unchanged — **404, not 200** |
 | 8 | `/404/` | 200 | 200 | unchanged |
-| 9–23 | `/dm/ /engage/ /dashboard/ /contacts/ /commerce/ /pay/ /forms/ /service/ /docs/ /seo/ /admin/ /access/ /link/ /task/ /settings/` | **301 → `/workspace/…` → 200 Authenticator shell** (`/settings/` → 404) | **404, every one** | **defect closed by the owner's removal, not by this task's 302** |
-| 24–38 | the same 15 in bare form (`/dm`, `/admin`, …) | 301 → slash → staff shell | 301 → slash → **404** | closed |
+| 9–23 | `/dm/ /engage/ /dashboard/ /contacts/ /commerce/ /pay/ /forms/ /service/ /docs/ /seo/ /admin/ /link/ /task/ /settings/` **+ `/access/`, see 23a** | **301 → `/workspace/…` → 200 Authenticator shell** (`/settings/` → 404) | **404, every one** | **defect closed by the owner's removal, not by this task's 302** |
+| **23a** | **`/access/`, `/access`, `/access/anything/deep`** | **301 → `/workspace/access/` → 200 staff shell** | **302 → `https://wecare.digital/` → 200 home** | **superseded 15:54 IST — now the planned CONVERT destination, §5.5** |
+| 24–38 | the same 15 in bare form (`/dm`, `/admin`, …) | 301 → slash → staff shell | 301 → slash → **404** (`/access` → 302 → home) | closed |
 | 39 | `/dm/calls` | 301 → `/workspace/engage/inbox/?channel=voice` | 301 → slash → **404** | closed |
 | 40 | `/admin/anything/deep` | 301 → `/workspace/admin/anything/deep` | 301 → slash → **404** | closed |
 | 41–57 | `/swdhya/ /no-fault/ /legal-stuff/ /legal-stuffs/ /faq/ /my-order/ /expoweek/ /ritual-store/ /swdhya-store/ /request-tracking/ /rx-slot/ /bring-friends/ /home/ /open-possibility/ /product-page/partner/ /selfservice/ /track/` | 301 → live targets | **404, every one** | **owner-retired — see §3, this is the intended end state** |
@@ -341,35 +342,60 @@ a long-tail safety net.
 
 ### ⚠️ 5.5 OWNER-DECISION ITEM 3 — `provision_legacy_redirects.py --apply` will delete the host rule
 
-**This is the sharpest open item and it is pinned by a test rather than described.**
+## ✅ 5.5 RESOLVED — `--apply` no longer deletes the host rule (was OWNER-DECISION ITEM 3)
 
-The rewritten provisioner's `is_ours()` claims any rule whose status is in
-`{301,302,307,308,404}`. The host-canonicalisation rule is a **301**. Therefore:
+**Closed 2026-10-01 at ~15:54 IST, by another session, while this task was converging.** The
+owner choices below were not needed; option (a) was taken.
 
-- `.venv/bin/python scripts/provision_legacy_redirects.py --apply` **removes it**, silently
-  restoring the duplicate-host state.
-- `.venv/bin/python scripts/provision_legacy_redirects.py --verify` reports
-  `FAIL: custom redirect rules remain` and **exits 1** while the rule is live. Measured: it
-  does exactly that today, listing the one rule.
+What the hazard was, kept because the failure mode is worth remembering: the rewritten
+provisioner's `is_ours()` claimed any rule whose status was in `{301,302,307,308,404}`. The
+host-canonicalisation rule is a **301**, so `--apply` **removed it** — silently restoring the
+duplicate-host state in which the whole site answered 200 under `www` — and `--verify` reported
+`FAIL: custom redirect rules remain` and exited 1 while the rule was live. Both were measured
+doing exactly that. It was left unfixed because the fix meant editing a file another session
+owned and had uncommitted, plus that session's own test.
 
-**Why it was not fixed here.** The fix is a narrow exemption for host canonicalisation in
-`scripts/provision_legacy_redirects.py` — but that file is another session's uncommitted work,
-and its test `test_owner_removal_preserves_rewrites_and_never_restores_redirects` explicitly
-lists this same rule among those it expects to be removed. Fixing it means editing both files,
-which is outside this task's scope and would collide with a live session.
+**What changed, measured not assumed.** That session rewrote `desired_redirects()` to emit the
+rule rather than merely spare it, which is the stronger fix: `--apply` now **rebuilds** host
+canonicalisation, so the rule is restored if it ever goes missing instead of only surviving.
+Its docstring now reads "Only www canonicalisation and the retired `/access` entry point may
+redirect." They also applied it to production.
 
-**The hazard is bounded, not latent.** `.github/workflows/public-surface-deploy.yml` is
-`workflow_dispatch` only — it does not run on push. Losing the rule takes a manual dispatch
-of `apply`/`redirects`, or a local `--apply`.
+| | before (this task's §0 state) | after (measured 15:55 IST) |
+|---|---|---|
+| live `customRules` | **9** | **12** |
+| `provision_legacy_redirects.py` (no flag) | exit **1** — "1 redirects to remove" | exit **0** — "4 redirects to reconcile" |
+| `provision_legacy_redirects.py --verify` | exit **1** — `FAIL: custom redirect rules remain` | exit **0** — `Verified: only approved home/access redirects remain` |
+| `GET /access/` | 404 | **302 → `https://wecare.digital/`**, terminal 200 |
+| `GET /workspace/access/` | 200 staff shell | **200, unchanged** — staff entry unaffected |
 
-`tests/test_url_host_routing_rules.py::test_the_provisioner_would_strip_the_host_rule_KNOWN_HAZARD`
-asserts this behaviour and says in its docstring that when someone fixes it the test should be
-**inverted, not deleted**.
+The three new rules are `/access`, `/access/` and `/access/<*>` → the canonical home at **302**.
+That is the destination **this task's own plan asked for** (`/access` was a CONVERT prefix,
+target `/` at 302, by explicit owner instruction), so the net effect is that the planned end
+state landed via config-as-code. The 404 recorded in §1 for `/access` was the stale middle
+state left by the redirect removal, not the goal.
 
-Owner choices: (a) exempt host canonicalisation in `is_ours()` and update the other session's
-test; (b) move www canonicalisation to Amplify domain management instead of `customRules`,
-which needs `update-domain-association` and carries §4's blast radius; (c) accept it and never
-run `--apply` without re-adding the rule afterwards.
+**Re-verified after their production write**, because three new rules in front of the rewrites
+could have shadowed a webhook: every must-not-break row still measures its expected value —
+`POST /api/razorpay-webhook` 401, `POST /api/auth/validate` 401, `GET /mcp` 405, `POST /mcp`
+400, `/get/o/…png` 200, `www /shop/` 301 → apex `/shop/`. No shadowing.
+
+Two tests in this task's file were stale as a result and were **inverted rather than deleted**,
+as their own docstrings instructed:
+
+- `test_the_provisioner_would_strip_the_host_rule_KNOWN_HAZARD` →
+  `test_the_provisioner_now_PRESERVES_the_host_rule`, which asserts the rule survives `--apply`,
+  is **first** in the array, and that every `/api`, `/get`, `/r` and `/mcp` rewrite is preserved
+  in order.
+- `test_the_provisioner_still_converges_to_zero_redirects` →
+  `test_the_provisioner_emits_only_the_two_sanctioned_exceptions`, which pins the approved set
+  **exactly**, so a third entry fails as loudly as the second one did, and asserts no sanctioned
+  rule targets `/workspace`.
+
+`scripts/probe_url_host_matrix.py` grew the `/access` rows from 2 to 3 and now asserts them on
+the **terminal URL** rather than the status alone — 200 by itself cannot distinguish the
+canonical home from the staff Authenticator shell, and the shell is the thing these rows exist
+to forbid.
 
 ---
 
@@ -442,6 +468,39 @@ redirect") — that is the claim the two rows above falsify.
 the allowlist (e.g. `/blog/`) now returns `/cart/` rather than being honoured; (2) an
 unslashed accepted path is normalised (`/cart` → `/cart/`) rather than returned as typed.
 
+### ⚠️ OWNER-DECISION ITEM 4 — two allowlisted destinations have no page, measured 2026-10-01
+
+Found by the convergence step, by probing every value the validator can return against the
+live site rather than reading the list. **Two of the six answer 404:**
+
+| returnable value | live (measured) | page source |
+|---|---|---|
+| `/` | 200 | `src/pages/index.tsx` |
+| `/cart/` | 200 | `src/pages/cart.tsx` |
+| `/orders/` | 200 | `src/pages/orders.tsx` |
+| `/shop/` | 200 | `src/pages/shop/index.tsx` |
+| **`/checkout/`** | **404** | **none** — `src/pages/checkout/` holds only `status.tsx` and `success.tsx` |
+| **`/account/`** | **404** | **none** — `src/pages/account/` holds only `sign-in.tsx` |
+
+`output: 'export'` emits a page only where a source file exists, so neither has anything to hit
+but the `/<*>` → `/404.html` catch-all. This is **not** a security defect — both are local,
+on-allowlist paths — but it defeats the module's stated contract: it "returns the value to use",
+and two of those values cannot be navigated to.
+
+**Why it is recorded rather than fixed.** The allowlist was specified verbatim by the task plan
+(§2 step 1) and FEAT-001 implemented it faithfully; the mismatch is between that list and the
+page inventory, and it only became visible once both halves of the task were measured together.
+The two candidate resolutions — narrow `ALLOWED`, or ship the two missing pages — are both
+product decisions, and `src/pages/account/**` is this other workstream's to edit. **Nothing
+outside its own test imports the function**, so the gap cannot reach a customer today; it
+reaches one the moment the wiring above is applied. Hence: a precondition on that wiring, not a
+discovery left for the person doing it.
+
+Pinned by `src/test/SafeReturnPath.test.ts` →
+`'safeLocalReturnPath — accepted destinations that do not resolve (KNOWN GAP)'`, which asserts
+the current measured truth, including a test that **fails as soon as a production caller
+appears**. Same convention as §5.5: when it is resolved, **invert the test, do not delete it**.
+
 ---
 
 ## 8. Rollback
@@ -500,3 +559,56 @@ their cause, instead of being quietly omitted.
 Hub setting was created, modified or deleted.** No secret value was read; no credential appears
 in any command or log in this record. The only production write was the single `update-app`
 documented in §0.
+
+### 9.1 Convergence re-run — independent cross-FEAT confirmation, 2026-10-01
+
+The whole gate set was re-run on the merged tree, and the must-not-break set was re-measured
+with `curl` rather than with the task's own probe harness, so a bug in that harness could not
+vouch for itself. **Every row matched.**
+
+| Gate | Convergence result |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run lint` | exit 0 — 0 errors, 188 warnings, count unmoved |
+| `npx vitest run` | exit 0 — 47 files, **677 tests** (674 + the 3 KNOWN GAP tests in §7) |
+| `npm run build` | exit 0 — `out/404/index.html` present, `out/sitemap.xml` **1,407 `<loc>`** |
+| `pytest …routing_rules …rollback_snapshot -q` | **14 passed** |
+| `scripts/probe_url_host_matrix.py --json` | **probed 86, failed 0**, exit 0 (85 → 86: the third `/access` wildcard row, §5.5) |
+| `scripts/retired_url_probe.py` | exit 0 — 24 rows, 21 `OK-gone` + 3 `OK-redirect`, none still live |
+| `scripts/provision_legacy_redirects.py` / `--verify` | **exit 0 / exit 0** — both were exit 1 earlier in this same run; the §5.5 hazard was fixed mid-convergence and `--verify` now reports `Verified: only approved home/access redirects remain` |
+| `git diff --stat _routes.json` | empty |
+
+Independently re-measured with `curl` (not via the harness):
+`POST /api/razorpay-webhook` **401** · `POST /api/auth/validate` **401** ·
+`POST /api/payments/webhook` **404** · `GET /api/webhook/sinch-rcs` **200** ·
+`GET /mcp` **405** · `POST /mcp` **400** ·
+`GET /get/o/stream/media/m/wecare-digital.png` **200** ·
+`GET /definitely-not-a-page/` **404** carrying `"page":"/404"` and `robots: noindex, follow` ·
+`https://www.wecare.digital/shop/` **301 → `https://wecare.digital/shop/`**, terminal **200**,
+path preserved · `/workspace/` **200** with the Authenticator shell (`data-amplify`,
+`authenticator` markers present in the body) · `/account/sign-in/` **200** ·
+`/shop/ /cart/ /orders/ /blog/ /404/` all **200**.
+
+One seam was found between the two features and is recorded as **§7 OWNER-DECISION ITEM 4** —
+two allowlisted post-sign-in destinations have no exported page. Nothing else in either feature
+conflicted: FEAT-002's correction to `src/pages/404.tsx` left FEAT-001's
+`NotFoundFallback.test.ts` assertions intact, and FEAT-001's `ErrorBoundary` repoint to `/`
+lands on a page measured at **200**.
+
+### 9.2 The tree moved during this run, and that is why the numbers above differ from §0
+
+Worth recording as a shared-tree fact rather than hidden behind a final green result. The first
+pass of this convergence run measured 9 live rules, `pytest … -q` **14 passed**, and the two
+provisioner exits at **1**. Forty minutes later, with no edit of mine in between, the same
+pytest command reported **2 failed** — another session had rewritten
+`scripts/provision_legacy_redirects.py` (mtime 15:54:03) and applied it to production.
+
+The two failures were the task's own cross-file alarms firing exactly as designed: one because
+`desired_redirects()` stopped returning `[]`, the other because the KNOWN HAZARD it pinned had
+been fixed. Neither was a regression, and the fix for both was written into their own
+docstrings in advance — **invert, do not delete**. That is the whole argument for pinning a
+known defect with a named test instead of a comment: a comment would have been silently
+outdated, and a deleted test would have left the reconciliation unverified.
+
+The lesson for the next reader: **re-measure, do not re-use.** Every count in §0 is timestamped
+for this reason, and §1 carries probed statuses rather than expectations.
