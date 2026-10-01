@@ -15,7 +15,10 @@ What it stands up
   `live` alias, and the alias-qualified `lambda:AddPermission` that lets API Gateway invoke it.
   Without that last piece a route exists and answers 500 with no Lambda log line at all, because a
   function-level statement does not authorise an *alias* invoke — the exact failure
-  `scripts/provision_missing_ui_routes.py` documents for `POST /plivo/dial-events`.
+  `scripts/provision_missing_ui_routes.py` documents for `POST /plivo/dial-events`. There is one
+  statement per route, each carrying that route's exact source ARN, so the grant contains no
+  wildcard at all — see `source_arn`, which records why the obvious `/ecommerce/*` prefix was not
+  good enough.
 
 Initiation stays OFF. `CHECKOUT_INITIATION_ENABLED` is deliberately absent from the environment
 this script sets, so the deployed function prepares attempts and reserves references but sends no
@@ -42,6 +45,10 @@ The ZIP is built by `scripts/deploy_all_lambdas.build_zip` and checked by its `v
 while the script itself runs from the working tree. The shared tree is routinely dirty with other
 sessions' in-flight edits, and a package built from it would ship a handler whose siblings are
 stale.
+
+`--verify` defaults `--source-root` to that same export instead of to the working tree, and prints
+which root produced the verdict either way. A grant report about a package nobody deployed is a
+report about nothing, and the default used to be the dirty tree.
 
 Usage:
     python scripts/provision_checkout.py --dry-run
@@ -91,12 +98,25 @@ ROUTE_KEYS = (
     "POST /ecommerce/checkout/status",
 )
 
-#: One statement id, so re-running is idempotent rather than accumulating policy statements.
-STATEMENT_ID = "apigateway-invoke-checkout"
+#: Superseded statement ids, removed only once the per-route statements are in place.
+#: `add_permission` cannot EDIT a statement, and remove-then-add under one id opens a window where
+#: API Gateway cannot invoke the function — a 500 with no Lambda log line. New ids let the narrow
+#: statements go on FIRST: resource-policy statements are OR'd, so the route is never unauthorised.
+#:
+#:   apigateway-invoke-checkout            {API_ID}/*/*                 any stage, method and path
+#:   apigateway-invoke-checkout-ecommerce  {STAGE}/POST/ecommerce/*     a prefix another session's
+#:                                                                     route had already grown into
+LEGACY_STATEMENT_IDS = ("apigateway-invoke-checkout", "apigateway-invoke-checkout-ecommerce")
 
 ROOT = Path(__file__).resolve().parents[1]
 FUNCTION_DIR = ROOT / "amplify/functions/ecommerce/checkout"
 SHARED_DIR = ROOT / "amplify/functions/shared"
+
+#: Where the deployed artifact was exported from (`git archive origin/stack | tar -x`). `--verify`
+#: prefers it over the working tree, because a verdict about a package nobody deployed is a verdict
+#: about nothing — and in this repo the working tree routinely carries three other sessions'
+#: uncommitted edits, all of which `build_zip` would package.
+DEPLOY_SOURCE_ROOT = ROOT / ".scratch" / "deploy-checkout"
 
 PAYMENT_ATTEMPTS_TABLE = "stack-wecare-digital-PaymentAttemptsTable"
 COMMERCE_KEYS_TABLE = "stack-wecare-digital-WixOrderIds"
@@ -132,9 +152,29 @@ def api():
     return boto3.client("apigatewayv2", region_name=REGION)
 
 
-def source_arn() -> str:
-    """Any method, any stage on this API. Scoped to the one API, not to `*`."""
-    return f"arn:aws:execute-api:{REGION}:{account_id()}:{API_ID}/*/*"
+def source_arn(route_key: str) -> str:
+    """The exact source ARN API Gateway presents for one route key. No wildcard at all.
+
+    Narrowed twice on 2026-10-01, and the second step is the one worth explaining. The original
+    `{API_ID}/*/*` authorised any stage and any method/path on this API — scoped to one API, so
+    never a wildcard over the account, but 360 routes wider than the two that exist. The obvious
+    replacement was the prefix `{STAGE}/POST/ecommerce/*`; it was applied, and then measured:
+    another session had added `POST /ecommerce/customer-session`, so that prefix already matched a
+    third route belonging to a different function. A prefix describes a namespace somebody else can
+    grow into, which is not the same as "the routes this function serves".
+
+    API Gateway presents `{apiId}/{stage}/{METHOD}/{path}`, so one statement per route key matches
+    exactly `POST /ecommerce/checkout` and `POST /ecommerce/checkout/status`. `prod` is spelled out
+    rather than `*` because it is the only stage on `zllr9lrg7j` and there is no `$default`.
+    """
+    method, path = route_key.split(" ", 1)
+    return f"arn:aws:execute-api:{REGION}:{account_id()}:{API_ID}/{STAGE}/{method}{path}"
+
+
+def route_statement_id(route_key: str) -> str:
+    """A stable, readable statement id per route, so re-running replaces rather than accumulates."""
+    method, path = route_key.split(" ", 1)
+    return f"apigateway-invoke-{method.lower()}{path.replace('/', '-')}"
 
 
 def function_arn(*, qualified: bool = True) -> str:
@@ -164,6 +204,28 @@ def function_exists() -> bool:
         if _not_found(exc, "ResourceNotFoundException"):
             return False
         raise
+
+
+def is_repo_root(path: Path) -> bool:
+    """A directory `build_package` can actually package the checkout function from."""
+    return (path / "amplify" / "functions" / "ecommerce" / "checkout" / "handler.py").is_file()
+
+
+def resolve_source_root(explicit: str | None, *, prefer_deploy_export: bool) -> tuple:
+    """Return `(root, why)`. `why` is printed, so no verdict is ever anonymous.
+
+    Two different defaults on purpose. A provisioning run packages what the operator points it at
+    and says so; a `--verify` run is a statement ABOUT the deployed artifact, so it defaults to the
+    export that artifact was built from and labels the fallback as not-the-deployed-package.
+    """
+    if explicit:
+        root = Path(explicit).expanduser().resolve()
+        return root, f"{root} (given on the command line)"
+    if prefer_deploy_export and is_repo_root(DEPLOY_SOURCE_ROOT):
+        root = DEPLOY_SOURCE_ROOT.resolve()
+        return root, f"{root} (the recorded deploy export — what the live artifact was built from)"
+    return ROOT, (f"{ROOT} (this WORKING TREE, not the deployed artifact: it may carry other "
+                  f"sessions' uncommitted edits, and build_zip packages them)")
 
 
 def _deploy_module(source_root: Path):
@@ -404,6 +466,21 @@ def ensure_live_alias(dry_run: bool) -> str:
 
 # ── HTTP API wiring ───────────────────────────────────────────────────────────
 
+def live_policy_statements() -> list:
+    """Resource-policy statements on the `live` alias, or `[]` when there is no policy yet."""
+    try:
+        raw = lam().get_policy(FunctionName=FUNCTION_NAME, Qualifier=LIVE_ALIAS)
+    except ClientError as exc:
+        if _not_found(exc, "ResourceNotFoundException"):
+            return []
+        raise
+    return json.loads(raw["Policy"]).get("Statement", [])
+
+
+def _statement_source_arn(statement: dict) -> str:
+    return str(statement.get("Condition", {}).get("ArnLike", {}).get("AWS:SourceArn") or "")
+
+
 def ensure_invoke_permission(dry_run: bool) -> str:
     """Let API Gateway invoke the `live` alias. Qualified, which is the whole point.
 
@@ -411,23 +488,51 @@ def ensure_invoke_permission(dry_run: bool) -> str:
     500 with no Lambda log line at all, because the function is never entered — see
     `scripts/provision_missing_ui_routes.ensure_permission`, which records the same trap costing a
     live route.
+
+    Add-then-remove, in that order. The narrow statement goes on before any superseded one comes
+    off, so there is never an instant where the two routes resolve to a target API Gateway is not
+    authorised to invoke.
     """
     if dry_run:
-        return f"would grant lambda:InvokeFunction on :{LIVE_ALIAS} to apigateway.amazonaws.com"
-    try:
-        lam().add_permission(
-            FunctionName=FUNCTION_NAME,
-            Qualifier=LIVE_ALIAS,
-            StatementId=STATEMENT_ID,
-            Action="lambda:InvokeFunction",
-            Principal="apigateway.amazonaws.com",
-            SourceArn=source_arn(),
-        )
-        return f"granted on :{LIVE_ALIAS}"
-    except ClientError as exc:
-        if _not_found(exc, "ResourceConflictException"):
-            return f"already granted on :{LIVE_ALIAS}"
-        raise
+        wanted = ", ".join(f"{route_statement_id(k)} -> {k}" for k in ROUTE_KEYS)
+        return (f"would grant lambda:InvokeFunction on :{LIVE_ALIAS} to apigateway.amazonaws.com "
+                f"per route ({wanted}), then remove {', '.join(LEGACY_STATEMENT_IDS)}")
+
+    notes = []
+    existing = {s.get("Sid"): s for s in live_policy_statements()}
+
+    for route_key in ROUTE_KEYS:
+        sid, want = route_statement_id(route_key), source_arn(route_key)
+        current = existing.get(sid)
+        if current is None:
+            lam().add_permission(
+                FunctionName=FUNCTION_NAME,
+                Qualifier=LIVE_ALIAS,
+                StatementId=sid,
+                Action="lambda:InvokeFunction",
+                Principal="apigateway.amazonaws.com",
+                SourceArn=want,
+            )
+            notes.append(f"granted {sid} for {want}")
+        elif _statement_source_arn(current) != want:
+            # Reported, not silently repaired: `add_permission` cannot edit a statement, and
+            # remove-then-add under a live id is exactly the window this function avoids.
+            # `--verify` fails on the same condition, so drift cannot pass as success.
+            notes.append(f"DRIFT: {sid} allows {_statement_source_arn(current)!r}, wanted "
+                         f"{want!r} — add a corrected statement under a NEW id, then retire this "
+                         f"one by adding it to LEGACY_STATEMENT_IDS")
+        else:
+            notes.append(f"{sid} already correct")
+
+    # Only after every per-route statement is in place.
+    for stale in LEGACY_STATEMENT_IDS:
+        if stale not in existing:
+            continue
+        lam().remove_permission(
+            FunctionName=FUNCTION_NAME, Qualifier=LIVE_ALIAS, StatementId=stale)
+        notes.append(f"removed superseded {stale} ({_statement_source_arn(existing[stale])})")
+
+    return "; ".join(notes)
 
 
 def _all_items(method: str) -> list:
@@ -549,22 +654,33 @@ def _package_needs_transactions(members: dict) -> list:
 
 
 def report_required_grants(members: dict | None) -> list:
-    """Print a per-action verdict for the checkout role. REPORTS; never widens anything.
+    """Print a per-action verdict for the checkout role and RETURN every problem found.
 
     Deliberately does not touch `wecare-digital-lambda-role`: that role is shared by the whole
     fleet, so a statement added for checkout would widen every other function too. Checkout has
     its own role, which is why a gap here is reportable rather than contagious.
+
+    **The return value is load-bearing, and used to be thrown away.** `verify()` discarded it, so a
+    `REQUIRED GRANT` line printed while the script exited 0 — latent while the verdict is "not
+    required", and wrong in exactly the circumstance the check exists for. Every problem returned
+    here is now a `verify()` problem.
+
+    An unmeasured verdict is a problem too, not a pass. A failed `simulate_principal_policy`, an
+    unreadable role, or a package that could not be rebuilt all mean "we do not know", and a run
+    that measured nothing must not be indistinguishable from one that measured everything and found
+    nothing.
     """
     acct = account_id()
     tables = [f"arn:aws:dynamodb:{REGION}:{acct}:table/{PAYMENT_ATTEMPTS_TABLE}",
               f"arn:aws:dynamodb:{REGION}:{acct}:table/{COMMERCE_KEYS_TABLE}"]
     try:
         role_arn = iam().get_role(RoleName=ROLE_NAME)["Role"]["Arn"]
-    except ClientError:
-        print("iam: role absent — cannot simulate")
-        return []
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code", "unknown")
+        print(f"iam: role absent or unreadable ({code}) — cannot simulate")
+        return [f"IAM verdicts NOT MEASURED: {ROLE_NAME} could not be read ({code})"]
 
-    verdicts, required = {}, []
+    verdicts, problems = {}, []
     try:
         result = iam().simulate_principal_policy(
             PolicySourceArn=role_arn,
@@ -572,37 +688,54 @@ def report_required_grants(members: dict | None) -> list:
             ResourceArns=tables,
         )
     except ClientError as exc:
-        print(f"iam: simulate unavailable ({exc.response['Error']['Code']}) — "
-              f"verdicts not measured")
-        return []
+        code = exc.response.get("Error", {}).get("Code", "unknown")
+        print(f"iam: simulate unavailable ({code}) — verdicts not measured")
+        return [f"IAM verdicts NOT MEASURED: simulate_principal_policy failed ({code})"]
 
     for item in result.get("EvaluationResults", []):
         verdicts.setdefault(item["EvalActionName"], set()).add(item["EvalDecision"])
 
-    needed_by_code = _package_needs_transactions(members) if members else []
+    # `None` means the closure was never measured, which is NOT the same as "measured, needs
+    # nothing" — the empty list. Keep the two distinguishable all the way to the exit code.
+    needed_by_code = _package_needs_transactions(members) if members is not None else None
     for action in _SIMULATED_ACTIONS:
         decisions = verdicts.get(action, {"not evaluated"})
         decision = "allowed" if decisions == {"allowed"} else "/".join(sorted(decisions))
         note = ""
         if action == "dynamodb:ConditionCheckItem" and decision != "allowed":
-            if needed_by_code:
+            if needed_by_code is None:
+                note = "  <-- NOT JUDGED (import closure not measured)"
+                problems.append(
+                    f"dynamodb:ConditionCheckItem is {decision} and the verdict is NOT JUDGED: "
+                    f"the package could not be rebuilt, so the handler's import closure was "
+                    f"never measured")
+            elif needed_by_code:
                 note = "  <-- REQUIRED GRANT"
-                required.append(
+                problems.append(
                     f"dynamodb:ConditionCheckItem on {', '.join(tables)} — needed by "
                     + "; ".join(needed_by_code))
             else:
                 note = ("  (not required: no TransactWriteItems/TransactGetItems anywhere in "
                         "the handler's import closure; a ConditionExpression on "
                         "put_item/update_item needs PutItem/UpdateItem only)")
+        elif decision != "allowed":
+            # The inline policy grants these three outright. A deny here means the role is not what
+            # this script wrote, so the function cannot record a payment attempt at all.
+            note = "  <-- GRANTED BY THE INLINE POLICY BUT DENIED IN SIMULATION"
+            problems.append(
+                f"{action} on {', '.join(tables)} is {decision}, but CheckoutLeastPrivilege "
+                f"grants it — the live role does not match this script")
         print(f"iam {action}: {decision}{note}")
 
-    for line in required:
+    for line in problems:
         print(f"REQUIRED GRANT: {line}")
-    return required
+    return problems
 
 
-def verify(members: dict | None = None) -> int:
+def verify(members: dict | None = None, source_note: str = "") -> int:
     problems: list[str] = []
+    if source_note:
+        print(f"grant report closure: {source_note}")
     if not function_exists():
         print("FAIL function missing")
         return 1
@@ -652,7 +785,33 @@ def verify(members: dict | None = None) -> int:
         print(f"route {key}: -> {want_uri}")
     print(f"routes on {API_ID}: {len(routes)} total, stage {STAGE}")
 
-    report_required_grants(members)
+    # The invoke permission, read back per route rather than assumed. A statement scoped wider than
+    # its route's exact ARN is drift, and a superseded statement left behind is the whole reason the
+    # narrowing needed new ids. An EXTRA statement matters too: anything beyond the known set is a
+    # grant nobody in this script asked for.
+    statements = {s.get("Sid"): s for s in live_policy_statements()}
+    for route_key in ROUTE_KEYS:
+        sid, want_arn = route_statement_id(route_key), source_arn(route_key)
+        granted = statements.get(sid)
+        if granted is None:
+            problems.append(f"invoke permission {sid} missing on :{LIVE_ALIAS} — {route_key} "
+                            f"resolves to a target API Gateway cannot invoke")
+        elif _statement_source_arn(granted) != want_arn:
+            problems.append(f"invoke permission {sid} allows "
+                            f"{_statement_source_arn(granted)!r}, wanted {want_arn!r}")
+        else:
+            print(f"invoke permission {sid}: {want_arn}")
+    for stale in LEGACY_STATEMENT_IDS:
+        if stale in statements:
+            problems.append(f"superseded invoke statement {stale} still present "
+                            f"({_statement_source_arn(statements[stale])})")
+    unexpected = sorted(set(statements) - {route_statement_id(k) for k in ROUTE_KEYS}
+                        - set(LEGACY_STATEMENT_IDS))
+    for extra in unexpected:
+        problems.append(f"unexpected invoke statement {extra} on :{LIVE_ALIAS} "
+                        f"({_statement_source_arn(statements[extra])}) — not created by this script")
+
+    problems.extend(report_required_grants(members))
 
     if problems:
         print("\nFAIL:")
@@ -668,25 +827,28 @@ def main(argv=None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--verify", action="store_true")
     parser.add_argument(
-        "--source-root", default=str(ROOT), metavar="PATH",
-        help="repo root to PACKAGE from (default: this checkout). Point it at a clean "
-             "`git archive` export so a dirty shared tree cannot reach production.")
+        "--source-root", default=None, metavar="PATH",
+        help="repo root to PACKAGE from. Default: this checkout for a provisioning run, and "
+             f"{DEPLOY_SOURCE_ROOT.relative_to(ROOT)} for --verify when it exists. Point it at a "
+             "clean `git archive` export so a dirty shared tree cannot reach production.")
     args = parser.parse_args(argv)
 
-    source_root = Path(args.source_root).expanduser().resolve()
+    source_root, why = resolve_source_root(
+        args.source_root, prefer_deploy_export=args.verify)
 
     if args.verify:
         # Build the package too, so the grant report reasons about the shipped module set rather
-        # than about the whole repo.
+        # than about the whole repo. `members=None` is NOT treated as "nothing required" — see
+        # report_required_grants.
         try:
             _, members, _, _ = build_package(source_root)
         except Exception as exc:  # noqa: BLE001
             print(f"note: could not rebuild package for the grant report: {type(exc).__name__}")
             members = None
-        return verify(members)
+        return verify(members, source_note=why)
 
     print(f"region: {REGION}")
-    print(f"source root: {source_root}")
+    print(f"source root: {why}")
     print(f"sender: {SENDER_FUNCTION}:{LIVE_ALIAS}; WABA {PAYMENT_WABA_ID}")
     print("initiation: OFF (CHECKOUT_INITIATION_ENABLED not set)")
     print(f"dry run: {args.dry_run}\n")
@@ -711,7 +873,7 @@ def main(argv=None) -> int:
         return 0
 
     print("\nread-back verification:")
-    return verify(members)
+    return verify(members, source_note=why)
 
 
 if __name__ == "__main__":

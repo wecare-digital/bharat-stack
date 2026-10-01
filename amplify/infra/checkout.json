@@ -219,7 +219,30 @@
     "CheckoutInvokePermission": {
       "Type": "AWS::Lambda::Permission",
       "Metadata": {
-        "WECARE::WhyQualified": "The Qualifier is the whole point. A function-level statement does NOT authorise an alias invoke, and the failure is silent: API Gateway answers 500 with no Lambda log line, because the function is never entered. scripts/provision_missing_ui_routes.py records the same trap costing POST /plivo/dial-events."
+        "WECARE::WhyQualified": "The Qualifier is the whole point. A function-level statement does NOT authorise an alias invoke, and the failure is silent: API Gateway answers 500 with no Lambda log line, because the function is never entered. scripts/provision_missing_ui_routes.py records the same trap costing POST /plivo/dial-events.",
+        "WECARE::WhyOneStatementPerRoute": [
+          "Narrowed twice on 2026-10-01, and the second step is the one worth explaining.",
+          "",
+          "The original SourceArn was ${ApiId}/*/* : any stage, any method, any path on this API.",
+          "Scoped to one API, so never a wildcard over the account, but 360 routes wider than the",
+          "two that exist. The obvious replacement was the prefix prod/POST/ecommerce/* . It was",
+          "applied, and then measured: another session had added POST /ecommerce/customer-session,",
+          "so that prefix already matched a third route belonging to a DIFFERENT function. A prefix",
+          "describes a namespace somebody else can grow into, which is not the same as the routes",
+          "this function serves.",
+          "",
+          "So there is one statement per route key, each carrying that route's exact source ARN -",
+          "no wildcard at all. API Gateway presents {apiId}/{stage}/{METHOD}/{path}. `prod` is",
+          "spelled out rather than `*` because it is the only stage on zllr9lrg7j and there is no",
+          "$default stage.",
+          "",
+          "Both superseded statements (apigateway-invoke-checkout, then",
+          "apigateway-invoke-checkout-ecommerce) were removed only AFTER the per-route statements",
+          "were added: add_permission cannot edit a statement, and remove-then-add under one id",
+          "leaves a window where the routes resolve to a target API Gateway cannot invoke.",
+          "Verified live by probe after each step - both routes answer 401 from the handler, not",
+          "the 500 an unauthorised invoke produces."
+        ]
       },
       "Properties": {
         "FunctionName": {
@@ -229,7 +252,24 @@
         "Action": "lambda:InvokeFunction",
         "Principal": "apigateway.amazonaws.com",
         "SourceArn": {
-          "Fn::Sub": "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiId}/*/*"
+          "Fn::Sub": "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiId}/prod/POST/ecommerce/checkout"
+        }
+      }
+    },
+    "CheckoutStatusInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Metadata": {
+        "WECARE::WhySeparate": "One statement per route. See CheckoutInvokePermission's WECARE::WhyOneStatementPerRoute - a shared /ecommerce/* prefix already matched another function's route."
+      },
+      "Properties": {
+        "FunctionName": {
+          "Ref": "CheckoutFunction"
+        },
+        "Qualifier": "live",
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiId}/prod/POST/ecommerce/checkout/status"
         }
       }
     },

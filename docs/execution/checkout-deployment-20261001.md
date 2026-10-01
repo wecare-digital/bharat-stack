@@ -24,6 +24,8 @@ two independent blocks have to be removed by an owner before anything can.
 |---|---|
 | `wecare-checkout` provisioned (python3.12, v1, `live` alias) | ✅ COMPLETE |
 | `/ecommerce/*` routes + alias-qualified integration on `zllr9lrg7j` | ✅ COMPLETE |
+| Invoke permission scoped to the two exact routes, no wildcard | ✅ COMPLETE — [narrowed twice](#the-invoke-permission-was-narrowed-twice-and-the-second-step-is-the-one-worth-reading) |
+| All eight review findings addressed | ✅ COMPLETE — [review response](#review-response-2026-10-01-second-iteration) |
 | Scoped least-privilege IAM role, shared fleet role untouched | ✅ COMPLETE |
 | `CHECKOUT_INITIATION_ENABLED` absent — initiation OFF | ✅ COMPLETE |
 | Live contract verified 404 → 401, no payable attempt created | ✅ COMPLETE |
@@ -69,13 +71,68 @@ log group   /aws/lambda/wecare-checkout  (30 days)
 integration zkb6lxe  AWS_PROXY 2.0 -> arn:...:function:wecare-checkout:live
 route       508jgfp  POST /ecommerce/checkout
 route       gi2dibv  POST /ecommerce/checkout/status
-permission  apigateway-invoke-checkout  on :live, SourceArn .../zllr9lrg7j/*/*
+permission  apigateway-invoke-post-ecommerce-checkout         on :live
+            SourceArn .../zllr9lrg7j/prod/POST/ecommerce/checkout
+permission  apigateway-invoke-post-ecommerce-checkout-status   on :live
+            SourceArn .../zllr9lrg7j/prod/POST/ecommerce/checkout/status
 ```
 
-The `Qualifier` on that permission is load-bearing. A function-level statement does not authorise
+The `Qualifier` on those permissions is load-bearing. A function-level statement does not authorise
 an **alias** invoke, and the failure mode is a 500 with no Lambda log line at all, because the
 function is never entered — which is how `POST /plivo/dial-events` once looked deployed and was
 not (`scripts/provision_missing_ui_routes.ensure_permission` records it).
+
+### The invoke permission was narrowed twice, and the second step is the one worth reading
+
+Initially one statement, `apigateway-invoke-checkout`, with
+`SourceArn arn:aws:execute-api:us-east-1:775261844268:zllr9lrg7j/*/*` — scoped to this one API, so
+never a wildcard over the account, but **any stage, any method, any path**: 360 routes wider than the
+two that exist. Raised in review; narrowed 2026-10-01.
+
+The obvious replacement was the prefix `prod/POST/ecommerce/*`. It was applied, verified by probe —
+and then measured against the live route list, which is where it fell down:
+
+```
+POST /ecommerce/checkout            this function
+POST /ecommerce/checkout/status     this function
+POST /ecommerce/customer-session    ANOTHER function, added by a concurrent session
+```
+
+So the prefix already matched a third route the moment it was written. **A prefix describes a
+namespace somebody else can grow into, which is not the same as "the routes this function serves".**
+It was replaced with one statement per route key, each carrying that route's exact source ARN — no
+wildcard at all.
+
+| Step | Statement id | SourceArn | State |
+|---|---|---|---|
+| 1 | `apigateway-invoke-checkout` | `.../zllr9lrg7j/*/*` | removed |
+| 2 | `apigateway-invoke-checkout-ecommerce` | `.../prod/POST/ecommerce/*` | removed |
+| 3 | `apigateway-invoke-post-ecommerce-checkout` | `.../prod/POST/ecommerce/checkout` | **live** |
+| 3 | `apigateway-invoke-post-ecommerce-checkout-status` | `.../prod/POST/ecommerce/checkout/status` | **live** |
+
+**Add-then-remove at every step, and that ordering is not cosmetic.** `add_permission` cannot *edit*
+a statement, so tightening one means replacing it; remove-then-add under the same id leaves a window
+in which both routes resolve to a target API Gateway is not authorised to invoke — a 500 with no
+Lambda log line, the hardest failure in this system to diagnose. Resource-policy statements are
+OR'd, so each narrower statement went on under a **new** id before the superseded one came off, and
+at no instant was either route unauthorised. The script encodes this (`LEGACY_STATEMENT_IDS`), so
+re-running it converges rather than reporting "already granted" over a stale scope.
+
+Verified live after each step — both routes answer **401 from the handler**, which is the proof that
+matters: an unauthorised invoke produces API Gateway's own `500 {"message":"Internal Server Error"}`,
+never the handler's JSON.
+
+```
+POST https://wecare.digital/api/ecommerce/checkout                      401 VERIFICATION_REQUIRED
+POST https://wecare.digital/api/ecommerce/checkout/status               401 VERIFICATION_REQUIRED
+POST https://zllr9lrg7j.execute-api.../prod/ecommerce/checkout          401 VERIFICATION_REQUIRED
+POST https://zllr9lrg7j.execute-api.../prod/ecommerce/checkout/status   401 VERIFICATION_REQUIRED
+```
+
+Before / after in `checkout-invoke-policy-before-narrowing-20261001.json` and
+`checkout-invoke-policy-after-narrowing-20261001.json`. `--verify` now reads every statement back
+and **fails** on a missing one, one scoped wider than its route, a superseded one left behind, or an
+extra one this script did not create.
 
 ---
 
@@ -95,8 +152,41 @@ integrations/razorpay_orders.py     worktree=NO   origin/stack=yes
 
 A package built from the working tree would have shipped a handler whose siblings were missing.
 So the artifact was built from `git archive origin/stack` into `.scratch/deploy-checkout/`, and
-the working tree was used only to hold the committed source changes. No `merge`, `rebase`,
-`reset` or `stash` was run.
+the working tree was used only to hold the committed source changes.
+
+#### Correction: a merge WAS run, 83 seconds after the checkout commit
+
+This section originally read "No `merge`, `rebase`, `reset` or `stash` was run." **That is wrong as
+written, and the commit graph is the authority.** Corrected rather than restated, because the
+sentence was offered as the evidence that shared-tree discipline held, so it has to match what
+happened.
+
+```
+4d1b396f  18:44:20  commit:         Record the website-Razorpay ruling and the checkout artifact drift
+83a8d60d  18:37:12  commit (merge): Merge remote-tracking branch 'origin/stack' into stack
+13c9f7a2  18:35:49  commit:         Turn the checkout 404 into an authenticating endpoint
+```
+
+`83a8d60d` merges `13c9f7a2` (parent 1, local) with `faccfbae` (parent 2, `origin/stack`). The
+reflog records `commit (merge)` rather than a clean strategy merge because it conflicted, on **two**
+paths — both belonging to another session:
+
+| Path | parent 1 (`13c9f7a2`) | parent 2 (`faccfbae`) | kept in `83a8d60d` |
+|---|---|---|---|
+| `docs/execution/url-host-matrix-20261001.md` | `15202935` (653 lines) | `37c1b178` (670 lines) | **`37c1b178` — parent 2, the remote side** |
+| `tests/test_url_host_routing_rules.py` | `13e839d6` | `bfeee3ba` | **`bfeee3ba` — parent 2, the remote side** |
+
+Both resolutions took the remote side, which is the safer direction: those blobs were already on
+`origin`, so nothing another session had pushed was discarded.
+
+What the claim was *reaching for* is true, and is worth stating precisely because it is the property
+that actually matters: **no uncommitted working-tree content entered the merge commit, and
+`13c9f7a2` is intact.** `git diff-tree --cc --name-only 83a8d60d` returns nothing — no file in the
+merge tree differs from both parents — and every file in `13c9f7a2` is reachable unchanged. What
+did happen is that a `git merge` was needed to integrate `origin/stack` before pushing, and the
+original sentence denied it. Correct reading: `commit --only` held, the packaged bytes came from
+`git archive`, and no `rebase`, `reset --hard`, stash, force push or history rewrite was involved on
+either side.
 
 ### Package and validation
 
@@ -119,8 +209,35 @@ under `shared/` is `config.ts`, which is irrelevant to Python.
 `test_the_package_is_python_only` pins it, because "we don't need templates" is exactly the kind
 of claim that silently stops being true.
 
-The live `CodeSha256` equals the locally-computed package sha, so what is deployed is byte-for-byte
-`4c603188`'s checkout path.
+**As measured at deploy time**, the live `CodeSha256` equalled the locally-computed package sha, so
+what is deployed is byte-for-byte `4c603188`'s checkout path.
+
+**That equality is no longer reproducible from `HEAD`, and that is expected rather than drift in
+this document.** Two commits landed after the deploy that change the package bytes — see
+[the staleness note](#the-deployed-artifact-is-now-stale-and-that-is-recorded-not-fixed). So
+`deploy_all_lambdas.py wecare-checkout --dry-run` now reports `WOULD UPDATE`, which means "HEAD has
+moved on", not "the deploy was wrong". The claim above can still be reproduced exactly, by
+packaging the revision it names:
+
+```
+git archive 4c603188 | tar -x -C <tmp>/ && \
+  .venv/bin/python scripts/provision_checkout.py --dry-run --source-root <tmp>
+#   package: 112 files, 413871 bytes, sha256 917moZkEBIyIzGRQvChUup2PMoWfw4Ebmr863jnQBKI=
+```
+
+Re-confirmed on 2026-10-01 after the review, and the export is still on disk. `.scratch/deploy-checkout`
+holds **`4c603188`**, not current `origin/stack` — checked by content rather than assumed, because
+the directory name says nothing about its revision:
+
+```
+.scratch/deploy-checkout  lambda_utils/ecommerce/order_keys.py  sha256 82550b69…  1014 lines
+4c603188                  same path                             sha256 82550b69…  1014 lines
+83a8d60d / HEAD           same path                             sha256 3c3ad574…  1114 lines
+```
+
+Building from it reproduces `917moZkEBIyIzGRQvChUup2PMoWfw4Ebmr863jnQBKI=`, matching the live
+`CodeSha256` byte for byte. That is also why `--verify` now defaults its closure to this export:
+it is the deployed revision, and the working tree is not.
 
 ---
 
@@ -163,6 +280,36 @@ Reaching layer 3 live would need a real customer Cognito access token **and** ow
 readiness values. Minting a customer token is not authorised here, and the readiness values are
 owner-only. **So the measured live contract change is 404 → 401**, and the branch is reached
 where it can be reached honestly: in a unit test with an authenticated fixture.
+
+#### The gate is the LAST check in `_create`, not the first — so it is inert as to money, not as to side effects
+
+Worth stating plainly, because the recorded `PaymentAttemptsTable` 0-before / 0-after is true for a
+different reason than a reader might assume. Measured order inside `_create` in the deployed handler
+(line offsets within the function):
+
+```
++12  wix_ecom.create_checkout(line_items)      <- a LIVE Wix write
++13  wix_ecom.checkout_currency(checkout)         currency compared explicitly against "INR"
++30  _readiness()                             <- layer 2 refuses here today
++43  order_keys.allocate_payment_reference()      reserves PAYREF#
++65  _attempts_table().put_item(...)              writes the PaymentAttempt row
++76  if not INITIATION_ENABLED:                <- layer 3, the gate
+```
+
+The table is empty because **`require_customer` refused every probe at the door**, and readiness
+would have refused behind it — not because the gate short-circuits early. This is pre-existing
+handler code, outside the scope of this change, but it determines what the next step in the sequence
+looks like:
+
+> Once an owner supplies `EXPECTED_CONFIGURATION_NAME` and `EXPECTED_PROVIDER_MID` — **with
+> `CHECKOUT_INITIATION_ENABLED` still off** — an authenticated `action=create` will create a Wix
+> checkout and write a `PaymentAttempt` row on **every** call, then answer
+> `PAYMENT_INITIATION_DISABLED`.
+
+No money can move: no gateway order is created, no payable message is sent, and the role grants no
+Razorpay credential read. But "the gate is off" stops meaning "nothing happens" at that point, and
+the attempt table will accumulate rows from refused creates. The phrase "gate-off prepares attempts"
+elsewhere in this document is accurate and easy to skim past; this is the explicit version.
 
 #### The branch IS exercised, with an authenticated fixture
 
@@ -258,6 +405,19 @@ added      508jgfp  POST /ecommerce/checkout
 removed    none
 retargeted none
 ```
+
+**Now 362, and the extra route is not ours.** Re-measured during the review follow-up and diffed
+against `checkout-routes-after-20261001.json` key by key:
+
+```
+added since the after-snapshot:   POST /ecommerce/customer-session
+removed since the after-snapshot: none
+```
+
+A concurrent session added it (`.agents/tasks/customer-session-20261001/`); it targets a different
+function's integration. Recorded because the count in the table above will not match a fresh read,
+and because it is the measurement that condemned the `/ecommerce/*` prefix — see the narrowing note.
+The live `ecommerce` route keys are now three, two of which are this function's.
 
 ### Logs
 
@@ -456,11 +616,97 @@ shared tree a red run is the normal state rather than a signal.
 
 ---
 
+---
+
+## Review response (2026-10-01, second iteration)
+
+Eight findings, two of them blocking. All eight addressed; nothing required a redeploy, because the
+provisioner is not packaged into the Lambda and the one live change was an IAM tightening.
+
+| # | Finding | What changed |
+|---|---|---|
+| 1 | **Blocking.** The grant report printed `REQUIRED GRANT` and the script still exited 0 | `verify()` now does `problems.extend(report_required_grants(members))`. See below |
+| 2 | **Blocking.** The document asserted no merge was run; the commit graph says otherwise | [Corrected, with both conflicted paths and which side won](#correction-a-merge-was-run-83-seconds-after-the-checkout-commit) |
+| 3 | The `CodeSha256` equality claim is no longer reproducible from `HEAD` | Dated, with the command that still reproduces it, and the export's revision verified by content |
+| 4 | The gate is the last check in `_create`, not the first | [Stated explicitly, including what happens once readiness is supplied](#the-gate-is-the-last-check-in-_create-not-the-first--so-it-is-inert-as-to-money-not-as-to-side-effects) |
+| 5 | `--verify` reasoned about whichever root it was given, defaulting to the dirty tree | Defaults to the recorded deploy export, and **prints which root produced the verdict** either way |
+| 6 | The invoke permission's `SourceArn` was API-wide | [Narrowed twice, to one exact statement per route](#the-invoke-permission-was-narrowed-twice-and-the-second-step-is-the-one-worth-reading) |
+| 7 | `_not_found(exc, "ResourceConflictException")` read as a not-found check | Site removed. `ensure_invoke_permission` now *reads* the policy instead of provoking a conflict, so there is no error code to misname |
+| 8 | The completeness tests build from `ROOT`, so they assert over other sessions' uncommitted files | A second `committed` fixture builds the same package from `git archive HEAD`; the completeness assertions run against both |
+
+### Finding 1: a gate that cannot fail is not a gate
+
+`report_required_grants` built its `required` list, printed it, returned it — and `verify()` dropped
+the return value. The plan required a non-zero exit in exactly that case. Latent while the verdict is
+"not required", and wrong precisely when the condition the check exists for becomes true: an operator
+wiring the website Razorpay path pulls `razorpay_orders` into the import closure, gets a function
+missing a permission, and a gate reporting success.
+
+Three shapes of "we do not know" were also returning `[]`, indistinguishable from "measured, found
+nothing". All four are now problems:
+
+| Condition | Was | Now |
+|---|---|---|
+| a `ConditionCheckItem` grant is genuinely needed | printed, exit 0 | problem, **exit 1** |
+| `simulate_principal_policy` raised | printed "verdicts not measured", exit 0 | problem naming the error code |
+| the role could not be read | printed "role absent", exit 0 | problem |
+| `members is None` — the package could not be rebuilt, so the closure was never walked | treated as the empty list | problem, `NOT JUDGED` |
+
+A fifth check was added while the function was open: `GetItem`/`PutItem`/`UpdateItem` are granted
+outright by `CheckoutLeastPrivilege`, so a deny verdict on any of them means the live role is not what
+this script wrote and the function cannot record a payment attempt at all.
+
+Demonstrated end to end against the live account rather than only asserted — with
+`report_required_grants` stubbed to return one finding, `verify()` returns **1**; unstubbed it returns
+**0**:
+
+```
+FAIL:
+  - dynamodb:ConditionCheckItem on table/X - needed by lambda_utils/synthetic.py: TransactWriteItems
+verify() -> 1
+```
+
+Six new tests in `tests/test_provision_checkout_contract.py` drive `report_required_grants` with a
+stubbed IAM client across all five conditions, plus one that pins the `problems.extend(...)` wiring
+itself. The function still only simulates — `test_the_grant_report_only_simulates` is unchanged.
+
+### Finding 5: the verdict names its own source tree
+
+`--verify` rebuilds the package to decide what the import closure contains. Without `--source-root`
+it rebuilt from the working tree, so the closure judged was not the deployed artifact's — and this
+tree currently carries `order_creation.py` modified plus `finalization.py` and `initiation.py`
+untracked, all of which `build_zip` packages.
+
+`resolve_source_root` now returns a reason alongside the path, and both modes print it:
+
+```
+grant report closure: /Users/wecaredigital/wecare-store/.scratch/deploy-checkout
+                      (the recorded deploy export — what the live artifact was built from)
+```
+
+The fallback is labelled too, because `.scratch/` is gitignored and simply absent on a fresh
+checkout: `(this WORKING TREE, not the deployed artifact: it may carry other sessions' uncommitted
+edits, and build_zip packages them)`. A provisioning run still defaults to the working tree — it
+packages what the operator points it at — and prints the same line.
+
+### Finding 8: two source roots, because one of them is not enough
+
+`tests/test_checkout_package_completeness.py` builds from `ROOT`, which is correct for its question
+("would a package built from this repository today be complete") and genuinely coupled to other
+sessions' in-flight edits. Rather than drop the working-tree build, a `committed` fixture exports
+`git archive HEAD` to a temp directory and builds the same package from it. Completeness, import
+resolution, no-junk, python-only and the handler symbol are now asserted against both. The
+working-tree build still catches a packaging rule that started dropping a file; the committed build
+is the one whose result anyone can reproduce from a SHA. It skips rather than fails where `git` is
+unavailable.
+
+---
+
 ## Changes committed
 
 | Path | Why |
 |---|---|
-| `scripts/provision_checkout.py` | `--source-root`; delegated packaging + pre-create import validation; route/integration/alias-qualified-permission provisioning; closure-scoped IAM grant report; route assertions in `--verify` |
+| `scripts/provision_checkout.py` | `--source-root`; delegated packaging + pre-create import validation; route/integration/alias-qualified-permission provisioning; closure-scoped IAM grant report; route assertions in `--verify`. **Second iteration:** grant-report findings reach the exit code, per-route invoke statements, `--verify` names its source root |
 | `config/lambda-env-manifest.json` | `wecare-checkout` entry (67 functions / 397 variables) |
 | `amplify/infra/checkout.json` | IaC declaration of record |
 | `tests/test_provision_checkout_contract.py` | gate, routes, alias qualification, IAM omissions |
@@ -547,7 +793,11 @@ aws apigatewayv2 delete-route --api-id zllr9lrg7j --route-id gi2dibv --region us
 # 2. the integration, now unreferenced
 aws apigatewayv2 delete-integration --api-id zllr9lrg7j --integration-id zkb6lxe --region us-east-1
 
-# 3. the alias, then the function
+# 3. the alias, then the function. Deleting the alias takes its resource policy with it, so the
+#    two invoke statements need no separate removal — but if only the permission is being rolled
+#    back, these are the ids:
+#      apigateway-invoke-post-ecommerce-checkout
+#      apigateway-invoke-post-ecommerce-checkout-status
 aws lambda delete-alias --function-name wecare-checkout --name live --region us-east-1
 aws lambda delete-function --function-name wecare-checkout --region us-east-1
 
@@ -582,6 +832,8 @@ touched.
 | `checkout-integrations-after-20261001.json` | 67 integrations, `zkb6lxe` |
 | `checkout-live-probes-after-20261001.json` | every probe, code and body |
 | `checkout-bag-icon-provenance-20261001.json` | icon provenance, checksums, object headers |
+| `checkout-invoke-policy-before-narrowing-20261001.json` | the single API-wide statement, as it stood before review finding 6 |
+| `checkout-invoke-policy-after-narrowing-20261001.json` | the two per-route statements, all three narrowing steps, and the gate/alias/table re-measurement taken with them |
 
 ---
 
