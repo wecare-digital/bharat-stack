@@ -122,25 +122,34 @@ const HeaderCart: React.FC = () => {
           margin-inline-start:auto;flex-shrink:0;
           display:inline-flex;align-items:center;justify-content:center;
           inline-size:44px;min-height:44px;padding:0;box-sizing:border-box;
-          background:none;border:0;border-radius:50%;
+          background:none;border:0;border-radius:10px;
           color:#1a3a2a;text-decoration:none;
-          transition:color .18s ease;
+          transition:background-color .18s ease;
         }
-        /* HOVER RECOLOURS THE GLYPH AND DRAWS NOTHING BEHIND IT, on owner instruction - the round
-           tinted disc that used to appear here is gone, so there is no background declaration in
-           this rule - by design, not by omission. (No backticks in this comment: it lives inside a
-           styled-jsx template literal, where one would close the string.)
-           #3da35a is the home page's green accent (seven occurrences in src/pages/index.tsx), and
-           it is the only palette colour that works here. Measured against this white header it is
-           3.19:1, which clears the 3:1 WCAG 1.4.11 floor for a non-text control, and against the
-           #1a3a2a rest colour it is 3.91:1, so the change is actually visible. The two rejected
-           alternatives: #d1f470 is 1.24:1 on white - invisible - and also means "actionable
-           surface" on this site, of which a page gets exactly one; #1a1a1a passes on white at
-           17.4:1 but sits 1.39:1 from the rest colour, i.e. dark green to dark grey, a hover a
-           sighted user cannot perceive.
-           The badge digits inherit currentColor, so the number recolours with the bag instead
-           of being left behind at the old green. */
-        .hdr-cart:hover{color:#3da35a}
+        /* HOVER IS THE MENU ICON'S HOVER, EXACTLY, on owner instruction: "cart hover color should
+           match menu hover color".
+           .nav-trigger's hover (Header.tsx) sets background:#d1f470 with the chevron staying
+           #1a3a2a - a LIME SURFACE, not a glyph recolour. So matching it means painting the surface
+           lime and leaving the bag dark, which is the reverse of what this rule did a moment ago.
+           THE EARLIER "NO BACKGROUND" INSTRUCTION IS NOT CONTRADICTED, and the distinction is the
+           word that was used: "dont show back grund rounc cicilr" - a round CIRCLE. The menu chip is
+           a 10px ROUNDED SQUARE, so the radius above moved 50% -> 10px to match it. What was
+           rejected was a circular disc in a header whose only other control is a rounded-square
+           chip; what is drawn now is the same shape and the same colour as that chip.
+           A previous pass here used #3da35a because it measured 3.19:1 on white as a glyph colour.
+           That was the right answer to the wrong question - it is not a colour the menu icon uses,
+           and the instruction is about matching the menu, not about finding a third green.
+           CONTRAST, measured: #1a3a2a on #d1f470 is 10.03:1, so the bag and its badge digits are far
+           clearer on hover than at rest. The lime surface itself is 1.24:1 against the white header,
+           which is why lime is never used for a glyph here - but as a transient hover SURFACE it is
+           the established pattern, shipped on .nav-trigger already.
+           ONE LIME SURFACE PER PAGE still holds: that rule governs the resting actionable surface
+           (the page's primary CTA). Both header chips spend lime only while the pointer is on them,
+           and never at the same time as each other.
+           No border is added. The owner removed this control's border outright ("only cart icon no
+           text or boder"); the instruction here names the colour, so the 2px dark edge .nav-trigger
+           grows on hover is deliberately NOT copied. */
+        .hdr-cart:hover{background:#d1f470}
         /* The focus ring STAYS. It is not decoration - removing the border is a visual request,
            and a keyboard user still has to see where they are (WCAG 2.4.7, and 1.4.11 for the
            indicator's own contrast). */
