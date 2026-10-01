@@ -1,5 +1,7 @@
 {
   "task_id": "checkout-audit-2026-10-01",
+  "superseded_by": "checkout-website-only-2026-10-01",
+  "superseded_note": "ARCHIVED/COMPLETED. Investigation + the first implementation wave (FEAT-001..004) landed on branch stack. The remaining OPEN audit items (R1/C1, R2, N1), the owner's 2026-10-01 website-only ruling, the spec reconciliation, and the AWS runbook are driven by the canonical plan at .agents/tasks/checkout-website-only-2026-10-01. findings.md and the review here remain the evidence base.",
   "task_description": "WECARE.DIGITAL checkout: produce the dated section-4 findings/closure matrix (done), then implement the AWS-independent checkout scope - section 7 exact calculator + 121481-paise fixture + immutable quote snapshot (FEAT-001), section 5 R3/N3 durable quarantine + N2 wallet-topup binding (FEAT-002), section 8 website Razorpay Standard Checkout code behind the disabled initiation gate (FEAT-003), and sections 6/16 backend session design + seven exact error strings + section 9 private Download-receipt (FEAT-004). All AWS deploy/Cognito-client/S3/live-provider steps and the section-14 Material ESM fork adoption (fork 404 here) are written as source+tests and reported BLOCKED. Keep the merged divided phone field (#175), the merged bag control and PageTopBand shell. Do NOT push or open a PR.",
   "status": "completed",
   "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
