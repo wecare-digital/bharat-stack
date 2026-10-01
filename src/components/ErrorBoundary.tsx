@@ -35,7 +35,29 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReload = () => { window.location.reload(); };
-  handleGoHome = () => { window.location.href = '/workspace/dashboard'; };
+
+  /**
+   * HOME, NOT THE STAFF DASHBOARD. Corrected 2026-10-01.
+   *
+   * This target used to be the staff dashboard route inside the authenticated workspace
+   * tree, with the button below labelled "Dashboard". The old path is deliberately NOT
+   * spelled out here: `src/test/PublicWorkspaceLinks.test.ts` asserts this file contains no
+   * workspace path at all, on the grounds that a small component mounted on every public
+   * page has no legitimate use for the token - not in a target, and not in a comment that a
+   * later edit could copy back into one.
+   *
+   * It was wrong because of where this component is mounted: `src/pages/_app.tsx` renders
+   * `<ErrorBoundary>` inside its `if ( isPublic )` branch, so a CUSTOMER who hits a render
+   * error on any public page — cart, checkout, shop, a blog post — was offered a button
+   * into the internal Cognito staff login. The escape hatch from a broken public page took
+   * them somewhere they cannot sign in to and did not ask for.
+   *
+   * A full document load rather than a router navigation, deliberately: the React tree has
+   * already failed by the time this renders, so the router's own state is the least
+   * trustworthy thing available. `src/pages/404.tsx` records the same reasoning for its
+   * anchor. The target is a literal `/`, so no path, query or fragment is forwarded.
+   */
+  handleGoHome = () => { window.location.href = '/'; };
 
   render() {
     if (this.state.hasError) {
@@ -69,7 +91,7 @@ class ErrorBoundary extends Component<Props, State> {
             )}
             <div style={styles.buttons}>
               <button style={styles.primaryBtn} onClick={this.handleReload}>Refresh</button>
-              <button style={styles.secondaryBtn} onClick={this.handleGoHome}>Dashboard</button>
+              <button style={styles.secondaryBtn} onClick={this.handleGoHome}>Home</button>
             </div>
           </div>
         </div>
