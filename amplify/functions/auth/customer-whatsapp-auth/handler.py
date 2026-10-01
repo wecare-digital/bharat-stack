@@ -170,11 +170,49 @@ def _consume_send_budget(phone_digits: str) -> None:
 
 
 def _normalise_phone(phone: str) -> str:
-    """Return WhatsApp's digits-only E.164 destination."""
-    digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
-    if len(digits) == 10 and digits[:1] in "6789":
-        digits = "91" + digits
-    if not 10 <= len(digits) <= 15:
+    """Return WhatsApp's digits-only E.164 destination, honouring the country code written.
+
+    This duplicates `lambda_utils.identity.customer.normalize_phone_preserving_country`,
+    which is the canonical implementation. The duplication is forced, not sloppy: this
+    function is packaged `standalone=True` (`scripts/deploy_all_lambdas.py:174`, "handler.py
+    only") and the deployed function has `Layers: null`, so it cannot import `lambda_utils`
+    at all. Adding an import would break its live package. A drift-agreement test in
+    `tests/test_phone_country_code_preservation.py` asserts the two agree on every row of one
+    shared case table, modulo the `+`, which is the only thing keeping them in step.
+
+    The defect being fixed here was independently written and is the same one: stripping to
+    digits first made a ten-digit foreign number indistinguishable from an Indian mobile, so
+    `91` was prepended to a complete number and the sign-in OTP for a Singapore customer
+    would go to an unrelated Indian handset. The country-code decision therefore has to
+    happen on the original text, before any digit strip - which is what the branch below does.
+
+    Today every value reaching here is the Cognito `phone_number` attribute, which is always
+    stored in E.164 with a leading `+`, so the strict marker requirement costs nothing.
+    """
+    text = str(phone or "").strip()
+    # Separators only. The `+` and the `00` must survive this step - removing them first is
+    # exactly the bug.
+    compact = "".join(ch for ch in text if ch not in " \t-().")
+
+    if compact.startswith("+"):
+        rest = compact[1:]
+    elif compact.startswith("00"):
+        rest = compact[2:]
+    else:
+        raise ValueError("a country code is required; expected +<code> or 00<code>")
+
+    if rest.startswith("0"):
+        raise ValueError("a country code does not start with zero")
+
+    digits = "".join(ch for ch in rest if ch.isdigit())
+    # India only, exactly one zero. No other country gets trunk handling, because guessing
+    # one per country is the same mistake in a new coat.
+    if digits.startswith("91") and digits[2:3] == "0":
+        digits = "91" + digits[3:]
+    # 8..15 rather than the previous 10..15, to match the canonical implementation. A tighter
+    # bound here than at the registration door would let a customer register successfully and
+    # then be unable to sign in, which is the same class of harm being fixed.
+    if not 8 <= len(digits) <= 15:
         raise ValueError("invalid E.164 phone number")
     return digits
 

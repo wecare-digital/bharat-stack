@@ -142,8 +142,17 @@ def begin(*,
     the customer table for us.
     """
     try:
-        e164 = customer_identity.normalize_phone(raw_phone)
+        # STRICT, not `normalize_phone`. The lenient function strips every non-digit before it
+        # looks for a country code, so a ten-digit foreign E.164 number matches the Indian
+        # mobile pattern and `+91` is prepended to an already-complete number: `+6591234567`
+        # became `+916591234567`, measured. That would send this OTP to an unrelated Indian
+        # handset. `normalize_phone` stays lenient for its other callers, which read
+        # already-stored records; this door reads raw browser input, so it refuses to guess a
+        # country code at all.
+        e164 = customer_identity.normalize_phone_preserving_country(raw_phone)
     except customer_identity.InvalidPhoneNumber as error:
+        # Still `InvalidPhoneNumber`: `MissingCountryCode` subclasses it, which is why the
+        # strict normaliser needs no new branch here.
         # Refused before the throttle, because a malformed number cannot be counted against
         # anything meaningful and rejecting it costs nothing.
         return RegistrationResult(INVALID_PHONE, str(error))
@@ -214,8 +223,15 @@ def complete(*,
     number.
     """
     try:
-        e164 = customer_identity.normalize_phone(raw_phone)
+        # STRICT, and it matters more here than in `begin`: this is where the identity is
+        # RESERVED. `normalizedPhone` and the Cognito `Username` are both written from this
+        # value, and uniqueness is enforced on it - so the lenient function's `+65 -> +91`
+        # corruption would lock the wrong number into the identity store permanently, not
+        # merely misdeliver one message. Must match `begin`, or a code issued against one
+        # subject could never be verified against the other.
+        e164 = customer_identity.normalize_phone_preserving_country(raw_phone)
     except customer_identity.InvalidPhoneNumber as error:
+        # `MissingCountryCode` subclasses `InvalidPhoneNumber`, so this clause is unchanged.
         return RegistrationResult(INVALID_PHONE, str(error))
 
     try:

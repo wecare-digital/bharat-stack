@@ -39,7 +39,13 @@ OTP_TABLE = 'stack-wecare-digital-DownloadGrantsTable'
 CUSTOMERS_TABLE = 'stack-wecare-digital-CustomersTable'
 PHONE_INDEX = 'normalizedPhone-index'
 PEPPER = 'test-pepper-not-a-real-secret'
-RAW_PHONE = '93309 94400'            # spaced, no country code; handler normalises
+# Spaced, WITH an explicit country code. The handler still normalises the separators; what it no
+# longer does is guess the country. A bare '93309 94400' was previously inferred to be Indian,
+# and that inference is the defect: a ten-digit foreign number matched the same pattern and was
+# prefixed, so the OTP went to an unrelated Indian subscriber and the wrong identity was
+# reserved. See tests/test_phone_country_code_preservation.py.
+RAW_PHONE = '+91 93309 94400'
+BARE_PHONE = '93309 94400'           # no country code; now refused rather than assumed Indian
 E164 = '+919330994400'
 
 
@@ -180,6 +186,17 @@ def test_request_rejects_a_malformed_phone(handler_env):
     assert resp['statusCode'] == 400
     assert json.loads(resp['body'])['status'] == 'invalid_phone'
     assert lam.invocations == []
+
+
+def test_request_rejects_a_number_with_no_country_code(handler_env):
+    """At the HTTP door, not just in the module. `PhoneField` always emits a dial code, so a
+    bare national number reaching here is a direct API caller - and guessing +91 for it is
+    exactly how a foreign customer's code ends up on an Indian handset."""
+    h, _fake, lam, _cog = handler_env
+    resp = h.handler(_event('request', phone=BARE_PHONE), None)
+    assert resp['statusCode'] == 400
+    assert json.loads(resp['body'])['status'] == 'invalid_phone'
+    assert lam.invocations == [], 'nothing may be sent for a refused number'
 
 
 def test_resend_inside_cooldown_is_refused_before_sending(handler_env):

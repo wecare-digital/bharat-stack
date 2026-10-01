@@ -198,7 +198,19 @@ def _request(event: Dict[str, Any], body: Dict[str, Any], origin: str) -> Dict[s
 
     # A phone axis is required by the throttle; fall back to the email so an email-only request is
     # still bounded per-address. The IP axis comes from the gateway context and cannot be spoofed.
-    throttle_subject = str(body.get("phone") or email)
+    #
+    # The phone is NORMALISED before it becomes a throttle key. Passing the raw value gave
+    # `+65 9123 4567` and `+6591234567` two separate buckets, so respacing one number bought a
+    # fresh budget - a free evasion. The strict normaliser is used rather than
+    # `identity.normalize_phone` because the lenient one collapses a ten-digit foreign number
+    # onto an unrelated Indian number's bucket, which would let one customer exhaust another's.
+    #
+    # Any failure falls back to the email subject and NEVER returns 400: the phone is optional on
+    # this endpoint, so rejecting the request over its shape would break email-only verification.
+    try:
+        throttle_subject = identity.normalize_phone_preserving_country(body.get("phone"))
+    except identity.InvalidPhoneNumber:
+        throttle_subject = email
     try:
         otp_throttle.check_and_consume(_table(), phone_e164=throttle_subject, event=event)
     except otp_throttle.OtpThrottled as throttled:
