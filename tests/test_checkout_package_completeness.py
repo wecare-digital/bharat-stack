@@ -106,18 +106,34 @@ def committed(tmp_path_factory):
     Yields a namespace carrying the exported `root` as well as the build, because "present on disk
     but missing from the ZIP" needs a disk to ask about, and that disk must be the archive's.
     """
+    try:
+        toplevel = Path(subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=True).stdout.strip()).resolve()
+    except (OSError, subprocess.CalledProcessError) as exc:
+        pytest.skip(f"git unavailable: {type(exc).__name__}")
+
+    # `git archive` run from a subdirectory restricts its output to that subdirectory. If ROOT is
+    # not the repository toplevel, these tests are already running from an exported tree - which IS
+    # committed state - and archiving would silently produce an empty tar rather than failing.
+    if toplevel != ROOT.resolve():
+        pytest.skip(f"running from an export under {toplevel}; the working-tree build is "
+                    f"already a build of committed state")
+
     export = tmp_path_factory.mktemp("committed-tree")
     archive = export / "HEAD.tar"
     try:
         with archive.open("wb") as fh:
-            subprocess.run(["git", "-C", str(ROOT), "archive", "HEAD"],
+            subprocess.run(["git", "archive", "HEAD"], cwd=str(toplevel),
                            stdout=fh, check=True, stderr=subprocess.PIPE)
     except (OSError, subprocess.CalledProcessError) as exc:
         pytest.skip(f"git archive unavailable: {type(exc).__name__}")
     tree = export / "tree"
     tree.mkdir()
-    with tarfile.open(archive) as tar:
+    with tarfile.open(archive, "r:") as tar:
         tar.extractall(tree)  # noqa: S202 - our own repository's archive
+    if not (tree / "amplify" / "functions" / "ecommerce" / "checkout" / "handler.py").is_file():
+        pytest.skip("git archive HEAD produced no checkout handler")
     module = _provisioner()
     try:
         zip_bytes, members, errors, warnings = module.build_package(tree)
