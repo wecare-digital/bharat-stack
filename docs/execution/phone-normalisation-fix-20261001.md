@@ -206,7 +206,11 @@ no required request header, so `src/pages/cart.tsx` (~line 149) and `src/pages/c
 (~line 159), which gate on `getSession()` and send no CSRF header, cannot break. No `src/` file was
 modified; `npx tsc --noEmit` is clean and the three UI contract suites pass unchanged.
 
-### ⏳ PENDING — the deployed `wecare-customer-session` handler
+### ✅ COMPLETE — the deployed `wecare-customer-session` handler (reported here, fixed elsewhere)
+
+Reported as `⏳ PENDING` when this doc was written; closed by another workstream during the
+cross-seam pass. The original reasoning is kept below because it is what made the handover
+actionable, with the resolution recorded after it.
 
 `wecare-customer-session` is live on its own role `wecare-customer-sessions-Role-An9RPVcLOdkj`.
 **Its handler source does not exist in this tree** — another workstream owns it — so it could not be
@@ -226,6 +230,27 @@ forward-looking tripwire in `tests/test_session_response_is_not_cacheable.py` fa
 `amplify/functions/**/handler.py` ever returns a body with a `csrfToken` key without calling
 `harden_session_headers`. It matches nothing today, and it has a positive control so it cannot pass
 vacuously.
+
+#### ✅ RESOLVED by another workstream, and the tripwire is no longer vacuous
+
+Recorded during the cross-seam pass, because this was the one open item here that depended on
+somebody else's file. The sequence, which is worth keeping straight:
+
+1. When this section was written the source genuinely was absent — `git cat-file -e
+   f8a73fb0:amplify/functions/ecommerce/customer-session/handler.py` does not resolve. The premise
+   was correct, not a failure to look.
+2. It arrived afterwards in `722fa300`, at `amplify/functions/ecommerce/customer-session/` — under
+   `ecommerce/`, not the `auth/` directory the other two OTP doors live in, which is why a search
+   for it by sibling path would have missed it even a moment later.
+3. `6ed1426b` then routed **both** of its response sites through
+   `customer_session.harden_session_headers`, which is exactly the call named above, imported as
+   `sessions`.
+
+So the `csrfToken` tripwire now has a real subject rather than only its positive control: the one
+handler that actually returns a token is the one now covered. Nothing in this task was changed to
+make that true, and nothing here is deployed — per `lambda-snapstart-deploy.md` that handler, like
+the two in this change, keeps serving its old responses until a version is published and the `live`
+alias moves.
 
 ---
 
@@ -414,11 +439,19 @@ than passing vacuously.
 | Secrets Manager reads | ➖ NOT REQUIRED — none performed, in any spelling |
 | `src/` modified | ➖ NOT REQUIRED — none |
 | Finding 3 applied | ⚠️ NEEDS CONFIRMATION — deliberately not applied |
+| Cross-seam verification between the two commits | ✅ COMPLETE — see the table above |
+| `wecare-customer-session` no-store headers | ✅ COMPLETE — closed by another workstream in `6ed1426b` |
 
 **Overall: ⚠️ COMPLETE WITH IMPROVEMENTS.** Findings 1 and 2 are fixed in source and pinned by
-tests. Two items remain outside this task's authority: the `wecare-customer-session` handler's
-no-store headers (another workstream's source) and the Finding 3 IAM change (owner approval).
-Neither is deployed, because nothing in this change is deployed.
+tests, and the seams between the two commits that delivered them are verified. **One** item remains
+outside this task's authority: the Finding 3 IAM change, which needs an owner decision. The
+`wecare-customer-session` handler, reported here as pending, has since been fixed by the workstream
+that owns it using the call this doc named.
+
+Nothing above is deployed. That is the one thing not to read as finished: under
+`lambda-snapstart-deploy.md` a published version and an alias move are what make a payments- or
+auth-path change live, and neither has happened, so all three handlers continue to serve their
+previous code.
 
 ## Related
 
