@@ -1,5 +1,31 @@
 # Change authority matrix
 
+## 2026-10-01 administrative MCP feature branch
+
+- A0_READ: rediscovered AWS identity (775261844268/us-east-1), API routes/stage,
+  staff Cognito pool/client/groups, public MCP live alias, existing artifact bucket,
+  GitHub OIDC provider and human-routed alarm topic through AWS MCP. Read Meta
+  protected-resource/authorization metadata. Validated additive CloudFormation
+  template through AWS MCP. Runtime-only asm-exec GitHub credential read returned
+  repository HTTP 200; no credential value entered reports or tool output.
+- A1_LOCAL: built the administrative MCP router, versioned provider policy,
+  encrypted registry/OAuth custody, SDK adapters, inactive supplied-patch workflow,
+  reproducible package builder, IaC, tests and activation runbook in an isolated
+  checkout. Owner explicitly requested a separate branch and a later merge;
+  `feature/workspace-mcp` is the authorized branch exception.
+- A2_REMOTE_CODE: explicit-path commit and non-force feature-branch push only.
+  Final source verification: 6042 Python tests passed/one skipped, 40 focused MCP
+  tests, 698 frontend tests, typecheck, production build, public manifest, exported
+  bundle secret gate, workflow YAML and CloudFormation validation passed. Draft PR
+  targets stack; no merge or production deployment is included. Rollback: normal
+  revert or abandon the unmerged feature branch, without touching other sessions.
+- A3_PRODUCTION: not exercised. New resources, provider consents and live endpoints
+  await the later merge/activation. Code-job dispatch defaults off in IaC.
+
+Evidence and activation limits: `workspace-mcp-build-20261001.md` and
+`../workspace-mcp.md`. No provider credentials were rotated or replaced; no
+WhatsApp number, messages, payments, ad spend or existing certificate was changed.
+
 ## Classes
 
 | Class | Scope | Required behavior |

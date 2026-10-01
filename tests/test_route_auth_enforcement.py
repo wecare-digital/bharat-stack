@@ -209,6 +209,11 @@ class TestAuditMarkerPolicy:
             "POST /auth/validate",
             "GET /webhook/sinch-rcs",
             "POST /webhook/sinch-rcs",
+            # The provider's browser callback has no AWS/staff identity. It is
+            # bound to an authenticated initiating principal by ten-minute
+            # one-use state and PKCE, tested for expiry, replay and supersession
+            # in test_workspace_mcp.py. No administrative tool is reachable.
+            "GET /workspace/mcp/oauth/callback",
             # An MCP client has no Cognito session and the protocol defines no
             # place to carry one, so require_auth would make the endpoint
             # unusable for its only purpose. Admitted because the capability to
