@@ -63,6 +63,16 @@ class InvalidPhoneNumber(ValueError):
     """The supplied value is not a phone number this business can reach on WhatsApp."""
 
 
+class MissingCountryCode(InvalidPhoneNumber):
+    """No explicit country code was supplied, and this entry point will not guess one.
+
+    Subclassing `InvalidPhoneNumber` (and therefore `ValueError`) is load-bearing rather than
+    tidy: `identity.registration.begin` and `.complete` already wrap normalisation in
+    `except customer_identity.InvalidPhoneNumber`, so this rejection flows into the existing
+    `INVALID_PHONE` outcome with no handler control-flow change at all.
+    """
+
+
 class InvalidEmailAddress(ValueError):
     """The supplied value is not a usable email address."""
 
@@ -150,6 +160,114 @@ def normalize_phone(raw: Any, *, default_country: str = DEFAULT_COUNTRY_CODE) ->
     raise InvalidPhoneNumber(
         f"not a reachable phone number: {len(digits)} digits after normalisation"
     )
+
+
+#: Separators a human writes inside a phone number. Stripped before the country-code marker is
+#: read, because `+65 (9123) 4567` and `+6591234567` are one number - but note this pattern
+#: deliberately does NOT match `+` or a digit, so the marker survives the step.
+_PHONE_SEPARATOR_RE = re.compile(r"[\s\-().]")
+
+#: E.164 allows at most 15 digits including the country code. 8 is the shortest real
+#: country-code-plus-subscriber combination in use, so anything below it is a typo rather than a
+#: short number we do not know about.
+_E164_MIN_DIGITS = 8
+_E164_MAX_DIGITS = 15
+
+
+def normalize_phone_preserving_country(raw: Any) -> str:
+    """E.164 that honours the country code the caller actually wrote. Never infers one.
+
+    Use this at every customer-facing phone entry point. `normalize_phone` is retained
+    unchanged for its other eight callers, which are fed from already-stored records rather
+    than from a browser.
+
+    Why this function exists at all
+    -------------------------------
+    `normalize_phone` strips every non-digit *before* it looks for a country code, so a
+    ten-digit foreign number arrives at `_INDIAN_MOBILE_RE` looking exactly like an Indian
+    mobile and `DEFAULT_COUNTRY_CODE` is prepended to a number that was already complete.
+    Measured: `+6591234567` became `+916591234567`, `+6421234567` became `+916421234567`,
+    `+9715012345` became `+919715012345`. The OTP then reaches an unrelated Indian
+    subscriber, the real customer can never sign in, and because uniqueness is enforced on
+    the normalised value the WRONG identity is the one that gets reserved. `src/lib/dialCodes.ts`
+    offers +65, so this is a shipped path, not a hypothetical.
+
+    Why a wrapper around `normalize_phone` cannot work
+    --------------------------------------------------
+    A wrapper that calls `normalize_phone` and inspects the result is structurally unable to
+    fix this: by the time it sees `+916591234567` the `+65` is gone, and `+6591234567` is
+    indistinguishable from a genuine Indian `6591234567` that the legacy function was right
+    to prefix. The country-code decision has to be made on the ORIGINAL text, before any
+    `re.sub(r"\\D", "", ...)`. That is why the branch below runs on `compact`, which keeps the
+    `+` and the `00`, and why the digit strip happens only afterwards. A test monkeypatches
+    `normalize_phone` to a tripwire to keep a future refactor from quietly re-introducing the
+    delegation.
+
+    No country code is a REJECTION, not a default
+    ---------------------------------------------
+    Input carrying neither `+` nor `00` raises `MissingCountryCode`. Three reasons:
+
+    1. The owner handoff (section 6) asks for bare national digits to be refused at the
+       customer entry point rather than guessed at.
+    2. `src/components/PhoneField.tsx` always emits a dial code from `DIAL_CODES`, so no real
+       UI state produces a bare national number - only a direct API caller does.
+    3. The customer-visible copy for this state already exists:
+       `src/lib/signInMessages.ts::MISSING_CODE`.
+
+    Defaulting instead was rejected: it leaves the +91 inference live for any non-PhoneField
+    caller at a customer entry point, which is the defect wearing a wrapper.
+
+    `00` is read as the international prefix, always
+    -----------------------------------------------
+    Per E.123/E.164, `00` introduces a country code even when what follows happens to look
+    like a bare Indian mobile. So `009330994400` yields `+9330994400` - country code 93 - and
+    NOT `+919330994400`. This is a deliberate divergence from `normalize_phone`'s lenient
+    reading and is pinned by a test, because reading `00` as "maybe a country code, maybe not"
+    is precisely the ambiguity that produced the defect above.
+
+    Trunk-zero handling is India-only, and the consequence is accepted
+    -----------------------------------------------------------------
+    A single trunk `0` is stripped only when the country code is `91`, because that is the one
+    national dialling convention this business knows. Every other country gets none, since
+    inventing a trunk rule per country is the same guess-what-they-meant mistake in a new
+    coat. The documented consequence: `+44 07911 123456` yields `+4407911123456`, which the
+    provider rejects. That is a visible failure the customer can correct, not a silent
+    misdelivery to a stranger - which is the trade being made on purpose.
+    """
+    text = str(raw or "").strip()
+    if not text:
+        raise InvalidPhoneNumber("phone number is required")
+
+    # Separator-tolerant, but NOT digit-stripping: the `+` / `00` marker must survive this
+    # step, because `re.sub(r"\D", "", text)` is exactly what destroys it.
+    compact = _PHONE_SEPARATOR_RE.sub("", text)
+
+    if compact.startswith("+"):
+        rest = compact[1:]
+    elif compact.startswith("00"):
+        rest = compact[2:]
+    else:
+        raise MissingCountryCode(
+            "a country code is required; expected +<code> or 00<code>")
+
+    # No country code begins with zero, so a leading zero here is a mis-keyed number rather
+    # than a trunk prefix we could strip.
+    if rest.startswith("0"):
+        raise InvalidPhoneNumber("a country code does not start with zero")
+
+    digits = re.sub(r"\D", "", rest)
+    if not digits:
+        raise InvalidPhoneNumber("phone number contains no digits")
+
+    # India only - see the docstring. Exactly one zero, so `+91 0 09...` stays invalid.
+    if digits.startswith("91") and digits[2:3] == "0":
+        digits = "91" + digits[3:]
+
+    if not _E164_MIN_DIGITS <= len(digits) <= _E164_MAX_DIGITS:
+        raise InvalidPhoneNumber(
+            f"not a reachable phone number: {len(digits)} digits after normalisation")
+
+    return "+" + digits
 
 
 def is_indian_mobile(e164: Any) -> bool:
@@ -278,12 +396,14 @@ __all__ = [
     "DEFAULT_COUNTRY_CODE",
     "MAX_NAME_LENGTH",
     "InvalidPhoneNumber",
+    "MissingCountryCode",
     "InvalidEmailAddress",
     "InvalidName",
     "new_customer_id",
     "is_customer_id",
     "assert_customer_id",
     "normalize_phone",
+    "normalize_phone_preserving_country",
     "is_indian_mobile",
     "normalize_email",
     "email_domain",

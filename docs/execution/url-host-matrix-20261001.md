@@ -138,7 +138,9 @@ makes Amplify carry the request path across.
 
 85 rows, probed by `scripts/probe_url_host_matrix.py`, exit 0 — **88 rows as of
 2026-10-01T13:15Z**: +1 for the third `/access` wildcard row (§5.5) and +2 for the two new
-subdomain rows 83a/83b below. Only the **terminal** status in
+subdomain rows 83a/83b below. **98 rows as of the third convergence pass, 2026-10-01**: +10 for
+rows 86–95, the evidence rows added for the surface categories that had none (§1.1–§1.4). Only
+the **terminal** status in
 a chain is judged: `trailingSlash: true` means an extensionless path always 301s to add the
 slash first, so a first-hop reading calls `/admin` "301, fine" whether the chain ends on a 404
 or on a staff login at 200. Chains are walked with a seen-set, so a loop is a hard failure
@@ -179,10 +181,127 @@ rather than two individually-correct status codes.
 | 83b | `https://a.b.wecare.digital/` | not measured before (reported only as "not covered") | **resolves to `3.175.86.x`, TLS refused: no SAN matches — status 0** | **the residual gap, still open — §4.1** |
 | 84 | `https://xout.wecare.digital/` | 404 (Wix) | **302 → `https://wecare.digital/`, terminal 200** — changed later the same day | **INFORMATIONAL** — Wix-owned, out of scope, §4 and §9.3 |
 | 85 | `https://mta-sts.wecare.digital/` | 403 at `/` | 403 | **must not change** — email auth is fail-closed |
+| **86** | `GET /api/invoices` | not measured before | **401** `{"error": "No authorization token provided"}` | **unchanged** — see §1.1 |
+| **87** | `GET /api/contacts` | not measured before | **401**, same JSON | unchanged — §1.1 |
+| **88** | `GET /api/wix-store/products` | not measured before | **401**, same JSON | unchanged — §1.1 |
+| **89** | `GET /?code=…&state=…` (the Cognito OAuth redirect URI) | not measured before | **200**, query intact | **unchanged** — §1.2 |
+| **90** | `GET https://www.wecare.digital/?code=…&state=…` | not measured before | **301 → `https://wecare.digital/?code=…&state=…`**, terminal 200 | **the `?code=` survives the host 301** — §1.2 |
+| **91** | `GET /api/checkout/download-receipt` | not measured before | **404** `{"message":"Not Found"}` | **no live route — unprovisioned, not broken** — §1.3 |
+| **92** | `GET /api/auth/verify-email` | not measured before | **404** `{"message":"Not Found"}` | **no live route — unprovisioned, not broken** — §1.3 |
+| **93** | `/access/?next=https://evil.example` | not measured before | **302 → `https://wecare.digital/?next=https://evil.example`**, terminal 200 | **path dropped, query RETAINED** — §1.4 |
+| **94** | `/access?a=b&c=d` | not measured before | **302 → `https://wecare.digital/?a=b&c=d`** | path dropped, query retained — §1.4 |
+| **95** | `/access/x/y?return=//evil` | not measured before | **302 → `https://wecare.digital/?return=//evil`** | path dropped, query retained — §1.4 |
+
+Rows 86–95 were **added in the third convergence pass, 2026-10-01**, after a review found that
+four of the surface categories the brief names had no row at all, so a reader could not tell
+"preserved" from "never existed" from "not checked". All ten are in
+`scripts/probe_url_host_matrix.py`, so they are re-measured on every run rather than being a
+dated `curl` — the harness now reports **98 rows, 0 failed**, up from 88. Their `before` column
+honestly reads *not measured before*: these surfaces were not probed prior to this pass, and
+inventing a before value is forbidden.
 
 Two measurements that were not in the plan and are recorded because they were taken:
 `GET /api/webhook/sinch-dlr` = **404** and `POST /api/voice-cdr-webhook` = **404**. Both are
 API-side routing answers reached through the intact `/api/<*>` rewrite, not hosting failures.
+
+### 1.1 Protected operational endpoints — three rows, not one
+
+Added 2026-10-01, third convergence pass. The brief requires protected operational endpoints to
+keep working **including their unauthenticated rejection semantics**, and until this pass
+`POST /api/auth/validate` (row 74) was the only row of that class. One route is too thin to
+evidence the class: it can keep answering 401 while a rewrite change quietly turns its
+neighbours into pages.
+
+| request | status | body |
+|---|---|---|
+| `GET /api/invoices` | 401 | `{"error": "No authorization token provided"}` |
+| `GET /api/contacts` | 401 | same |
+| `GET /api/wix-store/products` | 401 | same |
+
+The **body** is asserted, not just the status, and that is the point of the rows rather than
+thoroughness: 401 alone cannot distinguish the API's own rejection from an edge-level one. The
+JSON is what proves the request travelled through the `/api/<*>` rewrite and reached the Lambda,
+which is the property a redirect change could break. Authorization itself is untouched by this
+task — no handler, no authorizer and no `_app.tsx` gate was edited — so these rows are evidence
+of preservation, not of new work.
+
+### 1.2 OAuth callbacks — the apex IS the redirect URI
+
+Added 2026-10-01, third convergence pass. The brief names Cognito, Meta and Wix OAuth callbacks
+among the surfaces that must keep working, and the matrix had no row and no statement for any of
+them. Measured, per provider:
+
+**Cognito.** `src/pages/_app.tsx` registers both `redirectSignIn` and `redirectSignOut` as
+`process.env.NEXT_PUBLIC_APP_URL || 'https://wecare.digital/'` — the apex, which its own comment
+records as registered on the `stack-wecare-digital-web` client. So the callback surface is row 1,
+and rows 89–90 state what row 1 could not: the apex answers **200 with a `?code=`/`?state=`
+query present**, and `https://www.wecare.digital/?code=…` **301s to the apex with the query
+intact**. That second row is the one that matters. Cognito returns the authorization code in the
+query string, so a host rule that dropped it would break sign-in for anyone who began at `www`
+while every page-level probe stayed green. The rule's source is a bare origin, which is what
+preserves path *and* query; a source carrying a path would drop both. The probe values are
+deliberately invalid `zzz`-prefixed strings — nothing is exchanged, only the landing place is
+measured.
+
+**Meta.** There is no browser callback. Meta's surface on this domain is the webhook already
+covered by row 76, `POST /api/wa-business/webhooks` at **401** — a signature rejection from the
+Lambda, not a page.
+
+**Wix.** Wix Headless is reached server-to-server from the Lambda tree. No Wix OAuth callback
+resolves on this domain, so there is nothing on this host to preserve or break.
+
+### 1.3 Signed receipt links and verified-email callbacks — unprovisioned, measured
+
+Added 2026-10-01, third convergence pass. Both are named in the brief and neither has a live
+route, which is a materially different statement from "we did not check" — so they are probed
+rather than omitted:
+
+| request | status | body | reading |
+|---|---|---|---|
+| `GET /api/checkout/download-receipt` | 404 | `{"message":"Not Found"}` | no receipt route exists yet, and no receipt path is referenced from `src/` either |
+| `GET /api/auth/verify-email` | 404 | `{"message":"Not Found"}` | the email-verification function is built but deliberately not provisioned; owned by the customer-registration workstream |
+
+A 404 here is the **correct** answer today, and the rows exist to notice it changing. The day
+either surface ships, its row fails and this document has to be updated deliberately instead of
+drifting into silence. Receipts stay private and off the public media prefix regardless — that
+constraint is unaffected by this task.
+
+### 1.4 The redirect home drops the path and RETAINS the query
+
+Added 2026-10-01, third convergence pass, correcting a claim this task carried without probing
+it. The plan's design note **D1** asserted that `/access/**` → `/` *"drops the untrusted path
+entirely (the target is a literal `/`, so no path, query or fragment is forwarded)"*. **That is
+half false.** Measured (rows 93–95):
+
+```
+/access/?next=https://evil.example   302 -> https://wecare.digital/?next=https://evil.example
+/access?a=b&c=d                      302 -> https://wecare.digital/?a=b&c=d
+/access/x/y?return=//evil             302 -> https://wecare.digital/?return=//evil
+```
+
+The **path** is dropped, as claimed. The **query is appended** to the redirect target, because
+that is what Amplify does with an incoming query string. A fragment is never transmitted by any
+client, so it cannot be probed and is not claimed either way.
+
+**Why this is recorded rather than changed**, stated so the scope is not misread as a shrug:
+
+- The `Location` **host is a fixed literal** (`https://wecare.digital/`), so a retained query
+  cannot send anyone anywhere. This is not an open redirect, and `?next=https://evil.example`
+  lands on our own home page with a parameter nobody reads.
+- **Nothing consumes it.** Neither `src/pages/index.tsx` nor `src/pages/_app.tsx` reads
+  `location.search`, `URLSearchParams` or `router.query` — verified by grep over both files.
+- The behaviour is now **pinned on the exact terminal URL** in the harness, so if it ever starts
+  mattering — a query consumer on the home page, or a change to the redirect target — the row
+  fails rather than passing as "302 to home, fine".
+
+**The asymmetry is the finding, and it is worth keeping visible.** The other two routes home do
+drop everything: `src/pages/404.tsx` calls `router.replace` with a literal `'/'`, and the
+home-fallback viewer-request function discards path *and* query, measured here as
+`https://shop.wecare.digital/some/path?q=1` → `302` → bare `https://wecare.digital/`. So one of
+three paths home diverges from the requirement's wording, inertly, and that divergence is now
+written down instead of assumed away. Stripping the query at the edge is possible — the
+home-fallback function already does it for the subdomain case — and is deliberately **not** done
+here, because it would be a live rule change for no measurable gain.
 
 ---
 
@@ -977,3 +1096,120 @@ made** — the only AWS calls were reads (`amplify get-app`, `amplify get-domain
 `route53 list-resource-record-sets`, `cloudfront list-distributions`) plus public HTTP probes. No
 secret was read and no credential appears in any command or in this record. `_routes.json` and the
 `/<*>` → `/404.html` catch-all are untouched.
+
+## 9.5 Third convergence pass — 2026-10-01, evidence gaps closed
+
+A review of the second pass returned CHANGES_REQUESTED on four items, **none of them a behaviour
+defect**: every route still measured what it was supposed to measure. All four were evidence or
+authority gaps, and all four are now closed without any live rule change.
+
+### What was wrong, and what it is now
+
+| Finding | Was | Now |
+|---|---|---|
+| `src/pages/account/sign-in.tsx` edited on an authority attested only inside the change | clearance appeared in the commit message, `safeReturnPath.ts`'s header and §7.1/§9.4 — all inside the change | recorded **outside** the change in `docs/execution/change-authority-matrix.md`, with the class, the target, the owner handoff item it rests on, the collision evidence, an honest "not pre-cleared in writing" ratification line, and the rollback. **The collision argument was then overtaken by a better one on the same day — see §9.6:** the owning workstream resumed and *kept* the wiring |
+| Three surface categories the brief names had no row | OAuth callbacks, signed receipt links and verified-email callbacks were absent; protected operational endpoints had exactly one row | **§1.1–§1.3** and rows **86–92**, all added to the probe harness so they are re-measured every run, not a dated `curl` |
+| The redirect home retains the query string | the plan's design note D1 claimed path, query and fragment were all dropped; never probed | **§1.4** and rows **93–95**, pinned on the exact terminal URL; D1 corrected in place and dated, with the old reading kept |
+| `src/pages/404.tsx` carried a stale subdomain paragraph | said sending wrong subdomains home "cannot be done from this repository" | corrected in place and dated: the IaC is in this repository, the wildcard plus `E1ZZ786I3YH65O` is live, and the residual limit is the one-label certificate, measured `ssl_verify_result=1` |
+
+The harness grew from **88 rows to 98**. Nothing was removed, no expectation was relaxed, and no
+row was downgraded to informational — the two informational rows are unchanged and both are hosts
+we do not control.
+
+### Gates, on the exact tree
+
+| gate | result |
+|---|---|
+| `npm run typecheck` | **0** |
+| `npm run lint` | **0 errors**, 188 warnings — unmoved |
+| `npx vitest run` | **48 files, 684 tests, all passed** |
+| `npm run build` | **0**; `out/404/index.html` **36,567 bytes**; `out/sitemap.xml` **1,407 `<loc>`** — both unchanged |
+| `pytest test_legacy_redirect_rollback_snapshot.py test_url_host_routing_rules.py -q` | **17 passed**, 0 skipped (13 + 4; an earlier write-up said 20, which counted a wider file set) |
+| `scripts/probe_url_host_matrix.py --json` | **98 probed, 0 failed, 0 informational drift**, exit 0 |
+| `scripts/retired_url_probe.py` | exit **0** — no retired public URL answers 200 |
+| `scripts/provision_legacy_redirects.py --verify` | exit **0** — 12 rules, only the approved host 301 and three `/access` 302s |
+| `git diff --stat _routes.json` | **empty** — byte-identical, and clean in `git status` |
+
+### Independently re-measured with `curl`, not through the harness
+
+Run twice, roughly fifteen minutes apart, with identical results:
+
+```
+POST /api/razorpay-webhook                     401       GET  /workspace/              200 (Authenticator)
+POST /api/auth/validate                        401       GET  /account/sign-in/        200
+POST /api/payments/webhook                     404       GET  /shop/ /cart/            200 200
+GET  /api/webhook/sinch-rcs                    200       GET  /orders/ /blog/ /        200 200 200
+GET  /mcp                                      405       www /shop/  301 -> https://wecare.digital/shop/
+POST /mcp                                      400       GET  /definitely-not-a-page/  404
+GET  /get/o/stream/media/m/wecare-digital.png  200            carrying "page":"/404", noindex, apex canonical
+```
+
+`/workspace/` still returns the staff Authenticator (`data-amplify-authenticator`,
+`data-amplify-router`) and is still `Disallow`ed. Authorization was not touched: `src/pages/_app.tsx`
+is unmodified by this pass, and rows 86–88 show protected APIs still rejecting an unauthenticated
+read with the API's own JSON.
+
+### On "before AND after for every row"
+
+All **43** table rows in §1 carry both columns filled. **13** of them state *not measured before*
+rather than a value — rows 76, 83a, 83b and the ten added here. That is deliberate and is the
+repo's own rule: those surfaces genuinely were not probed before the pass that added them, and
+inventing a before value is forbidden. An honest gap reads as a gap; a fabricated one reads as
+evidence.
+
+### Scope of this pass
+
+Documentation, one source comment, and ten read-only probe rows. **No live rule change, no
+`--apply`, no AWS write of any kind** — the only AWS-adjacent traffic was public HTTP probes.
+No DNS, ACM, CloudFront, domain-association, WAF or Security Hub change. No secret was read and no
+credential appears in any command or in this record. `_routes.json`, the `/<*>` → `/404.html`
+`404-200` catch-all, `amplify/**`, `src/pages/account/**`, `src/lib/customerAuth.ts`,
+`src/lib/dialCodes.ts`, `src/components/HeaderCart.tsx` and `src/components/PhoneField.tsx` are
+all untouched by this pass.
+
+## 9.6 What the push attempt found — two cross-session seams, 2026-10-01
+
+The convergence commit was rejected non-fast-forward: `origin/stack` had advanced **four**
+commits (`722fa300`, `b01ecc32`, `da8d7d12`, `5be80392`) while this pass ran. Both of the
+following were discovered by reading `origin/stack` with `git show`, which needs no fetch — the
+remote-tracking ref was already local. **Neither is a behaviour defect on the live site; every
+probe above was measured against production and is unaffected.**
+
+### 1. The `src/pages/account/sign-in.tsx` crossing was ratified by its own owner
+
+The §9.5 entry rested on the `customer-session-20261001` workstream having stopped before
+implementation. It resumed. Its commits touch `sign-in.tsx`, `src/lib/customerAuth.ts` and
+`amplify/functions/ecommerce/customer-session/handler.py` — and they **kept the wiring**:
+`origin/stack`'s `sign-in.tsx` still imports `safeLocalReturnPath` (line 71) and still returns
+`safeLocalReturnPath( raw )` from `returnPathFromUrl()` (line 187), with `restoreSession()` and a
+`persistent` flag added **around** it. The owner of the path adopted the change rather than
+reverting it, which is stronger ratification than the absent-owner argument. Corrected in place
+and dated in `docs/execution/change-authority-matrix.md`; the original reading is kept there
+because it is the reasoning that was actually used at the time.
+
+### 2. `scripts/probe_url_host_matrix.py`'s subdomain block was rewritten concurrently — FLAGGED, not reconciled
+
+`origin/stack` replaces the subdomain rows with a loop over four hosts probing
+`/old/path?old=1`, and reports a 90-row matrix. This pass's tree reports 98. The two edits sit in
+**different hunks** of `matrix()` — the rows added here are in the `host`, `api` and
+`legacy-workspace` groups — so they are complementary rather than contradictory, and a merge
+should combine to roughly 100 rows. Two properties of the concurrent edit are worth an owner's
+eyes rather than a silent overwrite:
+
+- **`xout.wecare.digital` is promoted from `informational=True` to a hard gate.** It was
+  informational deliberately, and the reason is recorded in `_row`'s own docstring: `www.xout`
+  still terminates through a Wix TLS endpoint (`pointing.wixdns.net`) that we do not control, so
+  asserting it as a hard row makes **our** run red whenever a third party edits **their** host.
+  `origin/stack` additionally adds `www.xout.wecare.digital` as a hard row. That is a
+  deliberate-looking choice by a release-gating workstream, so it is reported, not reverted.
+- **Roughly 50 lines of dated rationale were deleted** rather than corrected in place, including
+  the record of why the `shop` row moved from status 0 to 302 and why the `xout` downgrade stands.
+  This repo's convention is to correct a rationale in place with a date and never delete it.
+
+**Why this was not merged here.** `amplify/functions/shared/lambda_utils/customer_session.py` is
+**modified in the shared working tree by a live session** and is also changed on `origin/stack`,
+so a merge would have to update a file another session is holding uncommitted. `git merge` refuses
+that, and the alternatives — stash, reset, force — are all prohibited. So the convergence commit
+stays local on `stack` and the integration belongs to whichever session owns the tree when it is
+clean. Recorded rather than forced: the loser of a concurrent-push race leaving its work committed
+and reporting is the documented behaviour, not a failure.

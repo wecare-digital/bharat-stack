@@ -22,7 +22,12 @@ def handler(event, context):
     origin = extract_origin(event)
     def response(code, data):
         result = cors_response(code, data, origin)
-        result['headers']['Cache-Control'] = 'no-store'
+        # Both headers, via the shared helper, not a hand-set Cache-Control. This response can
+        # carry a csrfToken, and it is served through the Amplify `/api/<*>` status-200 rewrite,
+        # so a shared cache handing one customer's token to another is the risk being closed.
+        # `harden_session_headers` is also what tests/test_session_response_is_not_cacheable.py
+        # requires every csrfToken-bearing handler to use, so the pair cannot drift apart here.
+        result['headers'] = sessions.harden_session_headers(result['headers'])
         return result
     if origin != ORIGIN:
         return response(403, {'error': 'ORIGIN_REQUIRED'})
@@ -104,5 +109,5 @@ def handler(event, context):
         result = response(403, {'error': 'CSRF_REQUIRED'})
     except Exception:
         result = response(503, {'error': 'TEMPORARILY_UNAVAILABLE'})
-    result['headers']['Cache-Control'] = 'no-store'
+    result['headers'] = sessions.harden_session_headers(result['headers'])
     return result

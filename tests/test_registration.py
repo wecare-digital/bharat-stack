@@ -27,7 +27,12 @@ from lambda_utils.identity import registration as reg  # noqa: E402
 
 TABLE = 'stack-wecare-digital-DownloadGrantsTable'
 PEPPER = 'test-pepper-not-a-real-secret'
-PHONE = '9330994400'
+# Explicit E.164, because this door now refuses to guess a country code. Bare national digits
+# used to be normalised to +91 by inference, and that inference is the defect: a ten-digit
+# foreign number matched the Indian mobile pattern and was prefixed, so the OTP went to an
+# unrelated Indian subscriber and the wrong identity was reserved. See
+# tests/test_phone_country_code_preservation.py.
+PHONE = '+919330994400'
 E164 = '+919330994400'
 NOW = 1_700_000_000
 
@@ -122,11 +127,16 @@ def test_an_invalid_number_is_refused_without_consuming_budget(table, raw):
     assert table.parent.count(TABLE) == 0, 'a malformed number must not consume a counter'
 
 
-@pytest.mark.parametrize('spelling', ['9330994400', '+919330994400', '09330994400',
-                                      '0091 9330994400', '+91 93309 94400'])
+@pytest.mark.parametrize('spelling', ['+919330994400', '0091 9330994400', '+91 93309 94400'])
 def test_every_spelling_reaches_one_counter(table, spelling):
     """Uniqueness and the throttle both key on the normalised value, so a trunk zero must not
-    buy a fresh budget."""
+    buy a fresh budget.
+
+    The two bare spellings this used to carry ('9330994400' and '09330994400') moved to
+    `test_a_bare_national_number_is_refused_rather_than_assumed_indian` below: they are now
+    rejections, not alternative spellings. '0091 9330994400' stays, because `00` is read as the
+    international prefix and still resolves to this number.
+    """
     sender = Sender()
     moment = NOW
     for _ in range(5):
@@ -135,6 +145,25 @@ def test_every_spelling_reaches_one_counter(table, spelling):
 
     result = _begin(table, phone=spelling, sender=sender, now=moment)
     assert result.outcome == reg.THROTTLED
+
+
+@pytest.mark.parametrize('bare', ['9330994400', '09330994400'])
+def test_a_bare_national_number_is_refused_rather_than_assumed_indian(table, bare):
+    """Replaces the two bare spellings removed from the parametrize above, so the coverage is
+    moved rather than dropped.
+
+    Inferring +91 is what sent a Singapore customer's code to an Indian stranger: a ten-digit
+    foreign number is indistinguishable from an Indian mobile once the '+65' has been stripped.
+    This door therefore refuses to guess, and `PhoneField` always emits a dial code so no real
+    UI state reaches here without one.
+    """
+    sender = Sender()
+    result = _begin(table, phone=bare, sender=sender)
+
+    assert result.outcome == reg.INVALID_PHONE
+    assert result.http_status() == 400
+    assert sender.sent == [], 'a refused number must not send'
+    assert table.parent.count(TABLE) == 0, 'a refused number must not consume a counter'
 
 
 def test_the_throttle_runs_before_the_send(table):
@@ -159,11 +188,11 @@ def test_the_per_ip_axis_is_enforced_here_because_the_trigger_cannot(table):
     sender = Sender()
     moment = NOW
     for n in range(20):
-        _begin(table, phone=f'93309944{n:02d}', sender=sender,
+        _begin(table, phone=f'+9193309944{n:02d}', sender=sender,
                event=_event('203.0.113.5'), now=moment)
         moment += 61
 
-    result = _begin(table, phone='9000000001', sender=sender,
+    result = _begin(table, phone='+919000000001', sender=sender,
                     event=_event('203.0.113.5'), now=moment)
     assert result.outcome == reg.THROTTLED
 
@@ -172,11 +201,11 @@ def test_a_different_ip_is_not_penalised(table):
     sender = Sender()
     moment = NOW
     for n in range(20):
-        _begin(table, phone=f'93309944{n:02d}', sender=sender,
+        _begin(table, phone=f'+9193309944{n:02d}', sender=sender,
                event=_event('203.0.113.5'), now=moment)
         moment += 61
 
-    result = _begin(table, phone='9000000001', sender=sender,
+    result = _begin(table, phone='+919000000001', sender=sender,
                     event=_event('198.51.100.9'), now=moment)
     assert result.outcome == reg.CHALLENGE_SENT
 
@@ -328,8 +357,8 @@ def test_a_challenge_store_outage_does_not_burn_an_attempt(table):
 def test_beginning_looks_identical_for_a_known_and_an_unknown_number(table):
     """The trigger returns `registered: true/false` as a considered trade for a hand-provisioned
     pool. Once anyone can reach a public checkout endpoint, that trade is void."""
-    known = _begin(table, phone='9330994400')
-    unknown = _begin(table, phone='9000000001')
+    known = _begin(table, phone='+919330994400')
+    unknown = _begin(table, phone='+919000000001')
 
     assert known.public_body() == unknown.public_body()
     assert known.http_status() == unknown.http_status()

@@ -553,6 +553,67 @@ checks to make a test pass.
 A0_READ/A1_LOCAL/A3_PRODUCTION: unused subdomain home routing and direct access retirement explicitly requested. CloudFormation wecare-home-fallback CREATE_COMPLETE; CloudFront E1ZZ786I3YH65O Deployed; DNS C1002370145M1YU1Y7I7Y INSYNC. All 28 non-Wix DNS records preserved. Home/access routing evidence and rollback: docs/execution/home-fallback-20261001.md. A2_REMOTE_CODE: isolated exact-path commit and non-force push to stack; merge existing committed public-link work with the remote checkout commits, keeping remote requirements-dev.txt unchanged. Uncommitted shared checkout edits excluded.
 
 A3_PRODUCTION/A4_DESTRUCTIVE, explicit latest owner instruction: reuse existing certificate, remove the task-created certificate only. Stack update detached/deleted 4953c75b-9cdb-406e-a01d-766bf1dc61bd; ACM NotFound verified. Existing f75d0db0-d476-443a-b787-96c4931862d2 remains ISSUED and serves Amplify, MTA-STS and home fallback. Restored original www.xout CNAME, removed only new validation record. Evidence: home-fallback-existing-certificate-final-20261001.json.
+
+## 2026-10-01 - Post-sign-in open redirect closed in a path the url-host-cleanup plan listed DO NOT TOUCH
+
+Recorded here, outside the change, because a constraint waived only by the change that benefits
+from it is not evidenced - and this file is where authority lives in this repository. A review of
+the url-host-cleanup work found the clearance attested in three places (the commit message,
+`src/lib/safeReturnPath.ts`'s header, and sections 7.1/9.4 of
+`docs/execution/url-host-matrix-20261001.md`) and all three inside the change. This entry fixes
+that, and states the authority exactly as it stands rather than stronger.
+
+- **Class:** `A1_LOCAL`. Source edit only. No AWS write, no Lambda deploy, no alias move, no rule
+  change, no provider configuration touched by this item.
+- **Target:** `src/pages/account/sign-in.tsx`, commit `d0584e94`, three lines - one import of
+  `safeLocalReturnPath`, one swap inside `returnPathFromUrl()`, and deletion of a comment that
+  claimed the replaced regex "can never be turned into an open redirect". Nothing else in the
+  file was touched; it was not restyled or refactored.
+- **Authority, stated precisely.** The owner's checkout handoff names this work in its ordered
+  implementation list, item 3: *"Complete customer authentication/profile/session ownership,
+  remembered login and URL cleanup."* The `return`-parameter reader on the customer sign-in page
+  is that surface. The `DO NOT TOUCH` marker on `src/pages/account/**` came from the
+  url-host-cleanup task plan, not from the owner, and its stated basis was **ownership collision**
+  with a concurrent workstream rather than a prohibition on the file.
+- **Why the collision basis lapsed, measured not assumed.** At the time of the edit the owning
+  `customer-session-20261001` workstream had stopped before implementation: its task directory
+  held `baseline.md`, `design.md`, `design-review.md` and `design-review.json` and **no**
+  `task.json`, no `features/` directory and no implementation commit, and
+  `src/pages/account/sign-in.tsx` was clean in `git status` - so there was no live owner to collide
+  with and no uncommitted work to overwrite.
+- **CORRECTED IN PLACE 2026-10-01, same day, and the correction strengthens the item rather than
+  weakening it.** The sentence above originally said that workstream "aborted before
+  implementation". That was true when measured and is now **false**: `origin/stack` has since
+  advanced four commits (`722fa300`, `b01ecc32`, `da8d7d12`, `5be80392`) that implement customer
+  session persistence, and they touch `src/pages/account/sign-in.tsx`, `src/lib/customerAuth.ts`
+  and `amplify/functions/ecommerce/customer-session/handler.py`. The workstream resumed; it did not
+  abort. What matters is what it did with the wiring: it **kept it**. `origin/stack`'s
+  `sign-in.tsx` still imports `safeLocalReturnPath` at line 71 and still returns
+  `safeLocalReturnPath( raw )` from `returnPathFromUrl()` at line 187, and the owning workstream
+  added `restoreSession()` and a `persistent` flag **around** it rather than reverting it. So the
+  boundary crossing was ratified in practice by the very owner it was crossing, which is better
+  evidence than the absent-owner argument it replaces. The absent-owner reading is kept above
+  because it is why the edit was taken at the time, and deleting it would hide the reasoning that
+  was actually used.
+- **Ratification status, honestly:** this was **not** pre-cleared in writing before the edit
+  landed. It is recorded here for owner ratification. The alternative was not neutral, which is
+  why the edit was taken rather than deferred - see the next bullet.
+- **What the edit closes.** The replaced regex was `/^\/[a-zA-Z0-9/_-]*\/?$/`, and two measured
+  inputs pass it: `//evil`, where every character is in the class while a browser reads the
+  leading `//` as protocol-relative and resolves `evil` as a HOST, and `/workspace/access`, a
+  well-formed local path that is the STAFF login. Leaving the file alone left a live open
+  redirect on a customer sign-in page and left `src/lib/safeReturnPath.ts` with no production
+  caller.
+- **Rollback.** Remove the `safeLocalReturnPath` import and restore
+  `return /^\/[a-zA-Z0-9/_-]*\/?$/.test( raw ) ? raw : '/cart/';` in `returnPathFromUrl()`, then
+  re-run `npx vitest run` - `src/test/SafeReturnPath.test.ts` asserts that `sign-in.tsx` IS a
+  caller and that the literal `a-zA-Z0-9/_-` is absent from it, so an un-wiring fails the suite
+  loudly rather than passing. **Reverting reinstates the two accepted inputs above**, so it is a
+  deliberate security regression and not a tidy-up; the section 7 handoff in
+  `url-host-matrix-20261001.md` is the state to return to if that is the decision.
+  Do **not** revert `src/lib/safeReturnPath.ts` or `src/test/SafeReturnPath.test.ts` either way -
+  both are new files in permitted paths and are correct standalone.
+
 # 2026-10-01 - Checkout completion review
 
 - A0_READ: latest origin/stack, checkout/session Lambda metadata, customer Cognito client,

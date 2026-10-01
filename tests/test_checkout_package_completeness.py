@@ -9,15 +9,28 @@ It also pins the inverse - what must NOT ship. Tests, `__pycache__` and dev depe
 Lambda package are dead weight at best, and at worst a test fixture carrying a credential shape
 inside a production artifact.
 
-These assertions run against the WORKING TREE, which is the right scope for a test: it asks
-"would a package built from this repository today be complete", not "what did one deploy ship".
-The deployed-revision evidence lives in docs/execution/checkout-deployment-20261001.md.
+Two source roots, deliberately, because one of them is not enough
+----------------------------------------------------------------
+Most assertions here run against the WORKING TREE, which is the right scope for the packaging
+question: "would a package built from this repository today be complete". But in this repo that
+tree is shared by several concurrent sessions, so it routinely carries files that are modified or
+untracked and belong to nobody here - and `build_zip` packages all of them. A suite that only ever
+asserts over the working tree is therefore asserting over other people's in-flight edits, and can
+go red or green for reasons that have nothing to do with packaging.
+
+So `committed` builds the same package from `git archive HEAD`, and the completeness assertions run
+against both. The working-tree build catches a packaging rule that started dropping a file; the
+committed build is the one whose result is reproducible by anyone, on any machine, from the same
+SHA. The deployed-revision evidence lives in docs/execution/checkout-deployment-20261001.md.
 """
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
+import tarfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -65,16 +78,76 @@ def _on_disk(arcname: str) -> bool:
     return (SHARED / arcname).is_file()
 
 
-@pytest.fixture(scope="module")
-def built():
+def _provisioner():
     spec = importlib.util.spec_from_file_location("provision_checkout", SCRIPT)
     module = importlib.util.module_from_spec(spec)
     sys.modules["provision_checkout"] = module
     spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture(scope="module")
+def built():
+    module = _provisioner()
     try:
         yield module.build_package(ROOT)
     finally:
         sys.modules.pop("provision_checkout", None)
+
+
+@pytest.fixture(scope="module")
+def committed(tmp_path_factory):
+    """The same package, built from `git archive HEAD` instead of from the working tree.
+
+    This is the build whose outcome is reproducible from a SHA. The working-tree build shares its
+    directory with other sessions' uncommitted work, so a file that is present there proves nothing
+    about what a reviewer or CI would package.
+
+    Yields a namespace carrying the exported `root` as well as the build, because "present on disk
+    but missing from the ZIP" needs a disk to ask about, and that disk must be the archive's.
+    """
+    try:
+        toplevel = Path(subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=True).stdout.strip()).resolve()
+    except (OSError, subprocess.CalledProcessError) as exc:
+        pytest.skip(f"git unavailable: {type(exc).__name__}")
+
+    # `git archive` run from a subdirectory restricts its output to that subdirectory. If ROOT is
+    # not the repository toplevel, these tests are already running from an exported tree - which IS
+    # committed state - and archiving would silently produce an empty tar rather than failing.
+    if toplevel != ROOT.resolve():
+        pytest.skip(f"running from an export under {toplevel}; the working-tree build is "
+                    f"already a build of committed state")
+
+    export = tmp_path_factory.mktemp("committed-tree")
+    archive = export / "HEAD.tar"
+    try:
+        with archive.open("wb") as fh:
+            subprocess.run(["git", "archive", "HEAD"], cwd=str(toplevel),
+                           stdout=fh, check=True, stderr=subprocess.PIPE)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        pytest.skip(f"git archive unavailable: {type(exc).__name__}")
+    tree = export / "tree"
+    tree.mkdir()
+    with tarfile.open(archive, "r:") as tar:
+        tar.extractall(tree)  # noqa: S202 - our own repository's archive
+    if not (tree / "amplify" / "functions" / "ecommerce" / "checkout" / "handler.py").is_file():
+        pytest.skip("git archive HEAD produced no checkout handler")
+    module = _provisioner()
+    try:
+        zip_bytes, members, errors, warnings = module.build_package(tree)
+        yield SimpleNamespace(root=tree, zip_bytes=zip_bytes, members=members,
+                              errors=errors, warnings=warnings)
+    finally:
+        sys.modules.pop("provision_checkout", None)
+
+
+def _committed_on_disk(tree_root: Path, arcname: str) -> bool:
+    if arcname == "handler.py":
+        return (tree_root / "amplify" / "functions" / "ecommerce" / "checkout"
+                / "handler.py").is_file()
+    return (tree_root / "amplify" / "functions" / "shared" / arcname).is_file()
 
 
 def test_no_module_present_on_disk_is_dropped_from_the_zip(built):
@@ -132,6 +205,65 @@ def test_the_package_is_python_only(built):
     "we don't need templates" is exactly the kind of claim that silently stops being true."""
     _, members, _, _ = built
     assert sorted(n for n in members if not n.endswith(".py")) == []
+
+
+# ── the same questions, asked of committed state ──────────────────────────────
+#
+# The assertions above build from the working tree, which several sessions write to at once. These
+# build from `git archive HEAD`, so their answer is reproducible from a SHA by anyone. Keeping both
+# is the point: the first catches a packaging rule that drops a file, the second cannot pass or fail
+# because of somebody else's uncommitted edit.
+
+def test_no_committed_module_is_dropped_from_the_zip(committed):
+    dropped = [name for name in REQUIRED
+               if _committed_on_disk(committed.root, name) and name not in committed.members]
+    assert not dropped, ("committed but absent from the ZIP:\n  " + "\n  ".join(dropped))
+
+
+def test_every_import_resolves_in_committed_state(committed):
+    """The assertion with no escape hatch, asked of the tree a reviewer can check out. A local
+    checkout behind `origin/stack` legitimately lacks some REQUIRED modules; an unresolved import
+    is never legitimate."""
+    assert not committed.errors, ("unresolved imports at HEAD:\n  "
+                                  + "\n  ".join(committed.errors))
+
+
+def test_the_committed_package_ships_no_tests_or_caches(committed):
+    junk = [name for name in committed.members
+            if "__pycache__" in name
+            or name.endswith((".pyc", ".pyo"))
+            or Path(name).name.startswith("test_")
+            or "/tests/" in name]
+    assert not junk, "shipped in the Lambda package:\n  " + "\n  ".join(junk)
+
+
+def test_the_committed_package_is_python_only(committed):
+    assert sorted(n for n in committed.members if not n.endswith(".py")) == []
+
+
+def test_the_committed_handler_symbol_exists(committed):
+    module = _provisioner()
+    try:
+        dal = module._deploy_module(committed.root)
+        _, members = dal.build_zip(dal.Spec("wecare-checkout", "ecommerce/checkout"))
+        assert dal.validate_handler(members, "handler.handler") == []
+    finally:
+        sys.modules.pop("provision_checkout", None)
+
+
+def test_an_uncommitted_sibling_is_visible_as_a_difference(built, committed):
+    """Not a failure - a measurement. The two builds differ by exactly the files other sessions
+    have not committed yet, and naming that difference is what stops a red working-tree run from
+    being read as a packaging defect.
+    """
+    _, tree_members, _, _ = built
+    only_in_tree = sorted(set(tree_members) - set(committed.members))
+    only_in_committed = sorted(set(committed.members) - set(tree_members))
+    # Committed state can never be missing a module the working tree has committed; anything here
+    # is uncommitted work, which is allowed to exist but must not be invisible.
+    assert all(name.endswith(".py") for name in only_in_tree + only_in_committed), (
+        f"a non-python member appeared in one build only: "
+        f"{only_in_tree + only_in_committed}")
 
 
 def test_source_root_actually_packages_from_that_root(tmp_path):

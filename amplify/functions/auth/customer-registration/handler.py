@@ -60,13 +60,28 @@ from typing import Any, Dict, Optional
 
 import boto3
 
-from lambda_utils import otp_throttle
+from lambda_utils import customer_session, otp_throttle
 from lambda_utils.identity import customer as identity
 from lambda_utils.identity import registration
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, extract_origin, options_response
 
 logger = get_logger(__name__)
+
+
+def _no_store(response: Dict[str, Any]) -> Dict[str, Any]:
+    """Every response from this door is uncacheable. Applied at the return, not at the builder.
+
+    `response.py::cors_headers` sets no `Cache-Control`, and these responses travel through the
+    Amplify `/api/<*>` status-200 rewrite, so a shared cache sits in front of them. A cached OTP
+    outcome replayed to a different caller is both an answer about someone else's number and, on the
+    verify path, an answer about someone else's session state. `response.py` is deliberately left
+    alone - `core/contacts/handler.py:285` removed `Cache-Control` there on purpose - so the
+    contract is applied here, by the handler that owns these responses.
+    """
+    hardened = dict(response)
+    hardened["headers"] = customer_session.harden_session_headers(response.get("headers") or {})
+    return hardened
 
 # ── configuration ────────────────────────────────────────────────────────────
 REGION = os.environ.get("AWS_REGION", "us-east-1")
@@ -343,7 +358,7 @@ def _action(event: Dict[str, Any], body: Dict[str, Any]) -> str:
 
 def _reply(result: registration.RegistrationResult, origin: str) -> Dict[str, Any]:
     """Translate a RegistrationResult into an HTTP response, leaking nothing it should not."""
-    return cors_response(result.http_status(), result.public_body(), origin)
+    return _no_store(cors_response(result.http_status(), result.public_body(), origin))
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -351,7 +366,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     rc = event.get("requestContext", {}) or {}
     method = rc.get("http", {}).get("method", event.get("httpMethod", "")).upper()
     if method == "OPTIONS":
-        return options_response(origin)
+        return _no_store(options_response(origin))
 
     # No JWT requirement, deliberately. Registration runs BEFORE the customer has any session — it
     # is how they come to exist. The control here is the fail-closed per-IP/per-phone throttle plus
@@ -368,7 +383,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Type only. An exception message can echo the phone number or the code.
         logger.error(json.dumps({"event": "customer_registration_error",
                                  "action": action, "error": type(exc).__name__}))
-        return cors_response(500, {"error": "INTERNAL_ERROR"}, origin)
+        return _no_store(cors_response(500, {"error": "INTERNAL_ERROR"}, origin))
 
 
 def _request(event: Dict[str, Any], body: Dict[str, Any], origin: str) -> Dict[str, Any]:
@@ -383,8 +398,9 @@ def _request(event: Dict[str, Any], body: Dict[str, Any], origin: str) -> Dict[s
     )
     if result.outcome == registration.SEND_FAILED:
         # The challenge is stored; the message did not go. A soft failure the client can retry.
-        return cors_response(502, {"status": "send_failed",
-                                   "message": "Could not send the code. Please try again."}, origin)
+        return _no_store(cors_response(
+            502, {"status": "send_failed",
+                  "message": "Could not send the code. Please try again."}, origin))
     return _reply(result, origin)
 
 
@@ -392,7 +408,7 @@ def _verify(event: Dict[str, Any], body: Dict[str, Any], origin: str) -> Dict[st
     """Check the code, then resolve/create the customer and provision the login."""
     code = str(body.get("code") or "").strip()
     if not code:
-        return cors_response(400, {"error": "CODE_REQUIRED"}, origin)
+        return _no_store(cors_response(400, {"error": "CODE_REQUIRED"}, origin))
 
     result = registration.complete(
         raw_phone=body.get("phone"),
