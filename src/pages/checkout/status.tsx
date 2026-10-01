@@ -57,7 +57,7 @@ import Link from 'next/link';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import PageTopBand from '../../components/PageTopBand';
-import { getSession } from '../../lib/customerAuth';
+import { getSession, restoreSession } from '../../lib/customerAuth';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
 const CHECKOUT_STATUS_URL = `${API_BASE}/ecommerce/checkout/status`;
@@ -143,7 +143,8 @@ export default function CheckoutStatus (): React.ReactElement {
   const [ view, setView ] = useState<View>( 'confirming' );
 
   const poll = useCallback( async ( attemptId: string ): Promise<boolean> => {
-    const session = getSession();
+    let session;
+    try { session = getSession() || await restoreSession(); } catch { return false; }
     if ( !session )
     {
       // No session: the screen cannot prove ownership, so it says so rather than guessing.

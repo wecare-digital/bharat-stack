@@ -105,9 +105,7 @@ const ShopIndex: React.FC<ShopIndexProps> = ( { products } ) => {
           {/* Saying when the snapshot was taken is the difference between a reference price and a
               quote. */}
           <p className="shop-asof">
-            Prices here are from the store catalogue. The store confirms the amount when you
-            proceed. Live payment is not on yet, so proceeding prepares your order and charges
-            you nothing.
+            Review your final total in the cart before payment.
           </p>
 
           <section className="shop-grid" aria-label="Catalogue">

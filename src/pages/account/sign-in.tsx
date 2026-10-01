@@ -65,7 +65,7 @@ import PageTopBand from '../../components/PageTopBand';
 import PhoneField from '../../components/PhoneField';
 import { DEFAULT_DIAL_CODE } from '../../lib/dialCodes';
 import {
-  requestOtp, submitOtp, normaliseMobile, getSession, nextSessionFrom,
+  requestOtp, submitOtp, normaliseMobile, getSession, restoreSession, nextSessionFrom,
 } from '../../lib/customerAuth';
 import * as signInMessages from '../../lib/signInMessages';
 
@@ -203,6 +203,7 @@ export default function CustomerSignIn (): React.ReactElement {
   const [ dialCode, setDialCode ] = useState<string>( DEFAULT_DIAL_CODE );
   const [ national, setNational ] = useState<string>( '' );
   const [ normalised, setNormalised ] = useState<string>( '' );
+  const [ persistent, setPersistent ] = useState<boolean>( true );
   const [ code, setCode ] = useState<string>( '' );
   const [ session, setSession ] = useState<string>( '' );
   const [ destination, setDestination ] = useState<string>( '' );
@@ -212,6 +213,9 @@ export default function CustomerSignIn (): React.ReactElement {
   // Already signed in: nothing to do here, go straight back.
   useEffect( () => {
     if ( getSession() ) window.location.replace( returnPathFromUrl() );
+    else void restoreSession().then( restored => {
+      if ( restored ) window.location.replace( returnPathFromUrl() );
+    } ).catch( () => setError( 'Sign-in is temporarily unavailable. Please try again.' ) );
   }, [] );
 
   /**
@@ -376,7 +380,7 @@ export default function CustomerSignIn (): React.ReactElement {
       let result;
       try
       {
-        result = await submitOtp( normalised, code, session );
+        result = persistent ? await submitOtp( normalised, code, session ) : await submitOtp( normalised, code, session, false );
       }
       catch ( err )
       {
@@ -405,7 +409,7 @@ export default function CustomerSignIn (): React.ReactElement {
     {
       setBusy( false );
     }
-  }, [ phase, normalised, code, session ] );
+  }, [ phase, normalised, code, session, persistent ] );
 
   return (
     <>
@@ -488,6 +492,10 @@ export default function CustomerSignIn (): React.ReactElement {
                 onChange={ e => setCode( e.target.value ) }
                 disabled={ busy }
               />
+              <label className="si-remember">
+                <input type="checkbox" checked={ persistent } onChange={ e => setPersistent( e.target.checked ) } />
+                Keep me signed in on this device
+              </label>
               <button className="si-cta" type="submit" disabled={ busy }>
                 { busy ? 'Checking…' : 'Confirm code' }
               </button>
@@ -502,6 +510,8 @@ export default function CustomerSignIn (): React.ReactElement {
         <style jsx>{`
           /* No top padding, no measure, no font stack: PageTopBand owns all three. 460px is the
              form's own measure, inside the band's 1300px. */
+          .si-remember{display:flex;align-items:center;gap:10px;margin:16px 0;color:#1a3a2a;font-size:16px}
+          .si-remember input{accent-color:#b8e24a;width:18px;height:18px}
           .si-card{width:100%;max-width:460px;margin:0}
           .si-form{display:flex;flex-direction:column}
           /* The body rung, 20px/400/1.4/-.125px at rgba(0,0,0,.898). It was 16px at .7 alpha,

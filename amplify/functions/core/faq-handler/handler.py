@@ -20,7 +20,7 @@ FAQ_CONFIG = {
     "brand": {
         "name": "WECARE.DIGITAL",
         "website": "https://wecare.digital",
-        "store": "https://store.wecare.digital",
+        "store": "https://wecare.digital/shop/",
         "email": "one@wecare.digital",
         "phone": "+91 9330994400",
         "whatsapp": "+91 9330994400"
@@ -47,8 +47,8 @@ FAQ_CONFIG = {
             "keywords": ["order", "buy", "purchase", "shop", "product", "cart"],
             "category": "orders",
             "question": "How do I place an order?",
-            "answer": "Visit our store at https://store.wecare.digital to browse products and place orders. You can also order via WhatsApp by sending us a message at +91 9330994400.",
-            "shortAnswer": "Visit store.wecare.digital or WhatsApp us"
+            "answer": "Visit our store at https://wecare.digital/shop/ to browse products and place orders. Verify your WhatsApp number on the website before checkout. Contact us on WhatsApp for help.",
+            "shortAnswer": "Browse wecare.digital/shop/"
         },
         {
             "id": "payment",
@@ -79,7 +79,7 @@ FAQ_CONFIG = {
             "keywords": ["track", "status", "where", "order status", "tracking"],
             "category": "orders",
             "question": "How do I track my order?",
-            "answer": "Log in to your account at https://store.wecare.digital and visit the My Orders page to track your order status in real-time.",
+            "answer": "Verify your WhatsApp number and view your orders at https://wecare.digital/orders/.",
             "shortAnswer": "Check My Orders page"
         },
         {
@@ -103,8 +103,8 @@ FAQ_CONFIG = {
             "keywords": ["account", "login", "register", "signup", "password", "profile"],
             "category": "general",
             "question": "How do I create an account?",
-            "answer": "Visit https://store.wecare.digital and click on the account icon to register. You can also place orders as a guest without creating an account.",
-            "shortAnswer": "Click account icon on store.wecare.digital"
+            "answer": "Verify your WhatsApp number at https://wecare.digital/account/sign-in/ to continue to your cart or orders.",
+            "shortAnswer": "Verify your WhatsApp number at wecare.digital/account/sign-in/"
         },
         {
             "id": "convenience-fee",

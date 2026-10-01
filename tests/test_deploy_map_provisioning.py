@@ -71,7 +71,9 @@ def test_exactly_one_spec_is_awaiting_provisioning(deploy_module):
     # wecare-checkout added 2026-10-01: the headless checkout front door (authoritative Wix total,
     # readiness gate, PaymentAttempt, in-chat handoff; initiation off), also new and awaiting first
     # provision.
-    assert waiting == ["wecare-customer-whatsapp-auth", "wecare-email-verification",
+    # Session infrastructure is owned by its CloudFormation template; an account
+    # without that stack must provision it rather than report a code-update failure.
+    assert waiting == ["wecare-customer-session", "wecare-customer-whatsapp-auth", "wecare-email-verification",
                        "wecare-customer-registration", "wecare-checkout"]
 
 

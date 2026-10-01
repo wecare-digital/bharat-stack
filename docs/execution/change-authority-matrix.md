@@ -553,3 +553,16 @@ checks to make a test pass.
 A0_READ/A1_LOCAL/A3_PRODUCTION: unused subdomain home routing and direct access retirement explicitly requested. CloudFormation wecare-home-fallback CREATE_COMPLETE; CloudFront E1ZZ786I3YH65O Deployed; DNS C1002370145M1YU1Y7I7Y INSYNC. All 28 non-Wix DNS records preserved. Home/access routing evidence and rollback: docs/execution/home-fallback-20261001.md. A2_REMOTE_CODE: isolated exact-path commit and non-force push to stack; merge existing committed public-link work with the remote checkout commits, keeping remote requirements-dev.txt unchanged. Uncommitted shared checkout edits excluded.
 
 A3_PRODUCTION/A4_DESTRUCTIVE, explicit latest owner instruction: reuse existing certificate, remove the task-created certificate only. Stack update detached/deleted 4953c75b-9cdb-406e-a01d-766bf1dc61bd; ACM NotFound verified. Existing f75d0db0-d476-443a-b787-96c4931862d2 remains ISSUED and serves Amplify, MTA-STS and home fallback. Restored original www.xout CNAME, removed only new validation record. Evidence: home-fallback-existing-certificate-final-20261001.json.
+# 2026-10-01 - Checkout completion review
+
+- A0_READ: latest origin/stack, checkout/session Lambda metadata, customer Cognito client,
+  rendered public pages, route/host matrix, Wix catalogue variants and manual tax mappings.
+  No credential values or customer order data were returned.
+- A1_LOCAL: remembered-session adapter/frontend, cart preservation, live catalogue-reference
+  validation, explicit merchandise variants, stale source links, customer release gate.
+  Evidence and limits: `checkout-completion-review-20261001.md`.
+- A3_PRODUCTION: additive `wecare-customer-sessions` CloudFormation stack and customer-session
+  API route. CREATE_COMPLETE, live version 1, unauthenticated refresh rejected with 401/no-store.
+  KMS/table retained on deletion; rollback route first, then individual Lambda alias/version.
+- A2_REMOTE_CODE: publish exact reviewed paths to stack after green tests/build; non-force only.
+  No payment activation, provider message, capture/refund, or new TLS certificate authorized here.

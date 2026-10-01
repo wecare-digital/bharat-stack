@@ -207,27 +207,15 @@ def matrix() -> list[dict]:
                      "unknown single-segment API path -> /contact/ (another workstream owns it)",
                      terminal_url=f"{SITE}/contact/"))
 
-    # ── subdomains: documented gaps, asserted so they cannot change silently ────────
-    # 0 means no TCP connection at all: the name has no address in Route 53 and CloudFront
-    # refuses the TLS handshake for an unregistered host (alert 40). Closing this needs an
-    # Amplify update-domain-association AND a Route 53 wildcard - outside this task's
-    # authority, recorded as an owner-decision item in the matrix document.
-    rows.append(_row("subdomain", "https://shop.wecare.digital/", 0,
-                     "no address; documented coverage gap, NOT fixed here"))
-    # xout is a WIX-managed second-label host. INFORMATIONAL, and the reason is worth stating
-    # because downgrading a row is otherwise how a harness rots:
-    #   measured 2026-10-01 earlier in the day : 404, served by Wix
-    #   measured 2026-10-01 later the same day : 302 -> https://wecare.digital/, terminal 200
-    # Nothing of ours changed between those two readings - no DNS, ACM or CloudFront change was
-    # made by this task, and none is permitted by it. The config belongs to Wix, so a change
-    # there is news, not a defect of ours, and asserting it as a hard gate makes OUR run red
-    # whenever a third party edits THEIR host. The new answer is also the benign direction: it
-    # lands on the canonical apex rather than serving our content under a host the
-    # *.wecare.digital certificate cannot cover (that wildcard matches one label only, §4).
-    # Kept in the matrix rather than deleted so the value is still measured and reported.
-    rows.append(_row("subdomain", "https://xout.wecare.digital/", 404,
-                     "legacy Wix host, second-label, out of scope - Wix-owned, so recorded "
-                     "not enforced", informational=True))
+    # First-level unused hosts are owned by our wildcard fallback distribution.
+    # A failed DNS or TLS connection is a release failure, never a successful fallback.
+    for host in ('shop', 'store', 'xout', 'release-check-unknown'):
+        rows.append(_row('subdomain', f'https://{host}.wecare.digital/old/path?old=1',
+                         200, 'unused host must discard path/query and reach canonical home',
+                         terminal_url=f'{SITE}/'))
+    # This nested hostname retains its existing Wix TLS redirect before our xout fallback.
+    rows.append(_row('subdomain', 'https://www.xout.wecare.digital/old/path?old=1',
+                     200, 'existing certificate chain reaches home', terminal_url=f'{SITE}/'))
     # mta-sts is the MTA-STS policy endpoint under mode: enforce. Probed at / ONLY, read-only,
     # to confirm nothing about it moved. Its policy path is not touched by this or any probe.
     rows.append(_row("subdomain", "https://mta-sts.wecare.digital/", 403,

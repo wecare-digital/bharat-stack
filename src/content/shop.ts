@@ -24,7 +24,10 @@
  */
 import catalog from './wix-catalog.json';
 
+export interface ShopVariant { id: string; label: string; inStock: boolean; }
+
 export interface ShopProduct {
+  variants?: ShopVariant[];
   id: string;
   name: string;
   slug: string;
@@ -53,6 +56,7 @@ export interface ShopProduct {
 }
 
 interface RawProduct {
+  variants?: ShopVariant[];
   id?: string;
   name?: string;
   slug?: string;
@@ -136,6 +140,7 @@ export const SHOP_PRODUCTS: ShopProduct[] = ( ( catalog as { products?: RawProdu
   .map( raw => {
     const paragraphs = toParagraphs( String( raw.descriptionHtml || '' ) );
     return {
+      ...( raw.variants ? { variants: raw.variants } : {} ),
       id: String( raw.id || '' ),
       name: String( raw.name || '' ),
       slug: String( raw.slug || '' ),

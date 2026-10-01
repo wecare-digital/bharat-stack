@@ -69,9 +69,9 @@ import Link from 'next/link';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import PageTopBand from '../components/PageTopBand';
-import { getSession } from '../lib/customerAuth';
+import { getSession, restoreSession } from '../lib/customerAuth';
 import {
-  readCart, setQuantity, removeItem, clearCart, toLineItems,
+  readCart, setQuantity, removeItem, toLineItems,
 } from '../lib/cart';
 import type { CartItem } from '../lib/cart';
 
@@ -125,7 +125,12 @@ export default function Cart (): React.ReactElement {
     setNotice( { kind: 'none' } );
 
     // AUTH GATE. No session -> sign-in first, cart preserved in localStorage. No create call.
-    const session = getSession();
+    let session;
+    try { session = getSession() || await restoreSession(); }
+    catch {
+      setNotice( { kind: 'quiet', message: 'Sign-in is temporarily unavailable. Please try again.' } );
+      return;
+    }
     if ( !session )
     {
       window.location.assign( SIGN_IN_PATH );
@@ -172,8 +177,7 @@ export default function Cart (): React.ReactElement {
       // direction: the request has left and only the server knows where it stands.
       if ( status === 'PAYMENT_REQUEST_SENT' && data.paymentAttemptId )
       {
-        // The cart has been turned into a live attempt; it must not be re-submitted.
-        clearCart();
+        // Keep the cart until the server confirms a paid order.
         const a = encodeURIComponent( String( data.paymentAttemptId ) );
         window.location.assign( `/checkout/status/?a=${a}` );
         return;
@@ -230,7 +234,7 @@ export default function Cart (): React.ReactElement {
       // nothing was charged.
       if (
         status === 'UNSUPPORTED_CURRENCY' || status === 'AMOUNT_NOT_SETTLED'
-        || status === 'CATALOGUE_UNAVAILABLE' || !response.ok
+        || status === 'CATALOGUE_UNAVAILABLE'
       )
       {
         setNotice( { kind: 'error', message: NOT_PREPARED } );
@@ -241,14 +245,14 @@ export default function Cart (): React.ReactElement {
       // because this branch is reached only when the response carried NO attempt handed off above -
       // i.e. the server did not report a live attempt, so there is nothing in flight to be wrong
       // about.
-      setNotice( { kind: 'error', message: NOT_PREPARED } );
+      setNotice( { kind: 'error', message: 'We could not confirm checkout. Check your orders before trying again.' } );
     }
     catch
     {
-      // The request never reached the store, so there is nothing for it to have charged.
+      // A lost response cannot prove that the request never reached the server.
       setNotice( {
         kind: 'error',
-        message: 'We could not reach the store. No charge was made - please try again.',
+        message: 'We could not confirm checkout. Check your orders before trying again.',
       } );
     }
     finally

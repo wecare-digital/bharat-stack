@@ -148,13 +148,60 @@ def create_checkout(line_items: List[Dict[str, Any]], *,
         raise WixEcomError("a checkout needs at least one line item")
     body = {
         "checkoutInfo": {"channelType": channel_type},
-        "lineItems": line_items,
+        "lineItems": normalized_catalog_items(line_items),
     }
     result = _request("/ecom/v1/checkouts", method="POST", body=body)
     checkout = result.get("checkout")
     if not isinstance(checkout, dict) or not checkout.get("id"):
         raise WixEcomError("Wix did not return a checkout id")
     return checkout
+
+
+def normalized_catalog_items(line_items):
+    """Resolve live V3 variants before pricing. Never silently select apparel options.
+
+Get Product: https://dev.wix.com/docs/api-reference/business-solutions/stores/catalog-v3/products-v3/get-product
+Stores' catalogue reference contract is shared with our existing Cart V2 adapter.
+"""
+    from lambda_utils.ecommerce.cart_v2 import STORES_APP_ID, identifier
+    if not isinstance(line_items, list) or not 1 <= len(line_items) <= 100:
+        raise WixEcomError('1 to 100 catalogue items required')
+    resolved = []
+    products = {}
+    for line in line_items:
+        if not isinstance(line, dict) or set(line) != {'catalogReference', 'quantity'}:
+            raise WixEcomError('catalogue references and quantities required')
+        ref = line['catalogReference']
+        quantity = line['quantity']
+        if (not isinstance(ref, dict) or ref.get('appId') != STORES_APP_ID
+                or set(ref) - {'appId', 'catalogItemId', 'options'}
+                or type(quantity) is not int or not 1 <= quantity <= 100000):
+            raise WixEcomError('invalid catalogue reference')
+        try:
+            product_id = identifier(ref.get('catalogItemId'))
+        except (ValueError, TypeError):
+            raise WixEcomError('invalid product identifier') from None
+        if product_id not in products:
+            products[product_id] = _request(f'/stores/v3/products/{product_id}', method='GET').get('product') or {}
+        product = products[product_id]
+        if product.get('id') != product_id or product.get('visible') is False:
+            raise WixEcomError('product unavailable')
+        variants = [v for v in (product.get('variantsInfo') or {}).get('variants', [])
+                    if v.get('visible') and (v.get('inventoryStatus') or {}).get('inStock')]
+        options = ref.get('options') or {}
+        if not isinstance(options, dict) or set(options) - {'variantId'}:
+            raise WixEcomError('invalid variant options')
+        variant_id = options.get('variantId')
+        # Only a genuinely single-variant product can resume a cart predating variant capture.
+        all_variants = (product.get('variantsInfo') or {}).get('variants', [])
+        if not variant_id and len(all_variants) == 1 and len(variants) == 1:
+            variant_id = variants[0].get('id')
+        if not variant_id or not any(v.get('id') == variant_id for v in variants):
+            raise WixEcomError('choose an available product option')
+        resolved.append({'catalogReference': {'appId': STORES_APP_ID,
+                        'catalogItemId': product_id, 'options': {'variantId': variant_id}},
+                         'quantity': quantity})
+    return resolved
 
 
 def get_checkout(checkout_id: str) -> Dict[str, Any]:

@@ -144,8 +144,8 @@ describe( 'toLineItems emits references and quantities ONLY', () => {
     cart.addItem( OTHER, 1 );
     const lineItems = cart.toLineItems();
     expect( lineItems ).toEqual( [
-      { catalogReference: 'wix-abc-123', quantity: 2 },
-      { catalogReference: 'wix-def-456', quantity: 1 },
+      { catalogReference: { appId: '215238eb-22a5-4c36-9e7b-e7c08025e04e', catalogItemId: 'wix-abc-123' }, quantity: 2 },
+      { catalogReference: { appId: '215238eb-22a5-4c36-9e7b-e7c08025e04e', catalogItemId: 'wix-def-456' }, quantity: 1 },
     ] );
     for ( const item of lineItems )
     {
@@ -207,7 +207,7 @@ describe( 'the cart page proceed flow', () => {
     expect( ( init.headers as Record<string, string> ).Authorization ).toBe( 'Bearer tok-123' );
     const body = JSON.parse( init.body as string );
     expect( body.action ).toBe( 'create' );
-    expect( body.lineItems ).toEqual( [ { catalogReference: 'wix-abc-123', quantity: 2 } ] );
+    expect( body.lineItems ).toEqual( [ { catalogReference: { appId: '215238eb-22a5-4c36-9e7b-e7c08025e04e', catalogItemId: 'wix-abc-123' }, quantity: 2 } ] );
     // No financial figure on the wire.
     expect( init.body as string ).not.toMatch( /price|amount|currency|formattedPrice/i );
   } );
@@ -268,6 +268,24 @@ describe( 'the cart page proceed flow', () => {
     render( <Cart /> );
     fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
     await waitFor( () => expect( navigatedTo ).toBe( '/checkout/status/?a=att-5' ) );
+    expect( cart.readCart() ).toHaveLength( 1 );
+  } );
+
+  it.each( [ 'network', 'server' ] )( 'preserves the cart and makes no charge claim after a %s failure', async failure => {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
+      accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
+    } );
+    const fetchMock = failure === 'network'
+      ? vi.fn().mockRejectedValue( new TypeError( 'response lost' ) )
+      : vi.fn().mockResolvedValue( { ok: false, status: 500, json: async () => ( {} ) } );
+    vi.stubGlobal( 'fetch', fetchMock );
+    cart.addItem( PRODUCT, 1 );
+    const { container } = render( <Cart /> );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+    expect( await screen.findByText( 'We could not confirm checkout. Check your orders before trying again.' ) ).toBeTruthy();
+    expect( container.textContent ).not.toMatch( /No charge was made/i );
+    expect( cart.readCart() ).toHaveLength( 1 );
+    expect( navigatedTo ).toBe( '' );
   } );
 
   it( 'shows "no charge was made" on a 409 readiness block, staying on the page', async () => {
@@ -398,6 +416,7 @@ describe( 'the initiation-failure sentence is pinned to its evidence', () => {
     fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
 
     await waitFor( () => expect( navigatedTo ).toBe( '/checkout/status/?a=att-5' ) );
+    expect( cart.readCart() ).toHaveLength( 1 );
     // ONCE A REQUEST HAS LEFT, the browser cannot rule out a capture, so neither the sentence nor
     // any part of its claim may be rendered on the way out.
     expect( container.textContent || '' ).not.toContain( SENTENCE );
