@@ -1107,7 +1107,7 @@ authority gaps, and all four are now closed without any live rule change.
 
 | Finding | Was | Now |
 |---|---|---|
-| `src/pages/account/sign-in.tsx` edited on an authority attested only inside the change | clearance appeared in the commit message, `safeReturnPath.ts`'s header and §7.1/§9.4 — all inside the change | recorded **outside** the change in `docs/execution/change-authority-matrix.md`, with the class, the target, the owner handoff item it rests on, the measured evidence that the owning workstream aborted, an honest "not pre-cleared in writing" ratification line, and the rollback |
+| `src/pages/account/sign-in.tsx` edited on an authority attested only inside the change | clearance appeared in the commit message, `safeReturnPath.ts`'s header and §7.1/§9.4 — all inside the change | recorded **outside** the change in `docs/execution/change-authority-matrix.md`, with the class, the target, the owner handoff item it rests on, the collision evidence, an honest "not pre-cleared in writing" ratification line, and the rollback. **The collision argument was then overtaken by a better one on the same day — see §9.6:** the owning workstream resumed and *kept* the wiring |
 | Three surface categories the brief names had no row | OAuth callbacks, signed receipt links and verified-email callbacks were absent; protected operational endpoints had exactly one row | **§1.1–§1.3** and rows **86–92**, all added to the probe harness so they are re-measured every run, not a dated `curl` |
 | The redirect home retains the query string | the plan's design note D1 claimed path, query and fragment were all dropped; never probed | **§1.4** and rows **93–95**, pinned on the exact terminal URL; D1 corrected in place and dated, with the old reading kept |
 | `src/pages/404.tsx` carried a stale subdomain paragraph | said sending wrong subdomains home "cannot be done from this repository" | corrected in place and dated: the IaC is in this repository, the wildcard plus `E1ZZ786I3YH65O` is live, and the residual limit is the one-label certificate, measured `ssl_verify_result=1` |
@@ -1166,3 +1166,50 @@ credential appears in any command or in this record. `_routes.json`, the `/<*>` 
 `404-200` catch-all, `amplify/**`, `src/pages/account/**`, `src/lib/customerAuth.ts`,
 `src/lib/dialCodes.ts`, `src/components/HeaderCart.tsx` and `src/components/PhoneField.tsx` are
 all untouched by this pass.
+
+## 9.6 What the push attempt found — two cross-session seams, 2026-10-01
+
+The convergence commit was rejected non-fast-forward: `origin/stack` had advanced **four**
+commits (`722fa300`, `b01ecc32`, `da8d7d12`, `5be80392`) while this pass ran. Both of the
+following were discovered by reading `origin/stack` with `git show`, which needs no fetch — the
+remote-tracking ref was already local. **Neither is a behaviour defect on the live site; every
+probe above was measured against production and is unaffected.**
+
+### 1. The `src/pages/account/sign-in.tsx` crossing was ratified by its own owner
+
+The §9.5 entry rested on the `customer-session-20261001` workstream having stopped before
+implementation. It resumed. Its commits touch `sign-in.tsx`, `src/lib/customerAuth.ts` and
+`amplify/functions/ecommerce/customer-session/handler.py` — and they **kept the wiring**:
+`origin/stack`'s `sign-in.tsx` still imports `safeLocalReturnPath` (line 71) and still returns
+`safeLocalReturnPath( raw )` from `returnPathFromUrl()` (line 187), with `restoreSession()` and a
+`persistent` flag added **around** it. The owner of the path adopted the change rather than
+reverting it, which is stronger ratification than the absent-owner argument. Corrected in place
+and dated in `docs/execution/change-authority-matrix.md`; the original reading is kept there
+because it is the reasoning that was actually used at the time.
+
+### 2. `scripts/probe_url_host_matrix.py`'s subdomain block was rewritten concurrently — FLAGGED, not reconciled
+
+`origin/stack` replaces the subdomain rows with a loop over four hosts probing
+`/old/path?old=1`, and reports a 90-row matrix. This pass's tree reports 98. The two edits sit in
+**different hunks** of `matrix()` — the rows added here are in the `host`, `api` and
+`legacy-workspace` groups — so they are complementary rather than contradictory, and a merge
+should combine to roughly 100 rows. Two properties of the concurrent edit are worth an owner's
+eyes rather than a silent overwrite:
+
+- **`xout.wecare.digital` is promoted from `informational=True` to a hard gate.** It was
+  informational deliberately, and the reason is recorded in `_row`'s own docstring: `www.xout`
+  still terminates through a Wix TLS endpoint (`pointing.wixdns.net`) that we do not control, so
+  asserting it as a hard row makes **our** run red whenever a third party edits **their** host.
+  `origin/stack` additionally adds `www.xout.wecare.digital` as a hard row. That is a
+  deliberate-looking choice by a release-gating workstream, so it is reported, not reverted.
+- **Roughly 50 lines of dated rationale were deleted** rather than corrected in place, including
+  the record of why the `shop` row moved from status 0 to 302 and why the `xout` downgrade stands.
+  This repo's convention is to correct a rationale in place with a date and never delete it.
+
+**Why this was not merged here.** `amplify/functions/shared/lambda_utils/customer_session.py` is
+**modified in the shared working tree by a live session** and is also changed on `origin/stack`,
+so a merge would have to update a file another session is holding uncommitted. `git merge` refuses
+that, and the alternatives — stash, reset, force — are all prohibited. So the convergence commit
+stays local on `stack` and the integration belongs to whichever session owns the tree when it is
+clean. Recorded rather than forced: the loser of a concurrent-push race leaving its work committed
+and reporting is the documented behaviour, not a failure.

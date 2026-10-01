@@ -575,12 +575,26 @@ that, and states the authority exactly as it stands rather than stronger.
   is that surface. The `DO NOT TOUCH` marker on `src/pages/account/**` came from the
   url-host-cleanup task plan, not from the owner, and its stated basis was **ownership collision**
   with a concurrent workstream rather than a prohibition on the file.
-- **Why the collision basis lapsed, measured not assumed.** The owning `customer-session-20261001`
-  workstream aborted before implementation: its task directory holds `baseline.md`, `design.md`,
-  `design-review.md` and `design-review.json` and **no** `task.json`, no `features/` directory and
-  no implementation commit. `src/pages/account/sign-in.tsx` was clean in `git status` at the time
-  of the edit and is clean now, so there was no live owner to collide with and no uncommitted work
-  to overwrite.
+- **Why the collision basis lapsed, measured not assumed.** At the time of the edit the owning
+  `customer-session-20261001` workstream had stopped before implementation: its task directory
+  held `baseline.md`, `design.md`, `design-review.md` and `design-review.json` and **no**
+  `task.json`, no `features/` directory and no implementation commit, and
+  `src/pages/account/sign-in.tsx` was clean in `git status` - so there was no live owner to collide
+  with and no uncommitted work to overwrite.
+- **CORRECTED IN PLACE 2026-10-01, same day, and the correction strengthens the item rather than
+  weakening it.** The sentence above originally said that workstream "aborted before
+  implementation". That was true when measured and is now **false**: `origin/stack` has since
+  advanced four commits (`722fa300`, `b01ecc32`, `da8d7d12`, `5be80392`) that implement customer
+  session persistence, and they touch `src/pages/account/sign-in.tsx`, `src/lib/customerAuth.ts`
+  and `amplify/functions/ecommerce/customer-session/handler.py`. The workstream resumed; it did not
+  abort. What matters is what it did with the wiring: it **kept it**. `origin/stack`'s
+  `sign-in.tsx` still imports `safeLocalReturnPath` at line 71 and still returns
+  `safeLocalReturnPath( raw )` from `returnPathFromUrl()` at line 187, and the owning workstream
+  added `restoreSession()` and a `persistent` flag **around** it rather than reverting it. So the
+  boundary crossing was ratified in practice by the very owner it was crossing, which is better
+  evidence than the absent-owner argument it replaces. The absent-owner reading is kept above
+  because it is why the edit was taken at the time, and deleting it would hide the reasoning that
+  was actually used.
 - **Ratification status, honestly:** this was **not** pre-cleared in writing before the edit
   landed. It is recorded here for owner ratification. The alternative was not neutral, which is
   why the edit was taken rather than deferred - see the next bullet.
