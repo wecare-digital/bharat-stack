@@ -572,3 +572,8 @@ A3_PRODUCTION/A4_DESTRUCTIVE, explicit latest owner instruction: reuse existing 
   checkout:2, then individually moved live aliases with revision guards. Before/after
   snapshots in checkout-completion-*-20261001.json; rollback to recorded old alias
   versions. No environment flags or provider payment settings changed.
+
+- 2026-10-01 A1_LOCAL/A2_REMOTE_CODE/A3_PRODUCTION: add the customer export gate
+  after npm run build in GitHub CI and Amplify. The pre-change build specification
+  remains recoverable in commit da8d7d12; rollback by normal revert. Export gate
+  passed on the exact rendered build; live matrix 90/90 expected states.

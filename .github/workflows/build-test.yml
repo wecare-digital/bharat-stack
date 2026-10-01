@@ -132,6 +132,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Check customer pages and public navigation
+        run: python3 scripts/checkout_release_check.py --export-dir out
+
       # THE BUILD MUST NOT HAVE CHANGED IT EITHER. The gate above proves the committed
       # catalogue was current before the build; this proves the build agreed, which is the
       # only way to catch a generator whose output depends on something `next build` produces.

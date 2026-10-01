@@ -50,7 +50,10 @@ certificate as part of rollback.
 1. Connect the website quote -> Standard Checkout -> signed callback -> captured
    readback -> one order -> owned downloadable receipt handlers and UI. A valid
    signature alone must not imply payment. Duplicate/delayed confirmations must
-   converge on one order and one receipt.
+   converge on one order and one receipt. `/orders/` is currently a contact
+   signpost, not an authenticated purchase history; `/checkout/success/` renders
+   confirmation copy without fetching a paid order. Both need server-owned data
+   before the acceptance journey can pass.
 2. Confirm accountant-approved HSN/SAC and inclusive/exclusive catalogue pricing.
    Wix manual tax mappings returned an empty list. The catalogue includes apparel
    at INR 1,199, so applying 18% blindly to every product would be unsafe. The
@@ -79,3 +82,9 @@ ai-generate-response 33 -> 34; checkout 1 -> 2. Exact checksums and aliases are
 in snapshots/checkout-completion-after-20261001.json. The checkout initiation
 flag was not enabled. Existing customer/staff Cognito configuration, provider
 credentials, payment configuration and certificates were preserved.
+
+The focused customer export gate is now a required post-build step in both
+GitHub build-test and Amplify production publication. Live HTTP matrix: 90
+rows, zero mismatches; live customer chrome/navigation: 28 pages, zero failures.
+These counts include the documented uncovered nested-host TLS state; they do
+not claim that an existing one-label wildcard covers arbitrary nested names.

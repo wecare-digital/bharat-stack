@@ -44,6 +44,7 @@ frontend:
     build:
       commands:
         - npm run build
+        - python3 scripts/checkout_release_check.py --export-dir out
         # THE REAL CREDENTIAL GATE, and it has to be here rather than only in CI.
         # output:'export' inlines every NEXT_PUBLIC_* value into a JS chunk that is
         # then served to every visitor. GitHub Actions does not have the branch
