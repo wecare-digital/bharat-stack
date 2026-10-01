@@ -121,10 +121,33 @@ describe( 'zero, one and many', () => {
   it( 'caps the drawn badge at 99+ while the spoken name stays exact', async () => {
     cart.addItem( PRODUCT, 250 );
     const { container } = render( <HeaderCart /> );
-    // The glyph is 30px wide; three or more digits inside it stop being a number. The accessible
+    // The glyph is 36px wide and its hollow body narrower still; three or more digits inside it
+    // stop being a number. The accessible
     // name is not width-constrained, so it keeps the real figure rather than inheriting the cap.
     await waitFor( () => expect( digits( container ) ).toBe( '99+' ) );
     expect( bag() ).toHaveAccessibleName( /250 items/ );
+
+    /*
+     * AND THE CAPPED BADGE GETS THE NARROW RUNG. Measured on the built page: at the badge's normal
+     * 12px, "99+" renders 22.56px wide against a hollow bag body only 19.5px across, so it crosses
+     * the outline. data-wide drops that case to 10px with tighter tracking - 18.2px, inside the
+     * body - and leaves one and two digits at the full 12px.
+     *
+     * An ATTRIBUTE rather than a second class name, because styled-jsx scopes a static className
+     * string and a ternary there risks losing the scope class silently.
+     */
+    expect( container.querySelector( '.hdr-cart-n' ) ).toHaveAttribute( 'data-wide', 'true' );
+    const css = container.querySelector( 'style' )?.textContent || '';
+    expect( css ).toMatch( /\.hdr-cart-n\[data-wide\]\{[^}]*font-size:10px/ );
+  } );
+
+  it( 'leaves one and two digits at the full size', async () => {
+    cart.addItem( PRODUCT, 12 );
+    const { container } = render( <HeaderCart /> );
+    await waitFor( () => expect( digits( container ) ).toBe( '12' ) );
+    // The narrow rung is for the three-character cap only. Two digits measure 15.05px in a 19.5px
+    // body, so they have no reason to shrink.
+    expect( container.querySelector( '.hdr-cart-n' ) ).not.toHaveAttribute( 'data-wide' );
   } );
 } );
 
@@ -214,6 +237,75 @@ describe( 'the control itself', () => {
     expect( rest ).toContain( 'background:none' );
     expect( rest ).not.toContain( '#cfe0a6' );
     expect( css ).toContain( '.hdr-cart:focus-visible' );
+  } );
+
+  it( 'recolours the glyph on hover and paints no disc behind it', () => {
+    /*
+     * OWNER INSTRUCTION: "in hover effect dont show back grund rounc cicilr card ticon may cnage
+     * color". So the tinted round disc that used to appear on hover is gone and the bag itself
+     * changes colour instead.
+     *
+     * Asserted on the HOVER RULE'S BODY rather than on the whole stylesheet, because the comment
+     * above that rule necessarily explains which background was removed and why - a bare
+     * `not.toContain('background')` would fail on the explanation instead of on a real declaration.
+     *
+     * THE COLOUR IS NOT A TASTE CALL, IT IS THE ONLY ONE THAT MEASURES. #3da35a is the home page's
+     * green accent and sits 3.19:1 against this white header (clearing the 3:1 WCAG 1.4.11 floor
+     * for a non-text control) and 3.91:1 against the #1a3a2a rest colour, so the state change is
+     * perceptible. #d1f470 is 1.24:1 on white - invisible, and reserved for the one actionable
+     * surface a page gets. #1a1a1a is 17.4:1 on white but only 1.39:1 from the rest colour, i.e. a
+     * hover a sighted user cannot see. If someone swaps the value, this assertion is the record of
+     * what has to be re-measured.
+     */
+    const { container } = render( <HeaderCart /> );
+    const css = container.querySelector( 'style' )?.textContent || '';
+    const hover = /\.hdr-cart:hover\{([^}]*)\}/.exec( css )?.[ 1 ] || '';
+    expect( hover ).toContain( 'color:#3da35a' );
+    // No disc, by any route: no background shorthand, no background-color, no border, no shadow.
+    expect( hover ).not.toMatch( /background/ );
+    expect( hover ).not.toMatch( /border/ );
+    expect( hover ).not.toMatch( /box-shadow/ );
+
+    const rest = /\.hdr-cart\{([^}]*)\}/.exec( css )?.[ 1 ] || '';
+    // The transition follows the property that actually animates now. A leftover
+    // `transition:background-color` would animate nothing and the recolour would snap.
+    expect( rest ).toContain( 'transition:color' );
+    expect( rest ).not.toContain( 'transition:background-color' );
+    // border-radius STAYS even with no fill: it is what shapes the focus ring into a circle.
+    expect( rest ).toContain( 'border-radius:50%' );
+    // The focus ring is untouched by a hover change - re-asserted here because this is the test
+    // most likely to be edited by whoever next changes the hover treatment.
+    expect( css ).toContain( '.hdr-cart:focus-visible' );
+  } );
+
+  it( 'draws a 36px glyph inside an unchanged 44px target', () => {
+    /*
+     * OWNER INSTRUCTION: "cart icon if possible increase the size". 30px -> 36px, which is the
+     * largest even step that still leaves a 4px inset on each side of the 44px box.
+     *
+     * THE 44px DOES NOT MOVE, and that is the point of asserting both numbers in one test: 44px is
+     * the WCAG 2.5.8 target floor AND what holds .hdr-in's row at the pinned 108px / 96px header
+     * height. Growing the target to fit a bigger glyph would silently change the header geometry
+     * that Header.test.tsx and devicecheck.js both pin.
+     *
+     * jsdom computes no styles, so this reads the declarations. The rendered geometry is
+     * devicecheck.js's job across fifteen postures.
+     */
+    const { container } = render( <HeaderCart /> );
+    const css = container.querySelector( 'style' )?.textContent || '';
+    const glyph = /\.hdr-cart-glyph\{([^}]*)\}/.exec( css )?.[ 1 ] || '';
+    expect( glyph ).toContain( 'inline-size:36px' );
+    expect( glyph ).toContain( 'block-size:36px' );
+    const svg = /\.hdr-cart-glyph svg\{([^}]*)\}/.exec( css )?.[ 1 ] || '';
+    expect( svg ).toContain( 'inline-size:36px' );
+    expect( svg ).toContain( 'block-size:36px' );
+    // The box and the artwork have to agree, or the badge's 60% offset lands off the bag's body.
+    expect( glyph ).not.toContain( '30px' );
+    expect( svg ).not.toContain( '30px' );
+
+    const rest = /\.hdr-cart\{([^}]*)\}/.exec( css )?.[ 1 ] || '';
+    expect( rest ).toContain( 'inline-size:44px' );
+    expect( rest ).toContain( 'min-height:44px' );
   } );
 
   it( 'keeps the glyph decorative so the name is not read twice', () => {
