@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from botocore.exceptions import ClientError
 from lambda_utils.customer_auth import CustomerIdentity
 from tests.test_customer_session import FakeSessionStore
 
@@ -91,3 +92,25 @@ def test_cross_origin_request_does_not_touch_tokens():
     response = endpoint.handler({'headers': {'origin': 'https://unused.wecare.digital'},
                                  'body': '{}'}, None)
     assert response['statusCode'] == 403
+    assert response['headers']['Cache-Control'] == 'no-store'
+
+
+def test_client_lookup_outage_preserves_cookie_and_is_not_cached(app, monkeypatch):
+    _, cognito = app
+    def unavailable(**kwargs):
+        raise RuntimeError('provider unavailable')
+    monkeypatch.setattr(cognito, 'describe_user_pool_client', unavailable)
+    result = call('refresh', cookie='wd_csid=fixture-cookie')
+    assert result['statusCode'] == 503
+    assert result['headers']['Cache-Control'] == 'no-store'
+    assert 'cookies' not in result
+
+
+def test_revoked_refresh_on_exchange_requires_verification(app, monkeypatch):
+    _, cognito = app
+    def revoked(**kwargs):
+        raise ClientError({'Error': {'Code': 'NotAuthorizedException'}}, 'InitiateAuth')
+    monkeypatch.setattr(cognito, 'initiate_auth', revoked)
+    result = call('exchange', refreshToken='qa-revoked')
+    assert result['statusCode'] == 401
+    assert json.loads(result['body'])['error'] == 'VERIFICATION_REQUIRED'

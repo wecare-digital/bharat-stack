@@ -57,6 +57,9 @@ describe( 'the Wix snapshot is read correctly', () => {
     fireEvent.change( screen.getByRole( 'combobox' ), { target: { value: variants[1].id } } );
     fireEvent.click( screen.getByRole( 'button', { name: 'Add Merchandise to cart' } ) );
     expect( readCart() ).toHaveLength( 2 );
+    expect( readCart().map( item => item.name ) ).toEqual( [
+      `Merchandise (${variants[0].label})`, `Merchandise (${variants[1].label})`,
+    ] );
     expect( toLineItems().map( item => item.catalogReference.options?.variantId ) ).toEqual( [ variants[0].id, variants[1].id ] );
     expect( JSON.stringify( toLineItems() ) ).not.toMatch( /price|amount|formattedPrice/ );
     window.localStorage.clear();

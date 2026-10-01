@@ -322,14 +322,9 @@ export default function Cart (): React.ReactElement {
                 ) ) }
               </ul>
 
-              {/* THE HONEST BOUNDARY, and every clause in it is a statement this page can keep.
-                  The prices above are catalogue reference prices; the amount is the server's to
-                  decide; live payment is not being accepted yet, so proceeding prepares the order
-                  and takes nothing. Shortened on owner instruction, with no guarantee dropped. */}
+              {/* Catalogue prices are for display; the server approves the payable total. */}
               <p className="cart-note">
-                Prices here are from the store catalogue. The store confirms the amount when you
-                proceed. Live payment is not on yet, so proceeding prepares your order and charges
-                you nothing.
+                The store confirms your final total, including taxes and fees, before payment.
               </p>
 
               {/* role is chosen by severity, not by colour: 'status' is polite for a state the

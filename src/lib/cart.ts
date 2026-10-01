@@ -152,7 +152,9 @@ export function addItem ( product: ShopProduct, qty = 1, selectedVariantId?: str
       ...( variantId ? { variantId } : {} ),
       ref,
       slug: String( product.slug || '' ),
-      name: String( product.name || '' ),
+      name: product.variants && product.variants.length > 1
+        ? `${product.name} (${product.variants.find( variant => variant.id === variantId )!.label})`
+        : String( product.name || '' ),
       formattedPrice: String( product.formattedPrice || '' ),
       quantity,
     } );

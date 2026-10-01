@@ -174,7 +174,7 @@ describe( 'every page that moved onto the band kept exactly one h1 and one main'
       // No ?a= in the URL, so the honest answer is the holding screen rather than "confirming" -
       // there is no attempt to confirm. The structure is what this test is about either way.
       { name: 'status', element: <CheckoutStatus />, heading: 'Nothing to show here' },
-      { name: 'success', element: <CheckoutSuccess />, heading: 'Payment successful' },
+      { name: 'success', element: <CheckoutSuccess />, heading: 'Order confirmation unavailable' },
       { name: 'product', element: <ShopProductPage product={ KIOSK() } />, heading: 'Kiosk' },
     ];
     for ( const entry of cases )
@@ -393,11 +393,11 @@ describe( 'the money copy survived being shortened', () => {
     // a statement about.
     cartLib.addItem( KIOSK(), 1 );
     const { container } = render( <Cart /> );
-    // Three guarantees, all of which survived the trim: the prices are catalogue prices, the store
-    // decides the amount, and proceeding charges nothing.
-    await waitFor( () => expect( container.textContent || '' ).toContain( 'store catalogue' ) );
-    expect( container.textContent || '' ).toMatch( /confirms the amount/ );
-    expect( container.textContent || '' ).toMatch( /charges you nothing/ );
+    // The server decides the final total before payment. The page must not make
+    // a blanket no-charge claim or display internal release flag commentary.
+    await waitFor( () => expect( container.textContent || '' ).toContain( 'before payment' ) );
+    expect( container.textContent || '' ).toMatch( /confirms your final total/ );
+    expect( container.textContent || '' ).not.toMatch( /Live payment is not on yet|charges you nothing/ );
   } );
 } );
 

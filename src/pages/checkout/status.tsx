@@ -173,7 +173,7 @@ export default function CheckoutStatus (): React.ReactElement {
       {
         // Done. Hand off to the success page, which owns the confirmation copy.
         const n = encodeURIComponent( String( attempt.orderNumber ) );
-        window.location.replace( `/checkout/success/?o=${n}` );
+        window.location.replace( `/checkout/success/?a=${encodeURIComponent( attemptId )}&o=${n}` );
         return true;
       }
       setView( nextView );

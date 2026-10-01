@@ -1,41 +1,7 @@
 /**
- * Checkout success — the order-created confirmation screen.
- *
- * It is reached only after the status screen has seen a PAID attempt WITH an order number, so by
- * the time a customer lands here an order genuinely exists. It shows the essentials and points at
- * WhatsApp for the real thing:
- *
- *   - the 12/15-character public order number (WD-ORD-…)
- *   - Continue shopping / Back to home
- *   - a clear statement that the full receipt and confirmation are in WhatsApp
- *
- * The website deliberately reflects status and essential order info only. The authoritative receipt
- * is delivered over WhatsApp, once, by the reconciliation path — this page never renders a receipt
- * or an amount as if it were the record of the sale. There is no download here because there is no
- * endpoint to download from; a button that 404s would be worse than none. See
- * docs/execution/website-payment-handover.md for what has to exist first.
- *
- * The order number in the URL is not an authority
- * -----------------------------------------------
- * `?o=<orderNumber>` is a display value the status page already resolved for THIS customer's own
- * paid attempt. It is safe to show back because knowing an order number authorises nothing —
- * tracking and receipts are gated by the customer session, never by the number (see
- * customer_auth: "Never authorise on an identifier from the request"). A stranger pasting a guessed
- * number sees only what this static page renders from the string itself: a heading. Nothing is
- * fetched here without a session.
- *
- * No-JS
- * -----
- * The success copy is static markup. If scripting is off the only thing that does not appear is the
- * order number read from the query string, so the page still reads as a coherent confirmation.
- *
- * Chrome and clearance
- * --------------------
- * THE TOP BAND IS SHARED NOW, AND IT HAD TO BE. This page used to centre a card inside
- * min-height:100vh with NO header clearance and no font stack declared, so its heading painted
- * under the 108px fixed header and its typeface was a side effect of an Amplify stylesheet.
- * components/PageTopBand owns the main landmark, the h1, both header heights, the measure and the
- * entrance animation.
+ * Customer-owned order confirmation. A URL is never payment evidence: this page
+ * requires an authenticated status read, PAYMENT_PAID and a server order number.
+ * Missing, pending or unavailable evidence must not display payment success.
  */
 
 import Head from 'next/head';
@@ -43,32 +9,53 @@ import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 
 import PageTopBand from '../../components/PageTopBand';
+import { getSession, restoreSession } from '../../lib/customerAuth';
 
-export function orderNumberFromUrl (): string {
-  if ( typeof window === 'undefined' ) return '';
-  const params = new URLSearchParams( window.location.search );
-  const raw = String( params.get( 'o' ) || '' ).trim();
-  // Display-only sanitisation: the public number is uppercase A-Z/0-9 with dashes. Anything else
-  // is not one of ours, so show nothing rather than reflect arbitrary text back into the page.
-  return /^[A-Z0-9-]{8,20}$/.test( raw ) ? raw : '';
-}
+const STATUS_URL = `${process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api'}/ecommerce/checkout/status`;
 
 export default function CheckoutSuccess (): React.ReactElement {
   const [ orderNumber, setOrderNumber ] = useState<string>( '' );
+  const [ verified, setVerified ] = useState<boolean>( false );
+  const [ checking, setChecking ] = useState<boolean>( true );
 
   useEffect( () => {
-    setOrderNumber( orderNumberFromUrl() );
+    let stopped = false;
+    const attemptId = new URLSearchParams( window.location.search ).get( 'a' );
+    if ( !attemptId ) { setChecking( false ); return undefined; }
+    void ( async () => {
+      try {
+        const session = getSession() || await restoreSession();
+        if ( !session ) return;
+        const response = await fetch( STATUS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.accessToken}` },
+          body: JSON.stringify( { action: 'status', paymentAttemptId: attemptId } ),
+        } );
+        if ( !response.ok ) return;
+        const data = await response.json() as { attempt?: { status?: string; orderNumber?: string } };
+        const number = data.attempt?.orderNumber || '';
+        if ( !stopped && data.attempt?.status === 'PAYMENT_PAID' && /^[A-Z0-9-]{8,20}$/.test( number ) ) {
+          setOrderNumber( number ); setVerified( true );
+        }
+      } catch { /* An unavailable verification is never a successful payment. */ }
+      finally { if ( !stopped ) setChecking( false ); }
+    } )();
+    return () => { stopped = true; };
   }, [] );
+
+  const heading = verified ? 'Payment successful' : checking ? 'Checking your order' : 'Order confirmation unavailable';
 
   return (
     <>
       <Head>
-        <title>Payment successful — WECARE.DIGITAL</title>
+        <title>{heading} — WECARE.DIGITAL</title>
         <meta name="robots" content="noindex,nofollow" />
       </Head>
       <PageTopBand
-        heading="Payment successful"
-        sub="Your order is created. The confirmation and receipt are on WhatsApp."
+        heading={ heading }
+        sub={ verified ? 'Your payment is confirmed and your order is created.' : checking
+          ? 'We are checking your order securely.'
+          : 'We could not confirm this order. If you have paid, do not pay again.' }
         ariaLabel="Payment successful"
       >
         <section className="cs-card">
@@ -76,7 +63,7 @@ export default function CheckoutSuccess (): React.ReactElement {
               inside a filled disc, so its shape and weight varied by platform font - the same
               reason the header's chevron is two borders. A tick is an ORIENTATION rather than a
               side, so it is NOT mirrored under rtl: a flipped tick reads as a cross. */}
-          <div className="cs-mark" aria-hidden="true"><i className="cs-tick" /></div>
+          { verified && <div className="cs-mark" aria-hidden="true"><i className="cs-tick" /></div> }
 
           {orderNumber && (
             <p className="cs-order">

@@ -20,7 +20,10 @@ ORIGIN = 'https://wecare.digital'
 
 def handler(event, context):
     origin = extract_origin(event)
-    response = lambda code, data: cors_response(code, data, origin)
+    def response(code, data):
+        result = cors_response(code, data, origin)
+        result['headers']['Cache-Control'] = 'no-store'
+        return result
     if origin != ORIGIN:
         return response(403, {'error': 'ORIGIN_REQUIRED'})
     store = SessionStore(boto3.resource('dynamodb').Table(os.environ['CUSTOMER_SESSIONS_TABLE']))
@@ -33,25 +36,28 @@ def handler(event, context):
         return base64.b64encode(kms.encrypt(KeyId=key_id, Plaintext=token.encode(),
                               EncryptionContext=encryption_context)['CiphertextBlob']).decode()
 
-    rotation = cognito.describe_user_pool_client(UserPoolId='us-east-1_46ULYuukt',
+    try:
+        rotation = cognito.describe_user_pool_client(UserPoolId='us-east-1_46ULYuukt',
                      ClientId=CLIENT_ID)['UserPoolClient'].get('RefreshTokenRotation', {}).get('Feature') == 'ENABLED'
+    except Exception:
+        return response(503, {'error': 'TEMPORARILY_UNAVAILABLE'})
 
     def provider_refresh(token):
-        if rotation:
-            return cognito.get_tokens_from_refresh_token(ClientId=CLIENT_ID,
-                        RefreshToken=token)['AuthenticationResult']
-        return cognito.initiate_auth(ClientId=CLIENT_ID, AuthFlow='REFRESH_TOKEN_AUTH',
-                        AuthParameters={'REFRESH_TOKEN': token})['AuthenticationResult']
-
-    def refresh(ref, stored_rotation):
-        token = kms.decrypt(KeyId=key_id, CiphertextBlob=base64.b64decode(ref),
-                            EncryptionContext=encryption_context)['Plaintext'].decode()
         try:
-            result = provider_refresh(token)
+            if rotation:
+                return cognito.get_tokens_from_refresh_token(ClientId=CLIENT_ID,
+                        RefreshToken=token)['AuthenticationResult']
+            return cognito.initiate_auth(ClientId=CLIENT_ID, AuthFlow='REFRESH_TOKEN_AUTH',
+                        AuthParameters={'REFRESH_TOKEN': token})['AuthenticationResult']
         except ClientError as error:
             if error.response['Error']['Code'] in ('NotAuthorizedException', 'UserNotFoundException'):
                 raise sessions.RefreshFailed('verification required') from None
             raise sessions.RefreshUnavailable('temporarily unavailable') from None
+
+    def refresh(ref, stored_rotation):
+        token = kms.decrypt(KeyId=key_id, CiphertextBlob=base64.b64decode(ref),
+                            EncryptionContext=encryption_context)['Plaintext'].decode()
+        result = provider_refresh(token)
         return {'accessToken': result['AccessToken'], 'expiresIn': result['ExpiresIn'], 'refreshRef': seal(result['RefreshToken']) if result.get('RefreshToken') else ref}
 
     try:

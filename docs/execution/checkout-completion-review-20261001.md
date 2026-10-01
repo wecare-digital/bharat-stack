@@ -33,7 +33,7 @@ purchase journey. Payment initiation remains disabled.
 ## Deployment and rollback
 
 The new session stack reached CREATE_COMPLETE; the table is ACTIVE with KMS,
-PITR and TTL. The current live alias points to version 2 (initial provision was version 1). An unauthenticated live
+PITR and TTL. The current live alias points to version 3 (initial provision was version 1). An unauthenticated live
 refresh request returned 401 VERIFICATION_REQUIRED with no-store headers and
 cleared the cookie. No OTP was sent, no payment was attempted, and no customer
 order was created. Before-state metadata and exact versions are recorded in
@@ -51,9 +51,11 @@ certificate as part of rollback.
    readback -> one order -> owned downloadable receipt handlers and UI. A valid
    signature alone must not imply payment. Duplicate/delayed confirmations must
    converge on one order and one receipt. `/orders/` is currently a contact
-   signpost, not an authenticated purchase history; `/checkout/success/` renders
-   confirmation copy without fetching a paid order. Both need server-owned data
-   before the acceptance journey can pass.
+   signpost, not an authenticated purchase history. The success page now reads
+   the owned payment attempt and requires PAYMENT_PAID plus a server-returned
+   order number; URL query values cannot prove payment. The paid-order producer,
+   receipt delivery and purchase-history consumer still need connecting before
+   the acceptance journey can pass.
 2. Confirm accountant-approved HSN/SAC and inclusive/exclusive catalogue pricing.
    Wix manual tax mappings returned an empty list. The catalogue includes apparel
    at INR 1,199, so applying 18% blindly to every product would be unsafe. The
@@ -88,3 +90,28 @@ GitHub build-test and Amplify production publication. Live HTTP matrix: 90
 rows, zero mismatches; live customer chrome/navigation: 28 pages, zero failures.
 These counts include the documented uncovered nested-host TLS state; they do
 not claim that an existing one-label wildcard covers arbitrary nested names.
+
+Session follow-up: CloudFormation update completed, owns the current code key
+and published live version 3. Client-description outages return 503/no-store
+without clearing a valid session; a revoked exchange token returns 401. Lambda
+versions retain their rollback artifacts during CloudFormation replacement.
+Focused follow-up checks: 108 backend session/security tests, 86 customer UI
+tests and typecheck passed; production build and 28-page export gate passed.
+
+Browser acceptance completed through the sign-in boundary: select merchandise
+fit/size, add one, observe Shopping Bag count 1, open cart and proceed to the
+required-country-selector WhatsApp sign-in form without sending a code.
+The cart now names the selected option and omits internal release commentary.
+No payment journey beyond that boundary is claimed.
+
+Final merged-tree checks: 5,811 Python tests passed (one skipped), 697 frontend
+tests passed in 50 files, typecheck and production build passed. The customer
+export gate passed all 28 pages. New confirmation tests reject URL-only order
+numbers, pending payments, absent order numbers and unauthorized attempts; only
+a paid owned attempt may show success. The status handoff carries the attempt
+id so the success page can perform that ownership check.
+
+At desktop 1440px and mobile 390px, all six customer routes have no horizontal
+overflow, headings below their fixed header and a footer/Shopping Bag. The
+existing default widget remains present. This measures layout; it does not
+replace the blocked OTP/payment acceptance run.

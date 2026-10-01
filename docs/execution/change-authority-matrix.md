@@ -577,3 +577,15 @@ A3_PRODUCTION/A4_DESTRUCTIVE, explicit latest owner instruction: reuse existing 
   after npm run build in GitHub CI and Amplify. The pre-change build specification
   remains recoverable in commit da8d7d12; rollback by normal revert. Export gate
   passed on the exact rendered build; live matrix 90/90 expected states.
+
+- 2026-10-01 A1_LOCAL/A3_PRODUCTION: session provider-outage/revocation response
+  correction, CloudFormation UPDATE_COMPLETE -> live version 3, retain old
+  versions for rollback. A1_LOCAL/A2_REMOTE_CODE: display selected cart variant
+  and replace internal release prose with concise final-total copy. Focused
+  tests and production export passed; no OTP/payment side effects.
+
+- 2026-10-01 A1_LOCAL/A2_REMOTE_CODE: require a customer-authenticated owned
+  PAYMENT_PAID attempt and server order number before showing payment success;
+  query-only confirmation is refused. No new payment or download route invented.
+  Full final tests: Python 5811 passed/1 skipped, frontend 697 passed; production
+  build, typecheck and 28-page export gate green. Rollback via normal revert.
