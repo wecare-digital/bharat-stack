@@ -4,7 +4,7 @@ FAQ Sync Script — Single Source of Truth
 
 Reads shared/faq-config.json and generates:
   1. amplify/functions/shared/static_knowledge_base.py (Python backend)
-  2. src/utils/faqSearch.ts (TypeScript frontend)
+  2. src/utils/faqSearch.ts only with --typescript (the frontend consumer is retired)
 
 Usage: python scripts/sync_faq.py
 """
@@ -12,6 +12,8 @@ Usage: python scripts/sync_faq.py
 import json
 import os
 import sys
+import argparse
+import pprint
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH = os.path.join(ROOT, 'shared', 'faq-config.json')
@@ -21,10 +23,11 @@ TS_OUTPUT = os.path.join(ROOT, 'src', 'utils', 'faqSearch.ts')
 
 def load_config():
     with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-        return json.load(f)
+        config = json.load(f)
+        return config.get('commerce', config)
 
 
-def generate_python(config):
+def generate_python(config, *, check=False):
     brand = config['brand']
     faqs = config['faqs']
     categories = config.get('categories', {})
@@ -39,6 +42,8 @@ def generate_python(config):
         '"""',
         '',
         f'BRAND_INFO = {json.dumps(brand, indent=4)}',
+        '',
+        f'FAQ_CONFIG = {pprint.pformat(config, width=100, sort_dicts=False)}',
         '',
         'FAQ_DATABASE = [',
     ]
@@ -180,8 +185,14 @@ def get_service_info(service_name: str = None) -> dict:
     return SERVICES_INFO
 """)
 
+    output = '\n'.join(lines)
+    if check:
+        with open(PY_OUTPUT, encoding='utf-8') as f:
+            if f.read() != output:
+                raise SystemExit('FAQ backend is stale: run python scripts/sync_faq.py')
+        return
     with open(PY_OUTPUT, 'w', encoding='utf-8', newline='\n') as f:
-        f.write('\n'.join(lines))
+        f.write(output)
     print(f'  ✓ Generated {PY_OUTPUT}')
 
 
@@ -411,11 +422,17 @@ export function getCategoryName(category: string): string {{
 
 
 def main():
-    print('FAQ Sync: shared/faq-config.json → Python + TypeScript')
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--check', action='store_true', help='verify the backend without writing')
+    parser.add_argument('--typescript', action='store_true', help='explicitly regenerate the retired frontend search utility')
+    args = parser.parse_args()
+    print('FAQ Sync: shared/faq-config.json → backend knowledge base')
     config = load_config()
     print(f'  Loaded {len(config["faqs"])} FAQs, {len(config.get("categories", {}))} categories')
-    generate_python(config)
-    generate_typescript(config)
+    generate_python(config, check=args.check)
+    # The frontend search utility was retired. Do not recreate it on a routine sync.
+    if args.typescript and not args.check:
+        generate_typescript(config)
     print('  Done!')
 
 

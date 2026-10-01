@@ -595,3 +595,9 @@ A3_PRODUCTION/A4_DESTRUCTIVE, explicit latest owner instruction: reuse existing 
   validated without errors; 228 focused tests green; alias rollback 45 captured,
   live -> 46 by revision-guarded publish/update. Inert unsigned probe returned
   401. No payment capture/refund/configuration mutation or initiation activation.
+
+- 2026-10-01 A1_LOCAL/A2_REMOTE_CODE/A3_PRODUCTION: reconcile FAQ authored source
+  and generated outputs, 2.5% fee policy and canonical destinations; CI/Amplify
+  regeneration check. Exact package imports validated and full Python tests
+  passed. Rollback aliases captured (FAQ 22, AI KB 23, AI generation 34), published
+  FAQ 23, AI KB 24 and AI generation 35. No message/OTP sent by this verification.

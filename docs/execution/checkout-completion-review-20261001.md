@@ -126,3 +126,16 @@ Unsigned live webhook requests still return 401. No payment initiation flag,
 capture/refund operation, customer message or provider configuration was changed.
 Before/after snapshots: checkout-webhook-*-20261001.json. This aligns the
 verification boundary; it does not connect the missing website purchase journey.
+
+Final FAQ source reconciliation: shared/faq-config.json now owns the commerce
+FAQ data, the handler imports the generated configuration, and the generator
+understands the current public/commerce schemas without recreating the retired
+frontend search utility. Old 2%/2.2% fee statements and claims that checkout is
+in WhatsApp or that the missing receipt download already exists were removed.
+Public FAQ CTA paths now name current pages. Both publication gates run
+sync_faq.py --check so manual output edits cannot regress the source.
+
+Final knowledge-base aliases: faq-handler 23, ai-query-kb 24,
+ai-generate-response 35. Before/after snapshots record rollback versions.
+Full Python suite after source reconciliation: 5,814 passed, one skipped.
+Frontend suite: 697 passed; typecheck/build and 28-page export gate passed.
