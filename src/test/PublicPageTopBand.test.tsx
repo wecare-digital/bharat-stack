@@ -401,15 +401,23 @@ describe( 'the money copy survived being shortened', () => {
   } );
 } );
 
-describe( 'the country code lives in the one number field, on owner instruction', () => {
+describe( 'the country code is a segment of the one divided field, on owner instruction', () => {
   /*
-   * THIS BLOCK REPLACED A SEPARATE-SELECT CONTRACT, and the reversal is the owner's: the dial code
-   * was its own <select> beside a national-number input until the instruction "phone number and
-   * whatsapp country code should be in one field". The invariant that had to survive the change is
-   * the one the select existed for - the country is never GUESSED from the digits - because
-   * customerAuth.normaliseMobile() turns any ten digits beginning 6-9 into a +91 number, and that
-   * function is not changed (it must match the backend byte for byte). With one field the code has
-   * to be present in what was typed, and bare digits are refused rather than assumed Indian.
+   * THIS BLOCK HAS NOW BEEN REWRITTEN TWICE, BY THE SAME OWNER, AND BOTH REVERSALS ARE RECORDED
+   * BECAUSE THE INVARIANT UNDERNEATH NEVER MOVED.
+   *
+   *   v1  a <select> BESIDE a national-number input - two visibly separate boxes.
+   *   v2  "phone numbr and whatsapp ountrycode hsod in one feid" - one <input>, shopper types
+   *       "+91 9876543210", page parses it, bare digits refused with MISSING_CODE.
+   *   v3  "countcode + number should bin same dived divide and rounded corner" - one outlined
+   *       container, divided by a hairline, holding a code segment and a number segment.
+   *
+   * THE INVARIANT, unchanged across all three: the country is never GUESSED from the digits.
+   * customerAuth.normaliseMobile() turns any ten digits beginning 6-9 into a +91 number and is NOT
+   * modified (it must match the backend byte for byte). v2 protected that with an error message. v3
+   * protects it structurally, which is stronger: a code is always selected and on screen, so the
+   * ten-digit inference can never be what decides the country. That is why MISSING_CODE is gone
+   * rather than merely unused - see the note in sign-in.tsx's MSG.
    */
   const sendCode = (): void => {
     fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
@@ -417,44 +425,98 @@ describe( 'the country code lives in the one number field, on owner instruction'
   const typeNumber = ( value: string ): void => {
     fireEvent.change( screen.getByLabelText( 'WhatsApp number' ), { target: { value } } );
   };
+  const pickCode = ( value: string ): void => {
+    fireEvent.change( screen.getByLabelText( 'Country code' ), { target: { value } } );
+  };
 
-  it( 'is one labelled, required field carrying the whole international number', () => {
+  it( 'is one divided field: a code segment and a required number segment', () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
-    render( <SignIn /> );
+    const { container } = render( <SignIn /> );
+
     const field = screen.getByLabelText( 'WhatsApp number' ) as HTMLInputElement;
     expect( field.tagName ).toBe( 'INPUT' );
     expect( field.required ).toBe( true );
     expect( field.type ).toBe( 'tel' );
-    // Prefilled so the shape is visible, and autoComplete is the full number now, not tel-national.
-    expect( field.value ).toBe( '+91 ' );
-    expect( field.getAttribute( 'autocomplete' ) ).toBe( 'tel' );
-    // There is no separate country control any more.
-    expect( screen.queryByLabelText( 'Country code' ) ).toBeNull();
+    // EMPTY, not prefilled. v2 seeded "+91 " so the shape was visible; the code segment shows that
+    // now, and a prefix sitting in the number box would be typed into twice.
+    expect( field.value ).toBe( '' );
+    // tel-national, because the browser is filling the number segment ONLY. "tel" here would offer
+    // a full international number into a box that already has a code beside it.
+    expect( field.getAttribute( 'autocomplete' ) ).toBe( 'tel-national' );
+
+    // The code segment is back, and it is a real <select> with a visible default - not a guess.
+    const code = screen.getByLabelText( 'Country code' ) as HTMLSelectElement;
+    expect( code.tagName ).toBe( 'SELECT' );
+    expect( code.value ).toBe( '+91' );
+
+    /*
+     * BOTH SEGMENTS SIT IN ONE CONTAINER, which is the whole point of the instruction. Asserted as
+     * a shared parent rather than by reading CSS: jsdom computes no styles, so "looks like one
+     * field" is not observable here - but "is inside one box" is, and if the two controls ever drift
+     * into separate wrappers the divided look is gone whatever the CSS says.
+     */
+    const box = container.querySelector( '.pf' );
+    expect( box ).not.toBeNull();
+    expect( box!.contains( code ) ).toBe( true );
+    expect( box!.contains( field ) ).toBe( true );
   } );
 
-  it( 'sends the typed international number through unchanged', async () => {
+  it( 'uses the SELECTED code for bare national digits, never the inferred one', async () => {
+    /*
+     * THE LOAD-BEARING TEST OF THIS WHOLE BLOCK, and the one that replaces v2's refusal.
+     *
+     * "9876543210" is ten digits starting with 9, which is exactly the shape normaliseMobile()
+     * rewrites to +91. With +971 selected the composed value must be +9719876543210 - thirteen
+     * digits, so the inference cannot fire - and emphatically NOT +919876543210. A shopper in Dubai
+     * being signed in as a non-existent Indian customer was the failure mode the separate select
+     * existed to prevent, and it is prevented here by construction rather than by a message.
+     */
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
+    const requestOtp = vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
+      session: 's', destination: '****3210', expiresInSeconds: 600, registered: true,
+    } );
+    vi.stubGlobal( 'fetch', vi.fn() );
+    render( <SignIn /> );
+    pickCode( '+971' );
+    typeNumber( '9876543210' );
+    sendCode();
+    await waitFor( () => expect( requestOtp ).toHaveBeenCalledWith( '+9719876543210' ) );
+    expect( requestOtp ).not.toHaveBeenCalledWith( '+919876543210' );
+  } );
+
+  it( 'strips a domestic trunk zero rather than sending it to the gateway', async () => {
+    // "09876543210" is how the same Indian number is dialled domestically. Prefixing the code
+    // without dropping the zero would build +91098… , which is not a number.
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
+    const requestOtp = vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
+      session: 's', destination: '****3210', expiresInSeconds: 600, registered: true,
+    } );
+    vi.stubGlobal( 'fetch', vi.fn() );
+    render( <SignIn /> );
+    typeNumber( '09876543210' );
+    sendCode();
+    await waitFor( () => expect( requestOtp ).toHaveBeenCalledWith( '+919876543210' ) );
+  } );
+
+  it( 'lets a PASTED international number override the selected code', async () => {
+    /*
+     * PEOPLE PASTE WHOLE NUMBERS, and this is the case that would otherwise corrupt them silently.
+     * With +91 showing and "+971 50 123 4567" pasted into the number segment, blindly prefixing the
+     * selection builds +91971501234567 - wrong in a way the shopper cannot spot, because both the
+     * code they pasted and the code on screen look correct to them. A typed code therefore wins.
+     * Spaces are not significant.
+     */
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
     const requestOtp = vi.spyOn( customerAuth, 'requestOtp' ).mockResolvedValue( {
       session: 's', destination: '****4567', expiresInSeconds: 600, registered: true,
     } );
     vi.stubGlobal( 'fetch', vi.fn() );
     render( <SignIn /> );
+    // The selector is left on its +91 default on purpose - that is the conflict being tested.
     typeNumber( '+971 50 123 4567' );
     sendCode();
-    // Spaces are not significant; the country is read from what was typed, not inferred.
     await waitFor( () => expect( requestOtp ).toHaveBeenCalledWith( '+971501234567' ) );
-  } );
-
-  it( 'refuses bare national digits instead of assuming the main market', async () => {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
-    const requestOtp = vi.spyOn( customerAuth, 'requestOtp' );
-    vi.stubGlobal( 'fetch', vi.fn() );
-    render( <SignIn /> );
-    typeNumber( '501234567' );
-    sendCode();
-    await waitFor( () => expect(
-      screen.getByText( 'Include your country code, like +91.' ) ).toBeTruthy() );
-    expect( requestOtp ).not.toHaveBeenCalled();
+    expect( requestOtp ).not.toHaveBeenCalledWith( '+91971501234567' );
   } );
 
   it( 'treats 00 as the international prefix', async () => {
@@ -502,13 +564,20 @@ describe( 'the country code lives in the one number field, on owner instruction'
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
     vi.stubGlobal( 'fetch', vi.fn() );
     render( <SignIn /> );
-    typeNumber( '501234567' );
+    /*
+     * "+9" rather than the bare "501234567" this used to type. Bare national digits are no longer an
+     * error at all - the code segment composes them - so the old trigger produced a valid number and
+     * no message to associate with anything. "+9" is a typed code too short to be a number, which is
+     * a refusal the divided field can still reach.
+     */
+    typeNumber( '+9' );
     sendCode();
-    await waitFor( () => expect(
-      screen.getByText( 'Include your country code, like +91.' ) ).toBeTruthy() );
+    await waitFor( () => expect( screen.getByText( 'Enter a valid number.' ) ).toBeTruthy() );
     const field = screen.getByLabelText( 'WhatsApp number' );
     expect( field.getAttribute( 'aria-invalid' ) ).toBe( 'true' );
     // The hint stays in the description list alongside the error, so it is not lost.
     expect( field.getAttribute( 'aria-describedby' ) ).toBe( 'si-hint si-error' );
+    // BOTH segments are marked, because the field is wrong as a whole rather than one half of it.
+    expect( screen.getByLabelText( 'Country code' ).getAttribute( 'aria-invalid' ) ).toBe( 'true' );
   } );
 } );

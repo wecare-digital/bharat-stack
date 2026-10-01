@@ -62,6 +62,8 @@ import Link from 'next/link';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import PageTopBand from '../../components/PageTopBand';
+import PhoneField from '../../components/PhoneField';
+import { DEFAULT_DIAL_CODE } from '../../lib/dialCodes';
 import {
   requestOtp, submitOtp, normaliseMobile, getSession, nextSessionFrom,
 } from '../../lib/customerAuth';
@@ -91,12 +93,18 @@ const REGISTRATION_URL = `${API_BASE}/auth/customer-registration`;
  * string is shown for the same failure whether or not the number has an account behind it.
  */
 const MSG = {
-  /**
-   * No country code in the single field. The owner's table says "Choose a country code." for a
-   * separate selector; with one combined field there is nothing to choose, so this names the action
-   * the shopper can actually take in the control in front of them.
+  /*
+   * MISSING_CODE IS GONE, and its absence is deliberate rather than an oversight.
+   *
+   * It read "Include your country code, like +91." and existed for the single-input version of this
+   * field, where the shopper had to type the code and could leave it out. The field is now divided
+   * and its leading segment always carries a code, so the state the message described cannot occur -
+   * there is no input that produces it. The owner's §25 table wording for a selector, "Choose a
+   * country code.", is unreachable for the same reason: a <select> with a default always has a value.
+   *
+   * Kept out rather than kept dead. A message no code path can reach is one the next person wires to
+   * the wrong condition to make it appear.
    */
-  MISSING_CODE: 'Include your country code, like +91.',
   /** Invalid number or format. */
   BAD_NUMBER: 'Enter a valid number.',
   /** Reserved for provider evidence this page does not yet receive. See the note above. */
@@ -179,8 +187,16 @@ type Phase = 'phone' | 'code' | 'register-code' | 'signin-code';
 
 export default function CustomerSignIn (): React.ReactElement {
   const [ phase, setPhase ] = useState<Phase>( 'phone' );
-  // Prefilled, not inferred: the shopper sees the expected shape and can replace the code.
-  const [ mobile, setMobile ] = useState<string>( '+91 ' );
+  /*
+   * TWO PIECES OF STATE FOR ONE FIELD, which is what the divided control needs. The dial code is a
+   * selection with a VISIBLE default; the number is whatever was typed, unnormalised.
+   *
+   * This replaces a single `mobile` string that was prefilled "+91 " and parsed. The prefill existed
+   * to make the required shape obvious; a segment that shows "+91" does that better, and without
+   * asking the shopper to type a prefix they can get wrong.
+   */
+  const [ dialCode, setDialCode ] = useState<string>( DEFAULT_DIAL_CODE );
+  const [ national, setNational ] = useState<string>( '' );
   const [ normalised, setNormalised ] = useState<string>( '' );
   const [ code, setCode ] = useState<string>( '' );
   const [ session, setSession ] = useState<string>( '' );
@@ -196,25 +212,34 @@ export default function CustomerSignIn (): React.ReactElement {
   /**
    * The single field's contents, as the E.164 string the backend will key the customer on.
    *
-   * ONE FIELD, SO THE COUNTRY CODE HAS TO BE IN WHAT WAS TYPED. There is no select to fall back on
-   * any more, and it is still never guessed: a value with no leading + or 00 is refused with
-   * MISSING_CODE rather than quietly assumed to be Indian. That matters because
-   * normaliseMobile() infers +91 for any ten digits starting 6-9 - correct for the store's main
-   * market and wrong for everyone else - and a shopper in Dubai typing ten digits would otherwise
-   * be signed in as a non-existent Indian customer with no way to see why. The field is prefilled
-   * with "+91 " so the required shape is visible before anyone types, which is a default the
-   * shopper can see and edit, not an inference.
-   *
-   * "00" is accepted as well as "+" because it is how the international prefix is dialled across
-   * much of Europe and the Gulf, and a shopper who types it means exactly the same thing.
+   * THE CODE COMES FROM THE SEGMENT, AND IS STILL NEVER INFERRED. The divided field always carries a
+   * dial code, so there is no "missing country code" state left to refuse - which is why MSG no
+   * longer has a MISSING_CODE entry. The guarantee that message existed to protect is intact and now
+   * structural rather than conditional: normaliseMobile() treats any ten digits starting 6-9 as
+   * Indian, which is right for the store's market and wrong for everyone else, and a shopper in
+   * Dubai would have no way to see it happen. A code is never inferred here because one is always
+   * SELECTED and on screen - see DEFAULT_DIAL_CODE.
    */
   const composeE164 = useCallback( (): string => {
-    const raw = String( mobile || '' ).trim();
+    const raw = String( national || '' ).trim();
     if ( !raw ) throw new Error( MSG.BAD_NUMBER );
-    if ( !/^(\+|00)/.test( raw ) ) throw new Error( MSG.MISSING_CODE );
-    // Strip the international prefix itself, then any leading zeros it was padded with, so "+0091…"
-    // and "0091…" and "+91…" all reduce to the same digits.
-    const digits = raw.replace( /^(\+|00)/, '' ).replace( /\D/g, '' ).replace( /^0+/, '' );
+    /*
+     * A PASTED INTERNATIONAL NUMBER BEATS THE SELECTOR, and this is not a nicety. People paste
+     * "+971 50 123 4567" into a number box constantly. Prefixing the selected code regardless would
+     * build "+91971501234567" - a number that is wrong in a way the shopper cannot see, because
+     * both the code they pasted and the code on screen look right.
+     *
+     * "00" counts as a typed code too: it is how the international prefix is dialled across much of
+     * Europe and the Gulf, and someone who types it means exactly what "+" means.
+     */
+    const typedOwnCode = /^(\+|00)/.test( raw );
+    const digits = typedOwnCode
+      // Strip the international prefix itself, then any zeros it was padded with, so "+0091…",
+      // "0091…" and "+91…" all reduce to the same digits.
+      ? raw.replace( /^(\+|00)/, '' ).replace( /\D/g, '' ).replace( /^0+/, '' )
+      // Otherwise the selection supplies the code. The national part has its trunk zero stripped -
+      // "09876543210" is how the same number is dialled domestically in much of the world.
+      : dialCode.replace( /\D/g, '' ) + raw.replace( /\D/g, '' ).replace( /^0+/, '' );
     if ( !digits ) throw new Error( MSG.BAD_NUMBER );
     // normaliseMobile is the single source of the E.164 rule and the length bound, and is NOT
     // changed - it has to match the backend byte for byte. It is handed a string that already
@@ -228,13 +253,13 @@ export default function CustomerSignIn (): React.ReactElement {
     {
       throw new Error( MSG.BAD_NUMBER );
     }
-  }, [ mobile ] );
+  }, [ dialCode, national ] );
 
   const startPhone = useCallback( async ( event: React.FormEvent ): Promise<void> => {
     event.preventDefault();
     setError( '' );
-    // The missing-country-code case is no longer a separate guard: with one combined field it is
-    // just one of the shapes composeE164 refuses, and it throws MISSING_CODE from there.
+    // There is no missing-country-code guard at all now: the divided field's leading segment always
+    // carries one, so the only thing composeE164 can refuse is the number itself.
     let e164 = '';
     try
     {
@@ -392,39 +417,36 @@ export default function CustomerSignIn (): React.ReactElement {
         <div className="si-card">
           {phase === 'phone' && (
             <form className="si-form" onSubmit={ startPhone }>
-              {/* ONE FIELD, country code included, on owner instruction. It was a separate
-                  <select> for the dial code beside a national-number input; the owner asked for the
-                  country code and the number in a single field, so the shopper types the whole
-                  thing and the page parses it.
-                  The country code is still never GUESSED - it has to be present in what was typed,
-                  and the field is prefilled with "+91 " so the shape is obvious before anyone types.
-                  autoComplete is "tel" rather than "tel-national" now that the value is the full
-                  international number. */}
+              {/* ONE FIELD, DIVIDED, on owner instruction: "countcode + number should bin same
+                  dived divide and rounded corner". PhoneField owns the anatomy and the CSS; this
+                  page owns only the label, the hint and what the two segments mean. See that
+                  component for the Material 3 grounding and the two documented departures from it.
+                  The <label> points at the NUMBER segment, which is the part a shopper types into.
+                  The code segment carries its own aria-label, because a visible second label inside
+                  the box would defeat the point of the box. */}
               <label className="si-label" htmlFor="si-mobile">WhatsApp number</label>
               {/* aria-invalid AND aria-describedby, because the error is rendered at the BOTTOM of
                   the card rather than beside the field it concerns. role=alert announces it once,
                   but without the association a screen-reader user who tabs back to the input to
                   correct it gets no indication that this is the control at fault. The hint is in
                   the same description list so it is not lost when the error appears. */}
-              <input
+              <PhoneField
                 id="si-mobile"
-                className="si-input"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="+91 9876543210"
-                required
-                aria-invalid={ error ? 'true' : undefined }
-                aria-describedby={ error ? 'si-hint si-error' : 'si-hint' }
-                value={ mobile }
-                onChange={ e => setMobile( e.target.value ) }
+                dialCode={ dialCode }
+                onDialCodeChange={ setDialCode }
+                number={ national }
+                onNumberChange={ setNational }
                 disabled={ busy }
+                invalid={ !!error }
+                describedBy={ error ? 'si-hint si-error' : 'si-hint' }
+                placeholder="9876543210"
               />
-              {/* A text node, so it translates. It names the country code because that is now the
-                  shopper's job in this field, and says the code arrives on WhatsApp before asking
-                  for a number that has to be one. */}
+              {/* A text node, so it translates. It no longer tells the shopper to include a country
+                  code - the segment beside the number does that - so the line says the one thing
+                  left that they cannot see for themselves: the code arrives on WhatsApp, so the
+                  number has to be the one WhatsApp is on. */}
               <p className="si-hint" id="si-hint">
-                Include your country code. Use the number WhatsApp is on.
+                Pick your country code, then the number WhatsApp is on.
               </p>
               <button className="si-cta" type="submit" disabled={ busy }>
                 { busy ? 'Sending…' : 'Send code' }
@@ -491,8 +513,9 @@ export default function CustomerSignIn (): React.ReactElement {
             font-family:inherit;font-size:17px;color:#1a1a1a;background:#fff;margin-bottom:20px;
             box-sizing:border-box;
           }
-          /* The select keeps the platform's own disclosure arrow - a CSS-drawn one would be a
-             second chevron on a page that already has the header's, drawn by different means. */
+          /* .si-input now dresses the CODE field only. The WhatsApp number is PhoneField, which owns
+             its own outline, radius and height - so the two controls on this page are styled in two
+             places on purpose, and the numbers above are the ones PhoneField matches. */
           .si-input:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
           .si-hint{
             margin:0 0 20px;font-size:16px;line-height:1.55;color:rgba(0,0,0,.54);
