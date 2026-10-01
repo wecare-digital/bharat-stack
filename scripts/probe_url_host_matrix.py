@@ -34,6 +34,13 @@ the EXPECTED value here, not a regression. The 15 former top-level workspace pre
 rows that matter most: every one of them used to end on the staff Authenticator shell at
 HTTP 200, and this file fails if any of them ever does again.
 
+CORRECTED 2026-10-01T13:15:19Z (second convergence pass): the array is now **12 rules**, not
+9. A later owner instruction authorised sending the retired `/access` entry point home, so
+`desired_redirects()` emits three more 302s (`/access`, `/access/`, `/access/<*>` ->
+`https://wecare.digital/`) at live indexes 1-3. Read live, not assumed. Nothing above changes:
+the 404 expectation for the other ~150 aliases and the 15 workspace prefixes is untouched, and
+the `/access` rows in this file already assert the new destination on its TERMINAL URL.
+
 Usage:
     .venv/bin/python scripts/probe_url_host_matrix.py            # human table
     .venv/bin/python scripts/probe_url_host_matrix.py --json     # machine readable
@@ -216,6 +223,18 @@ def matrix() -> list[dict]:
     # This nested hostname retains its existing Wix TLS redirect before our xout fallback.
     rows.append(_row('subdomain', 'https://www.xout.wecare.digital/old/path?old=1',
                      200, 'existing certificate chain reaches home', terminal_url=f'{SITE}/'))
+    # The residual gap, now the only one: the certificate covers ONE label. a.b.wecare.digital
+    # DOES resolve - a DNS wildcard matches multiple labels (RFC 4592) - so the failure is at
+    # TLS, not at DNS: `curl` reports "no alternative certificate subject name matches target
+    # host name". That terminates as status 0 here, same code as the old no-address state but a
+    # different cause, which is why the cause is written down. Closing it needs a new SAN on a
+    # re-requested certificate re-associated on BOTH consumers of
+    # f75d0db0-d476-443a-b787-96c4931862d2 - the Amplify app AND CloudFront E1SZBXLQ4XNLJ7,
+    # which is the MTA-STS policy endpoint under `mode: enforce`, where a failure makes senders
+    # refuse inbound mail. Outside this task's authority and not a change to make casually.
+    rows.append(_row("subdomain", "https://a.b.wecare.digital/", 0,
+                     "second-label host: resolves, but no certificate covers it - documented "
+                     "coverage gap, NOT fixed here"))
     # mta-sts is the MTA-STS policy endpoint under mode: enforce. Probed at / ONLY, read-only,
     # to confirm nothing about it moved. Its policy path is not touched by this or any probe.
     rows.append(_row("subdomain", "https://mta-sts.wecare.digital/", 403,

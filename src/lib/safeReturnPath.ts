@@ -21,7 +21,7 @@
  *
  * So this is an ALLOWLIST: reject by default, and accept only a recognised customer
  * destination. A denylist has to enumerate every attack; an allowlist has to enumerate
- * six paths, and a new one is a deliberate edit here.
+ * five paths, and a new one is a deliberate edit here.
  *
  * IT RETURNS THE PATH TO USE, NEVER A BOOLEAN — the same shape as `safeHttpHref` in
  * `src/lib/randomToken.ts`, and for the same reason recorded there: a boolean lets a
@@ -41,6 +41,16 @@
  * authentication workstream and is outside this change's owned paths, so the module and
  * its tests land first and the one-line wiring is handed to that owner. An unused export
  * with tests is cheap; editing another session's file is not.
+ *
+ * WIRED 2026-10-01, by owner decision, and the paragraph above is now history. The
+ * customer-authentication workstream that owned `src/pages/account/**` aborted before
+ * reaching implementation, so there was no live owner to collide with, and the owner
+ * cleared the boundary explicitly rather than leaving a live open redirect documented as a
+ * handoff. `src/pages/account/sign-in.tsx` now calls this function in
+ * `returnPathFromUrl()`, and `src/test/SafeReturnPath.test.ts` asserts that the caller
+ * EXISTS and routes through here — the inversion of the test that used to fail the moment a
+ * caller appeared. The rationale above is kept rather than deleted because it explains why
+ * the module shipped dormant, which is otherwise a strange shape to find in a diff.
  */
 
 /**
@@ -48,13 +58,31 @@
  * because `trailingSlash: true` in `next.config.js` means every extensionless path 301s
  * to add the slash anyway — returning the unslashed form would spend a redirect to arrive
  * at the same place.
+ *
+ * EVERY MEMBER MUST HAVE AN EXPORTED PAGE. This is not a style rule, it is the contract:
+ * the function "returns the value to use", so a member with no page makes it vouch for a
+ * destination that answers 404. `output: 'export'` emits a page only where a source file
+ * exists, so membership here is a claim about `src/pages/**`, and
+ * `src/test/SafeReturnPath.test.ts` checks that claim against the filesystem for all five.
+ *
+ * NARROWED 2026-10-01 from six entries to five, by owner decision, as the precondition on
+ * wiring this into `sign-in.tsx`. `/checkout/` and `/account/` were REMOVED because both
+ * measured **404** live: `src/pages/checkout/` holds only `status.tsx` and `success.tsx`,
+ * and `src/pages/account/` holds only `sign-in.tsx` — neither directory has an `index`. The
+ * original six came verbatim from the task plan, which listed intended destinations rather
+ * than existing pages, and the mismatch was only visible once the list and the page
+ * inventory were measured together. `/blog/` was ADDED in the same decision: it is a
+ * plausible place to send a customer back to and it resolves, so excluding it would have
+ * manufactured a silent redirect to `/cart/` rather than avoided one.
+ *
+ * Re-adding `/checkout/` or `/account/` is therefore conditional on those pages existing,
+ * not a free edit — the test above will fail first, which is the intended order.
  */
 const ALLOWED: ReadonlySet<string> = new Set( [
   '/cart/',
-  '/checkout/',
   '/orders/',
   '/shop/',
-  '/account/',
+  '/blog/',
   '/',
 ] );
 

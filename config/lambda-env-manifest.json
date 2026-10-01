@@ -1,8 +1,8 @@
 {
   "_comment": "Recorded state of live Lambda environment variables. Not deployed by anything - this is the source of truth to diff against. Regenerate with scripts/env_manifest.py --export; verify with no arguments.",
   "_region": "us-east-1",
-  "_functions": 66,
-  "_variables": 389,
+  "_functions": 67,
+  "_variables": 397,
   "_fingerprinted": 14,
   "functions": {
     "stack-wecare-url-shortener": {
@@ -95,6 +95,16 @@
       "SEND_MODE": "LIVE"
     },
     "wecare-catalog-management": {},
+    "wecare-checkout": {
+      "COMMERCE_KEYS_TABLE": "stack-wecare-digital-WixOrderIds",
+      "EXPECTED_CONFIGURATION_NAME": "",
+      "EXPECTED_PROVIDER_MID": "",
+      "PAYMENT_ATTEMPTS_TABLE": "stack-wecare-digital-PaymentAttemptsTable",
+      "PAYMENT_WABA_ID": "2094615664435155",
+      "SENDER_FUNCTION": "wecare-whatsapp-business-api:live",
+      "WIX_API_KEY_SECRET": "wecare/wix/headless-api-key",
+      "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
+    },
     "wecare-cognito-custom-message": {
       "BRAND_NAME": "sha256:d185a0daa945",
       "SENDER_ADDRESS": "one@wecare.digital",
