@@ -10,12 +10,31 @@
  * mistyped a URL landed in a dead end with nothing to click. Deleting this file does not
  * remove a 404 page; it restores that one.
  *
- * Second, the CDN rule that sends mismatched paths home does not cover every case. Amplify's
- * last rule is `/<*>` -> `/index.html` with status 404-200 (see
- * scripts/provision_legacy_redirects.py), so a mistyped PATH already renders the home page.
- * What it does not catch is a direct request for /404/ itself, or a host or shell that
- * resolves its own not-found document - including the Capacitor WebView. This page covers
- * those by sending the visitor home itself.
+ * Second, the CDN rule does not send a mismatched path home at all - THIS page does.
+ *
+ * CORRECTED IN PLACE 2026-10-01, measured against the live Amplify app (d22dm4b0jn71jw)
+ * rather than read from a script. The paragraph here used to say: "Amplify's last rule is
+ * `/<*>` -> `/index.html` with status 404-200, so a mistyped PATH already renders the home
+ * page." Both halves were stale. The rule's TARGET changed to `/404.html` on 2026-09-28 (gap
+ * SEO-404-001) precisely so that a mistyped URL receives THIS page's head - the `noindex` and
+ * the canonical below - instead of the home page's. So the live behaviour is: a mistyped path
+ * stays at the address the visitor typed, returns HTTP 404, and is served THIS document.
+ * Nothing on the CDN renders the home page for it. Measured 2026-10-01:
+ * `/definitely-not-a-page/` -> 404 carrying `"page":"/404"`.
+ *
+ * That makes the redirect below load-bearing rather than a long-tail safety net, and MORE so
+ * since 2026-10-01: on that date the owner retired every custom redirect, taking the live rule
+ * count from 146 to 8, so the ~150 legacy aliases that used to 301 to a real page now arrive
+ * here instead - /swdhya/, /no-fault/, /legal-stuff/, /faq/, /my-order/ and the 15 former
+ * top-level workspace prefixes among them, all measured at 404 on 2026-10-01. The one rule
+ * deliberately kept is the host canonicalisation `https://www.wecare.digital` ->
+ * `https://wecare.digital` at 301, which preserves the path and so never reaches this page.
+ * See docs/execution/url-host-matrix-20261001.md for the measured rule array, and
+ * docs/execution/url-redirect-removal-20261001.md for the removal itself.
+ *
+ * The cases the CDN rule genuinely cannot reach are unchanged: a direct request for /404/
+ * itself, and any host or shell that resolves its own not-found document - including the
+ * Capacitor WebView. This page covers those too.
  *
  * router.replace, NOT push: a redirect must not leave an entry in the history stack, or the
  * back button returns the visitor to the dead URL they were just rescued from and bounces
