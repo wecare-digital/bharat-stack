@@ -233,6 +233,29 @@ def normalize_phone_preserving_country(raw: Any) -> str:
     coat. The documented consequence: `+44 07911 123456` yields `+4407911123456`, which the
     provider rejects. That is a visible failure the customer can correct, not a silent
     misdelivery to a stranger - which is the trade being made on purpose.
+
+    A digit means ASCII `0`-`9`, and nothing else
+    --------------------------------------------
+    The strip below is `[^0-9]`, not `\\D`. `re`'s `\\D` is the complement of Unicode category
+    Nd, so `\\D` does NOT strip an Arabic-Indic digit (U+0660-U+0669) or any of the other
+    decimal scripts - they survive the strip, pass the 8..15 length bound that counts them,
+    and are returned inside the `+`-prefixed result. That matters precisely here, because
+    `registration.complete` writes `normalizedPhone` and the Cognito `Username` from this
+    value and enforces uniqueness on it: measured before this was tightened,
+    `+91933099440\\u0660` was accepted verbatim, so it and `+919330994400` were two separate
+    identities that are indistinguishable to a human reading them. That is the same
+    permanent wrong-identity-reservation outcome as the headline defect, reached through a
+    different door. A direct API caller is the reachable path - the same caller this
+    docstring already acknowledges when it explains why bare national digits are refused
+    rather than defaulted.
+
+    The ASCII class has a second job: the standalone Cognito trigger at
+    `auth/customer-whatsapp-auth/handler.py::_normalise_phone` cannot import this module and
+    filters with an explicit `ch in "0123456789"`. `[^0-9]` and that membership test are the
+    same predicate by construction; `\\D` and `str.isdigit()` are not - they disagree on 128
+    codepoints, starting at U+00B2 - and a disagreement there lands on the OTP destination.
+    `normalize_phone` keeps `\\D` and is deliberately left alone: its snapshot is frozen and
+    its eight callers were not audited for this.
     """
     text = str(raw or "").strip()
     if not text:
@@ -255,7 +278,10 @@ def normalize_phone_preserving_country(raw: Any) -> str:
     if rest.startswith("0"):
         raise InvalidPhoneNumber("a country code does not start with zero")
 
-    digits = re.sub(r"\D", "", rest)
+    # `[^0-9]`, NOT `\D` - see the docstring. `\D` leaves every non-ASCII decimal digit in
+    # place, so an Arabic-Indic zero would be returned inside the E.164 that reserves the
+    # identity. It is also the predicate the standalone trigger can spell without `re`.
+    digits = re.sub(r"[^0-9]", "", rest)
     if not digits:
         raise InvalidPhoneNumber("phone number contains no digits")
 

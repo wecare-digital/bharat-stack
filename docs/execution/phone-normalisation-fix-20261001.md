@@ -6,7 +6,7 @@ is a production IAM change on a role 62 Lambda functions depend on.
 
 | # | Finding | Status |
 |---|---|---|
-| 1 | `normalize_phone` prepended the India country code to an already-complete foreign number | ✅ COMPLETE in source · ⚠️ the live trigger (version 11) predates the iteration-2 separator fix |
+| 1 | `normalize_phone` prepended the India country code to an already-complete foreign number | ✅ COMPLETE in source · ⚠️ the live trigger (version 11) predates the iteration-2 separator fix **and** the iteration-3 digit-predicate fix |
 | 2 | Session and OTP responses carried no `Cache-Control` | ✅ COMPLETE (two handlers, source-only — neither function exists in the account) · ✅ COMPLETE and **live** for `wecare-customer-session`, closed by another workstream |
 | 3 | `wecare-digital-lambda-role` grants `UpdateItem`/`DeleteItem` on the customer session table to 62 functions | ⚠️ NEEDS CONFIRMATION — severity HIGH, **no IAM write attempted** |
 
@@ -296,6 +296,70 @@ mistakes them for the guard.
 
 ⏳ This fix is source-only. See [§ What actually reached production](#what-actually-reached-production)
 — live version 11 carries the ASCII-only set.
+
+#### Review iteration 3 — the *second* predicate, and non-ASCII digits at the identity door
+
+Iteration 2 fixed the separator predicate and verified it exhaustively. It left the **digit**
+predicate as two spellings that agreed only by coincidence, which is the same defect class one
+line further down:
+
+| | Canonical `customer.py` | Trigger `handler.py` |
+|---|---|---|
+| Before | `re.sub(r"\D", "", rest)` | `"".join(ch for ch in rest if ch.isdigit())` |
+| After | `re.sub(r"[^0-9]", "", rest)` | `"".join(ch for ch in rest if ch in "0123456789")` |
+
+`re`'s `\d` matches Unicode category Nd only; `str.isdigit()` additionally matches anything with
+`Numeric_Type=Digit`. The two therefore disagree on **128 codepoints**, beginning at U+00B2
+SUPERSCRIPT TWO, U+00B3, U+00B9 and the Ethiopic numerals from U+1369 — measured by enumerating all
+0x110000 codepoints, not argued. Measured against both live implementations before the fix:
+
+| Input | Canonical | Trigger |
+|---|---|---|
+| `+65<U+00B2>91234567` | `+6591234567` | **`65<U+00B2>91234567`** |
+| `+919330994400<U+00B2>` | `+919330994400` | **`919330994400<U+00B2>`** |
+| `+91<U+00B2>09330994400` | `+919330994400` | **`91<U+00B2>09330994400`** |
+
+The trigger's docstring promises a digits-only E.164 destination and was returning a string
+containing a non-digit. That value is the `_consume_send_budget` throttle key, the WhatsApp send
+`to` field, and the masked destination shown to the browser — so the consequences are a wrong
+throttle bucket and a malformed send target. The drift-agreement test could not see it because every
+`PRESERVED` row was ASCII and none of the three refusal rows was numeric-but-not-decimal. The table's
+own comment named the `isdigit()` filter as the thing that hides divergences while leaving that
+filter unverified.
+
+The same change closes a second, independent problem in the canonical function, which is the more
+serious of the two. `\D` does not strip a **non-ASCII decimal** digit — Arabic-Indic U+0660-U+0669 is
+category Nd — so those characters survived the strip, passed the 8..15 bound that counted them, and
+were returned inside the `+`-prefixed result. Measured: `+91933099440<U+0660>` was returned verbatim,
+and an all-Arabic-Indic input returned itself. `registration.complete` writes `normalizedPhone` and
+the Cognito `Username` from this value and enforces uniqueness on it, so that string and
+`+919330994400` were **two distinct identities that read identically to a human** — the same
+permanent wrong-identity reservation as the headline defect, reached through a different door. A
+direct API caller is the reachable path.
+
+Both are fixed by one change, which is why it was taken as one: `[^0-9]` and `ch in "0123456789"` are
+the same predicate **by construction** rather than by argument, verified at 0 disagreements across all
+0x110000 codepoints, and ASCII-only simultaneously removes the non-ASCII-digit acceptance.
+
+Pinned by: three numeric-but-not-decimal rows added to the shared `PRESERVED` table (so the drift
+test fails the moment the predicates separate again); two all-non-ASCII-digit rows added to
+`test_the_two_implementations_agree_on_refusal_too`; and a new
+`test_no_non_ascii_digit_survives_into_the_reserved_identity`, which asserts the **shape** of the
+output rather than one codepoint, because the defect is "a non-digit reached the identity" and not
+"this particular character did".
+
+`normalize_phone` was **not** touched — verified byte-identical to `HEAD` by AST extraction and
+sha256, and `LEGACY_SNAPSHOT` is unchanged. It keeps `\D` and therefore keeps this behaviour; that is
+deliberate, since its snapshot is frozen and its eight callers were not audited for it. The lenient
+function is not a customer entry point.
+
+One collateral test change: `test_the_marker_branch_precedes_every_digit_strip` located the strip by
+the literal `\D` and would have tripped its own "expected a digit strip somewhere in the function"
+assertion. It now matches either spelling, enumerated explicitly rather than loosened to "any
+`re.sub`" — a looser match would also catch the separator compaction, which runs *before* the marker
+branch by design, inverting the assertion so that it passes on a broken function.
+
+⏳ Source-only, like iteration 2. Live version 11 carries neither predicate fix.
 
 ### Entry points wired — and the ones deliberately not
 
@@ -611,7 +675,7 @@ than passing vacuously.
 |---|---|
 | Deploy **by this task** | ➖ NOT REQUIRED — out of scope; no `update-function-code`, `publish-version` or `update-alias` was called from here |
 | Deploy **that happened anyway** | ⚠️ COMPLETE WITH IMPROVEMENTS — 3 functions deployed, 2 `live` aliases moved, by `user/wecare-admin` and by CI, measured in [§ What actually reached production](#what-actually-reached-production). Rollback targets recorded **after** the fact, which breaches the `A3_PRODUCTION` "rollback version captured first" condition |
-| Live trigger matches this tree | ❌ NO — version 11 predates the iteration-2 separator fix. Source-only, not deployed |
+| Live trigger matches this tree | ❌ NO — version 11 predates the iteration-2 separator fix and the iteration-3 digit-predicate fix. Source-only, not deployed |
 | AWS writes **by this task** | ➖ NOT REQUIRED — reads only, nothing mutated |
 | Secrets Manager reads | ➖ NOT REQUIRED — none performed, in any spelling |
 | `src/` modified | ➖ NOT REQUIRED — none |
@@ -638,7 +702,8 @@ change live, and for `wecare-customer-whatsapp-auth` (version 11, alias moved 14
 `wecare-customer-session` (version 4, alias moved 14:35:16Z) both steps are done — so those two are
 live, with their rollback targets recorded only retrospectively. What is **not** finished:
 
-- the iteration-2 separator fix on the trigger is source-only; live version 11 does not carry it;
+- the iteration-2 separator fix and the iteration-3 digit-predicate fix on the trigger are both
+  source-only; live version 11 carries neither;
 - `wecare-customer-registration` and `wecare-email-verification` are not deployed because they do
   not exist in the account, so the Finding 2 header work on those two handlers is source-only too;
 - Finding 3 is still an owner decision.

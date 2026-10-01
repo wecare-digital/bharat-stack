@@ -214,7 +214,20 @@ def _normalise_phone(phone: str) -> str:
     if rest.startswith("0"):
         raise ValueError("a country code does not start with zero")
 
-    digits = "".join(ch for ch in rest if ch.isdigit())
+    # `ch in "0123456789"` rather than `ch.isdigit()`, and this is the same class of care the
+    # separator comment above describes - applied to the second predicate.
+    #
+    # `str.isdigit()` is true for anything with Numeric_Type=Digit, which is a wider set than
+    # the Nd-only class the canonical `re.sub(r"[^0-9]", ...)` strips: the two disagree on 128
+    # codepoints, beginning with U+00B2 SUPERSCRIPT TWO and U+1369. Measured before this was
+    # tightened: `+65\u00b291234567` gave the canonical function `6591234567` and this one
+    # `65\u00b291234567`. The docstring promises a digits-only destination, and that value is
+    # used as the `_consume_send_budget` key and as the WhatsApp send `to` field, so a
+    # non-digit surviving here is a wrong throttle bucket and a malformed send target.
+    #
+    # An explicit ASCII membership test is exact against `[^0-9]` by construction rather than
+    # by coincidence, and it needs no import - which keeps this file `standalone=True`.
+    digits = "".join(ch for ch in rest if ch in "0123456789")
     # India only, exactly one zero. No other country gets trunk handling, because guessing
     # one per country is the same mistake in a new coat.
     if digits.startswith("91") and digits[2:3] == "0":

@@ -96,6 +96,19 @@ PRESERVED = [
     # is pinned by `test_the_two_implementations_agree_on_refusal_too` instead.
     ('+65\u00a09123\u00a04567', '+6591234567'),
     ('00\u00a065 9123 4567', '+6591234567'),
+    # Numeric-but-not-DECIMAL characters, which are the rows the comment above says this table
+    # could not previously see. U+00B2 SUPERSCRIPT TWO is `str.isdigit()`-true and category No,
+    # not Nd, so it is NOT matched by `\d` - the two predicates the two implementations used to
+    # carry disagreed on it and on 127 other codepoints. Measured before the fix:
+    # `+65\u00b291234567` gave the canonical function `+6591234567` and the trigger
+    # `65\u00b291234567`, a non-digit in the OTP destination and in the throttle key. Both now
+    # filter to ASCII `0`-`9`, so these rows fail the drift test the moment the predicates
+    # separate again.
+    ('+65\u00b291234567', '+6591234567'),
+    ('+919330994400\u00b2', '+919330994400'),
+    # The superscript sits between `91` and the trunk `0`, so this also pins that the strip
+    # runs before the India trunk rule reads `digits[2:3]`.
+    ('+91\u00b209330994400', '+919330994400'),
     # NOT an oversight. We do not know the United Kingdom's trunk convention and will not
     # invent one, so the stray national `0` is carried through and the provider rejects the
     # number. A visible failure the customer can correct beats a silent misdelivery.
@@ -156,6 +169,34 @@ def test_the_double_zero_prefix_is_read_as_an_international_prefix():
 def test_the_trunk_zero_rule_applies_to_india_and_nothing_else():
     assert customer.normalize_phone_preserving_country('+91 09330994400') == '+919330994400'
     assert customer.normalize_phone_preserving_country('+44 07911 123456') == '+4407911123456'
+
+
+@pytest.mark.parametrize('raw', [
+    '+91933099440\u0660',                                      # Arabic-Indic zero, trailing
+    '+9193309\u066094400',                                     # Arabic-Indic zero, interior
+    '+\u0669\u0663\u0663\u0660\u0669\u0669\u0664\u0664\u0660\u0660\u0660\u0660',
+    '+\u1369\u136a\u136b\u136c\u136d\u136e\u136f\u1370',        # Ethiopic digits
+    '+65\u00b291234567',                                       # superscript two
+])
+def test_no_non_ascii_digit_survives_into_the_reserved_identity(raw):
+    """A returned E.164 must contain ASCII digits and nothing else.
+
+    This is the headline defect reached through a different door. Arabic-Indic digits are
+    Unicode category Nd, so `re.sub(r'\\D', '', ...)` left them in place and the 8..15 bound
+    counted them - measured, `+91933099440\\u0660` was returned verbatim. `registration.complete`
+    writes `normalizedPhone` and the Cognito `Username` from this value and enforces uniqueness
+    on it, so that string and `+919330994400` were two distinct identities that read identically
+    to a human. Permanent, and no later correction undoes it.
+
+    The assertion is on the shape of the OUTPUT rather than on a specific value, because the
+    defect is "a non-digit reached the identity", not "this one codepoint did".
+    """
+    try:
+        result = customer.normalize_phone_preserving_country(raw)
+    except customer.InvalidPhoneNumber:
+        return  # refused outright is the other acceptable outcome
+    assert result.startswith('+')
+    assert result[1:].isascii() and result[1:].isdigit(), result
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -318,7 +359,13 @@ def test_the_marker_branch_precedes_every_digit_strip():
 
     marker_branch = next(i for i, text in enumerate(rendered)
                          if 'MissingCountryCode' in text and 'raise' in text)
-    digit_strips = [i for i, text in enumerate(rendered) if '\\D' in text]
+    # Both recognised spellings, deliberately enumerated rather than matched as "any re.sub".
+    # The function is `[^0-9]` today and was `\D` before the Unicode-digit tightening; naming
+    # both keeps this test honest across that change, while a looser match on `re.sub` alone
+    # would also catch the separator compaction - which runs BEFORE the marker branch by
+    # design, so it would invert the assertion and pass on a broken function.
+    digit_strips = [i for i, text in enumerate(rendered)
+                    if '\\D' in text or '[^0-9]' in text]
 
     assert digit_strips, 'expected a digit strip somewhere in the function'
     assert min(digit_strips) > marker_branch, \
@@ -461,6 +508,14 @@ def test_the_two_implementations_do_not_drift(trigger, raw, expected):
     '+\u00a00065 9123 4567',
     '+\u00a009330994400',
     '\u00a0+65\u00a0(9123)\u00a04567\u00a0',
+    # The digit-predicate class, on inputs that reduce to NO ascii digits at all. Arabic-Indic
+    # digits are category Nd, so `\d` and `str.isdigit()` both accept them and neither
+    # implementation used to refuse this - the canonical function returned
+    # `+\u0669\u0663\u0663\u0660\u0669\u0669\u0664\u0664\u0660\u0660\u0660\u0660` verbatim as
+    # an E.164, at the door that reserves the identity. Superscripts are `isdigit()`-true but
+    # not `\d`-true, so they split the two predicates instead. Both are now refused by both.
+    '+\u0669\u0663\u0663\u0660\u0669\u0669\u0664\u0664\u0660\u0660\u0660\u0660',
+    '+\u00b2\u00b2\u00b2\u00b2\u00b2\u00b2\u00b2\u00b2',
 ])
 def test_the_two_implementations_agree_on_refusal_too(trigger, raw):
     """Agreeing on the accepted rows is not enough: they have to agree on the refused ones.
