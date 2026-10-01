@@ -11,6 +11,7 @@ import { SkeletonTable } from '../../../components/Skeleton';
 import { useToastContext } from '../../../contexts/ToastContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
 import * as api from '../../../api/client';
+import { DIAL_CODES } from '../../../lib/dialCodes';
 
 // SVG Icons — lime + dark green theme (#1a3a2a) — Fix #17: added aria-hidden for decorative icons
 const AddUserIcon = () => (<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none"><path stroke="#1a3a2a" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 5v14m-7-7h14"/></svg>);
@@ -36,16 +37,15 @@ const PAGE_SIZE = 25;
 const TAG_OPTIONS = ['VIP', 'Lead', 'Customer', 'Prospect', 'Partner', 'Vendor'] as const;
 const TAG_COLORS: Record<string, string> = { VIP: '#0f2a1d', Lead: '#0f2a1d', Customer: '#1a3a2a', Prospect: '#1a3a2a', Partner: '#34d399', Vendor: '#d1d5db' };
 
-// Country codes for phone number parsing
-const COUNTRY_CODES = [
-  { code: '+91', country: 'India' }, { code: '+1', country: 'USA/Canada' }, { code: '+44', country: 'UK' },
-  { code: '+61', country: 'Australia' }, { code: '+971', country: 'UAE' }, { code: '+966', country: 'Saudi Arabia' },
-  { code: '+65', country: 'Singapore' }, { code: '+60', country: 'Malaysia' }, { code: '+49', country: 'Germany' },
-  { code: '+33', country: 'France' }, { code: '+81', country: 'Japan' }, { code: '+86', country: 'China' },
-  { code: '+82', country: 'South Korea' }, { code: '+55', country: 'Brazil' }, { code: '+27', country: 'South Africa' },
-  { code: '+234', country: 'Nigeria' }, { code: '+254', country: 'Kenya' }, { code: '+62', country: 'Indonesia' },
-  { code: '+63', country: 'Philippines' }, { code: '+7', country: 'Russia' },
-];
+/*
+ * Country codes for phone number parsing - NOW SHARED, not a literal.
+ *
+ * The public sign-in field needs the same twenty entries, and the second copy would have been two
+ * lists to keep in step: the workspace offering a dial code the storefront refuses, or the reverse.
+ * The list moved to src/lib/dialCodes.ts unchanged, including its India-first order, which the
+ * longest-prefix sort at the parsing site below does not depend on.
+ */
+const COUNTRY_CODES = DIAL_CODES;
 
 type ColumnKey = 'shipping' | 'updated' | 'tags';
 const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
