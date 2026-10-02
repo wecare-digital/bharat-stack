@@ -122,7 +122,11 @@ describe( 'the browser refusing an empty number reaches the page error region', 
     // plus the +91 the segment already carries must compose to ONE canonical E.164 - not a
     // doubled country code, and not a bare national number.
     fireEvent.change( input, { target: { value: '9123456789' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    // Matched loosely on purpose. The pill's accessible name is its whole visible text
+    // ("Sign in Send code") since the WCAG 2.5.3 fix removed the action-only aria-label,
+    // and PillButtonAccessibleName.test.tsx is the test that owns that exact contract.
+    // Re-pinning the full string here would make this test fail for a reason it is not about.
+    fireEvent.click( screen.getByRole( 'button', { name: /Send code/ } ) );
 
     await waitFor( () => expect( requestOtp ).toHaveBeenCalledWith( '+919123456789' ) );
     expect( await screen.findByLabelText( 'WhatsApp code' ) ).toBeTruthy();
