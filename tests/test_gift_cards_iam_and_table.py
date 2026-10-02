@@ -8,13 +8,18 @@ Modelled on `tests/test_provision_checkout_contract.py`: load the provisioner, r
 documents and its constants, and assert over those. No provisioner is run with `--apply` and no AWS
 call is made.
 
-FOUR xfail(strict=True) MARKS, AND THREE THE BRIEF NAMED THAT ARE DELIBERATELY NOT MARKED
------------------------------------------------------------------------------------------
+THREE xfail(strict=True) MARKS, AND THREE THE BRIEF NAMED THAT ARE DELIBERATELY NOT MARKED
+------------------------------------------------------------------------------------------
 Marked, because their subject is a file another workstream owns and the fact they assert is ABSENT
-today: 107 (SEAM-G9, `provision_checkout.py`), 112 (SEAM-G14, `website_checkout.py`), 114 (SEAM-G7a,
-`finalization.py`) and 115 (SEAM-G7b, `side_effect_guard.py`). DECISION 8: marked, never weakened,
-so each converts from pending to passing the moment its producer lands and fails loudly if somebody
-satisfies it by lowering the bar.
+today: 112 (SEAM-G14, `website_checkout.py`), 114 (SEAM-G7a, `finalization.py`) and 115 (SEAM-G7b,
+`side_effect_guard.py`). DECISION 8: marked, never weakened, so each converts from pending to
+passing the moment its producer lands and fails loudly if somebody satisfies it by lowering the bar.
+
+**107 was the fourth and is no longer marked: SEAM-G9 has landed.** DECISION 7 assigned
+`scripts/provision_checkout.py` to this task, and the shared-gate step made the whole HIGH-5 edit in
+one visit, covering the coupon and gift-card tables together so there is no ordering hazard between
+the two seams. `strict=True` is what made removing the mark safe to do by deletion: had the grant
+not actually landed, the test would fail rather than pass quietly.
 
 NOT marked, and each for the same reason the coupon suite left its test 52a unmarked - the property
 holds TODAY and a strict mark would xpass immediately, which is a failure here AND would switch off
@@ -73,8 +78,6 @@ PINNED_LAYER = f"arn:aws:lambda:us-east-1:{ACCOUNT}:layer:cryptography-python312
 #: real zip needs AWS and a function that already exists.
 DECLARED_LAYER_CONTENTS = frozenset({"cryptography", "cffi", "_cffi_backend", "pycparser"})
 
-SEAM_G9 = ("SEAM-G9: scripts/provision_checkout.py belongs to the checkout workstream. Marked "
-           "rather than weakened per DECISION 8.")
 SEAM_G14 = ("SEAM-G14: website_checkout.py is owned by the website-checkout workstream and is on "
             "this task's do-not-touch list. Marked rather than weakened per DECISION 8.")
 SEAM_G7A = ("SEAM-G7(a): finalization.py passes int(attempt['amountPaise']) to "
@@ -307,9 +310,8 @@ def test_no_wildcard_was_added_to_the_shared_lambda_role(roles):
         assert not offenders, "\n  ".join(offenders)
 
 
-# ── 107 / 107a: SEAM-G9 ───────────────────────────────────────────────────────
+# ── 107 / 107a: SEAM-G9, landed ───────────────────────────────────────────────
 
-@pytest.mark.xfail(strict=True, reason=SEAM_G9)
 def test_the_checkout_role_gains_only_the_gift_cards_table():
     """`wecare-checkout-role` is a PER-FUNCTION role, not the shared fleet role, which is why
     extending it additively is compatible with section 10.1's objection to widening a shared role.

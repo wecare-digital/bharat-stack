@@ -194,6 +194,13 @@ UNDECLARED_ALLOWED: dict[str, str] = {
         "`expiresAt` - a download grant is deliberately short-lived, so expiry is "
         "the point of the record rather than a cache detail. Not modelled here for "
         "the same reason as PstnSoftphoneSessions: Amplify does not own that clock.",
+    "CouponsTable":   "Provisioned by scripts/provision_coupons_table.py; issuance, usage "
+                      "counters and per-customer limits owned by wecare-coupons. Deliberately "
+                      "not modelled here: the discount arithmetic is Wix's and this table is "
+                      "the issuance record, not part of the CRM data model.",
+    "GiftCardsTable": "Provisioned by scripts/provision_gift_cards_table.py; a liability ledger "
+                      "owned by wecare-gift-cards. Not modelled here because its partition key "
+                      "is an HMAC of a bearer code, which has no place in a GraphQL model.",
 }
 
 

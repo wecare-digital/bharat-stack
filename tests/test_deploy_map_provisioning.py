@@ -71,10 +71,23 @@ def test_exactly_one_spec_is_awaiting_provisioning(deploy_module):
     # wecare-checkout added 2026-10-01: the headless checkout front door (authoritative Wix total,
     # readiness gate, PaymentAttempt, in-chat handoff; initiation off), also new and awaiting first
     # provision.
+    # wecare-coupons added 2026-10-02: coupon issuance and eligibility, owning
+    # stack-wecare-digital-CouponsTable. Never created in AWS - its table, its own least-privilege
+    # role and its seven routes are all first-provisioned by scripts/provision_coupons_*.py, so a
+    # deploy-all run before that is legitimately awaiting provisioning rather than failing.
+    # wecare-gift-cards added 2026-10-02: gift-card issuance and balance, owning
+    # stack-wecare-digital-GiftCardsTable. Also never created, and its table additionally needs the
+    # customer-managed KMS key provision_gift_cards_table.py creates - an owner-confirmation step,
+    # so this one cannot be provisioned incidentally by a deploy.
+    # wecare-wix-giftcard-spi added 2026-10-02: the Wix Gift Cards Service Plugin endpoint Wix
+    # calls with a signed JWT. Never created, and it cannot be deployed by code update alone
+    # because provision_gift_cards_roles.py is what attaches the version-pinned cryptography
+    # layer its verifier imports.
     # Session infrastructure is owned by its CloudFormation template; an account
     # without that stack must provision it rather than report a code-update failure.
     assert waiting == ["wecare-customer-session", "wecare-customer-whatsapp-auth", "wecare-email-verification",
-                       "wecare-customer-registration", "wecare-checkout"]
+                       "wecare-customer-registration", "wecare-checkout",
+                       "wecare-coupons", "wecare-gift-cards", "wecare-wix-giftcard-spi"]
 
 
 def test_the_summary_line_reports_the_new_state(deploy_module):

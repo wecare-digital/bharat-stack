@@ -168,12 +168,6 @@ def test_the_coupon_code_is_the_correlation_id_and_no_phone_or_email_joins_it():
 
 # ── 61 ────────────────────────────────────────────────────────────────────────
 
-@pytest.mark.xfail(strict=True, reason=(
-    "The RAW_SCAN_ONLY_FILES split in tests/test_payment_vocabulary_at_decision_points.py is a "
-    "SHARED-GATE edit, and that file is one of the three gates assigned to the shared-gate step "
-    "rather than to this feature. Asserted here so it converts from pending to passing the "
-    "moment the gate lands, and fails loudly if someone satisfies it by weakening the gate. "
-    "strict=True per DECISION 8."))
 def test_the_new_handlers_are_in_the_raw_scan_list():
     """Section 9: the gate is SPLIT rather than stretched, and the reason is load-bearing.
 
@@ -192,7 +186,12 @@ def test_the_new_handlers_are_in_the_raw_scan_list():
         None)
     assert assignment is not None, "RAW_SCAN_ONLY_FILES is not declared in the vocabulary gate"
     entries = ast.literal_eval(assignment.value)
-    assert ("ecommerce/coupons/handler.py", None) in entries
+    # All three, because nothing else pins the two gift-card entries and the list is the only
+    # thing putting those handlers under the raw-'captured' scan at all. The SPI handler is the
+    # one that matters most: it is the new file touching money on an externally-triggered path.
+    for handler in ("ecommerce/coupons/handler.py", "ecommerce/gift-cards/handler.py",
+                    "ecommerce/wix-giftcard-spi/handler.py"):
+        assert (handler, None) in entries, f"{handler} is outside the raw-scan gate"
 
 
 def test_the_coupon_handler_has_no_payment_status_decision_to_consult():

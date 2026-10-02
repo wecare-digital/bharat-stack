@@ -6,16 +6,19 @@ Design reference: `.agents/tasks/wix-coupons-giftcards-20261001/coupons-20261001
 its constants, and assert over those. No provisioner is ever run with `--apply`, and no AWS call is
 made.
 
-Tests 52, 52a and 52b are `xfail(strict=True)` ON PURPOSE
----------------------------------------------------------
-Their subject is `scripts/provision_checkout.py`, which belongs to the checkout workstream
-(SEAM-C3b). DECISION 8: a seam-dependent assertion is marked, never weakened, so it converts from
-"pending" to "passing" the moment its producer lands and fails loudly if someone satisfies it by
-lowering the bar. Writing them now is what makes the seam's requirement unambiguous.
+Tests 52, 52a and 52b are no longer `xfail` - SEAM-C3b has landed
+-----------------------------------------------------------------
+They were written `xfail(strict=True)` against `scripts/provision_checkout.py` while that file
+belonged to the checkout workstream, under DECISION 8: a seam-dependent assertion is marked, never
+weakened, so it converts from "pending" to "passing" the moment its producer lands. DECISION 7 then
+assigned that file and its contract test to this work, and the shared-gate step made all three
+parts of the HIGH-5 edit in one visit - the grant, the simulated action and table lists, and the
+pair-keyed verdict. `strict=True` is what made the conversion safe to do by deleting a mark rather
+than by re-deriving what the tests were supposed to prove: an unmarked xfail would have passed
+silently either way.
 
-Test 57 (both new tables allowed in the drift gate) is not here: that is an edit to
-`scripts/check_data_model_drift.py`, one of the three shared gates, owned by the shared-gate step
-so two sessions never stage the same file.
+Test 57 lives here, with the drift-gate allowance it asserts added to
+`scripts/check_data_model_drift.py` by the same step - one file, one session, one commit.
 """
 
 from __future__ import annotations
@@ -99,6 +102,8 @@ def _checkout_policy() -> dict:
         "SENDER_FUNCTION": checkout.SENDER_FUNCTION,
         "LIVE_ALIAS": checkout.LIVE_ALIAS,
         "COUPONS_TABLE": getattr(checkout, "COUPONS_TABLE", "stack-wecare-digital-CouponsTable"),
+        "GIFT_CARDS_TABLE": getattr(checkout, "GIFT_CARDS_TABLE",
+                                    "stack-wecare-digital-GiftCardsTable"),
     }
     try:
         return eval(body, {"__builtins__": {}}, namespace)  # noqa: S307 - our own source
@@ -116,6 +121,8 @@ def _checkout_simulated_tables() -> list:
         "PAYMENT_ATTEMPTS_TABLE": checkout.PAYMENT_ATTEMPTS_TABLE,
         "COMMERCE_KEYS_TABLE": checkout.COMMERCE_KEYS_TABLE,
         "COUPONS_TABLE": getattr(checkout, "COUPONS_TABLE", "stack-wecare-digital-CouponsTable"),
+        "GIFT_CARDS_TABLE": getattr(checkout, "GIFT_CARDS_TABLE",
+                                    "stack-wecare-digital-GiftCardsTable"),
     }
     try:
         return eval("[" + body + "]", {"__builtins__": {}}, namespace)  # noqa: S307
@@ -123,15 +130,8 @@ def _checkout_simulated_tables() -> list:
         sys.modules.pop("provision_checkout", None)
 
 
-# ── 52 / 52a / 52b: SEAM-C3b, pending its producer ────────────────────────────
+# ── 52 / 52a / 52b: SEAM-C3b, landed ──────────────────────────────────────────
 
-SEAM_C3B = ("SEAM-C3b: scripts/provision_checkout.py belongs to the checkout workstream. "
-            "Marked rather than weakened per DECISION 8, so it converts from pending to "
-            "passing the moment the seam lands and fails loudly if someone satisfies it by "
-            "lowering the bar.")
-
-
-@pytest.mark.xfail(strict=True, reason=SEAM_C3B)
 def test_the_checkout_role_gains_only_the_coupons_table():
     """`wecare-checkout-role` is a PER-FUNCTION role, not the shared fleet role, which is why
     option (a) - extending it additively - is compatible with section 6's objection to widening
@@ -182,7 +182,6 @@ def test_the_iam_simulation_covers_every_action_the_policy_grants():
         f"{sorted(policy_tables - set(_checkout_simulated_tables()))}")
 
 
-@pytest.mark.xfail(strict=True, reason=SEAM_C3B)
 def test_delete_item_is_still_denied_on_the_payment_attempt_and_keys_tables():
     """The other half of extending `_SIMULATED_ACTIONS`: the new action must come back DENIED on
     the two existing tables, which `provision_checkout.py`'s own policy comment promises - "No
@@ -331,6 +330,26 @@ def test_the_table_provisioner_never_deletes_or_retargets(table):
                  if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                  and node.func.attr in forbidden]
     assert not offenders, "\n  ".join(offenders)
+
+
+def test_both_new_tables_are_allowed_in_the_drift_gate_with_a_reason(drift):
+    """57. Neither `Coupon` nor `GiftCard` is a declared model in `amplify/data/resource.ts`, so a
+    live table with that name lands in `undeclared_tables_unexpected` and `--gate` exits non-zero.
+    The allowance is what makes the disagreement a recorded decision rather than a failure.
+
+    The reason string is asserted non-empty, not merely present. `UNDECLARED_ALLOWED` carries a
+    reason per entry precisely because a gate that fires on a decision already taken is a gate
+    somebody switches off - an empty reason restores that problem while passing the membership
+    check.
+    """
+    for table in ("CouponsTable", "GiftCardsTable"):
+        assert table in drift.UNDECLARED_ALLOWED, (
+            f"{table} has no drift-gate allowance, so check_data_model_drift --gate fails once "
+            f"the table is live")
+        reason = drift.UNDECLARED_ALLOWED[table]
+        assert reason.strip(), f"{table} is allowed with no reason recorded"
+        assert "provision_" in reason, (
+            f"{table}'s reason does not name the provisioner that owns it")
 
 
 def test_the_table_name_follows_the_drift_script_default_rule(drift):

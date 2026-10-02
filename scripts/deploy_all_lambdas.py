@@ -213,6 +213,36 @@ SPECS: List[Spec] = [
         "ecommerce/checkout",
         provisioned_by="python scripts/provision_checkout.py",
     ),
+    # Coupon issuance and eligibility. Owns stack-wecare-digital-CouponsTable; creates NO
+    # discount amount of its own -- the arithmetic is Wix's Calculate Cart. NOT standalone: it
+    # imports lambda_utils.customer_auth, response, logging, ecommerce.coupon_store and
+    # ecommerce.wix_coupons.
+    Spec(
+        "wecare-coupons",
+        "ecommerce/coupons",
+        provisioned_by="python scripts/provision_coupons_table.py && "
+                       "python scripts/provision_coupons_role.py && "
+                       "python scripts/provision_coupons_routes.py",
+    ),
+    # Gift-card issuance, balance and holds. Owns stack-wecare-digital-GiftCardsTable, which is
+    # a LIABILITY ledger: the balance of record lives here, never in Wix. NOT standalone.
+    Spec(
+        "wecare-gift-cards",
+        "ecommerce/gift-cards",
+        provisioned_by="python scripts/provision_gift_cards_table.py && "
+                       "python scripts/provision_gift_cards_roles.py && "
+                       "python scripts/provision_gift_card_routes.py",
+    ),
+    # The Wix Gift Cards Service Plugin endpoint. Wix CALLS this one, with a signed JWT as the
+    # request body and no API Gateway authorizer, so JWT verification is the only control --
+    # see .agents/tasks/wix-coupons-giftcards-20261001/gift-cards-service-plugin-20261001.md
+    # section 5. Needs the cryptography layer attached; provision_gift_cards_roles.py does it.
+    Spec(
+        "wecare-wix-giftcard-spi",
+        "ecommerce/wix-giftcard-spi",
+        provisioned_by="python scripts/provision_gift_cards_roles.py && "
+                       "python scripts/provision_gift_card_routes.py",
+    ),
     # Cognito CustomMessage trigger: branded HTML for MFA, verification and
     # recovery email. First creation is owned by
     # scripts/provision_cognito_custom_message.py, which also gives it a

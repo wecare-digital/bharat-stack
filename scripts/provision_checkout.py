@@ -126,6 +126,11 @@ DEPLOY_SOURCE_ROOT = ROOT / ".scratch" / "deploy-checkout"
 
 PAYMENT_ATTEMPTS_TABLE = "stack-wecare-digital-PaymentAttemptsTable"
 COMMERCE_KEYS_TABLE = "stack-wecare-digital-WixOrderIds"
+#: The coupon and gift-card stores. Checkout writes to both because the REDEMPTION happens in the
+#: finalization path - `coupon_store.commit_redemption` and `gift_card_store.redeem` run here, not
+#: inside `wecare-coupons` or `wecare-gift-cards`, which issue and answer eligibility.
+COUPONS_TABLE = "stack-wecare-digital-CouponsTable"
+GIFT_CARDS_TABLE = "stack-wecare-digital-GiftCardsTable"
 WIX_API_KEY_SECRET = "wecare/wix/headless-api-key"
 WIX_SITE_ID = "fcd82f0c-9572-49c7-acfb-88fb05042ece"
 SENDER_FUNCTION = "wecare-whatsapp-business-api"
@@ -399,6 +404,22 @@ def ensure_role(dry_run: bool) -> str:
                 ],
             },
             {
+                "Sid": "CouponAndGiftCardRedemption",
+                "Effect": "Allow",
+                # DeleteItem IS granted, and ONLY on these two tables. A redemption deletes the
+                # hold row that reserved the code for this cart — the hold is a RESERVATION, and a
+                # reservation that outlives the order it was taken for locks the code out of every
+                # later cart. The statement above deliberately withholds DeleteItem on the payment
+                # attempt and reservation tables, where a row is evidence rather than a
+                # reservation. Two statements, because the two grants are different grants.
+                "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
+                           "dynamodb:DeleteItem"],
+                "Resource": [
+                    f"arn:aws:dynamodb:{REGION}:{acct}:table/{COUPONS_TABLE}",
+                    f"arn:aws:dynamodb:{REGION}:{acct}:table/{GIFT_CARDS_TABLE}",
+                ],
+            },
+            {
                 "Sid": "InvokeWhatsAppSender",
                 "Effect": "Allow",
                 "Action": ["lambda:InvokeFunction"],
@@ -660,7 +681,22 @@ def ensure_routes(dry_run: bool, integration_id: str) -> str:
 
 #: DynamoDB actions the checkout path could plausibly need, and the verdict we expect.
 _SIMULATED_ACTIONS = ("dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
-                      "dynamodb:ConditionCheckItem")
+                      "dynamodb:DeleteItem", "dynamodb:ConditionCheckItem")
+
+#: (action, TABLE NAME) pairs the inline policy deliberately withholds, so a `denied` verdict is
+#: the CORRECT answer rather than a problem to report.
+#:
+#: This set is why the verdict below is keyed on the PAIR and not on the action alone. `DeleteItem`
+#: is now legitimately allowed on the coupon and gift-card tables and legitimately denied on these
+#: two, so aggregating every resource's decision under one action key produces
+#: `{"allowed", "implicitDeny"}` — not `{"allowed"}` — and a correctly provisioned role fails
+#: `verify()`. The pair key also turns the withholding into something measured rather than assumed:
+#: a `DeleteItem` that becomes ALLOWED here is reported, which a per-action aggregate could not
+#: distinguish from the coupon grant it was supposed to see.
+_EXPECTED_DENY = {
+    ("dynamodb:DeleteItem", PAYMENT_ATTEMPTS_TABLE),
+    ("dynamodb:DeleteItem", COMMERCE_KEYS_TABLE),
+}
 
 
 def _package_of(arcname: str) -> list:
@@ -783,7 +819,12 @@ def report_required_grants(members: dict | None) -> list:
     """
     acct = account_id()
     tables = [f"arn:aws:dynamodb:{REGION}:{acct}:table/{PAYMENT_ATTEMPTS_TABLE}",
-              f"arn:aws:dynamodb:{REGION}:{acct}:table/{COMMERCE_KEYS_TABLE}"]
+              f"arn:aws:dynamodb:{REGION}:{acct}:table/{COMMERCE_KEYS_TABLE}",
+              f"arn:aws:dynamodb:{REGION}:{acct}:table/{COUPONS_TABLE}",
+              f"arn:aws:dynamodb:{REGION}:{acct}:table/{GIFT_CARDS_TABLE}"]
+    #: ARN -> table name, so a verdict can be reported and judged against `_EXPECTED_DENY` by the
+    #: name the policy uses rather than by a rendered ARN nobody reads.
+    table_names = {arn: arn.rsplit("/", 1)[1] for arn in tables}
     try:
         role_arn = iam().get_role(RoleName=ROLE_NAME)["Role"]["Arn"]
     except ClientError as exc:
@@ -804,39 +845,62 @@ def report_required_grants(members: dict | None) -> list:
         return [f"IAM verdicts NOT MEASURED: simulate_principal_policy failed ({code})"]
 
     for item in result.get("EvaluationResults", []):
-        verdicts.setdefault(item["EvalActionName"], set()).add(item["EvalDecision"])
+        key = (item["EvalActionName"], item.get("EvalResourceName", ""))
+        verdicts.setdefault(key, set()).add(item["EvalDecision"])
 
     # `None` means the closure was never measured, which is NOT the same as "measured, needs
     # nothing" — the empty list. Keep the two distinguishable all the way to the exit code.
     needed_by_code = _package_needs_transactions(members) if members is not None else None
+
+    condition_check: set = set()
     for action in _SIMULATED_ACTIONS:
-        decisions = verdicts.get(action, {"not evaluated"})
-        decision = "allowed" if decisions == {"allowed"} else "/".join(sorted(decisions))
-        note = ""
-        if action == "dynamodb:ConditionCheckItem" and decision != "allowed":
-            if needed_by_code is None:
-                note = "  <-- NOT JUDGED (import closure not measured)"
+        for arn in tables:
+            name = table_names[arn]
+            decisions = verdicts.get((action, arn), {"not evaluated"})
+            decision = "allowed" if decisions == {"allowed"} else "/".join(sorted(decisions))
+            if action == "dynamodb:ConditionCheckItem":
+                # Granted on no table, so the question is not "which table" but "does the
+                # handler's import closure open a transaction at all". Judged once, below.
+                condition_check |= decisions
+                print(f"iam {action} on {name}: {decision}")
+                continue
+            note = ""
+            if (action, name) in _EXPECTED_DENY:
+                if decision == "allowed":
+                    note = "  <-- ALLOWED BUT MUST BE DENIED"
+                    problems.append(
+                        f"{action} on {name} is allowed, but CheckoutLeastPrivilege withholds "
+                        f"it — a failed attempt is the evidence that no charge became an order, "
+                        f"and a reservation is not ours to delete")
+                else:
+                    note = "  (correctly withheld)"
+            elif decision != "allowed":
+                # The inline policy grants this pair outright. A deny means the role is not what
+                # this script wrote, so the function cannot record a payment attempt at all.
+                note = "  <-- GRANTED BY THE INLINE POLICY BUT DENIED IN SIMULATION"
                 problems.append(
-                    f"dynamodb:ConditionCheckItem is {decision} and the verdict is NOT JUDGED: "
-                    f"the package could not be rebuilt, so the handler's import closure was "
-                    f"never measured")
-            elif needed_by_code:
-                note = "  <-- REQUIRED GRANT"
-                problems.append(
-                    f"dynamodb:ConditionCheckItem on {', '.join(tables)} — needed by "
-                    + "; ".join(needed_by_code))
-            else:
-                note = ("  (not required: no TransactWriteItems/TransactGetItems anywhere in "
-                        "the handler's import closure; a ConditionExpression on "
-                        "put_item/update_item needs PutItem/UpdateItem only)")
-        elif decision != "allowed":
-            # The inline policy grants these three outright. A deny here means the role is not what
-            # this script wrote, so the function cannot record a payment attempt at all.
-            note = "  <-- GRANTED BY THE INLINE POLICY BUT DENIED IN SIMULATION"
+                    f"{action} on {name} is {decision}, but CheckoutLeastPrivilege grants it "
+                    f"— the live role does not match this script")
+            print(f"iam {action} on {name}: {decision}{note}")
+
+    cc_decision = ("allowed" if condition_check == {"allowed"}
+                   else "/".join(sorted(condition_check or {"not evaluated"})))
+    if cc_decision != "allowed":
+        if needed_by_code is None:
             problems.append(
-                f"{action} on {', '.join(tables)} is {decision}, but CheckoutLeastPrivilege "
-                f"grants it — the live role does not match this script")
-        print(f"iam {action}: {decision}{note}")
+                f"dynamodb:ConditionCheckItem is {cc_decision} and the verdict is NOT JUDGED: "
+                f"the package could not be rebuilt, so the handler's import closure was "
+                f"never measured")
+            print("iam dynamodb:ConditionCheckItem: NOT JUDGED (import closure not measured)")
+        elif needed_by_code:
+            problems.append(
+                f"dynamodb:ConditionCheckItem on {', '.join(tables)} — needed by "
+                + "; ".join(needed_by_code))
+            print("iam dynamodb:ConditionCheckItem: REQUIRED GRANT")
+        else:
+            print("iam dynamodb:ConditionCheckItem: not required (no TransactWriteItems/"
+                  "TransactGetItems anywhere in the handler's import closure; a "
+                  "ConditionExpression on put_item/update_item needs PutItem/UpdateItem only)")
 
     for line in problems:
         print(f"REQUIRED GRANT: {line}")

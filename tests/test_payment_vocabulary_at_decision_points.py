@@ -195,6 +195,18 @@ CONSULTING_FILES = [
     ("messaging/whatsapp-business-api/flows/track_request.py", "pay_status"),
 ]
 
+#: Files with no payment-status decision of their own, which must still never compare a payment
+#: word raw. They are not in CONSULTING_FILES because they have nothing to consult: the coupon
+#: handler decides eligibility, the gift-card handler decides issuance, and the gift-card
+#: settlement ladder is its own module (gift_card_settlement) with its own ranks. Forcing an
+#: unused `payment_status` import to pass the import assertion would make that assertion mean
+#: less, and the import would not survive the first tidy-up.
+RAW_SCAN_ONLY_FILES = [
+    ("ecommerce/coupons/handler.py", None),
+    ("ecommerce/gift-cards/handler.py", None),
+    ("ecommerce/wix-giftcard-spi/handler.py", None),
+]
+
 
 def _module_aliases(tree: ast.Module) -> set[str]:
     """Names that `lambda_utils.payment_status` is bound to anywhere in the file."""
@@ -240,7 +252,7 @@ def test_the_handler_imports_the_vocabulary_module(relative, alias):
 FORBIDDEN_RAW = {"captured"}
 
 
-@pytest.mark.parametrize("relative,alias", CONSULTING_FILES)
+@pytest.mark.parametrize("relative,alias", CONSULTING_FILES + RAW_SCAN_ONLY_FILES)
 def test_no_decision_compares_a_payment_word_raw(relative, alias):
     """Walk the AST for `<anything> == 'captured'` and friends.
 

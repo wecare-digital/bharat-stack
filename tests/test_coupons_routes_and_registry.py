@@ -3,10 +3,10 @@
 Design reference: `.agents/tasks/wix-coupons-giftcards-20261001/coupons-20261001.md` sections 5.1
 and 5.1.1, and the test list in section 7 (tests 62-64).
 
-Test 65 - that all three new functions resolve in `deploy_all_lambdas.SPECS` - is deliberately
-NOT here. `scripts/deploy_all_lambdas.py` is one of the three shared gates, edited once by the
-shared-gate step so that two sessions never stage the same file, and the gift-card document
-depends on that single test rather than duplicating it.
+Test 65 - that all three new functions resolve in `deploy_all_lambdas.SPECS` - is now here, added
+by the shared-gate step alongside the `scripts/deploy_all_lambdas.py` edit it asserts. It lives in
+this one file for both documents rather than being duplicated in the gift-card suite, for the same
+reason the registry edit itself is made once: one file, one session, one commit.
 
 Why test 62 exists at all
 -------------------------
@@ -294,3 +294,58 @@ def test_verify_reads_routes_integration_and_every_invoke_statement_back(provisi
     assert "_statement_source_arn(" in body
     assert "unexpected" in body, "an extra invoke statement would pass unnoticed"
     assert "AuthorizerId" in body, "an authorizer added by someone else would pass unnoticed"
+
+
+# ── 65: the deploy registry, for all three new functions ──────────────────────
+
+NEW_FUNCTIONS = ("wecare-coupons", "wecare-gift-cards", "wecare-wix-giftcard-spi")
+
+
+@pytest.fixture(scope="module")
+def deploy_specs():
+    """`deploy_all_lambdas.SPECS`, by name. Loaded offline - no AWS call, no packaging."""
+    path = ROOT / "scripts" / "deploy_all_lambdas.py"
+    spec = importlib.util.spec_from_file_location("deploy_all_lambdas_registry", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["deploy_all_lambdas_registry"] = module
+    spec.loader.exec_module(module)
+    try:
+        yield {s.name: s for s in module.SPECS}
+    finally:
+        sys.modules.pop("deploy_all_lambdas_registry", None)
+
+
+@pytest.mark.parametrize("name", NEW_FUNCTIONS)
+def test_the_new_function_is_deployable_at_all(name, deploy_specs):
+    """`deploy_all_lambdas.py` deploys from an explicit list, so a name absent from it is not
+    deployable - `deploy_all_lambdas.py wecare-coupons` would resolve nothing and exit having done
+    nothing, which looks like a successful run."""
+    assert name in deploy_specs, (
+        f"{name} is not in SPECS, so it cannot be deployed by any means in this repo")
+    assert deploy_specs[name].source.is_dir(), (
+        f"{deploy_specs[name].source} does not exist; the Spec points at no source directory")
+    assert (deploy_specs[name].source / "handler.py").exists()
+
+
+@pytest.mark.parametrize("name", NEW_FUNCTIONS)
+def test_the_new_function_declares_what_must_create_it_first(name, deploy_specs):
+    """All three are new, so every deploy-all run reports them absent until their provisioners have
+    run. Without `provisioned_by` that lands in `failed`, and a tally that is never zero stops being
+    a signal - the exact reason the field was introduced.
+
+    The referenced scripts have to exist, or the message sends the operator nowhere.
+    """
+    provisioned_by = deploy_specs[name].provisioned_by
+    assert provisioned_by, f"{name} would be reported as a deploy FAILURE until it is created"
+    referenced = [word for word in provisioned_by.split() if word.endswith(".py")]
+    assert referenced, f"{name}'s provisioned_by names no script"
+    for script in referenced:
+        assert (ROOT / script).exists(), f"{name} points at {script}, which does not exist"
+
+
+def test_the_spi_function_is_not_standalone_and_ships_the_shared_tree(deploy_specs):
+    """The SPI verifier lives in `lambda_utils.ecommerce.gift_card_spi_auth`, so a standalone
+    package would be a function whose only control - JWT verification - is not in the zip."""
+    assert deploy_specs["wecare-wix-giftcard-spi"].standalone is False
+    assert deploy_specs["wecare-coupons"].standalone is False
+    assert deploy_specs["wecare-gift-cards"].standalone is False
