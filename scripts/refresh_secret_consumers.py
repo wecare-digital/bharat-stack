@@ -89,16 +89,60 @@ def names_in_code(text: str, secret_id: str) -> bool:
     return False
 
 
+def _shared_import_stems(text: str) -> set[str]:
+    """Shared module basenames imported by one Python source file."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return set()
+    out: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            module = str(node.module or "")
+            if module == "lambda_utils" or module.startswith("lambda_utils."):
+                for alias in node.names:
+                    out.add(str(alias.name).split(".")[-1])
+                if module != "lambda_utils":
+                    out.add(module.split(".")[-1])
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                name = str(alias.name)
+                if name == "lambda_utils" or name.startswith("lambda_utils."):
+                    out.add(name.split(".")[-1])
+    return out
+
+
 def _shared_modules_naming(secret_id: str) -> set[str]:
-    """Shared lambda_utils modules that reference this secret id in code."""
-    out = set()
+    """Shared modules that directly OR transitively depend on this secret.
+
+    Example: checkout/handler -> website_checkout -> razorpay_orders -> wecare/razorpay/api.
+    A direct-only scan misses the checkout Lambda and leaves a warm execution environment holding
+    the old credential after rotation. Compute the reverse import closure over lambda_utils so any
+    shared wrapper around a secret-reading module becomes evidence too.
+    """
+    sources: dict[str, str] = {}
+    direct: set[str] = set()
+    imports: dict[str, set[str]] = {}
     for py in SHARED.rglob("*.py"):
         try:
-            if names_in_code(py.read_text(errors="replace"), secret_id):
-                out.add(py.stem)
+            text = py.read_text(errors="replace")
         except OSError:
             continue
-    return out
+        stem = py.stem
+        sources[stem] = text
+        imports[stem] = _shared_import_stems(text)
+        if names_in_code(text, secret_id):
+            direct.add(stem)
+
+    closure = set(direct)
+    changed = True
+    while changed:
+        changed = False
+        for stem, deps in imports.items():
+            if stem not in closure and deps & closure:
+                closure.add(stem)
+                changed = True
+    return closure
 
 
 def consumers(secret_id: str) -> list[tuple[str, str]]:

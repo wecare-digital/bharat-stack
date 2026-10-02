@@ -29,7 +29,9 @@ Deliberately NOT done here:
           --move-to-version-id <old> --remove-from-version-id <new>
 
 Consumers, for reference:
-  wecare/razorpay/api      key_id/key_secret -> wecare-partner-onboarding (top-up)
+  wecare/razorpay/api      key_id/key_secret -> every Razorpay API-authenticated flow
+                            (website checkout, capture readback, secure files,
+                             partner top-up and provider verification)
   wecare/razorpay-webhook  webhook_secret    -> wecare-razorpay-webhook (sig check)
 Changing webhook_secret ALSO requires updating the endpoint secret in the Razorpay
 dashboard, or inbound payment webhooks start failing signature verification.
@@ -130,8 +132,9 @@ def main() -> int:
             print("  --deprecate-previous: AWSPREVIOUS left in place; AWS removes it "
                   "automatically as further versions are added. Explicit deletion is "
                   "not offered here because it destroys the only rollback path.")
-        print("\nNEXT: verify top-up works, then deactivate the OLD key in the "
-              "Razorpay dashboard. Nothing was revoked by this script.")
+        print("\nNEXT: run refresh_secret_consumers.py wecare/razorpay/api, then "
+              "check_secrets_live.py --only razorpay before deactivating the OLD key "
+              "in the Razorpay dashboard. Nothing was revoked by this script.")
         return 0
 
     if mode == "webhook":

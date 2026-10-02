@@ -102,6 +102,8 @@ STAGE = "prod"
 ROUTE_KEYS = (
     "POST /ecommerce/checkout",
     "POST /ecommerce/checkout/status",
+    "POST /ecommerce/prepare-checkout",
+    "POST /ecommerce/verify-callback",
 )
 
 #: Superseded statement ids, removed only once the per-route statements are in place.
@@ -132,6 +134,8 @@ COMMERCE_KEYS_TABLE = "stack-wecare-digital-WixOrderIds"
 COUPONS_TABLE = "stack-wecare-digital-CouponsTable"
 GIFT_CARDS_TABLE = "stack-wecare-digital-GiftCardsTable"
 WIX_API_KEY_SECRET = "wecare/wix/headless-api-key"
+RAZORPAY_API_SECRET = "wecare/razorpay/api"
+CONTACTS_TABLE = "stack-wecare-digital-ContactsTable"
 WIX_SITE_ID = "fcd82f0c-9572-49c7-acfb-88fb05042ece"
 SENDER_FUNCTION = "wecare-whatsapp-business-api"
 PAYMENT_WABA_ID = "2094615664435155"
@@ -393,6 +397,18 @@ def ensure_role(dry_run: bool) -> str:
                 "Resource": [f"arn:aws:secretsmanager:{REGION}:{acct}:secret:{WIX_API_KEY_SECRET}-*"],
             },
             {
+                "Sid": "ReadRazorpayApiKey",
+                "Effect": "Allow",
+                "Action": ["secretsmanager:GetSecretValue"],
+                "Resource": [f"arn:aws:secretsmanager:{REGION}:{acct}:secret:{RAZORPAY_API_SECRET}-*"],
+            },
+            {
+                "Sid": "ReadVerifiedCheckoutProfile",
+                "Effect": "Allow",
+                "Action": ["dynamodb:Query"],
+                "Resource": [f"arn:aws:dynamodb:{REGION}:{acct}:table/{CONTACTS_TABLE}/index/phone-index"],
+            },
+            {
                 "Sid": "PaymentAttemptAndCommerceKeys",
                 "Effect": "Allow",
                 # No DeleteItem: a checkout never deletes a payment attempt or a reservation — a
@@ -467,6 +483,8 @@ def expected_environment() -> dict:
         "PAYMENT_ATTEMPTS_TABLE": PAYMENT_ATTEMPTS_TABLE,
         "COMMERCE_KEYS_TABLE": COMMERCE_KEYS_TABLE,
         "WIX_API_KEY_SECRET": WIX_API_KEY_SECRET,
+        "RAZORPAY_SECRET_ID": RAZORPAY_API_SECRET,
+        "CONTACTS_TABLE": CONTACTS_TABLE,
         "WIX_SITE_ID": WIX_SITE_ID,
         "SENDER_FUNCTION": f"{SENDER_FUNCTION}:{LIVE_ALIAS}",
         "PAYMENT_WABA_ID": PAYMENT_WABA_ID,
@@ -681,7 +699,8 @@ def ensure_routes(dry_run: bool, integration_id: str) -> str:
 
 #: DynamoDB actions the checkout path could plausibly need, and the verdict we expect.
 _SIMULATED_ACTIONS = ("dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
-                      "dynamodb:DeleteItem", "dynamodb:ConditionCheckItem")
+                      "dynamodb:DeleteItem", "dynamodb:ConditionCheckItem",
+                      "dynamodb:Query")
 
 #: (action, TABLE NAME) pairs the inline policy deliberately withholds, so a `denied` verdict is
 #: the CORRECT answer rather than a problem to report.
@@ -821,10 +840,19 @@ def report_required_grants(members: dict | None) -> list:
     tables = [f"arn:aws:dynamodb:{REGION}:{acct}:table/{PAYMENT_ATTEMPTS_TABLE}",
               f"arn:aws:dynamodb:{REGION}:{acct}:table/{COMMERCE_KEYS_TABLE}",
               f"arn:aws:dynamodb:{REGION}:{acct}:table/{COUPONS_TABLE}",
-              f"arn:aws:dynamodb:{REGION}:{acct}:table/{GIFT_CARDS_TABLE}"]
-    #: ARN -> table name, so a verdict can be reported and judged against `_EXPECTED_DENY` by the
-    #: name the policy uses rather than by a rendered ARN nobody reads.
-    table_names = {arn: arn.rsplit("/", 1)[1] for arn in tables}
+              f"arn:aws:dynamodb:{REGION}:{acct}:table/{GIFT_CARDS_TABLE}",
+              f"arn:aws:dynamodb:{REGION}:{acct}:table/{CONTACTS_TABLE}/index/phone-index"]
+    core_tables = tables[:4]
+    profile_index = tables[4]
+    #: ARN -> readable resource name. The profile resource ends in `phone-index`, so retaining the
+    #: table name matters when a verifier reports a mismatch.
+    table_names = {
+        tables[0]: PAYMENT_ATTEMPTS_TABLE,
+        tables[1]: COMMERCE_KEYS_TABLE,
+        tables[2]: COUPONS_TABLE,
+        tables[3]: GIFT_CARDS_TABLE,
+        tables[4]: CONTACTS_TABLE + "/index/phone-index",
+    }
     try:
         role_arn = iam().get_role(RoleName=ROLE_NAME)["Role"]["Arn"]
     except ClientError as exc:
@@ -854,7 +882,12 @@ def report_required_grants(members: dict | None) -> list:
 
     condition_check: set = set()
     for action in _SIMULATED_ACTIONS:
-        for arn in tables:
+        # Query exists only to read the verified checkout profile from the Contacts phone index.
+        # Every other Dynamo action is evaluated only on the four commerce tables. IAM simulation
+        # returns the full action/resource cross product, but irrelevant pairs are intentionally
+        # ignored rather than treated as desired permissions.
+        resources = [profile_index] if action == "dynamodb:Query" else core_tables
+        for arn in resources:
             name = table_names[arn]
             decisions = verdicts.get((action, arn), {"not evaluated"})
             decision = "allowed" if decisions == {"allowed"} else "/".join(sorted(decisions))
@@ -865,6 +898,14 @@ def report_required_grants(members: dict | None) -> list:
                 print(f"iam {action} on {name}: {decision}")
                 continue
             note = ""
+            if action == "dynamodb:Query":
+                if decision != "allowed":
+                    note = "  <-- PROFILE INDEX QUERY MUST BE ALLOWED"
+                    problems.append(
+                        f"{action} on {name} is {decision}, but checkout cannot load the "
+                        f"server-verified CRM profile without it")
+                print(f"iam {action} on {name}: {decision}{note}")
+                continue
             if (action, name) in _EXPECTED_DENY:
                 if decision == "allowed":
                     note = "  <-- ALLOWED BUT MUST BE DENIED"

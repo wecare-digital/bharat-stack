@@ -28,7 +28,7 @@ REGION = "us-east-1"
 # Secrets relevant to the 2026-09-19 leak plus their production consumers.
 TARGETS = [
     ("wecare/razorpay/api",      "Razorpay API credentials (migrated 2026-09-18)"),
-    ("wecare/razorpay-webhook",  "Razorpay webhook + API pair read by wecare-partner-onboarding"),
+    ("wecare/razorpay-webhook",  "Razorpay webhook signing secret only; API key pair lives in wecare/razorpay/api"),
     ("wecare/google-api-key",    "Google API key (migrated 2026-09-18)"),
     ("wecare/google-maps",       "Google Maps key read by wecare-whatsapp-templates"),
     # Added 2026-09-30. Google Cloud project wecaredigitalbw contains exactly ONE API key -

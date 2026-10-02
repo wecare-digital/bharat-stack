@@ -87,10 +87,13 @@ import time
 from typing import Any, Dict, Optional
 
 import boto3
+from boto3.dynamodb.conditions import Key
 
 from lambda_utils import customer_auth, payment_readiness
 from lambda_utils.ecommerce import (
-    cart_v2, customer_cart, order_keys, payment_attempt, purchase_intent)
+    cart_v2, checkout_pricing, customer_cart, order_keys, payment_attempt,
+    purchase_intent, website_checkout)
+from lambda_utils.integrations import razorpay_orders, razorpay_verify
 from lambda_utils import wix_ecom
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, extract_origin, options_response
@@ -103,6 +106,8 @@ REGION = os.environ.get("AWS_REGION", "us-east-1")
 PAYMENT_ATTEMPTS_TABLE = os.environ.get(
     "PAYMENT_ATTEMPTS_TABLE", payment_attempt.DEFAULT_TABLE_NAME)
 COMMERCE_KEYS_TABLE = os.environ.get("COMMERCE_KEYS_TABLE", "")
+CONTACTS_TABLE = os.environ.get("CONTACTS_TABLE", "stack-wecare-digital-ContactsTable")
+WEBSITE_SNAPSHOT_TTL_SECONDS = 15 * 60
 
 #: Checkout mode marker on the attempt, so this path is distinguishable from any other and a test
 #: can assert which flow created it. Headless WhatsApp/Razorpay, not the (set-aside) Velo provider.
@@ -226,11 +231,15 @@ def _body(event: Dict[str, Any]) -> Dict[str, Any]:
 
 def _action(event: Dict[str, Any], body: Dict[str, Any]) -> str:
     explicit = str(body.get("action") or event.get("action") or "").strip().lower()
-    if explicit in ("create", "status"):
+    if explicit in ("create", "status", "prepare", "verify"):
         return explicit
     path = str(event.get("rawPath") or event.get("path") or "").lower()
     if path.endswith("/status"):
         return "status"
+    if path.endswith("/prepare-checkout"):
+        return "prepare"
+    if path.endswith("/verify-callback"):
+        return "verify"
     return "create"
 
 
@@ -254,6 +263,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         if action == "status":
             return _status(identity, body, origin)
+        if action == "prepare":
+            return _website_prepare(identity, body, origin)
+        if action == "verify":
+            return _website_verify(identity, body, origin)
         return _create(identity, body, origin)
     except customer_auth.CustomerNotAuthorized:
         # Same opaque 401 as unauthenticated, so the endpoint is not an IDOR oracle.
@@ -262,6 +275,230 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.error(json.dumps({"event": "checkout_error",
                                  "action": action, "error": type(exc).__name__}))
         return cors_response(500, {"error": "INTERNAL_ERROR"}, origin)
+
+
+def _checkout_profile(identity: customer_auth.CustomerIdentity) -> Optional[Dict[str, Any]]:
+    """The verified CRM profile for this signed-in phone, or None.
+
+    The lookup key comes from the proven session. A browser cannot choose a phone/customer id.
+    A row written by customer-profile carries both checkoutCustomerId and emailVerifiedAt; both
+    have to match before its name/email are allowed into Razorpay prefill.
+    """
+    try:
+        response = _table(CONTACTS_TABLE).query(
+            IndexName="phone-index",
+            KeyConditionExpression=Key("phone").eq(identity.phone),
+            Limit=5,
+        )
+    except Exception as error:  # noqa: BLE001
+        logger.error(json.dumps({"event": "checkout_profile_lookup_failed",
+                                 "error": type(error).__name__}))
+        raise
+    for item in response.get("Items") or []:
+        if item.get("deletedAt") is not None:
+            continue
+        if str(item.get("checkoutCustomerId") or "") != identity.customer_id:
+            continue
+        if not item.get("emailVerifiedAt"):
+            continue
+        if not str(item.get("email") or "").strip():
+            continue
+        return item
+    return None
+
+
+def _website_snapshot(identity: customer_auth.CustomerIdentity, line_items: list,
+                      now: int):
+    """Build the server-authoritative website payment snapshot.
+
+    Cart V2 uses its existing owned-cart producer. Until V2 has an owned delivery address loader,
+    the deployed V1 branch is converted into the same immutable QuoteSnapshot using Wix's
+    authoritative checkout total, then the one central convenience-fee calculator.
+    """
+    if cart_v2.is_enabled():
+        snapshot, _ = _v2_snapshot(identity, line_items)
+        return snapshot
+
+    checkout = wix_ecom.create_checkout(line_items)
+    currency = wix_ecom.checkout_currency(checkout)
+    if currency != "INR":
+        raise checkout_pricing.PricingError("only INR is supported")
+    collection_paise = wix_ecom.authoritative_total_paise(checkout)
+    quote = checkout_pricing.compute_quote(collection_paise, currency="INR")
+    checkout_id = str(checkout.get("id") or "")
+    if not checkout_id:
+        raise checkout_pricing.PricingError("Wix checkout id missing")
+    return checkout_pricing.build_snapshot(
+        customer_id=identity.customer_id,
+        cart_id=checkout_id,
+        cart_revision=0,
+        quote=quote,
+        created_at=now,
+        ttl_seconds=WEBSITE_SNAPSHOT_TTL_SECONDS,
+        site=wix_ecom.WIX_SITE_ID,
+        items=wix_ecom.line_item_summary(checkout),
+        address=None,
+        delivery=None,
+    )
+
+
+def _reserve_website_attempt(attempt: Dict[str, Any]) -> None:
+    _attempts_table().put_item(
+        Item=attempt,
+        ConditionExpression="attribute_not_exists(paymentAttemptId)",
+    )
+
+
+def _attempt_for_gateway_order(gateway_order_id: str) -> Optional[Dict[str, Any]]:
+    binding = order_keys.resolve_gateway_order(_keys_table(), gateway_order_id) or {}
+    attempt_id = str(binding.get("paymentAttemptId") or "")
+    if not attempt_id:
+        return None
+    return _attempts_table().get_item(
+        Key={"paymentAttemptId": attempt_id}
+    ).get("Item")
+
+
+def _website_prepare(identity: customer_auth.CustomerIdentity, body: Dict[str, Any],
+                     origin: str) -> Dict[str, Any]:
+    line_items = body.get("lineItems")
+    request_key = str(body.get("requestKey") or "").strip()
+    if not isinstance(line_items, list) or not line_items:
+        return cors_response(400, {"error": "LINE_ITEMS_REQUIRED"}, origin)
+    if not request_key or len(request_key) > 80:
+        return cors_response(400, {"error": "REQUEST_KEY_REQUIRED"}, origin)
+
+    profile = _checkout_profile(identity)
+    if not profile:
+        return cors_response(409, {
+            "error": "PROFILE_REQUIRED",
+            "message": "Verify your email and save your checkout details first.",
+        }, origin)
+
+    now = int(time.time())
+    try:
+        snapshot = _website_snapshot(identity, line_items, now)
+        prepared = website_checkout.prepare_checkout(
+            customer_id=identity.customer_id,
+            snapshot=snapshot,
+            presented_snapshot_hash=snapshot.snapshot_hash,
+            request_key=request_key,
+            now=now,
+            keys_table=_keys_table(),
+            create_order=razorpay_orders.create_order,
+            find_order_by_receipt=razorpay_orders.find_order_by_receipt,
+            account_mode_of=razorpay_orders.account_mode,
+            initiation_enabled=INITIATION_ENABLED,
+            prefill={
+                "name": str(profile.get("name") or "").strip(),
+                "email": str(profile.get("email") or "").strip(),
+                "contact": identity.phone,
+            },
+            configuration_name=website_checkout.CHECKOUT_MODE_WEBSITE,
+            reserve_attempt=_reserve_website_attempt,
+        )
+    except purchase_intent.DeliveryDetailsRequired:
+        return cors_response(409, {"error": "DELIVERY_DETAILS_REQUIRED"}, origin)
+    except website_checkout.CheckoutRejected as exc:
+        return cors_response(409, {
+            "status": website_checkout.CHECKOUT_REJECTED,
+            "reason": exc.reason,
+        }, origin)
+    except (checkout_pricing.PricingError, wix_ecom.AmountNotWhole):
+        return cors_response(409, {"error": "AMOUNT_NOT_SETTLED"}, origin)
+    except wix_ecom.WixEcomError:
+        return cors_response(502, {"error": "CATALOGUE_UNAVAILABLE"}, origin)
+    except Exception as error:  # noqa: BLE001
+        logger.error(json.dumps({"event": "website_checkout_prepare_failed",
+                                 "error": type(error).__name__}))
+        return cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin)
+
+    payload: Dict[str, Any] = {
+        "status": prepared.status,
+        "paymentAttemptId": prepared.payment_attempt_id,
+    }
+    if prepared.options:
+        payload["options"] = prepared.options
+    if prepared.reason:
+        payload["reason"] = prepared.reason
+    status_code = 200 if prepared.status in (
+        website_checkout.PAYMENT_INITIATION_DISABLED,
+        website_checkout.CHECKOUT_OPTIONS_READY,
+        website_checkout.CHECKOUT_AMBIGUOUS,
+    ) else 409
+    return cors_response(status_code, payload, origin)
+
+
+def _website_verify(identity: customer_auth.CustomerIdentity, body: Dict[str, Any],
+                    origin: str) -> Dict[str, Any]:
+    order_id = str(body.get("razorpay_order_id") or "").strip()
+    payment_id = str(body.get("razorpay_payment_id") or "").strip()
+    signature = str(body.get("razorpay_signature") or "").strip()
+    if not order_id or not payment_id or not signature:
+        return cors_response(400, {"error": "CALLBACK_FIELDS_REQUIRED"}, origin)
+
+    try:
+        attempt = _attempt_for_gateway_order(order_id)
+        owned = customer_auth.authorize_resource(identity, attempt, owner_field="customerId")
+        verify_capture = razorpay_verify.verifier_for_event(
+            payment_id=payment_id,
+            order_id=order_id,
+            load_attempt=lambda ref: _attempt_for_gateway_order(ref),
+        )
+        result = website_checkout.verify_callback(
+            customer_id=identity.customer_id,
+            presented_order_id=order_id,
+            payment_id=payment_id,
+            signature=signature,
+            keys_table=_keys_table(),
+            verify_signature=razorpay_orders.verify_checkout_signature,
+            verify_capture=verify_capture,
+            account_mode_of=razorpay_orders.account_mode,
+        )
+    except customer_auth.CustomerNotAuthorized:
+        raise
+    except Exception as error:  # noqa: BLE001
+        logger.error(json.dumps({"event": "website_checkout_verify_failed",
+                                 "error": type(error).__name__}))
+        return cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin)
+
+    if result.status == website_checkout.CALLBACK_VERIFIED_PAID:
+        # The authoritative capture has been proven. Persist the provider binding + paid state so
+        # status survives a lost browser response; the webhook still owns downstream order
+        # reconciliation and is safe to replay against this monotonic state.
+        advanced = payment_attempt.transition(
+            owned,
+            payment_attempt.PAYMENT_PAID,
+            provider_payment_id=result.payment_id,
+            provider_order_id=result.gateway_order_id,
+        )
+        try:
+            _attempts_table().update_item(
+                Key={"paymentAttemptId": result.payment_attempt_id},
+                UpdateExpression=(
+                    "SET #s=:s, attemptRank=:rank, paidAt=if_not_exists(paidAt,:paid), "
+                    "updatedAt=:u, providerPaymentId=:pid, providerOrderId=:oid"
+                ),
+                ConditionExpression=payment_attempt.condition_expression(),
+                ExpressionAttributeNames={"#s": "status"},
+                ExpressionAttributeValues={
+                    ":s": advanced["status"],
+                    ":rank": advanced[payment_attempt.RANK_ATTRIBUTE],
+                    ":paid": advanced["paidAt"],
+                    ":u": advanced["updatedAt"],
+                    ":pid": result.payment_id,
+                    ":oid": result.gateway_order_id,
+                },
+            )
+        except Exception as error:  # noqa: BLE001
+            logger.error(json.dumps({"event": "website_checkout_paid_persist_failed",
+                                     "error": type(error).__name__}))
+            return cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin)
+
+    return cors_response(200, {
+        "status": result.status,
+        "paymentAttemptId": result.payment_attempt_id,
+    }, origin)
 
 
 def _wix_request(endpoint: str, method: str = "GET",
