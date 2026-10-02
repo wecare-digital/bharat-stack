@@ -362,7 +362,7 @@ function RedemptionPanel (): React.ReactElement {
         /* The apply control takes the site's lime, like the main CTA but at the secondary rung. */
         .cart-redeem-apply{
           display:inline-flex;align-items:center;justify-content:center;min-height:44px;
-          padding:0 20px;border:2px solid #d1f470;border-radius:50px;background:#d1f470;
+          padding:0 20px;border:2px solid #1a3a2a;border-radius:50px;background:#d1f470;
           color:#1a3a2a;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;
           transition:background-color .2s;
         }
