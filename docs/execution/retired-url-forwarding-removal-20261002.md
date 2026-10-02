@@ -16,7 +16,13 @@ Frontend tests passed, including real component navigation tests for all retired
 
 Live Amplify configuration was read immediately before the update, compared with the saved array, then only the three access rules were removed. Pre-change evidence: `snapshots/retired-url-rules-before-20261002.json`.
 
-Frontend deployment and post-deploy browser verification are recorded in the completion section when finished.
+## Completion
+
+Final owner instruction: one shared 404-to-home behavior, no retired-prefix list. Commit `8b24baa0` deployed through Amplify job `1231`: BUILD, DEPLOY and VERIFY all SUCCEED. Fifty frontend tests and four configuration tests passed; the final production build passed.
+
+Live browser navigation to `/access/`, `/track/`, and `/definitely-not-a-page/` reached `https://wecare.digital/`. Thirty-two retired path probes (the 31 owner-listed paths plus access) returned HTTP 404 with no Location header. All 32 former paths are absent from the static page export. `/get/`, `/vault/`, `/shop/`, `/cart/`, `/orders/`, `/account/sign-in/`, `/workspace/access/`, and `/shipments/` returned HTTP 200 at their own URLs.
+
+The two MCP rewrites are declared in `scripts/deploy_mcp_server.py`, `HOSTING_RULES` at lines 133-136. They cover `/mcp` and `/mcp/` and proxy both to `/prod/mcp`; they do not create two servers. The public handler is `amplify/functions/ai/mcp/handler.py`, Lambda `wecare-mcp`. Audit dictionaries in `scripts/probe_url_host_matrix.py` and `scripts/retired_url_probe.py` do not install redirects. Historical comments and snapshots may describe prior behavior and are not the live configuration.
 
 ## Recovery evidence
 
