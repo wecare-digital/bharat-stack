@@ -813,3 +813,15 @@ that, and states the authority exactly as it stands rather than stronger.
   No permission grant, allowed-usage agreement, review submission, catalog
   deletion or ad write was performed. Screenshot records the current form,
   not a successful end-to-end recording. Rollback: ordinary document revert.
+
+- 2026-10-02 A0_READ/A1_LOCAL/A2_REMOTE_CODE/A3_PRODUCTION: retry Meta cloud
+  registration; replace only Ads DCR with existing-app S256 public-client OAuth
+  according to official setup and advertised metadata. Add client-bound token
+  check and authenticated tools-list status distinct from verified account data.
+  63 Python, 10 focused and 756 full frontend tests, typecheck/export passed.
+  CloudFormation reviewed only Function/Version/Alias with ReplaceAndRetain;
+  deployed version 3, exact bundle hash and Active/Successful verified. Fresh
+  IAM bridge authorization start passed; full one-use URL supplied on owner
+  request. Consent remains owner action. No new secret or IAM grant, provider
+  token value read, ad tool execution or code-job enablement. Evidence:
+  workspace-mcp-meta-ads-oauth-20261002.md. Rollback retained version 2.

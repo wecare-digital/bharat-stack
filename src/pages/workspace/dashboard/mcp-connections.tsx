@@ -26,6 +26,7 @@ const statusNames: Record<string, string> = {
   'pending-adapter': 'Adapter pending', 'documentation-only': 'Documentation only',
   documentation_verified: 'Documentation verified',
   mcp_client_required: 'MCP client sign-in needed',
+  authenticated: 'MCP authenticated · account read pending',
 };
 interface Authorization { url: string; expires: number; }
 
@@ -55,12 +56,13 @@ export default function MCPConnections({ user, signOut }: { user?: any; signOut?
         const value = await workspaceMCP<Record<string, unknown>>(
           'connection_verify', { provider },
         );
-        setChecks(old => ({ ...old, [provider]: value.status === 'documentation_verified' ? 'Documentation verified' : 'Verified' }));
+        setChecks(old => ({ ...old, [provider]: statusNames[String(value.status)] || 'Check needed' }));
         setAuthorizations(old => { const next = { ...old }; delete next[provider]; return next; });
         const read = (value.read || {}) as Record<string, unknown>;
         const detail = provider === 'aws' ? `Account ${read.account} · ${read.region}`
           : provider === 'github' ? `${read.repository} · ${read.defaultBranch}`
-          : value.status === 'documentation_verified' ? 'Documentation MCP verified; live account access is separate' : 'Authorized read passed';
+          : value.status === 'documentation_verified' ? 'Documentation MCP verified; live account access is separate'
+          : value.status === 'authenticated' ? 'MCP tool discovery passed; account read remains pending' : 'Authorized read passed';
         setActivity(old => [`${names[provider] || provider}: ${detail}`, ...old].slice(0, 20));
       } catch (e) {
         setChecks(old => ({ ...old, [provider]: 'Check needed' }));
