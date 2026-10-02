@@ -238,8 +238,12 @@ const COLUMNS: NavColumn[] = [
       // column (where it sat beneath Selfservice) on owner instruction, so the third
       // column carries the "about the company" rows - Refer & Earn plus the policies -
       // and the middle column is purely the Selfservice actions.
-      // PERKS SITS IMMEDIATELY ABOVE LEGAL STUFF, on owner instruction (Section 4). The group
-      // once carried three ANCHOR rows into /perks (Gift Cards -> #gift-cards, Rewards ->
+      // EXTRAS SITS IMMEDIATELY ABOVE LEGAL STUFF, on owner instruction (Section 4). The
+      // customer-facing label is "Extras"; the ROUTE/URL stays /perks/ (the file src/pages/perks.tsx
+      // is unchanged and the URL is deliberately not renamed to /extras/, so the live URL, the
+      // sitemap PUBLIC_EXACT, config/public-pages.json, PUBLIC_PAGE_META and the gift-card CTAs in
+      // the WhatsApp/AI/SEO handlers that point at https://wecare.digital/perks/ all keep resolving).
+      // The group once carried three ANCHOR rows into /perks (Gift Cards -> #gift-cards, Rewards ->
       // #rewards, Offers -> #offers). The owner then asked to REMOVE those gift-card / offers /
       // rewards sections from the page, so those anchors no longer exist. Rather than leave nav
       // rows pointing at dead #gift-cards/#rewards/#offers anchors, the group is collapsed to a
@@ -249,9 +253,9 @@ const COLUMNS: NavColumn[] = [
       // appears here or on the page. The /perks page is a home-styled, non-transacting landing
       // page; it carries no working-looking buy/redeem/check-balance control.
       {
-        heading: 'Perks',
+        heading: 'Extras',
         links: [
-          { label: 'Perks', href: '/perks/', match: '/perks' },
+          { label: 'Extras', href: '/perks/', match: '/perks' },
         ],
       },
       {

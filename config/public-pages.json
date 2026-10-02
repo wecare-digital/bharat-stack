@@ -69,7 +69,7 @@
     },
     {
       "id": "perks",
-      "title": "Perks",
+      "title": "Extras",
       "note": "Gift cards, rewards and offers. Non-transacting until a provider is wired up."
     },
     {
@@ -220,7 +220,7 @@
     {
       "path": "/perks",
       "group": "perks",
-      "name": "Perks",
+      "name": "Extras",
       "description": "A little extra for the people we look after. An honest, uncluttered place for the small thank-yous we send your way, and nothing here asks for payment."
     },
     {

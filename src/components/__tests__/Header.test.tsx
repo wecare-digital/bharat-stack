@@ -149,16 +149,19 @@ describe( 'Header', () => {
     routerState.pathname = '/';
   } );
 
-  it( 'adds a Perks group immediately above Legal Stuff', () => {
+  it( 'adds an Extras group immediately above Legal Stuff', () => {
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
 
-    // The Perks group was collapsed from three ANCHOR rows (Gift Cards -> /perks/#gift-cards,
-    // Rewards -> /perks/#rewards, Offers -> /perks/#offers) to a single link to the /perks/ page,
-    // because the owner removed those gift-card / offers / rewards sections and their anchors from
-    // the page. Nothing in the menu may still point at a removed anchor.
-    const perksLink = screen.getByRole( 'link', { name: 'Perks' } );
+    // The customer-facing label is "Extras" (renamed from "Perks"); the ROUTE stays /perks/ (the
+    // URL is deliberately unchanged). The group was collapsed from three ANCHOR rows (Gift Cards ->
+    // /perks/#gift-cards, Rewards -> /perks/#rewards, Offers -> /perks/#offers) to a single link to
+    // the /perks/ page, because the owner removed those gift-card / offers / rewards sections and
+    // their anchors from the page. Nothing in the menu may still point at a removed anchor.
+    const perksLink = screen.getByRole( 'link', { name: 'Extras' } );
     expect( perksLink ).toHaveAttribute( 'href', '/perks/' );
+    // The old label must not come back.
+    expect( screen.queryByRole( 'link', { name: 'Perks' } ) ).toBeNull();
 
     // The old anchor rows and their dead targets are gone.
     expect( screen.queryByRole( 'link', { name: 'Gift Cards' } ) ).toBeNull();
@@ -169,12 +172,12 @@ describe( 'Header', () => {
     expect( menuHtml ).not.toContain( '/perks/#rewards' );
     expect( menuHtml ).not.toContain( '/perks/#offers' );
 
-    // Perks sits in the SAME column as Legal Stuff, and immediately above it: the Perks group
+    // Extras sits in the SAME column as Legal Stuff, and immediately above it: the Extras group
     // node precedes the Legal Stuff group node among that column's groups.
     const perksCol = perksLink.closest( '.nav-col' );
     expect( perksCol?.textContent ).toContain( 'Legal Stuff' );
     const groups = Array.from( perksCol?.querySelectorAll( '.nav-group' ) || [] );
-    const perksIndex = groups.findIndex( g => g.textContent?.startsWith( 'Perks' ) );
+    const perksIndex = groups.findIndex( g => g.textContent?.startsWith( 'Extras' ) );
     const legalIndex = groups.findIndex( g => g.textContent?.startsWith( 'Legal Stuff' ) );
     expect( perksIndex ).toBeGreaterThanOrEqual( 0 );
     expect( legalIndex ).toBe( perksIndex + 1 );

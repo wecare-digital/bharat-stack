@@ -33,9 +33,12 @@ describe( 'Perks page', () => {
     const h1s = container.querySelectorAll( 'h1' );
     expect( h1s ).toHaveLength( 1 );
 
-    // The hero badge keeps the customer-facing label "Perks".
+    // The hero badge carries the customer-facing label "Extras" (renamed from "Perks"); the
+    // ROUTE stays /perks/ and the file name is unchanged.
     const text = container.textContent || '';
-    expect( text ).toContain( 'Perks' );
+    expect( text ).toContain( 'Extras' );
+    // The old proper-noun page name must not remain in the customer-facing copy.
+    expect( text ).not.toContain( 'Perks' );
   } );
 
   it( 'reuses RotatingHero (not a bespoke hero) and replicates the home scroll-reveal band', () => {
