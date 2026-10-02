@@ -455,7 +455,7 @@ worktree and Turbopack will not resolve `next` through the ancestor walk-up. `--
 
 The brief asked me to report `tests/test_url_host_routing_rules.py`'s 5 failures separately and not
 fix them. I measured them at baseline and confirmed them untouched by my work — and then the rebase
-made the point moot: **`c7afae00` ("test(routing): pin the owner-instructed /access removal instead
+made the point moot: **`c7afae00` ("test(routing): pin the owner-instructed [retired public path ef531503] removal instead
 of the retired redirects") fixed them upstream.** On the committed tree that file is 13 passed / 0
 failed, and the full Python suite has **zero failures of any kind**.
 

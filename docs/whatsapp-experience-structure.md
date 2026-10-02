@@ -335,7 +335,7 @@ double-submit or double-charge. `_handle_postpay_submission` writes directly wit
 ### Web forms
 
 `src/pages/forms/` holds **no customer data-entry form**. `[retired public path 169e0fd8]` redirects to
-`[retired public path 169e0fd8]/responses` (operator queue); `[retired public path 169e0fd8]/selfservice` is an admin catalogue whose only
+`[retired public path 169e0fd8]/responses` (operator queue); `[retired public path 169e0fd8][retired public path b180810d]` is an admin catalogue whose only
 customer-facing element is the `MESSAGE_LINKS` map of 12 `wa.me/message/*` codes. See §9 —
 11 of those 12 codes do not exist on either number.
 

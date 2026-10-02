@@ -46,14 +46,14 @@ Behind authentication. Listed so the set is reviewable, but none of these is pub
 | `[retired public path 2de923b8]/broadcast/` | [http://localhost:3000/dm/broadcast/](http://localhost:3000/dm/broadcast/) |
 | `[retired public path 2de923b8]/calls/` | [http://localhost:3000/dm/calls/](http://localhost:3000/dm/calls/) |
 | `[retired public path 2de923b8]/channels/` | [http://localhost:3000/dm/channels/](http://localhost:3000/dm/channels/) |
-| `[retired public path 2de923b8]/commerce/` | [http://localhost:3000/dm/commerce/](http://localhost:3000/dm/commerce/) |
+| `[retired public path 2de923b8][retired public path 862cdc9c]/` | [http://localhost:3000/dm/commerce/](http://localhost:3000/dm/commerce/) |
 | `[retired public path 2de923b8]/contact-360/` | [http://localhost:3000/dm/contact-360/](http://localhost:3000/dm/contact-360/) |
 | `[retired public path 2de923b8]/content/` | [http://localhost:3000/dm/content/](http://localhost:3000/dm/content/) |
 | `[retired public path 2de923b8]/cost/` | [http://localhost:3000/dm/cost/](http://localhost:3000/dm/cost/) |
-| `[retired public path 2de923b8]/docs/` | [http://localhost:3000/dm/docs/](http://localhost:3000/dm/docs/) |
+| `[retired public path 2de923b8][retired public path a2557b8d]/` | [http://localhost:3000/dm/docs/](http://localhost:3000/dm/docs/) |
 | `[retired public path 2de923b8]/documents/` | [http://localhost:3000/dm/documents/](http://localhost:3000/dm/documents/) |
 | `[retired public path 2de923b8]/enterprise/` | [http://localhost:3000/dm/enterprise/](http://localhost:3000/dm/enterprise/) |
-| `[retired public path 2de923b8]/faq/` | [http://localhost:3000/dm/faq/](http://localhost:3000/dm/faq/) |
+| `[retired public path 2de923b8][retired public path 1965ee0f]/` | [http://localhost:3000/dm/faq/](http://localhost:3000/dm/faq/) |
 | `[retired public path 2de923b8]/inbox/` | [http://localhost:3000/dm/inbox/](http://localhost:3000/dm/inbox/) |
 | `[retired public path 2de923b8]/logs/` | [http://localhost:3000/dm/logs/](http://localhost:3000/dm/logs/) |
 | `[retired public path 2de923b8]/meta-agent/` | [http://localhost:3000/dm/meta-agent/](http://localhost:3000/dm/meta-agent/) |
@@ -74,7 +74,7 @@ Behind authentication. Listed so the set is reviewable, but none of these is pub
 | `[retired public path 2de923b8]/ses/campaign/` | [http://localhost:3000/dm/ses/campaign/](http://localhost:3000/dm/ses/campaign/) |
 | `[retired public path 2de923b8]/ses/inbox/` | [http://localhost:3000/dm/ses/inbox/](http://localhost:3000/dm/ses/inbox/) |
 | `[retired public path 2de923b8]/ses/logs/` | [http://localhost:3000/dm/ses/logs/](http://localhost:3000/dm/ses/logs/) |
-| `[retired public path 2de923b8]/settings/` | [http://localhost:3000/dm/settings/](http://localhost:3000/dm/settings/) |
+| `[retired public path 2de923b8][retired public path 2c56bef4]/` | [http://localhost:3000/dm/settings/](http://localhost:3000/dm/settings/) |
 | `[retired public path 2de923b8]/sms/` | [http://localhost:3000/dm/sms/](http://localhost:3000/dm/sms/) |
 | `[retired public path 2de923b8]/voice-in/` | [http://localhost:3000/dm/voice-in/](http://localhost:3000/dm/voice-in/) |
 | `[retired public path 2de923b8]/voice/` | [http://localhost:3000/dm/voice/](http://localhost:3000/dm/voice/) |
@@ -149,7 +149,7 @@ Behind authentication. Listed so the set is reviewable, but none of these is pub
 | `[retired public path 169e0fd8]/` | [http://localhost:3000/forms/](http://localhost:3000/forms/) |
 | `[retired public path 169e0fd8]/create/` | [http://localhost:3000/forms/create/](http://localhost:3000/forms/create/) |
 | `[retired public path 169e0fd8]/logs/` | [http://localhost:3000/forms/logs/](http://localhost:3000/forms/logs/) |
-| `[retired public path 169e0fd8]/selfservice/` | [http://localhost:3000/forms/selfservice/](http://localhost:3000/forms/selfservice/) |
+| `[retired public path 169e0fd8][retired public path b180810d]/` | [http://localhost:3000/forms/selfservice/](http://localhost:3000/forms/selfservice/) |
 
 ### service (4)
 
@@ -174,7 +174,7 @@ Behind authentication. Listed so the set is reviewable, but none of these is pub
 | --- | --- |
 | `[retired public path 47a81ed9]/` | [http://localhost:3000/pay/](http://localhost:3000/pay/) |
 | `[retired public path 47a81ed9]/flow/` | [http://localhost:3000/pay/flow/](http://localhost:3000/pay/flow/) |
-| `[retired public path 47a81ed9]/link/` | [http://localhost:3000/pay/link/](http://localhost:3000/pay/link/) |
+| `[retired public path 47a81ed9][retired public path 21d99b11]/` | [http://localhost:3000/pay/link/](http://localhost:3000/pay/link/) |
 
 ### _not-found (1)
 
