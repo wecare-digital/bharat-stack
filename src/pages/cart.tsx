@@ -79,7 +79,6 @@ import {
 import type { CartItem } from '../lib/cart';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
-const CHECKOUT_URL = `${API_BASE}/ecommerce/checkout`;
 const PREPARE_CHECKOUT_URL = `${API_BASE}/ecommerce/prepare-checkout`;
 const VERIFY_CHECKOUT_URL = `${API_BASE}/ecommerce/verify-callback`;
 const RAZORPAY_SDK = 'https://checkout.razorpay.com/v1/checkout.js';
