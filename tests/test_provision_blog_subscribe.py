@@ -43,6 +43,12 @@ def test_contacts_access_is_scoped_to_the_contacts_table_and_indexes():
     assert 'table/{CONTACTS_TABLE}/index/*' in source
 
 
+def test_deploy_registry_points_at_this_provisioner():
+    deploy = (ROOT / "scripts/deploy_all_lambdas.py").read_text(encoding="utf-8")
+    assert '"wecare-blog-subscribe"' in deploy
+    assert 'provisioned_by="python scripts/provision_blog_subscribe.py"' in deploy
+
+
 def test_handler_never_calls_the_staff_contacts_http_endpoint():
     source = HANDLER.read_text(encoding="utf-8")
     assert '"/contacts"' not in source
