@@ -57,6 +57,14 @@ RETIRED: dict[str, str] = {
     "/my-order/": "301 -> /orders/",
     "/dm/": "301 -> /workspace/engage/",
     "/engage/": "301 -> /workspace/engage/",
+    # Renamed 2026-10-02: the owner retired the product name "Zip" and the page moved to
+    # /shipments/. RENAMED, NOT DELETED - the content is unchanged, so this is the
+    # retired_url_equity.py "replaced page" case where a 404 discards ranking instead of passing
+    # it to the replacement. Measured 404 at the origin immediately after the rename, which is
+    # the regression this entry exists to catch; the rule is declared in
+    # scripts/provision_legacy_redirects.py desired_redirects() and needs --apply to go live.
+    "/zip/": "301 -> /shipments/",
+    "/zip": "301 -> /shipments/ (no-slash form; links in the wild carry both)",
     # the six menu labels that used to resolve to /contact/, replaced by the
     # Selfservice pages
     "/commerce/": "authenticated segment, nested under /workspace/",
