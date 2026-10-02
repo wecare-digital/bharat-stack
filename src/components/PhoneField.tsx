@@ -118,21 +118,19 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
       aria-invalid={ invalid ? 'true' : undefined }
     >
       { DIAL_CODES.map( entry => (
-        // FLAG, CODE, THEN NAME - the owner's structure. The flag and code come first so the
-        // closed select reads as their mock ("🇮🇳 +91"), and the country name follows so the open
-        // list says which country that code belongs to.
+        // CODE THEN NAME. The code is the value AND the start of the label, so the closed select
+        // shows "+91" while the open list says which country that code belongs to.
         //
-        // THE FLAG IS AN EMOJI AND ITS FALLBACK IS THE REASON THE CODE SITS BESIDE IT. Windows
-        // ships no flag glyphs, so Chrome/Edge there render the regional-indicator pair as two
-        // letters ("IN") rather than a flag. That stays legible precisely because the dial code is
-        // always shown next to it - a Windows visitor reads "IN +91 India", which says everything
-        // it needs to. An SVG sprite would make Windows match macOS at the cost of ~60 assets on a
-        // static export; the fallback already reads correctly, so it was not worth it.
+        // NO FLAG, on owner instruction (2026-10-02). An emoji flag was briefly carried here and
+        // removed. That also disposes of a rendering defect rather than only a preference: Windows
+        // ships no flag glyphs, so Chrome and Edge there rendered each regional-indicator pair as
+        // two bare letters ("IN") instead of a flag. The code and the name carry everything the
+        // flag did. Do not reintroduce emoji flags - see the note in src/lib/dialCodes.ts.
         //
         // data-wc-no-translate on the code would be wrong here - the country NAME should
         // translate - so only the name is free text.
         <option key={ entry.code } value={ entry.code }>
-          { entry.flag } { entry.code } { entry.country }
+          { entry.code } { entry.country }
         </option>
       ) ) }
     </select>
