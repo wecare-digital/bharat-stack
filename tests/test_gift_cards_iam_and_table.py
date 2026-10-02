@@ -8,8 +8,8 @@ Modelled on `tests/test_provision_checkout_contract.py`: load the provisioner, r
 documents and its constants, and assert over those. No provisioner is run with `--apply` and no AWS
 call is made.
 
-THREE xfail(strict=True) MARKS, AND THREE THE BRIEF NAMED THAT ARE DELIBERATELY NOT MARKED
-------------------------------------------------------------------------------------------
+THREE xfail(strict=True) MARKS, AND FOUR THE BRIEF NAMED THAT ARE DELIBERATELY NOT MARKED
+-----------------------------------------------------------------------------------------
 Marked, because their subject is a file another workstream owns and the fact they assert is ABSENT
 today: 112 (SEAM-G14, `website_checkout.py`), 114 (SEAM-G7a, `finalization.py`) and 115 (SEAM-G7b,
 `side_effect_guard.py`). DECISION 8: marked, never weakened, so each converts from pending to
@@ -36,6 +36,10 @@ the one assertion that catches the hazard:
 * **113** asserts `initiation.reserve` writes NO gift-card attribute. That is true today and must
   stay true: section 8.3 declares that producer out of scope, and the test exists so the omission
   stays deliberate and VISIBLE rather than becoming a silent gap. There is nothing pending about it.
+* **113b** is the same gate for the FOURTH attempt producer, `blog_contribution.prepare_contribution`
+  (MEDIUM-3, section 8.5). Unmarked for the identical reason: the property holds today, so a strict
+  mark would xpass immediately, and the mark would switch off the only detector for a gift card
+  reaching a flow that has no `wixCollectionPaise` to cap a redemption against.
 * **103 / 105 / 106**-style refusals are likewise unmarked: a refusal that holds today is a gate, not
   a pending change.
 """
@@ -635,6 +639,15 @@ def test_the_website_checkout_split_binds_the_charged_amount_and_the_payable_sep
     `is_fully_settled`'s closure has nothing to close against and a gift-card order reads as settled
     on the Razorpay leg alone), and `attempt["razorpayChargedPaise"] == payNowPaise` for the audit
     record.
+
+    The fourth clause is MEDIUM-2's, and it is the one the split table added three rows for:
+    `options["amountPaise"] == payNowPaise`. `_browser_options` builds that field from its
+    `amount_paise` keyword, so the figure Razorpay Standard Checkout PRESENTS to the browser is
+    whatever that call site passes. Today `payment_attempt.build` and `_browser_options` are handed
+    the SAME `amount_paise` local, and section 8 mandates `build` keep the full payable - so the two
+    arguments must diverge or the customer is shown a price nobody is charging. Asserted as that
+    divergence rather than as a string, because the string `payNowPaise` could be satisfied by
+    naming the variable without routing it to the browser.
     """
     source = (ROOT / "amplify/functions/shared/lambda_utils/ecommerce/website_checkout.py"
               ).read_text(encoding="utf-8")
@@ -645,6 +658,47 @@ def test_the_website_checkout_split_binds_the_charged_amount_and_the_payable_sep
     tree = ast.parse(source)
     names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
     assert "pay_now_paise" in names or "payNowPaise" in source
+
+    # MEDIUM-2: the browser figure and the attempt figure cannot be the same expression.
+    #
+    # Scoped to the function that calls `payment_attempt.build`, because `_browser_options` has TWO
+    # call sites and only this one is in scope. The other is `_ready_from_binding`, which reads the
+    # amount back off the binding - MEDIUM-2 lists it as NEEDS NO CHANGE, and asserting pay-now there
+    # would either double-apply the split or make this mark unclearable. Its no-change state is
+    # asserted below, so "no edit" stays the deliberate answer rather than reading as an oversight.
+    def _amount_args(scope, predicate):
+        found = []
+        for node in ast.walk(scope):
+            if not isinstance(node, ast.Call) or not predicate(node.func):
+                continue
+            found += [ast.unparse(keyword.value) for keyword in node.keywords
+                      if keyword.arg == "amount_paise"]
+        return found
+
+    is_build = lambda func: isinstance(func, ast.Attribute) and func.attr == "build"
+    is_browser = lambda func: isinstance(func, ast.Name) and func.id == "_browser_options"
+
+    producers = [node for node in ast.walk(tree)
+                 if isinstance(node, ast.FunctionDef) and _amount_args(node, is_build)]
+    assert producers, "no function passes amount_paise to payment_attempt.build"
+    for producer in producers:
+        built = set(_amount_args(producer, is_build))
+        browser = set(_amount_args(producer, is_browser))
+        assert browser, f"{producer.name} builds an attempt but no browser options"
+        assert not (browser & built), (
+            f"in {producer.name}, _browser_options and payment_attempt.build are handed the same "
+            f"amount expression {sorted(browser & built)}, so options['amountPaise'] is the payable "
+            f"and the browser is shown a price that is not being charged")
+        assert all("pay_now" in argument for argument in browser), (
+            f"in {producer.name} the browser amount comes from {sorted(browser)} rather than from "
+            f"the pay-now figure")
+
+    resume = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+              and node.name == "_ready_from_binding"]
+    assert resume, "_ready_from_binding is gone, so MEDIUM-2's NEEDS NO CHANGE row is stale"
+    assert all("binding" in argument for argument in _amount_args(resume[0], is_browser)), (
+        "the resume path no longer reads its amount off the binding, so the split is either "
+        "double-applied or the payable is back on the resumed browser options")
 
 
 def test_the_initiation_reserve_path_writes_no_gift_card_attribute():
@@ -669,6 +723,37 @@ def test_the_initiation_reserve_path_writes_no_gift_card_attribute():
         assert attribute not in source, (
             f"initiation.reserve writes {attribute}, so section 8.3's out-of-scope decision is no "
             f"longer true and the split table must be applied there too")
+
+
+def test_the_blog_contribution_path_writes_no_gift_card_attribute():
+    """113b, MEDIUM-3's fourth attempt producer, and deliberately NOT `xfail`.
+
+    Revision 3 enumerated THREE `payment_attempt.build` call sites and called the enumeration
+    measured; there are four. The fourth is `blog_contribution.prepare_contribution`, whose own
+    docstring calls itself a sibling of `website_checkout` - which is the strongest available hint
+    that an enumeration stopping at three was not one.
+
+    Section 8.5 declares it out of scope, and the ground is arithmetic rather than effort: a
+    contribution flow has NO Wix cart, so there is no `wixCollectionPaise` for
+    `gift_card_store.redeem_cap` to cap against. HIGH-4 exists precisely to stop that cap being taken
+    against anything else, and a gift card is a liability - an undefined cap spends real money on a
+    path nobody designed. Section 4.2's six reconciliation identities are likewise all stated against
+    a Wix cart summary, so with no summary the refusal that protects every other path would not run.
+
+    Unmarked, exactly like 113: the property holds today, so `xfail(strict=True)` would xpass
+    immediately AND would switch off the only thing that notices when it stops holding. This is the
+    gate that keeps "a gift card cannot reach producer #4" true rather than merely stated.
+    """
+    contribution = (ROOT
+                    / "amplify/functions/shared/lambda_utils/ecommerce/blog_contribution.py")
+    source = contribution.read_text(encoding="utf-8")
+    for attribute in ("giftCardStageRank", "giftCardRequiredPaise", "giftCardCodeHash",
+                      "giftCardRedeemedPaise", "giftCardTransactionId",
+                      "razorpayChargedPaise"):
+        assert attribute not in source, (
+            f"blog_contribution.prepare_contribution writes {attribute}, so section 8.5's "
+            f"out-of-scope decision is no longer true: a gift card now reaches a producer with no "
+            f"wixCollectionPaise to cap the redemption against")
 
 
 # ── 114 / 115: SEAM-G7 ────────────────────────────────────────────────────────
