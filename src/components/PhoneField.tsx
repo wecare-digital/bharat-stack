@@ -1,5 +1,5 @@
-import React from 'react';
-import { DIAL_CODES, nationalLengthHint } from '../lib/dialCodes';
+import React, { useEffect, useState } from 'react';
+import { findDialCode, nationalLengthHint } from '../lib/dialCodes';
 
 /**
  * ONE FIELD, DIVIDED: a country-code segment and a number segment inside a single rounded outline.
@@ -135,42 +135,76 @@ export interface PhoneFieldProps {
  */
 export const NUMBER_FORMAT_HINT = '00000 00000';
 
+const normaliseDialSearch = ( raw: string ): string => {
+  const digits = raw.replace( /\D/g, '' ).slice( 0, 3 );
+  return digits ? `+${ digits }` : '';
+};
+
+interface DialCodeSearchProps {
+  value: string;
+  onChange: ( next: string ) => void;
+  disabled?: boolean;
+  invalid?: boolean;
+}
+
+const DialCodeSearch: React.FC<DialCodeSearchProps> = ( {
+  value, onChange, disabled, invalid,
+} ) => {
+  const [ query, setQuery ] = useState( value );
+
+  useEffect( () => {
+    setQuery( value );
+  }, [ value ] );
+
+  const commitIfSupported = ( raw: string ) => {
+    const candidate = normaliseDialSearch( raw );
+    setQuery( candidate );
+    if ( findDialCode( candidate ) ) onChange( candidate );
+  };
+
+  const unresolved = Boolean( query ) && !findDialCode( query );
+
+  return (
+    <input
+      className="pf-code"
+      type="search"
+      inputMode="tel"
+      autoComplete="off"
+      autoCorrect="off"
+      spellCheck={ false }
+      enterKeyHint="next"
+      aria-label="Calling code"
+      aria-invalid={ invalid || unresolved ? 'true' : undefined }
+      value={ query }
+      maxLength={ 4 }
+      placeholder="+91"
+      disabled={ disabled }
+      onFocus={ event => event.currentTarget.select() }
+      onChange={ event => commitIfSupported( event.target.value ) }
+      onBlur={ () => {
+        if ( !findDialCode( query ) ) setQuery( value );
+      } }
+      onKeyDown={ event => {
+        if ( event.key === 'Enter' ) {
+          event.preventDefault();
+          if ( findDialCode( query ) ) event.currentTarget.blur();
+        }
+      } }
+    />
+  );
+};
+
 const PhoneField: React.FC<PhoneFieldProps> = ( {
   id, dialCode, onDialCodeChange, number, onNumberChange,
   disabled, invalid, describedBy, placeholder, verified, onInvalid,
 } ) => (
   <div className={ `pf${ verified ? ' pf-verified' : '' }` }>
-    {/*
-      * aria-label, and the cost is stated rather than hidden: attribute text is not translated by
-      * SupportWidget's walker, which rewrites text nodes only. The alternative was a visually
-      * hidden <label>, and the owner has explicitly rejected hidden text elsewhere in this header.
-      * A select with no name at all is not an option - it announces as a bare combobox.
-      */}
-    <select
-      className="pf-code"
-      aria-label="Country code"
+    <DialCodeSearch
       value={ dialCode }
-      onChange={ e => onDialCodeChange( e.target.value ) }
+      onChange={ onDialCodeChange }
       disabled={ disabled }
-      aria-invalid={ invalid ? 'true' : undefined }
-    >
-      { DIAL_CODES.map( entry => (
-        // CODE THEN NAME. The code is the value AND the start of the label, so the closed select
-        // shows "+91" while the open list says which country that code belongs to.
-        //
-        // NO FLAG, on owner instruction (2026-10-02). An emoji flag was briefly carried here and
-        // removed. That also disposes of a rendering defect rather than only a preference: Windows
-        // ships no flag glyphs, so Chrome and Edge there rendered each regional-indicator pair as
-        // two bare letters ("IN") instead of a flag. The code and the name carry everything the
-        // flag did. Do not reintroduce emoji flags - see the note in src/lib/dialCodes.ts.
-        //
-        // data-wc-no-translate on the code would be wrong here - the country NAME should
-        // translate - so only the name is free text.
-        <option key={ entry.code } value={ entry.code }>
-          { entry.code } { entry.country }
-        </option>
-      ) ) }
-    </select>
+      invalid={ invalid }
+    />
 
     <input
       id={ id }
@@ -279,9 +313,10 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
         flex:0 0 auto;
         border:0;border-inline-end:1px solid #e5e7eb;
         padding-inline:12px;
+        min-inline-size:78px;max-inline-size:86px;
         background:#fff;color:#1a1a1a;
-        font-family:inherit;font-size:17px;
-        cursor:pointer;
+        font-family:inherit;font-size:17px;font-weight:600;
+        cursor:text;
         /* LOGICAL CORNERS, 9px = the container's 10px minus its 1px border, so this segment's
            leading corners sit flush inside the container's and its trailing corners stay square
            against the divider. Measured reason, not neatness: the inset focus ring follows
@@ -292,8 +327,9 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
         border-start-start-radius:9px;border-end-start-radius:9px;
         border-start-end-radius:0;border-end-end-radius:0;
       }
-      /* The platform's own disclosure arrow is kept - a CSS-drawn one would be a second chevron on a
-         page that already has the header's, drawn by different means. */
+      /* Search input only: no native country dropdown, no flag, no country name. The segment shows
+         the explicit calling code (+91, +971, +44...) and accepts digits with or without "+". */
+      .pf-code::-webkit-search-cancel-button{display:none}
 
       /* The number segment takes the rest. min-inline-size:0 because a flex item's default
          min-width:auto lets a long value push the container wider than its parent. */
