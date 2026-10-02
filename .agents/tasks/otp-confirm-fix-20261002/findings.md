@@ -236,9 +236,10 @@ switched both sign-in CTAs to it.
    pill**, on owner instruction, and `/get` passes `label="Collect"` and `label="Pay"`. Making
    sign-in single-label would re-diverge the two surfaces that commit had deliberately converged.
 
-That is a product call with a user-visible effect, so it is not mine to take inside the loop. My
-implementation is preserved at `.scratch/my-PillButton.tsx.c2` and
-`.scratch/my-PillButton.test.tsx.c2` if the owner wants it. See §9.
+That is a product call with a user-visible effect, so it is not mine to take inside the loop. The
+reverted change is written up as an applicable diff in
+[`option-b-single-label.md`](./option-b-single-label.md). See §9 for the three options and a
+recommendation.
 
 **The cart keeps its two-segment form** regardless — its left segment ("Checkout") is not a
 duplicate of its action ("Proceed").
@@ -534,8 +535,14 @@ accessibility defect without touching the owner's design — but it changes the 
 every pill on the site, which is a visible contract several test files pin deliberately, so it is
 not a silent edit either.
 
-My option-B implementation is preserved at `.scratch/my-PillButton.tsx.c2`,
-`.scratch/my-PillButton.test.tsx.c2` and `.scratch/my-signin.tsx.c2`.
+**Option B is written up as an applicable diff** in
+[`option-b-single-label.md`](./option-b-single-label.md) — the exact edits, the `ariaLabel` trap to
+avoid, the five test files that follow, and why option C may be preferable. Nothing in it is
+applied.
+
+**Recommendation.** Take **C** if the owner's two-tone design is to be kept, which the `/get`
+unification suggests it is; take **B** only if the owner genuinely meant "there should be one
+label on this button". **A** is tenable only as a deliberate, recorded deferral.
 
 **Nothing in §1–§2 depends on this.** The auth fix is complete, green and independently
 deployable.
