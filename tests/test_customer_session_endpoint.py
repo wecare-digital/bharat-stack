@@ -1,3 +1,4 @@
+import base64
 import importlib.util
 import json
 from pathlib import Path
@@ -167,3 +168,60 @@ def test_exchange_succeeds_with_the_real_derivation_and_the_real_pool_attributes
     # The session is filed under the Cognito `sub`, the single documented authority.
     row = next(iter(store.rows.values()))
     assert row['customerId'] == 'sub-1234'
+
+
+def test_a_refresh_token_from_another_customer_is_refused_and_files_no_session(app, monkeypatch):
+    """The refresh-owner check, which nothing pinned until a review pointed that out.
+
+    The handler authenticates twice on exchange and compares the two identities, so a caller
+    cannot pair their own access token with somebody else's refresh token and be handed a
+    session over the victim's `sub`. That is the one thing this endpoint must never do.
+
+    IT MATTERS MORE NOW THAN IT DID, which is why the test is here. The comparison reads
+    `proven.customer_id != identity.customer_id or proven.subject != identity.subject`, and
+    those two fields became the SAME value when the outage fix made `sub` the single authority
+    for `customer_id`. So the line is one comparison written twice rather than two
+    independently-sourced fields, and the handler comment says so. The behaviour it exists for
+    has to be asserted rather than inferred from a redundancy that is no longer there.
+
+    Both tokens carry the customer pool's issuer, so this exercises the ownership comparison
+    and not the issuer pin - a wrong-pool token is already refused one step earlier and is
+    covered separately in `test_customer_auth_and_throttle.py`.
+    """
+    from tests.test_customer_auth_and_throttle import CUSTOMER_TOKEN, REAL_POOL_ATTRIBUTES
+
+    store, cognito = app
+    victim_sub = 'sub-1234'          # what REAL_POOL_ATTRIBUTES carries
+    attacker_sub = 'sub-9999'        # whoever the stolen refresh token actually belongs to
+    assert victim_sub != attacker_sub
+
+    payload = base64.urlsafe_b64encode(json.dumps(
+        {'iss': _customer_auth.CUSTOMER_POOL_ISSUER, 'sub': attacker_sub},
+    ).encode()).decode().rstrip('=')
+    renewed_token = f'header.{payload}.signature'
+    assert renewed_token != CUSTOMER_TOKEN
+
+    other = [a for a in REAL_POOL_ATTRIBUTES if a['Name'] != 'sub'] + [
+        {'Name': 'sub', 'Value': attacker_sub}]
+
+    class PerTokenCognito:
+        """`GetUser` keyed on the token, so the two `authenticate` calls see different users."""
+        def get_user(self, AccessToken=None):
+            attributes = other if AccessToken == renewed_token else REAL_POOL_ATTRIBUTES
+            return {'Username': '+919330994400', 'UserAttributes': attributes}
+
+    monkeypatch.setattr(endpoint.customer_auth, 'authenticate', REAL_AUTHENTICATE)
+    monkeypatch.setattr(endpoint.customer_auth, '_client', lambda: PerTokenCognito())
+    # The refresh token buys an access token belonging to a DIFFERENT customer.
+    monkeypatch.setattr(cognito, 'initiate_auth', lambda **kwargs: {
+        'AuthenticationResult': {'AccessToken': renewed_token, 'ExpiresIn': 3600}})
+
+    result = endpoint.handler({'headers': {'origin': 'https://wecare.digital',
+        'authorization': f'Bearer {CUSTOMER_TOKEN}'}, 'cookies': [],
+        'body': json.dumps({'action': 'exchange', 'refreshToken': 'someone-elses-refresh'})}, None)
+
+    assert result['statusCode'] == 401
+    assert json.loads(result['body'])['error'] == 'VERIFICATION_REQUIRED'
+    # Fails CLOSED: no session row under either customer, so nothing downstream can be filed
+    # against the victim's id.
+    assert store.rows == {}

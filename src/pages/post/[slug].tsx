@@ -5,6 +5,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import ShareLinks from '../../components/ShareLinks';
 import BlogContribution from '../../components/BlogContribution';
+import BlogSubscribe from '../../components/BlogSubscribe';
 import {
   SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SOCIAL_CARD_TYPE, SOCIAL_CARD_ALT, SHARE_CARD_TYPE,
 } from '../../config/share';
@@ -505,8 +506,13 @@ export default function BlogPostPage ( {
             </nav>
           ) }
 
-          {/* SUPPORT THIS WORK - the Section 5 voluntary-contribution block, placed AFTER the Tags
-              nav and BEFORE the share row so the reading order is content -> Tags -> Contribution
+          {/* BLOG SUBSCRIBE - verified public signup saved into the same ContactsTable that backs
+              /workspace/contacts. It sits directly before Contribution so the end-of-reading order is
+              content -> Tags -> Subscribe -> Contribution -> Share. */}
+          <BlogSubscribe />
+
+          {/* SUPPORT THIS WORK - the Section 5 voluntary-contribution block, placed AFTER Subscribe
+              and BEFORE the share row so the reading order is content -> Tags -> Subscribe -> Contribution
               -> Share -> pager/related. It is a component (components/BlogContribution.tsx) so the
               UI, the central-config amounts and the honest-degradation client seam live in one
               place and are unit-tested in isolation. postId AND slug are passed so a contribution

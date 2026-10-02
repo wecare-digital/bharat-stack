@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PillButton from './PillButton';
 import {
   CONTRIBUTION_CURRENCY,
   CONTRIBUTION_PRESETS_PAISE,
@@ -221,9 +222,15 @@ const BlogContribution: React.FC<BlogContributionProps> = ( { postId, slug } ) =
           </div>
         ) }
 
-        <button className="bc-submit" type="submit" disabled={ phase === 'submitting' }>
-          { phase === 'submitting' ? 'One moment\u2026' : 'Contribute' }
-        </button>
+        <div className="bc-submit-wrap">
+          <PillButton
+            as="button"
+            type="submit"
+            action={ phase === 'submitting' ? 'One moment\u2026' : 'Contribute' }
+            disabled={ phase === 'submitting' }
+            busy={ phase === 'submitting' }
+          />
+        </div>
 
         {/* One live region for every outcome. role=status so a screen reader hears the honest
             unavailable/invalid message; it is never a success affordance. */}
@@ -288,23 +295,16 @@ const BlogContribution: React.FC<BlogContributionProps> = ( { postId, slug } ) =
           color:#1a1a1a;width:120px;padding:6px 0;font-family:inherit;
         }
         .bc-custom-help{font-size:13px;line-height:1.4;color:rgba(0,0,0,.54);margin:8px 0 0}
-        /* The CTA is the home/related button object: 2px #1a3a2a edge, lime fill, 50px radius. */
-        .bc-submit{
-          margin-top:20px;display:inline-flex;align-items:center;justify-content:center;
-          border:2px solid #1a3a2a;border-radius:50px;background:#d1f470;color:#1a3a2a;
-          font-size:15px;font-weight:700;letter-spacing:-.125px;padding:11px 24px;cursor:pointer;
-          transition:transform .2s,box-shadow .2s,background-color .2s;
-        }
-        .bc-submit:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-        .bc-submit:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
-        .bc-submit:disabled{opacity:.6;cursor:default;transform:none;box-shadow:none}
+        /* The action itself is the shared public PillButton. This wrapper owns only placement,
+           so Contribute cannot drift from Sign in / Checkout / Subscribe in shape or palette. */
+        .bc-submit-wrap{margin-top:20px;display:flex;align-items:center}
         /* The status line is deliberately plain, not a success banner: an honest "not available"
            or a validation hint. The one ready variant is informational, never a receipt. */
         .bc-status{font-size:15px;line-height:1.5;color:rgba(0,0,0,.7);margin:16px 0 0}
         .bc-status.is-ready{color:#1a3a2a}
         @media(prefers-reduced-motion:reduce){
-          .bc-choice-face,.bc-submit{transition:none}
-          .bc-radio:hover + .bc-choice-face,.bc-submit:hover{transform:none;box-shadow:none}
+          .bc-choice-face{transition:none}
+          .bc-radio:hover + .bc-choice-face{transform:none;box-shadow:none}
         }
       `}</style>
     </section>

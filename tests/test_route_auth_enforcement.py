@@ -220,6 +220,9 @@ class TestAuditMarkerPolicy:
         assert set(audit.EXPECTED_PUBLIC_ROUTES) == {
             "GET /r/{code}",
             "POST /auth/validate",
+            # Public by design, but unlike the generic /contacts API it can write only after
+            # both server-side OTP proofs succeed. The paired allowlist edit is intentional.
+            "POST /blog/subscribe",
             "GET /webhook/sinch-rcs",
             "POST /webhook/sinch-rcs",
             # The provider's browser callback has no AWS/staff identity. It is

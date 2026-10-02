@@ -189,6 +189,11 @@ SPECS: List[Spec] = [
         "auth/email-verification",
         provisioned_by="python scripts/provision_email_verification.py",
     ),
+    Spec(
+        "wecare-blog-subscribe",
+        "auth/blog-subscribe",
+        provisioned_by="python scripts/provision_blog_subscribe.py",
+    ),
     # Customer registration front door. The HTTP route that proves a phone by WhatsApp OTP and
     # then provisions the Cognito login administratively, so the browser never calls SignUp on a
     # pool that is AllowAdminCreateUserOnly=true. Owns the per-IP throttle that a CUSTOM_AUTH

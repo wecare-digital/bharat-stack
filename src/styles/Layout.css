@@ -2003,9 +2003,17 @@ input[type="checkbox"]:active {
   
   .contact-card-tags {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 4px;
     margin-top: 8px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    padding-bottom: 4px;
+  }
+
+  .contact-card-tags > * {
+    flex: 0 0 auto;
   }
   
   .contact-card-meta {
