@@ -792,3 +792,15 @@ that, and states the authority exactly as it stands rather than stronger.
   no public allowlist change. Focused 60 tests and fresh 365-route classification
   passed; inert checkout/session/MCP rejection probes passed. Rollback scanner
   through ordinary revert; runtime customer authentication remains unchanged.
+
+- 2026-10-02 A0_READ/A1_LOCAL/A2_REMOTE_CODE: add staff Admin MCP playground to
+  existing connection page, with fixed reads, bounded/redacted results, failure
+  handling and development request examples. Fast-forward isolated checkout to
+  merged PR 180 first. Validation: 756 frontend passed, focused 10 passed,
+  typecheck/export/scoped ESLint/diff checks passed; six live AWS-backed checks
+  passed (two documentation-only). OAuth blockers remain explicit. Added Meta
+  Ads MCP use case on owner request; observed Ready for testing, not a verified
+  OAuth grant. No App Review submission, new credential grant, ads/payment/send
+  mutation or code-job enablement. Corrected overly broad Meta DCR prerequisite.
+  Evidence: docs/execution/workspace-mcp-playground-20261002.md. Rollback: normal
+  explicit-path revert and stack redeploy; no backend deployment in this release.

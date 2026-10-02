@@ -67,8 +67,26 @@ public exemption. A fresh 365-route AWS snapshot classified 335 handler-authenti
 unresolved routes. Inert live probes: checkout status 401, session refresh with
 allowed Origin 401, staff MCP 401, unsigned IAM MCP 403; missing session Origin 403.
 
-Google Console is waiting for the owner's passkey verification. After that,
-check/register the cloud callback on the existing Google web client and complete
-the separate cloud grants. Staff dashboard and desktop IAM connections belong to
-different principals and must each receive their own consent. Meta requires an
-approved MCP OAuth client before the AWS connection can finish.
+Google's owner verification subsequently completed. The cloud callback has been
+entered in the existing web client's Console; saving it and issuing the separate
+AWS cloud grants remain pending at-action-time browser confirmation. Staff
+dashboard and desktop IAM connections belong to different principals and must
+each receive their own consent.
+
+## Meta Ads use-case clarification
+
+The blanket statement that all Meta integrations require an approved dynamic
+client was too broad for Meta Ads. Meta's official 2026-07-16 announcement supports
+an existing developer app after adding Create & manage ads with ads MCP server,
+using Facebook Login for Business OAuth. Added that use case to WECARE.DIGITAL
+app 2238810740192680 and inspected its permissions: ads_mcp_management is Ready
+for testing. The owner also confirmed the cloud callback passes Meta's Redirect
+URI Validator. This establishes app setup, not an issued or verified MCP grant.
+The deployed version 2 still uses dynamic registration for Ads; its own-app OAuth
+adapter and account verification are pending. Meta Social's rejected MCP scope
+and WhatsApp's rejected business-app token remain separate, measured limitations.
+
+Source: https://developers.facebook.com/blog/post/2026/07/16/meta-ads-mcp-server/
+Advanced Access/App Review is required when managing other businesses. The
+ads_mcp_management permission is not intrinsically read-only; the workspace's
+server-side tool allowlist enforces its current read-only operations.
