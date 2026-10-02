@@ -406,8 +406,9 @@ class QuoteSnapshot:
 
 def _snapshot_payload(*, customer_id: str, site: Any, cart_id: str, cart_revision: int,
                       items: Any, address: Any, delivery: Any,
-                      quote: CheckoutQuote, policy_version: str) -> Dict[str, Any]:
-    return {
+                      quote: CheckoutQuote, policy_version: str,
+                      payment: Any = None) -> Dict[str, Any]:
+    payload = {
         "customer": customer_id,
         "site": site,
         "cart": {"id": cart_id, "revision": cart_revision},
@@ -417,6 +418,12 @@ def _snapshot_payload(*, customer_id: str, site: Any, cart_id: str, cart_revisio
         "components": quote.components(),
         "policyVersion": policy_version,
     }
+    # Payment/tender data is optional so pre-existing snapshot callers keep the exact same hash.
+    # Cart V2 website checkout supplies it when Wix calculated a gift-card split; binding that
+    # split into the immutable snapshot prevents a later callback from settling a different tender.
+    if payment is not None:
+        payload["payment"] = payment
+    return payload
 
 
 def build_snapshot(*,
@@ -429,7 +436,8 @@ def build_snapshot(*,
                    site: Any = None,
                    items: Any = None,
                    address: Any = None,
-                   delivery: Any = None) -> QuoteSnapshot:
+                   delivery: Any = None,
+                   payment: Any = None) -> QuoteSnapshot:
     """Freeze a reviewed quote into an immutable snapshot with a stable hash.
 
     The hash covers the customer, site, cart id and revision, the item list (order preserved),
@@ -447,7 +455,7 @@ def build_snapshot(*,
     payload = _snapshot_payload(
         customer_id=customer_id, site=site, cart_id=cart_id, cart_revision=cart_revision,
         items=items, address=address, delivery=delivery, quote=quote,
-        policy_version=quote.policy_version,
+        policy_version=quote.policy_version, payment=payment,
     )
     snapshot_hash = _stable_hash(payload)
 
