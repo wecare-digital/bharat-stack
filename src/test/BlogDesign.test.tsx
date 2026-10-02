@@ -789,35 +789,33 @@ describe( 'Blog post page', () => {
   } );
 
   /**
-   * THE "SUPPORT THIS WORK" CONTRIBUTION BLOCK SITS BETWEEN TAGS AND SHARE, and this is the test
-   * that fails if it is moved.
+   * SUBSCRIBE AND CONTRIBUTION SIT BETWEEN TAGS AND SHARE, in that order.
    *
-   * Section 5 asks for the voluntary-contribution section AFTER the Tags and BEFORE the Share
-   * controls, so the reading order is content -> Tags -> Contribution -> Share. The order is the
-   * requirement, not the presence, so this asserts DOM document position rather than merely that
-   * the block renders: compareDocumentPosition tells us the contribution section follows the tags
-   * nav and precedes the share row. Move the block above the tags or below the share and this
-   * flips sign and the test fails.
+   * The verified subscriber form was added above the existing contribution block, so the end of
+   * the article is content -> Tags -> Subscribe -> Contribution -> Share. Document position is
+   * asserted rather than mere presence so either block moving silently fails this test.
    */
-  it( 'renders the contribution block after Tags and before Share', () => {
+  it( 'renders Subscribe above Contribution, between Tags and Share', () => {
     const { container } = render( <BlogPostPage post={ samplePost } /> );
 
     const tags = container.querySelector( 'nav.tags' );
+    const subscribe = container.querySelector( 'section.blog-subscribe' );
     const contribution = container.querySelector( 'section.bc' );
     const share = container.querySelector( '.post-share' );
 
     expect( tags ).not.toBeNull();
+    expect( subscribe ).not.toBeNull();
     expect( contribution ).not.toBeNull();
     expect( share ).not.toBeNull();
 
-    // FOLLOWING means "comes after in document order". Tags -> Contribution -> Share.
-    expect( tags!.compareDocumentPosition( contribution! ) & Node.DOCUMENT_POSITION_FOLLOWING )
+    expect( tags!.compareDocumentPosition( subscribe! ) & Node.DOCUMENT_POSITION_FOLLOWING )
+      .toBeTruthy();
+    expect( subscribe!.compareDocumentPosition( contribution! ) & Node.DOCUMENT_POSITION_FOLLOWING )
       .toBeTruthy();
     expect( contribution!.compareDocumentPosition( share! ) & Node.DOCUMENT_POSITION_FOLLOWING )
       .toBeTruthy();
 
-    // The reveal sentinel is untouched: shareRef still names .post-share, so the ref did not move
-    // onto the new block. (If it had, .post-share would no longer be the observed element.)
+    // The reveal sentinel is untouched: shareRef still names .post-share.
     expect( share!.classList.contains( 'post-share' ) ).toBe( true );
   } );
 
