@@ -189,6 +189,20 @@ class TestAuditMarkerPolicy:
         for route, reason in audit.EXPECTED_PUBLIC_ROUTES.items():
             assert reason and len(reason) > 20, route
 
+    @pytest.mark.parametrize('source', ['identity, denied = customer_auth.require_customer(event)', 'identity = customer_auth.authenticate(event)'])
+    def test_customer_auth_calls_are_recognized_without_public_exemption(self, audit, source):
+        routes = [{'RouteKey': 'POST /ecommerce/checkout', 'Target': 'integrations/fixture', 'AuthorizationType': 'NONE'}]
+        integrations = {'fixture': 'arn:aws:lambda:us-east-1:775261844268:function:wecare-checkout:live'}
+        result = audit.classify(routes, integrations, {'wecare-checkout': source}, {'wecare-checkout'}, audit.MARKERS)
+        assert result[1] == [('POST /ecommerce/checkout', 'wecare-checkout')]
+        assert result[2] == [] and result[5] == []
+
+    def test_customer_auth_import_alone_does_not_pass(self, audit):
+        routes = [{'RouteKey': 'POST /ecommerce/checkout', 'Target': 'integrations/fixture', 'AuthorizationType': 'NONE'}]
+        integrations = {'fixture': 'arn:aws:lambda:us-east-1:775261844268:function:wecare-checkout:live'}
+        result = audit.classify(routes, integrations, {'wecare-checkout': 'from lambda_utils import customer_auth'}, {'wecare-checkout'}, audit.MARKERS)
+        assert result[2] == [('POST /ecommerce/checkout', 'wecare-checkout')]
+
     def test_allowlist_holds_only_routes_that_cannot_authenticate(self, audit):
         """A route lands here because auth is impossible or circular, not awkward.
 

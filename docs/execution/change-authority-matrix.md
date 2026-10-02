@@ -781,3 +781,14 @@ that, and states the authority exactly as it stands rather than stronger.
   customer resources, payment writes, WhatsApp sends or code-job enablement.
   Rollback: previous artifact 711c209c1a1c8d6b4c7a0cfd3e3f40eec806e7fb683acaa99aa2be37fa361803
   and retained Lambda version 1. Applied/live results recorded separately.
+
+- 2026-10-02 A3_PRODUCTION complete: MCP stack UPDATE_COMPLETE; retained version
+  1 confirmed, live version 2 Active/Successful and exact bundle hash matched.
+  AWS/GitHub/Razorpay/Wix reads and Plivo/Sinch documentation discovery passed.
+  Meta cloud client registration remains provider-blocked; Google cloud grants
+  remain absent pending owner verification. Evidence:
+  docs/execution/workspace-mcp-adapters-20261002.md and matching snapshot.
+  A1_LOCAL/A2_REMOTE_CODE: correct route audit's customer-auth call recognition,
+  no public allowlist change. Focused 60 tests and fresh 365-route classification
+  passed; inert checkout/session/MCP rejection probes passed. Rollback scanner
+  through ordinary revert; runtime customer authentication remains unchanged.

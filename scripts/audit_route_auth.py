@@ -117,6 +117,10 @@ STRONG_MARKERS = (
     # even though they verify correctly.
     "sinch_signature.verify",
     "meta_signature.verify",
+    # Customer pool verification delegates to its issuer-pinned JWT helper.
+    # Match the call, not a module import or an outbound Authorization header.
+    "customer_auth.require_customer(",
+    "customer_auth.authenticate(",
 )
 
 # Markers that only prove a handler can CALL OUT with a credential, never that it
