@@ -1,5 +1,21 @@
 # Change authority matrix
 
+## 2026-10-02 dashboard MCP connection controls
+
+- A0_READ: refreshed origin/stack, inspected current dashboard navigation, staff
+  access-token transport and role handling; preserved other sessions' dirty files.
+- A1_LOCAL: added an Admin-only MCP connections inner page, overview/Platform links,
+  independent Meta authorization and verification, multi-provider checks, explicit
+  pending states, responsive shared design and bounded activity output.
+- A2_REMOTE_CODE: owner explicitly requested build and git push. Typecheck, seven
+  focused tests, all 705 frontend tests, production build, public-page manifest and
+  export credential gate passed before explicit-path commit and non-force stack push.
+- A3_PRODUCTION: no backend changes or provider consent performed in this phase.
+  The existing frontend release pipeline follows stack. Code-job dispatch stays off.
+
+Evidence: `workspace-mcp-dashboard-20261002.md`. Rollback: normal frontend commit
+revert; preserve the deployed MCP stack and other sessions' work.
+
 ## 2026-10-01 administrative MCP merge and deployment
 
 - A0_READ: confirmed PR #179 merged and its applicable CI checks passed; rediscovered
