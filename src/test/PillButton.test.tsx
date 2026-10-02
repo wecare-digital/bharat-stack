@@ -27,15 +27,19 @@ import PillButton from '../components/PillButton';
 
 afterEach( () => vi.restoreAllMocks() );
 
-describe( 'the accessible name is the action, not the visible two-word pill', () => {
-  it( 'answers to the action text alone, with the static label hidden from the name', () => {
+describe( 'the accessible name is the action, and it is now the only text', () => {
+  it( 'answers to the action text alone, and no longer renders the static label', () => {
     render( <PillButton label="Sign in" action="Send code" /> );
-    // The pinned login query form: by role + exact action name.
+    // The pinned login query form: by role + exact action name. UNCHANGED by the single-surface
+    // rewrite, which is the point - the accessible name was always the action, so retiring the
+    // visible label could not change what any caller or test queries for.
     expect( screen.getByRole( 'button', { name: 'Send code' } ) ).toBeTruthy();
-    // The label is decoration: it must not be concatenated into the name.
+    // The name is not a concatenation of the two.
     expect( screen.queryByRole( 'button', { name: /Sign in Send code/ } ) ).toBeNull();
-    // Both segments are still visible to sighted users.
-    expect( screen.getByText( 'Sign in' ) ).toBeTruthy();
+    // THE LABEL IS NO LONGER RENDERED. The two-tone pill showed "Sign in" in its dark half while
+    // answering only to "Send code"; the owner retired that treatment on 2026-10-02, so the one
+    // lime surface shows the action alone and the visible text now equals the accessible name.
+    expect( screen.queryByText( 'Sign in' ) ).toBeNull();
     expect( screen.getByText( 'Send code' ) ).toBeTruthy();
   } );
 
@@ -86,14 +90,29 @@ describe( 'the measured palette is the one in the file', () => {
     join( __dirname, '..', 'components', 'PillButton.tsx' ), 'utf8',
   );
 
-  it( 'uses the dark-green #1a3a2a edge/left segment and the passing mint #5fe3b0', () => {
-    // #1a3a2a vs white is 12.48:1 (edge clears WCAG 1.4.11's 3:1), white-on-#1a3a2a is 12.48:1.
-    expect( SOURCE ).toContain( '#1a3a2a' );
-    // #5fe3b0 with #1a3a2a text is 7.79:1, which passes 4.5:1 - the site's base #3da35a would be
-    // only 3.91:1, so the text-bearing segment must be the lighter mint.
-    expect( SOURCE ).toContain( '#5fe3b0' );
+  /** The DECLARATIONS only - comments are stripped, because this file's docblock discusses the
+   *  retired mint by name and an un-stripped check would pass on the explanation. */
+  const CSS = SOURCE.slice( SOURCE.indexOf( '<style jsx>' ) )
+    .replace( /\/\*[\s\S]*?\*\//g, '' );
+
+  it( 'is ONE lime #d1f470 surface with a dark-green edge, and no mint survives', () => {
+    // #1a3a2a vs white is 12.48:1, so the 2px edge clears WCAG 1.4.11's 3:1 for a control
+    // boundary - the lime cannot do that itself, at only 1.24:1 against the page.
+    expect( CSS ).toContain( '#1a3a2a' );
+    // THE SURFACE IS THE HOME PAGE'S LIME. #d1f470 with #1a3a2a text is 10.04:1.
+    expect( CSS ).toContain( '#d1f470' );
+    // THE TWO-TONE TREATMENT IS RETIRED, on owner instruction 2026-10-02 ("old multi colour out of
+    // date"). #5fe3b0 was an orphan colour - a repo-wide grep found it only in this component and
+    // this test, and the home page uses #d1f470 eight times and the mint never. It must not return
+    // as a declaration.
+    expect( CSS ).not.toContain( '#5fe3b0' );
+    // AND NEITHER MAY THE FAILING HOVER. #3da35a behind #1a3a2a 17px/700 text is 3.91:1, under the
+    // 4.5:1 this size requires (WCAG's large-text exemption starts at 18.66px bold). The hover now
+    // inverts to white, which gives 12.48:1.
+    expect( CSS ).not.toContain( '#3da35a' );
+    expect( CSS ).toMatch( /:hover[^{]*\{[^}]*background:#fff/ );
     // A full pill radius, scoped so the global 13px in button.css cannot flatten it.
-    expect( SOURCE ).toContain( 'border-radius:999px' );
+    expect( CSS ).toContain( 'border-radius:999px' );
     // Reduced motion is respected.
     expect( SOURCE ).toContain( 'prefers-reduced-motion' );
   } );
@@ -110,11 +129,16 @@ describe( 'the measured palette is the one in the file', () => {
    * while neither segment got its own background or colour - it rendered as one dark slab reading
    * "Sign inSend code". It was live on /account/sign-in/ in that state.
    *
-   * jsdom cannot compute styled-jsx, so this is asserted on the SOURCE: each segment class must
-   * appear exactly TWICE - once inside each branch's own return tree - and never be assigned to a
+   * STILL RELEVANT AFTER THE TWO-TONE RETIREMENT. The pill is now ONE lime surface with a single
+   * .pill-action span, so there is one span per branch rather than two - but the hoisting hazard
+   * is unchanged: lift that span into a variable and styled-jsx stops stamping it, and the label
+   * loses its colour and centring exactly as both segments did before.
+   *
+   * jsdom cannot compute styled-jsx, so this is asserted on the SOURCE: the span must appear
+   * exactly TWICE - once inside each branch's own return tree - and never be assigned to a
    * variable or produced by a helper.
    */
-  it( 'writes both segments inline in each branch, so styled-jsx can scope them', () => {
+  it( 'writes the label span inline in each branch, so styled-jsx can scope it', () => {
     // COMMENTS ARE STRIPPED FIRST. The fix's own docblock quotes the broken pattern it replaced
     // ("const inner = ...") so that the next reader understands why the duplication below is
     // deliberate - asserting against the raw source would match that explanation and fail,
@@ -123,11 +147,11 @@ describe( 'the measured palette is the one in the file', () => {
       .replace( /\/\*[\s\S]*?\*\//g, '' )
       .replace( /^\s*\/\/.*$/gm, '' );
 
-    const labels = code.match( /className="pill-label"/g ) || [];
     const actions = code.match( /className="pill-action"/g ) || [];
-    // Twice each: the <a> branch and the <button> branch write their own.
-    expect( labels ).toHaveLength( 2 );
+    // Twice: the <a> branch and the <button> branch each write their own.
     expect( actions ).toHaveLength( 2 );
+    // The retired dark half must not come back as markup.
+    expect( code ).not.toContain( 'className="pill-label"' );
 
     // NOT HOISTED. Any of these means the segments have been lifted out of the return tree again
     // and the scoping hash will silently stop being applied.
@@ -137,19 +161,25 @@ describe( 'the measured palette is the one in the file', () => {
   } );
 
   /**
-   * The same guard from the other side: the component must still render both segments, with the
-   * label visible-but-aria-hidden and the action carrying the accessible name.
+   * The same guard from the other side, and the single-surface contract.
+   *
+   * WHAT IS ON SCREEN IS NOW WHAT IS ANNOUNCED. The old control showed two words ("Sign in" +
+   * "Send code") while answering only to the second, which is why the label had to be
+   * aria-hidden. With one lime surface the visible text IS the accessible name, so the span is
+   * no longer hidden from the accessibility tree - and `label` is accepted but not rendered.
    */
-  it( 'renders both segments with the action as the accessible name', () => {
+  it( 'renders the action as the only visible text and as the accessible name', () => {
     const { container } = render( <PillButton label="Collect" action="Send code" /> );
-    const label = container.querySelector( '.pill-label' );
     const action = container.querySelector( '.pill-action' );
-    expect( label?.textContent ).toBe( 'Collect' );
     expect( action?.textContent ).toBe( 'Send code' );
-    // Decoration is hidden from the accessibility tree; the control answers to the action alone,
-    // so neither segment is announced twice.
-    expect( label?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-    expect( action?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
+    // The retired dark half is gone, and the `label` prop is deliberately not rendered anywhere.
+    expect( container.querySelector( '.pill-label' ) ).toBeNull();
+    // Asserted on the CONTROL, not the container: container.textContent also includes the
+    // <style jsx> CSS, whose explanatory comment names "Collect" as a former label - so a
+    // container-wide check matches the documentation rather than the markup.
+    expect( screen.getByRole( 'button' ).textContent ).toBe( 'Send code' );
+    // Visible text and accessible name are the same string, so the span is not aria-hidden.
+    expect( action?.getAttribute( 'aria-hidden' ) ).toBeNull();
     expect( screen.getByRole( 'button', { name: 'Send code' } ) ).toBeTruthy();
   } );
 } );
