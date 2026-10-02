@@ -456,12 +456,34 @@ export default function CustomerSignIn (): React.ReactElement {
                 disabled={ busy }
                 invalid={ !!error }
                 describedBy={ error ? 'si-hint si-error' : 'si-hint' }
-                /* NO placeholder OVERRIDE. PhoneField now derives it from the selected country's
-                   own length rule - "10-digit WhatsApp number" on +91, "8- or 9-digit WhatsApp
-                   number" on +971 - which is the owner's requested resting-state wording and,
-                   because it is derived from the same table the validation uses, it cannot
-                   contradict what the field will actually accept. A hardcoded "9876543210" both
-                   lost that wording and would have gone stale the moment the rule changed. */
+/* NO placeholder OVERRIDE. PhoneField derives it from the selected country's own
+                   length rule - "10-digit WhatsApp number" on +91, "8- or 9-digit WhatsApp
+                   number" on +971 - the owner's requested resting-state wording, derived from the
+                   same table the validation reads so it cannot contradict what the field accepts.
+                   This also closes the root cause upstream identified for the reported failure:
+                   the old hardcoded "9876543210" is a structurally valid Indian mobile number, so
+                   in placeholder grey it read as a value ALREADY IN THE FIELD - the shopper
+                   submitted, the then-present `required` refused an empty input, and the browser
+                   objected about a field that visibly contained a number. A worded hint cannot be
+                   mistaken for a value. */
+                /*
+                 * onInvalid IS KEPT FROM UPSTREAM, THOUGH `required` IS NOW GONE.
+                 *
+                 * Upstream added this to mirror the browser's native refusal into this page's own
+                 * error region, because `required` blocked submit so startPhone never ran and
+                 * composeE164's empty-number branch - and the approved BAD_NUMBER message - were
+                 * UNREACHABLE. Correct diagnosis. The resolution differs only because the owner
+                 * reported the native bubble ITSELF as the defect (unthemeable, untranslatable,
+                 * and against the standing no-red rule), so `required` was removed instead.
+                 *
+                 * With no constraint the browser no longer blocks submit: startPhone runs,
+                 * composeE164 rejects the empty value, and BAD_NUMBER lands in the in-page error
+                 * region - the same destination upstream was routing to, reached without the
+                 * bubble. This handler therefore never fires today and is retained deliberately:
+                 * it costs nothing, and it is the correct wiring the moment any constraint
+                 * attribute is added back.
+                 */
+                onInvalid={ () => setError( MSG.BAD_NUMBER ) }
               />
               {/* A text node, so it translates. It no longer tells the shopper to include a country
                   code - the segment beside the number does that - so the line says the one thing
@@ -474,7 +496,13 @@ export default function CustomerSignIn (): React.ReactElement {
                   segment is the static "Sign in" label; the RIGHT segment is the ACTION, which is
                   also the control's accessible name - so the button still answers to "Send code"
                   (and "Sending…" while busy), the name the sign-in tests pin. Semantics are
-                  unchanged: a real type="submit" that runs startPhone, disabled while busy. */}
+                  unchanged: a real type="submit" that runs startPhone, disabled while busy.
+
+                  The run-together "Sign inSend code" the owner reported was a styled-jsx SCOPING
+                  failure, not a duplicate label: the segments were hoisted into a variable, so
+                  they shipped with no `jsx-*` hash against rules that required one and rendered
+                  completely unstyled. Fixed upstream in 2f742ec6, which also unified /get onto
+                  this same pill. See PillButton's docblock. */}
               <PillButton
                 as="button"
                 type="submit"
@@ -522,7 +550,9 @@ export default function CustomerSignIn (): React.ReactElement {
               </label>
               {/* Same two-segment pill. The right segment carries "Confirm code" (and "Checking…"
                   while busy), which is both the visible action and the accessible name the test
-                  queries. Real type="submit" running submitCode, disabled while busy. */}
+                  queries - this is the button the owner saw render as "Sign inConfirm code",
+                  which 2f742ec6 fixed by restoring the segments' styled-jsx scoping.
+                  Real type="submit" running submitCode, disabled while busy. */}
               <PillButton
                 as="button"
                 type="submit"
@@ -565,6 +595,14 @@ export default function CustomerSignIn (): React.ReactElement {
              its own outline, radius and height - so the two controls on this page are styled in two
              places on purpose, and the numbers above are the ones PhoneField matches. */
           .si-input:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
+          /* THE CODE FIELD NEEDS THE SAME HEADER CLEARANCE THE NUMBER FIELD HAS, and it needs
+             it MORE: the code phase is reached by submitting, which moves focus into this input
+             on a page the shopper has usually already scrolled. Without it the browser reveals
+             the field at the top of the scrollport, which is behind the fixed 108px header - so
+             the shopper cannot see the code they are typing. 128px/112px are the site's
+             clearance constants for this header; see the long note on .pf-num in PhoneField for
+             why this is scroll-margin on the input and not scroll-padding on the document. */
+          .si-input{scroll-margin-top:128px}
           .si-hint{
             margin:0 0 20px;font-size:16px;line-height:1.55;color:rgba(0,0,0,.54);
           }
@@ -595,6 +633,8 @@ export default function CustomerSignIn (): React.ReactElement {
           .si-back :global(a:focus-visible){outline:3px solid #1a3a2a;outline-offset:3px;border-radius:2px}
           @media(max-width:767px){
             .si-body{font-size:18px}
+            /* The header is 96px below this breakpoint, so the clearance steps with it. */
+            .si-input{scroll-margin-top:112px}
           }
         `}</style>
       </PageTopBand>

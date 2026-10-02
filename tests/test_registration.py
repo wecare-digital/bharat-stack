@@ -275,8 +275,13 @@ def test_an_existing_customer_is_resolved_not_duplicated(table):
 
 
 def test_provisioning_runs_for_an_existing_customer_too(table):
-    """It repairs the half-provisioned case the session check refuses: a Cognito user without
-    custom:customer_id can never sign in, and that is invisible until someone tries."""
+    """It repairs the case sign-in cannot: a customer record with no CONFIRMED Cognito user
+    behind it can never sign in, and that is invisible until someone tries.
+
+    It used to be described as repairing a missing `custom:customer_id`. That attribute is not in
+    the customer pool's schema and is no longer written at all; session identity comes from the
+    Cognito `sub`. The provisioning call still matters, for the reason above.
+    """
     sender = Sender()
     _begin(table, sender=sender)
     prior = ci.build_customer(first_name='A', last_name='B', phone=E164,

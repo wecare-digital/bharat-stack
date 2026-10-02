@@ -113,7 +113,7 @@ describe( 'Get page', () => {
     const number = container.querySelector( '.pf-num' ) as HTMLInputElement;
     const { fireEvent } = await import( '@testing-library/react' );
     fireEvent.change( number, { target: { value: '9876543210' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: /Send code/i } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
 
     await waitFor( () => expect( container.querySelector( '#code' ) ).toBeTruthy() );
 
@@ -140,7 +140,7 @@ describe( 'Get page', () => {
     const number = container.querySelector( '.pf-num' ) as HTMLInputElement;
     const { fireEvent } = await import( '@testing-library/react' );
     fireEvent.change( number, { target: { value: '9876543210' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: /Send code/i } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
 
     await waitFor( () => expect( screen.getByRole( 'alert' ) ).toBeTruthy() );
     expect( screen.getByRole( 'alert' ).textContent ).toMatch( /No files are registered/i );

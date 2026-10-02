@@ -27,28 +27,44 @@ import PillButton from '../components/PillButton';
 
 afterEach( () => vi.restoreAllMocks() );
 
-describe( 'the accessible name is the action, and it is now the only text', () => {
-  it( 'answers to the action text alone, and no longer renders the static label', () => {
+/**
+ * TWO CONTRACTS MET AT ONCE, and the history is worth recording because each looked complete on
+ * its own.
+ *
+ * The ORIGINAL contract asserted the name was the ACTION ALONE and that the visible label must
+ * NOT appear in it ("Send code", never "Sign in Send code"), achieved with `aria-hidden` on both
+ * segments plus an `aria-label`. That hid a control's own visible label from its accessible name,
+ * so a speech-input user saying "click Sign in" at that button got nothing. WCAG 2.5.3 Label in
+ * Name is Level A and requires the opposite: the name must CONTAIN the visible text.
+ *
+ * Upstream fixed that by un-hiding both segments so the name became the platform's concatenation,
+ * "Sign in Send code", and removed the `ariaLabel` override from the component entirely.
+ *
+ * THE OWNER THEN RETIRED THE TWO-TONE PILL (2026-10-02, "old multi colour out of date"), so there
+ * is now ONE lime surface showing the ACTION only. That satisfies 2.5.3 by construction rather
+ * than by repair: with a single visible string, the accessible name and the visible text are the
+ * same string and cannot disagree. The `ariaLabel` removal is kept - it is what stops a caller
+ * reopening the failure - and no segment is aria-hidden.
+ */
+describe( 'the accessible name is the visible pill text', () => {
+  it( 'answers to its visible text, which is now the action alone', () => {
     render( <PillButton label="Sign in" action="Send code" /> );
-    // The pinned login query form: by role + exact action name. UNCHANGED by the single-surface
-    // rewrite, which is the point - the accessible name was always the action, so retiring the
-    // visible label could not change what any caller or test queries for.
+    // The pinned login query form, and it survives both changes: the action was always the name,
+    // and it is now also the only thing on screen.
     expect( screen.getByRole( 'button', { name: 'Send code' } ) ).toBeTruthy();
-    // The name is not a concatenation of the two.
-    expect( screen.queryByRole( 'button', { name: /Sign in Send code/ } ) ).toBeNull();
-    // THE LABEL IS NO LONGER RENDERED. The two-tone pill showed "Sign in" in its dark half while
-    // answering only to "Send code"; the owner retired that treatment on 2026-10-02, so the one
-    // lime surface shows the action alone and the visible text now equals the accessible name.
+    // 2.5.3: the name contains the full visible text, because they are the same string.
+    expect( screen.getByRole( 'button' ).textContent ).toBe( 'Send code' );
+    // The retired dark half renders nothing, so there is no visible label left OUT of the name.
     expect( screen.queryByText( 'Sign in' ) ).toBeNull();
     expect( screen.getByText( 'Send code' ) ).toBeTruthy();
   } );
 
-  it( 'lets ariaLabel set a name that differs from the shorter visible action (the cart case)', () => {
-    render(
-      <PillButton label="Checkout" action="Proceed" ariaLabel="Proceed to checkout" />,
-    );
-    // The cart test queries this exact name, while the pill only shows "Proceed".
-    expect( screen.getByRole( 'button', { name: 'Proceed to checkout' } ) ).toBeTruthy();
+  it( 'names the cart pill by its visible text too, with no override available', () => {
+    render( <PillButton label="Checkout" action="Proceed" /> );
+    // The cart test queries this exact name. It used to be "Proceed to checkout", set by
+    // ariaLabel - a name containing neither visible word in order.
+    expect( screen.getByRole( 'button', { name: 'Proceed' } ) ).toBeTruthy();
+    expect( screen.queryByRole( 'button', { name: 'Proceed to checkout' } ) ).toBeNull();
     expect( screen.getByText( 'Proceed' ) ).toBeTruthy();
   } );
 } );
@@ -68,10 +84,11 @@ describe( 'it is a real control, not a styled div', () => {
   it( 'does not fire onClick while disabled, and marks aria-busy when busy', () => {
     const onClick = vi.fn();
     render(
-      <PillButton label="Sign in" action="Sending…" ariaLabel="Send code"
-        onClick={ onClick } disabled busy />,
+      <PillButton label="Sign in" action="Sending…" onClick={ onClick } disabled busy />,
     );
-    const button = screen.getByRole( 'button', { name: 'Send code' } );
+    // The busy name follows the visible text, so it is the busy wording - not a frozen
+    // "Send code" supplied by an override. That override is gone; see the docblock.
+    const button = screen.getByRole( 'button', { name: 'Sending…' } );
     fireEvent.click( button );
     expect( onClick ).not.toHaveBeenCalled();
     expect( ( button as HTMLButtonElement ).disabled ).toBe( true );
@@ -80,6 +97,7 @@ describe( 'it is a real control, not a styled div', () => {
 
   it( 'renders an anchor with an href when as="a"', () => {
     render( <PillButton as="a" href="/account/sign-in/" label="Sign in" action="Continue" /> );
+    // Single lime surface: the action is the only visible text, so it is the whole name.
     const link = screen.getByRole( 'link', { name: 'Continue' } );
     expect( link.getAttribute( 'href' ) ).toBe( '/account/sign-in/' );
   } );
@@ -178,8 +196,14 @@ describe( 'the measured palette is the one in the file', () => {
     // <style jsx> CSS, whose explanatory comment names "Collect" as a former label - so a
     // container-wide check matches the documentation rather than the markup.
     expect( screen.getByRole( 'button' ).textContent ).toBe( 'Send code' );
-    // Visible text and accessible name are the same string, so the span is not aria-hidden.
-    expect( action?.getAttribute( 'aria-hidden' ) ).toBeNull();
+    /*
+     * NOT aria-hidden - UPSTREAM'S REQUIREMENT, KEPT. The span previously carried
+     * aria-hidden="true" alongside an aria-label of the action, which hid the control's visible
+     * label from its own name and broke WCAG 2.5.3 for speech input. With one surface the visible
+     * text IS the name, so hiding it would make the control nameless rather than merely
+     * mismatched. This assertion is what stops aria-hidden being reintroduced "for tidiness".
+     */
+    expect( action?.hasAttribute( 'aria-hidden' ) ).toBe( false );
     expect( screen.getByRole( 'button', { name: 'Send code' } ) ).toBeTruthy();
   } );
 } );

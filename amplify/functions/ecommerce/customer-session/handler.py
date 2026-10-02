@@ -77,6 +77,20 @@ def handler(event, context):
             if not token or len(token) > 4096:
                 raise sessions.SessionInvalid('refresh custody required')
             # Prove the refresh token belongs to the same customer as the access token.
+            #
+            # BOTH COMPARISONS CURRENTLY TEST THE SAME VALUE, AND THAT IS KNOWN. Since
+            # 2026-10-02 `customer_auth.customer_id_from_attributes` derives `customer_id`
+            # from the Cognito `sub`, which is also what `subject` carries, so this reads as
+            # two independent checks and is one. It is still correct and still rejects a
+            # mismatched refresh owner - one sufficient check, not a vacuous one.
+            #
+            # DO NOT "TIDY" THE SECOND COMPARISON AWAY. Keeping both costs nothing and makes
+            # the check strengthen by itself the day `customer_id` gains an independent
+            # source - which is a live possibility, because the alternative to `sub` was a
+            # `custom:customer_id` attribute that could still be added and backfilled later
+            # (see `customer_id_from_attributes` for why that is owner work and why a
+            # fallback was refused). Deleting it now would quietly remove that future
+            # protection, and nothing here would fail to tell you.
             renewed = provider_refresh(token)
             proven = customer_auth.authenticate({'headers': {'authorization': 'Bearer ' + renewed['AccessToken']}})
             if proven.customer_id != identity.customer_id or proven.subject != identity.subject:

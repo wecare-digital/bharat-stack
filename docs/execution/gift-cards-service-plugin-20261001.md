@@ -1672,8 +1672,21 @@ balance from Wix.
 with `secrets`), **`paymentAttemptId` (R4-H6 / DECISION 9 — the attribute that makes `GC_VOIDED`
 reachable)**, `kind` (`REDEEM` / `VOID`), `amountPaise` (int), `balanceAfterPaise` (int),
 `referenceId` (**correlation only, never a key** — demoted per DECISION 9; it was revision 2's key),
-`wixOrderId` (when known), `voidedBy` (the void transaction id, set when reversed), `createdAt`,
-`source` (`OURS` / `WIX_SPI`).
+`wixOrderId` (when known), `voidedBy` (the void transaction id, set when reversed), `credited`
+(bool — written `False` by the same conditional update that latches `voidedBy`, set `True` only
+after the balance has come back; it is what makes a STALLED void completable instead of permanently
+refused), `creditedAt`, `voidBalanceAfterPaise`, `createdAt`, `source` (`OURS` / `WIX_SPI`).
+
+`credited` is sound in one direction only: it can never claim a credit landed when it did not, but
+`False` covers both "the credit never ran" and "the credit ran and this write was throttled". So it
+is **not** what makes the void safe — the credit additionally writes `appliedVoid#<voidTransactionId>`
+on the CARD row, inside the same `UpdateItem` as `ADD balancePaise`, under
+`attribute_not_exists`. One item, one commit, so a retry that re-drives on the strength of
+`credited: False` loses a condition rather than handing the balance back twice. The redemption
+path carries the identical device as `appliedClaim#<paymentAttemptId>` on the decrement, for the
+same reason: `GCORDER#`'s `settled` is also on a second item. `_drop_applied_marker` removes each
+marker once its flag has landed, so the card row stays bounded by in-flight moves rather than by
+their lifetime count.
 
 `source` distinguishes our own finalization redemption from one Wix asked for. **§1.3 predicts
 `WIX_SPI` should never appear**, so its appearance is the detector for that prediction being wrong.
@@ -1933,7 +1946,9 @@ here. Test 76 asserts it by AST.
 | Redeem | amount has sub-paise precision | no | 400 | INFO |
 | Redeem | amount above `99_999_999_999` paise | no | 400 | INFO |
 | Void | `GCTXNID#` missing | n/a | `TransactionNotFound` 404 | INFO |
-| Void | transaction already `voidedBy` | yes | `AlreadyVoided` 409 | INFO |
+| Void | `voidedBy` latched and `credited` not explicitly `False` | yes | `AlreadyVoided` 409 | INFO |
+| Void | `voidedBy` latched with `credited: False` | n/a | **completed by the retry** under the latched void id, 200 | INFO |
+| Void | latch lost to a concurrent void still in flight | yes | `AlreadyVoided` 409 | INFO |
 | our `redeem` at finalization | claim put fails non-conditionally | **fatal, must not proceed** | raises; stage stays `GC_HELD` | ERROR, `type(exc).__name__` |
 | our `redeem` at finalization | succeeds, `advance()` write fails | yes | `NEEDS_RECONCILIATION` | ERROR |
 | `advance()` | `ConditionalCheckFailedException` | depends on caller | raises `StageRegressed` | ERROR |

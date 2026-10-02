@@ -96,11 +96,48 @@ export interface PhoneFieldProps {
    * is confirmation for people who can see it, not the message itself.
    */
   verified?: boolean;
+  /**
+   * Fires when the browser's own constraint validation refuses the number segment.
+   *
+   * KEPT FROM THE UPSTREAM FIX, THOUGH `required` IS NOW GONE - see the note on the input below.
+   * Upstream added this hook so a consumer could mirror a native refusal into its own error
+   * region, on the reasoning that the native affordance should be kept AND the programmatic
+   * association added, rather than one traded for the other. That reasoning is sound in general;
+   * it lost here only because the owner reported the native bubble itself as the defect (it is
+   * unthemeable and contradicts the standing no-red instruction), so the trade had to go the
+   * other way.
+   *
+   * The prop stays rather than being deleted: it is the correct escape hatch if any constraint
+   * attribute is ever added back (pattern, minLength, type=email on a sibling), it keeps the
+   * existing consumer wiring compiling, and it costs nothing while unused. With no constraints on
+   * the input it simply never fires, and emptiness is caught by the consumer's submit path.
+   */
+  onInvalid?: ( event: React.FormEvent<HTMLInputElement> ) => void;
 }
+
+/**
+ * A FORMAT MASK, NOT A SPECIMEN NUMBER, and the distinction is the whole point.
+ *
+ * This was `9876543210` - ten digits starting with 9, which is a structurally valid Indian
+ * mobile number. Rendered in placeholder grey beside a segment already reading "+91 India",
+ * it reads as a number that is ALREADY IN THE FIELD. A shopper who believes the field is
+ * filled presses the CTA, the `required` constraint refuses an empty input, and the browser
+ * answers "Please fill out this field." about a field that visibly contains a number. That
+ * is the shape of the reported sign-in failure.
+ *
+ * Zeros in two groups cannot be mistaken for a value: an Indian mobile number never begins
+ * with 0, and the grouping reads as a mask. It is also LANGUAGE-NEUTRAL, which a worded hint
+ * would not be - placeholder text is an attribute, and SupportWidget's translation walker
+ * rewrites text nodes only (the same cost recorded on the country-code aria-label below), so
+ * "10-digit number" would stay English for every non-English shopper.
+ *
+ * The consumer may still override it; this is the default, not a constraint.
+ */
+export const NUMBER_FORMAT_HINT = '00000 00000';
 
 const PhoneField: React.FC<PhoneFieldProps> = ( {
   id, dialCode, onDialCodeChange, number, onNumberChange,
-  disabled, invalid, describedBy, placeholder, verified,
+  disabled, invalid, describedBy, placeholder, verified, onInvalid,
 } ) => (
   <div className={ `pf${ verified ? ' pf-verified' : '' }` }>
     {/*
@@ -148,23 +185,58 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
       autoComplete="tel-national"
       /*
        * THE PLACEHOLDER NAMES THE EXPECTED LENGTH, from the selected country's own rule:
-       * "10-digit WhatsApp number" for India, "8- or 9-digit..." for the UAE. A caller may still
-       * override it. This is the owner's requested resting-state wording and it changes with the
-       * selector, so it can never contradict the validation.
+       * "10-digit WhatsApp number" for India, "8- or 9-digit WhatsApp number" for the UAE. It is
+       * the owner's requested resting-state wording, and because it is derived from the same table
+       * the validation reads it can never contradict what the field accepts. A caller may override.
+       *
+       * THIS ALSO SATISFIES THE UPSTREAM FINDING, which was the better diagnosis of the reported
+       * bug and is worth keeping on the record. Upstream replaced the old `9876543210` with a
+       * grouped-zeros FORMAT MASK, on the reasoning that ten digits beginning with 9 is a
+       * structurally valid Indian mobile number, so in placeholder grey beside a segment reading
+       * "+91 India" it reads as a number ALREADY IN THE FIELD - the shopper submits, the `required`
+       * constraint refuses an empty input, and the browser objects about a field that visibly
+       * contains a number. That is the shape of the failure the owner photographed.
+       * A WORDED hint cannot be mistaken for a value either, so the root cause is closed the same
+       * way; the wording is kept because the owner specified it explicitly and because it states
+       * the expected LENGTH, which a mask only implies. The mask's language-neutrality is the one
+       * thing given up, and the string is translatable by the site's walker, which offsets it.
        */
       placeholder={ placeholder
         ?? `${ nationalLengthHint( dialCode ) } WhatsApp number`.trim() }
       /*
-       * `required` IS DELIBERATELY ABSENT, and removing it was a fix.
+       * `required` IS DELIBERATELY ABSENT, and removing it was a fix - this is the one place this
+       * merge deliberately overrides the upstream decision rather than combining with it.
        *
-       * It made the browser render its OWN validation bubble - "Please fill out this field." with
-       * an orange warning icon - which the owner reported from the live sign-in page. That bubble
-       * is not themeable, cannot be translated by this site's walker, and contradicts the standing
-       * no-red instruction that stripped #fee2e2/#ef4444/#7f1d1d from these surfaces. Emptiness is
-       * now caught by the page's own submit path and surfaced through the in-page error treatment
-       * (the lime state tint with role=alert, wired here via aria-invalid + aria-describedby), so
-       * the message is themed, translatable and announced once.
+       * Upstream kept `required` and added the onInvalid hook above so a consumer could mirror the
+       * native refusal into its own error region, keeping the native affordance AND adding the
+       * programmatic association. Sound in the general case. It loses here because the owner
+       * reported the native bubble ITSELF as the defect: "Please fill out this field." with an
+       * orange warning icon, photographed on the live sign-in page. That bubble cannot be themed,
+       * cannot be translated by this site's text walker, and contradicts the standing no-red
+       * instruction that stripped #fee2e2/#ef4444/#7f1d1d from these very surfaces.
+       *
+       * Nothing is lost by removing it. With no constraint the browser no longer blocks submit, so
+       * the consumer's own onSubmit runs, composeE164() rejects an empty number, and the message
+       * lands in the in-page error treatment (lime state tint, role=alert) wired to this input by
+       * aria-invalid + aria-describedby - themed, translatable, announced once, and still on
+       * screen after a native bubble would have dismissed itself.
        */
+      onInvalid={ onInvalid }
+      /*
+       * aria-required, NOT `required` - this is how upstream's concern is met rather than traded.
+       *
+       * Upstream's objection to dropping `required` was specific and fair: removing the attribute
+       * also removes the "required" a screen reader announces from it, so a message would have
+       * been bought at the cost of a real semantic. aria-required="true" restores exactly that
+       * announcement - it is the ARIA equivalent of the native attribute - WITHOUT engaging the
+       * browser's constraint validation, which is the part that renders the unthemeable orange
+       * bubble the owner reported. Assistive technology hears "required" either way; the browser
+       * no longer blocks submit or draws its own UI.
+       *
+       * So neither half is given up: the semantic comes from ARIA, and the message comes from the
+       * page's own error region via onSubmit, aria-invalid and aria-describedby.
+       */
+      aria-required="true"
       value={ number }
       onChange={ e => onNumberChange( e.target.value ) }
       disabled={ disabled }
@@ -230,6 +302,23 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
         border:0;padding-inline:16px;
         background:#fff;color:#1a1a1a;
         font-family:inherit;font-size:17px;
+        /* scroll-margin-top CLEARS THE FIXED 108px HEADER, and it is on the INPUT rather
+           than on .pf because the input is what the browser scrolls to.
+           MEASURED, not precautionary. When the browser reveals this control - on focus,
+           on autofocus, or as part of refusing an empty required field - it scrolls it
+           to the top of the scrollport, and the scrollport's top is UNDER the fixed
+           header. At 320x568 the field landed 36px behind the header and at 390x400 (the
+           height a phone has left with its keyboard open) 50px behind it, so the shopper
+           could not see the number they were typing. With this declaration both measure
+           0px covered.
+           128px/112px are the site's existing clearance constants for this exact header,
+           used the same way by .lgd-section and .cl in LegalDocument and ContactLocation.
+           WHY NOT html{scroll-padding-top}, which is the tidier-looking fix: those two
+           components already carry their own scroll-margin-top, and scroll-padding on the
+           scrollport ADDS to scroll-margin on the target - so a document-level inset would
+           silently double their anchor clearance to 256px. Measured both ways; this one
+           fixes the field without touching anything else. */
+        scroll-margin-top:128px;
         /* The mirror image of the code segment's corners: square against the divider, 9px on the
            outside. This is also what overrides the global 13px from button.css. */
         border-start-start-radius:0;border-end-start-radius:0;
@@ -289,6 +378,13 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
          content-sized so a three-digit code like +971 does not get clipped, and the number segment
          absorbs the rest. The padding tightens rather than the segments shrinking, so the 52px
          target height is never traded away. */
+      /* The header is 96px below 768px, so the clearance steps with it - the same
+         128px/112px pair .lgd-section and .cl use. Declared in its own query because the
+         header's breakpoint is 767px and the padding tightening below is at 360px. */
+      @media(max-width:767px){
+        .pf-num{scroll-margin-top:112px}
+      }
+
       @media(max-width:360px){
         .pf-code{padding-inline:8px}
         .pf-num{padding-inline:12px}

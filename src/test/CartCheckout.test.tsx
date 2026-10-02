@@ -176,7 +176,7 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
 
     await waitFor( () => expect( navigatedTo ).toContain( '/account/sign-in' ) );
     expect( navigatedTo ).toContain( 'return=/cart/' );
@@ -199,7 +199,7 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 2 );
 
     render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
 
     await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 1 ) );
     const [ url, init ] = fetchMock.mock.calls[ 0 ];
@@ -224,7 +224,7 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 1 );
 
     const { container } = render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
 
     /*
      * TWO PINNED BEHAVIOURS CHANGED HERE, AND BOTH WERE WRONG BEFORE.
@@ -266,7 +266,7 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
     await waitFor( () => expect( navigatedTo ).toBe( '/checkout/status/?a=att-5' ) );
     expect( cart.readCart() ).toHaveLength( 1 );
   } );
@@ -281,7 +281,7 @@ describe( 'the cart page proceed flow', () => {
     vi.stubGlobal( 'fetch', fetchMock );
     cart.addItem( PRODUCT, 1 );
     const { container } = render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
     expect( await screen.findByText( 'We could not confirm checkout. Check your orders before trying again.' ) ).toBeTruthy();
     expect( container.textContent ).not.toMatch( /No charge was made/i );
     expect( cart.readCart() ).toHaveLength( 1 );
@@ -303,7 +303,7 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
 
     expect( await screen.findByText( /No charge was made/ ) ).toBeTruthy();
     // THE EXACT APPROVED SENTENCE, not merely something containing "No charge was made". A readiness
@@ -330,7 +330,7 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
     expect( await screen.findByText( /No charge was made - please try again/ ) ).toBeTruthy();
   } );
 
@@ -344,7 +344,7 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
     await waitFor( () => expect( navigatedTo ).toContain( '/account/sign-in' ) );
   } );
 
@@ -352,7 +352,7 @@ describe( 'the cart page proceed flow', () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
     render( <Cart /> );
     expect( await screen.findByText( 'Your cart is empty.' ) ).toBeTruthy();
-    expect( screen.queryByRole( 'button', { name: 'Proceed to checkout' } ) ).toBeNull();
+    expect( screen.queryByRole( 'button', { name: 'Proceed' } ) ).toBeNull();
   } );
 } );
 
@@ -392,7 +392,7 @@ describe( 'the initiation-failure sentence is pinned to its evidence', () => {
       cart.addItem( PRODUCT, 1 );
 
       const { unmount } = render( <Cart /> );
-      fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+      fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
       expect( await screen.findByText( SENTENCE ), JSON.stringify( refusal.body ) ).toBeTruthy();
       // Nothing was handed off, so the claim stays attached to the response that justified it.
       expect( navigatedTo ).toBe( '' );
@@ -413,7 +413,7 @@ describe( 'the initiation-failure sentence is pinned to its evidence', () => {
     cart.addItem( PRODUCT, 1 );
 
     const { container } = render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed to checkout' } ) );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
 
     await waitFor( () => expect( navigatedTo ).toBe( '/checkout/status/?a=att-5' ) );
     expect( cart.readCart() ).toHaveLength( 1 );
