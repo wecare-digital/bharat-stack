@@ -300,7 +300,7 @@ export default function CheckoutStatus (): React.ReactElement {
             transition:background-color .2s,transform .2s,box-shadow .2s;
           }
           .co-card :global(.co-btn-primary){
-            background:#d1f470;border:2px solid #d1f470;color:#1a3a2a;
+            background:#d1f470;border:2px solid #1a3a2a;color:#1a3a2a;
           }
           .co-card :global(.co-btn-primary:hover){background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           /* The quiet action is a 2px lime outline rather than a second lime fill, so the page

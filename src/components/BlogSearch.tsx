@@ -133,7 +133,7 @@ const BlogSearch: React.FC<BlogSearchProps> = ( { value, onChange, resultCount, 
            was corrected - solid lime on white needs no help, but consistency does. */
         .bs-form button{
           height:52px;padding:0 22px;flex:none;
-          border:2px solid #1a3a2a;border-radius:12px;
+          border:2px solid #1a3a2a;border-radius:50px;
           background:#d1f470;color:#1a3a2a;
           font-size:17px;font-weight:600;font-family:inherit;cursor:pointer;
           transition:background-color .2s;

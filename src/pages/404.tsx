@@ -52,7 +52,7 @@ const NotFound: React.FC = () => {
           .nf-cta{
             display:inline-flex;align-items:center;justify-content:center;
             min-height:52px;padding:0 28px;
-            background:#d1f470;border:2px solid #d1f470;border-radius:50px;
+            background:#d1f470;border:2px solid #1a3a2a;border-radius:50px;
             color:#1a3a2a;font-size:17px;font-weight:600;text-decoration:none;
             transition:background-color .2s,transform .2s;
           }
