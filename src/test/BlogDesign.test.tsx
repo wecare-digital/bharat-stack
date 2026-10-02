@@ -825,7 +825,7 @@ describe( 'Blog post page', () => {
    * THE MANDATED COPY, AND NO SECOND H1. The heading and primary message are fixed strings in the
    * brief; the heading must be an h2 so the post keeps exactly one h1 (htmlcheck guards H1-MANY).
    */
-  it( 'shows the Support this work heading and message, and adds no second h1', () => {
+  it( 'shows the Contribute heading and message, and adds no second h1', () => {
     const { container } = render( <BlogPostPage post={ samplePost } /> );
 
     const block = container.querySelector( 'section.bc' )!;
