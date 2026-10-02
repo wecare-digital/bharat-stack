@@ -90,7 +90,7 @@ afterEach( () => {
 } );
 
 async function proceedPastProfile (): Promise<void> {
-  await proceedPastProfile();
+  fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
   fireEvent.click( await screen.findByRole( 'button', { name: 'Complete checkout details' } ) );
   fireEvent.click( await screen.findByRole( 'button', { name: /Pay securely/ } ) );
 }
