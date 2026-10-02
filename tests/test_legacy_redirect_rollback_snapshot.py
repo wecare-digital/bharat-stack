@@ -184,12 +184,21 @@ def test_owner_policy_preserves_rewrites_without_restoring_legacy_destinations(r
         assert source not in approved_sources, f"legacy redirect {source!r} is back in the policy"
         assert source not in written_sources, f"legacy redirect {source!r} was written to the app"
 
-    # BEFORE the equality below, deliberately. The equality catches the same drift with a
-    # message a reader has to decode, and an assertion placed after a failed equality never runs.
-    assert client.written == approved + rewrites
-    assert approved[0] == removals[0]
+    # EVERY SPECIFIC ASSERTION SITS ABOVE THE EQUALITY, deliberately, and these two were moved
+    # here on 2026-10-02 after review. They are not redundant with the derived loop above:
+    # ratifying a source removes it from `retired`, so a RATIFIED reinstatement of the legacy
+    # login forwarding is caught only by these hand-named literals (measured - mutation M11).
+    # They used to sit after the equality, where a reordering defect that fails the equality
+    # first (mutation M10) would mean they never execute at all. An assertion downstream of a
+    # failed equality is the same defect class as a vacuous one: it cannot report what it was
+    # written to report.
     assert not any(r['source'].startswith('/obsolete-login-fixture') for r in approved)
     assert all("/workspace" not in r["target"] for r in approved)
+    assert approved[0] == removals[0], "the host canonicalisation must lead the approved set"
+
+    # The broad net, last: it catches the same drift as everything above, but with a list diff
+    # a reader has to decode rather than a message that names the offending rule.
+    assert client.written == approved + rewrites
     client.written = None
     assert redirects.apply(client, approved + rewrites) == 0
     assert client.written is None, "a converged config must not write or recreate aliases"

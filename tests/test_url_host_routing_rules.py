@@ -37,6 +37,16 @@ every caller asserts it is NON-EMPTY before using it, so vacuity is a test failu
 a silent pass. It also keeps working when the next removal lands, without re-typing anything
 the owner has ordered removed.
 
+SHADOWING IS COMPARED ON AMPLIFY PATTERN SEMANTICS, NOT ON A STRING PREFIX, and that is the
+one place this file has already been wrong once. Round 2 of it compared a redirect source
+against a hand-kept tuple of passthrough prefixes with `str.startswith`, which rejected
+`/getting-started` as shadowing `/get/<*>` - a page the owner could plausibly ship tomorrow,
+reddening the gate for no reason, which is the failure this redesign exists to end. It also
+needed a second reverse branch to catch `/ap<*>` swallowing `/api/<*>`. `_patterns_overlap()`
+replaces both with the actual question - can one request path match both patterns - and
+`test_pattern_overlap_is_segment_aware_in_both_directions` pins it by example. Do not
+"simplify" it back to a prefix test.
+
 No AWS call is made anywhere in this file: `apply()` takes its client as an argument and the
 client here is a stub that records the write.
 """
@@ -70,9 +80,18 @@ WWW_CANONICAL = {
 }
 CATCH_ALL = {"source": "/<*>", "target": "/404.html", "status": "404-200"}
 
-# Runtime rewrites. A redirect that matches one of these swallows it: /api/<*> carries every
-# provider webhook, /get/<*> the CDN, /r/<*> the short-link service, /mcp the tool catalogue.
-PASSTHROUGH_PREFIXES = ("/api", "/get", "/r/", "/mcp")
+# The runtime rewrites this file exists to protect, and what each one carries. Used as a
+# COVERAGE FLOOR, not as the comparison: the set actually asserted against is DERIVED from what
+# `apply()` writes, through the provisioner's own `is_ours()`, so a passthrough added later is
+# protected without anybody editing this table. `test_the_critical_passthroughs_survive_the
+# _write` pins the floor, so a rewrite silently disappearing is still a failure.
+CRITICAL_PASSTHROUGHS = {
+    "/api/<*>": "every provider webhook, including POST /api/razorpay-webhook",
+    "/get/<*>": "the public media CDN origin",
+    "/r/<*>": "the short-link service",
+    "/mcp": "the tool catalogue served to MCP clients",
+}
+WILDCARD = "<*>"
 
 # Mirrors `provision_legacy_redirects.REDIRECT_STATUSES` for the two tests that read a
 # committed snapshot with no provisioner in scope. `test_the_redirect_status_set_matches_the
@@ -127,7 +146,50 @@ def _is_redirect(rule: dict) -> bool:
 
 
 def _is_passthrough(rule: dict) -> bool:
-    return str(rule.get("source", "")).startswith(PASSTHROUGH_PREFIXES)
+    """A rule the provisioner does not own: a runtime rewrite, not a redirect.
+
+    Classified through `_is_redirect` (which mirrors the provisioner's `is_ours()`) rather than
+    by matching a hand-kept prefix list, so a rewrite added later is protected automatically.
+    The catch-all is excluded: it is a 404-family fallback evaluated after file lookup, and it
+    is pinned by its own test.
+    """
+    return not _is_redirect(rule) and str(rule.get("source", "")) != CATCH_ALL["source"]
+
+
+def _match_prefix(pattern: str) -> tuple[str, bool]:
+    """Split an Amplify source pattern into its literal prefix and whether it wildcards."""
+    if pattern.endswith(WILDCARD):
+        return pattern[: -len(WILDCARD)], True
+    return pattern, False
+
+
+def _patterns_overlap(a: str, b: str) -> bool:
+    """True when some request path could be matched by BOTH Amplify source patterns.
+
+    WHY THIS IS NOT `str.startswith` ON A PREFIX LIST. An Amplify source is matched AS GIVEN,
+    not normalised - that is the documented reason both `/zip` and `/zip/` have to be declared
+    separately. A raw string prefix therefore gets the question wrong in BOTH directions:
+
+      * `/getting-started` shares the prefix `/get` with the CDN passthrough and cannot match
+        `/get/<*>`, `/get` or `/get/`. Rejecting it would redden this gate on an ordinary new
+        product page - the exact failure this redesign exists to end. Same for `/api-docs`,
+        `/mcp-legacy`, and `/r` against `/r/<*>`.
+      * `/ap<*>` does not START WITH any passthrough source, yet its wildcard swallows
+        `/api/<*>` whole. A forward-only prefix test misses it.
+
+    So compare the literal prefixes together with their wildcard-ness. `<*>` is treated as
+    matching any suffix, which is the conservative reading: it makes overlap easier to detect,
+    so the check fails closed.
+    """
+    prefix_a, wild_a = _match_prefix(a)
+    prefix_b, wild_b = _match_prefix(b)
+    if wild_a and wild_b:
+        return prefix_a.startswith(prefix_b) or prefix_b.startswith(prefix_a)
+    if wild_a:
+        return b.startswith(prefix_a)
+    if wild_b:
+        return a.startswith(prefix_b)
+    return a == b
 
 
 def _retired_sources(rules: list[dict]) -> set[str]:
@@ -361,23 +423,83 @@ def test_no_ratified_redirect_can_shadow_a_passthrough_or_target_the_staff_tree(
         source = str(rule.get("source", ""))
         if not _is_redirect(rule) or not source.startswith("/"):
             continue  # the host rule's source is an origin, not a path; it cannot match one
-        if source == CATCH_ALL["source"]:
-            continue  # the catch-all is a 404-family status, evaluated after file lookup
+        if rule == CATCH_ALL:
+            continue  # the 404-200 fallback is evaluated after file lookup, and pinned elsewhere
 
-        assert not source.startswith(PASSTHROUGH_PREFIXES), (
-            f"redirect {source} overlaps a passthrough prefix - provider webhooks are "
-            f"delivered through /api/<*> and a shadowing rule is a payment outage"
+        # One check, both directions, on Amplify pattern semantics rather than raw string
+        # prefixes - see `_patterns_overlap`. A redirect UNDER a passthrough (/api/legacy) and a
+        # wildcard redirect that SWALLOWS one (/ap<*> eats /api/<*>) both fail here; a redirect
+        # that merely shares a string prefix (/getting-started vs /get/<*>) correctly passes.
+        shadowed = sorted(p for p in passthrough_sources if _patterns_overlap(source, p))
+        assert not shadowed, (
+            f"redirect {source} overlaps runtime rewrite(s) {shadowed} - a request meant for a "
+            f"passthrough would be redirected instead, regardless of array order. Provider "
+            f"webhooks are delivered through /api/<*>, so a shadowing rule is a payment outage"
         )
-        # The reverse direction. `/ap<*>` does not START WITH a passthrough prefix, but
-        # /api/<*> falls under it. An empty stem would match the whole site, so it is rejected
-        # outright rather than silently passing the loop below.
-        stem = source.removesuffix("<*>").rstrip("/")
-        assert stem, f"a redirect source that reduces to the whole site cannot be sanctioned: {source}"
-        for passthrough in passthrough_sources:
-            assert not passthrough.startswith(stem), (
-                f"redirect {source} is a prefix of passthrough {passthrough} - it would "
-                f"shadow it regardless of array order"
-            )
+
+
+def test_pattern_overlap_is_segment_aware_in_both_directions():
+    """The predicate the shadowing guard turns on, pinned by example in both directions.
+
+    Added 2026-10-02 after review: the first version of that guard compared raw string
+    prefixes, so `/getting-started` was rejected as shadowing `/get/<*>`. A gate that reddens
+    on an ordinary new product page is the failure this whole file was rewritten to end, so the
+    cases are asserted here rather than left implicit in the loop.
+
+    MUST NOT OVERLAP are real spellings the owner could plausibly ship next. MUST OVERLAP are
+    mutations M8 and M9, which have to keep failing the guard.
+    """
+    must_not_overlap = [
+        ("/getting-started", "/get/<*>"),   # shares the string prefix /get, cannot match it
+        ("/getting-started", "/get"),
+        ("/getting-started", "/get/"),
+        ("/api-docs", "/api/<*>"),
+        ("/mcp-legacy", "/mcp"),
+        ("/mcp-legacy", "/mcp/"),
+        ("/r", "/r/<*>"),                   # /r/<*> matches /r/abc, never bare /r
+        ("/zip", "/get/<*>"),
+        ("/zip/", "/api/<*>"),
+    ]
+    for source, passthrough in must_not_overlap:
+        assert not _patterns_overlap(source, passthrough), (
+            f"{source} is reported as shadowing {passthrough}, but an Amplify source is "
+            f"matched as given rather than normalised, so it cannot - and rejecting a "
+            f"legitimate new page is how this gate gets switched off"
+        )
+
+    must_overlap = [
+        ("/api/legacy", "/api/<*>"),        # M8: under the passthrough
+        ("/ap<*>", "/api/<*>"),             # M9: wildcard swallows the passthrough
+        ("/mcp", "/mcp"),                   # exact collision with a rewrite
+        ("/get/<*>", "/get/index.html"),    # wildcard redirect over an exact rewrite
+        ("/<*>", "/api/<*>"),               # a redirect-status catch-all eats everything
+    ]
+    for source, passthrough in must_overlap:
+        assert _patterns_overlap(source, passthrough), (
+            f"{source} genuinely can intercept a request meant for {passthrough} and the "
+            f"guard must fail closed on it"
+        )
+
+
+def test_the_critical_passthroughs_survive_the_write(redirects, before, tmp_path, monkeypatch):
+    """The four rewrites whose loss is an outage are still there after reconciliation.
+
+    The shadowing guard derives its passthrough set from `apply()`'s output, which is the right
+    way round - a rewrite added later is protected without editing this file. The cost is that
+    an empty derived set would make the guard vacuous in the one way that matters, so the floor
+    is asserted by name here, with what each rewrite carries recorded beside it.
+    """
+    monkeypatch.setattr(redirects, "ROOT", tmp_path)
+    client = _CapturingAmplify()
+    assert redirects.apply(client, [dict(r) for r in before]) == 0
+    assert client.written is not None, "apply() short-circuited; nothing was measured"
+
+    written_sources = {str(r.get("source", "")) for r in client.written}
+    for source, carries in CRITICAL_PASSTHROUGHS.items():
+        assert source in written_sources, (
+            f"the {source} rewrite is gone from the reconciled array - it carries {carries}"
+        )
+        assert carries.strip(), f"{source} is listed as critical with no recorded reason"
 
 
 def test_the_catch_all_is_last_and_unique_in_the_snapshot_and_in_the_write(
