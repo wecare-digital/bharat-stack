@@ -1266,16 +1266,13 @@ html,body{margin:0;background:#fff}
               <p class="vl-eyebrow">VayuLok alerts</p>
               <h2 class="vl-sub-title" id="vl-sub-title">Get air-quality alerts for your place</h2>
             </div>
-            <!-- THE SECOND HALF OF THIS SENTENCE WAS DELETED, NOT REWRITTEN. It read
-                 "Verify your WhatsApp number once, then pick the places you want
-                 watched." - which PROMISED a verification step before subscribing,
-                 and was the clearest statement anywhere on the page that there was
-                 another screen to get through. The flow is now one inline step, so
-                 the promise had to go; it is removed by deletion because this file's
-                 standing rule is not to invent copy (see the two .vl-placeholder
-                 blocks). A replacement sentence naming the one-step flow would read
-                 better and is welcome - it needs the owner's words, not this mock's. -->
-            <p>Pick the places you want watched.</p>
+            <!-- THE SUB-HEADING SENTENCE IS GONE ENTIRELY. It last read "Pick the
+                 places you want watched.", itself the remains of "Verify your
+                 WhatsApp number once, then pick the places you want watched." - a
+                 promise of a verification step that no longer exists. Subscribing is
+                 now a single anchor that opens WhatsApp, so the sentence described
+                 neither a real step nor a real place-picker and was deleted rather
+                 than reworded. The h2 above carries the section's meaning on its own. -->
           </div>
 
           <!-- SUBSCRIBING LEAVES THE PAGE NOW, on the owner's instruction, so there is
@@ -1306,37 +1303,45 @@ html,body{margin:0;background:#fff}
           <a class="vl-btn" id="vl-sub-wa" href="https://wa.me/message/BEA3HNW3LNM3A1"
              target="_blank" rel="noopener noreferrer">Subscribe on WhatsApp</a>
 
-          <!-- NOT invented copy. The shipped BlogSubscribe component carries real
-               consent and purpose-of-use microcopy here; this mock will not guess
-               at its wording, its frequency promise or its privacy terms. -->
-          <p class="vl-placeholder">
-            <b>PLACEHOLDER</b> — consent and purpose-of-use microcopy sits here in the real
-            component. Wording pending owner input; nothing has been written in on its behalf.
-          </p>
+          <!-- THE CONSENT PLACEHOLDER THAT STOOD HERE WAS DELETED, NOT FILLED IN.
+               It claimed "consent and purpose-of-use microcopy sits here in the real
+               component" - but the shipped subscribe is now just the .blog-wa-subscribe
+               anchor in src/pages/post/[slug].tsx: a link, no form, no fields, and
+               therefore no consent or purpose-of-use microcopy anywhere to mirror. It
+               was standing in for copy that does not exist, so it is gone. -->
         </div>
       </section>
       <section class="vl-section vl-contribute" aria-labelledby="vl-bc-title">
         <h2 class="vl-bc-title" id="vl-bc-title">Contribute</h2>
         <p class="vl-bc-copy">
-          If VayuLok is useful to you, a small voluntary contribution helps keep the monitor
-          network and the forecasts running.
+          If you found this useful, you&#8217;re welcome to make a small voluntary contribution.
         </p>
 
         <form onsubmit="return false">
           <fieldset class="vl-bc-fieldset">
             <legend class="vl-bc-legend">Choose an amount</legend>
             <div class="vl-bc-choices" role="radiogroup" aria-label="Contribution amount">
+              <!-- AMOUNTS ARE OWNER-SET FOR THIS MOCK (2026-10-02): Rs50 / Rs200 / Rs400.
+                   They DIVERGE DELIBERATELY from the shipped presets, which are still
+                   CONTRIBUTION_PRESETS_PAISE = [20000, 40000, 60000] = Rs200/Rs400/Rs600 in
+                   BOTH src/config/contribution.ts and
+                   amplify/functions/shared/lambda_utils/ecommerce/blog_contribution.py:92.
+                   Those two are declared separately on purpose so the browser cannot widen
+                   the server's trusted amount, and three test files assert they do not drift
+                   (src/test/BlogContribution.test.tsx, src/test/BlogDesign.test.tsx,
+                   tests/test_blog_contribution.py). For the SITE to follow this mock, all of
+                   those must change together - that change is not authorised yet. -->
               <label class="vl-bc-choice">
-                <input type="radio" name="vl-amount" class="vl-bc-radio" value="99">
-                <span class="vl-bc-choice-face">&#8377;99</span>
+                <input type="radio" name="vl-amount" class="vl-bc-radio" value="50" checked>
+                <span class="vl-bc-choice-face">&#8377;50</span>
               </label>
               <label class="vl-bc-choice">
-                <input type="radio" name="vl-amount" class="vl-bc-radio" value="249" checked>
-                <span class="vl-bc-choice-face">&#8377;249</span>
+                <input type="radio" name="vl-amount" class="vl-bc-radio" value="200">
+                <span class="vl-bc-choice-face">&#8377;200</span>
               </label>
               <label class="vl-bc-choice">
-                <input type="radio" name="vl-amount" class="vl-bc-radio" value="499">
-                <span class="vl-bc-choice-face">&#8377;499</span>
+                <input type="radio" name="vl-amount" class="vl-bc-radio" value="400">
+                <span class="vl-bc-choice-face">&#8377;400</span>
               </label>
               <label class="vl-bc-choice">
                 <input type="radio" name="vl-amount" class="vl-bc-radio" value="other">
@@ -1350,11 +1355,13 @@ html,body{margin:0;background:#fff}
           </div>
         </form>
 
-        <p class="vl-placeholder">
-          <b>PLACEHOLDER</b> — the real component's amount limits, payment-provider notice and
-          receipt wording sit here. Pending owner input; this mock takes no payment and makes no
-          network call.
-        </p>
+        <!-- THE PAYMENT-NOTICE PLACEHOLDER THAT STOOD HERE WAS DELETED, NOT FILLED IN.
+             It claimed "the real component's amount limits, payment-provider notice and
+             receipt wording sit here" - but src/components/BlogContribution.tsx carries
+             no such prose. Its only user-facing strings are "Choose an amount", the
+             aria-label "Contribution amount" and "Amount in rupees". There is no amount
+             limit notice, no payment-provider notice and no receipt wording to mirror, so
+             the placeholder was standing in for copy that does not exist. -->
       </section>
       </div><!-- /.vl-app-left -->
 
