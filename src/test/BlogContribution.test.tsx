@@ -41,10 +41,17 @@ describe( 'BlogContribution presets', () => {
     for ( const paise of CONTRIBUTION_PRESETS_PAISE ) {
       expect( faces.some( f => f.includes( String( paiseToRupees( paise ) ) ) ) ).toBe( true );
     }
-    // The brief's amounts, proving nothing re-typed a different number into the markup.
-    expect( faces.join( ' ' ) ).toContain( '49' );
-    expect( faces.join( ' ' ) ).toContain( '99' );
-    expect( faces.join( ' ' ) ).toContain( '199' );
+    // The owner's amounts, proving nothing re-typed a different number into the markup.
+    // Changed from ₹49/₹99/₹199 to ₹200/₹400/₹600 on owner instruction (2026-10-02). These are
+    // asserted as the FULL face text, not as substrings: the old test looked for '49', '99' and
+    // '199', and '199' is a substring of nothing here while '99' would have matched a '₹990' face
+    // just as happily - a loose check that could pass on the wrong number.
+    expect( faces.join( ' ' ) ).toContain( '₹200' );
+    expect( faces.join( ' ' ) ).toContain( '₹400' );
+    expect( faces.join( ' ' ) ).toContain( '₹600' );
+    // And the retired amounts must not still be on screen.
+    expect( faces.join( ' ' ) ).not.toContain( '₹49' );
+    expect( faces.join( ' ' ) ).not.toContain( '₹199' );
     expect( faces.some( f => f.includes( 'Other' ) ) ).toBe( true );
 
     // Presets + Other = one radio per choice.
