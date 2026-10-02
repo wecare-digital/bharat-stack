@@ -88,11 +88,44 @@ export interface PhoneFieldProps {
   /** id list for aria-describedby - the hint, plus the error when there is one. */
   describedBy?: string;
   placeholder?: string;
+  /**
+   * Fires when the browser's own constraint validation refuses the number segment -
+   * which, since `required` is the only constraint here, means it was empty at submit.
+   *
+   * WHY THE CONSUMER NEEDS THIS AT ALL. `required` makes the browser block submit and
+   * show its native bubble, so the consumer's onSubmit never runs and the consumer's own
+   * error state is never set. The result is a failure announced ONLY by a transient
+   * native tooltip: no aria-invalid, no aria-describedby, nothing left on screen once the
+   * bubble dismisses. This hook lets the consumer mirror the refusal into its own error
+   * region without removing `required` - so the native affordance is kept and the
+   * programmatic association is added, rather than one being traded for the other.
+   */
+  onInvalid?: ( event: React.FormEvent<HTMLInputElement> ) => void;
 }
+
+/**
+ * A FORMAT MASK, NOT A SPECIMEN NUMBER, and the distinction is the whole point.
+ *
+ * This was `9876543210` - ten digits starting with 9, which is a structurally valid Indian
+ * mobile number. Rendered in placeholder grey beside a segment already reading "+91 India",
+ * it reads as a number that is ALREADY IN THE FIELD. A shopper who believes the field is
+ * filled presses the CTA, the `required` constraint refuses an empty input, and the browser
+ * answers "Please fill out this field." about a field that visibly contains a number. That
+ * is the shape of the reported sign-in failure.
+ *
+ * Zeros in two groups cannot be mistaken for a value: an Indian mobile number never begins
+ * with 0, and the grouping reads as a mask. It is also LANGUAGE-NEUTRAL, which a worded hint
+ * would not be - placeholder text is an attribute, and SupportWidget's translation walker
+ * rewrites text nodes only (the same cost recorded on the country-code aria-label below), so
+ * "10-digit number" would stay English for every non-English shopper.
+ *
+ * The consumer may still override it; this is the default, not a constraint.
+ */
+export const NUMBER_FORMAT_HINT = '00000 00000';
 
 const PhoneField: React.FC<PhoneFieldProps> = ( {
   id, dialCode, onDialCodeChange, number, onNumberChange,
-  disabled, invalid, describedBy, placeholder,
+  disabled, invalid, describedBy, placeholder, onInvalid,
 } ) => (
   <div className="pf">
     {/*
@@ -130,10 +163,11 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
        * a field that already has one beside it.
        */
       autoComplete="tel-national"
-      placeholder={ placeholder }
+      placeholder={ placeholder === undefined ? NUMBER_FORMAT_HINT : placeholder }
       required
       value={ number }
       onChange={ e => onNumberChange( e.target.value ) }
+      onInvalid={ onInvalid }
       disabled={ disabled }
       aria-invalid={ invalid ? 'true' : undefined }
       aria-describedby={ describedBy }
@@ -184,6 +218,23 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
         border:0;padding-inline:16px;
         background:#fff;color:#1a1a1a;
         font-family:inherit;font-size:17px;
+        /* scroll-margin-top CLEARS THE FIXED 108px HEADER, and it is on the INPUT rather
+           than on .pf because the input is what the browser scrolls to.
+           MEASURED, not precautionary. When the browser reveals this control - on focus,
+           on autofocus, or as part of refusing an empty required field - it scrolls it
+           to the top of the scrollport, and the scrollport's top is UNDER the fixed
+           header. At 320x568 the field landed 36px behind the header and at 390x400 (the
+           height a phone has left with its keyboard open) 50px behind it, so the shopper
+           could not see the number they were typing. With this declaration both measure
+           0px covered.
+           128px/112px are the site's existing clearance constants for this exact header,
+           used the same way by .lgd-section and .cl in LegalDocument and ContactLocation.
+           WHY NOT html{scroll-padding-top}, which is the tidier-looking fix: those two
+           components already carry their own scroll-margin-top, and scroll-padding on the
+           scrollport ADDS to scroll-margin on the target - so a document-level inset would
+           silently double their anchor clearance to 256px. Measured both ways; this one
+           fixes the field without touching anything else. */
+        scroll-margin-top:128px;
         /* The mirror image of the code segment's corners: square against the divider, 9px on the
            outside. This is also what overrides the global 13px from button.css. */
         border-start-start-radius:0;border-end-start-radius:0;
@@ -205,6 +256,13 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
          content-sized so a three-digit code like +971 does not get clipped, and the number segment
          absorbs the rest. The padding tightens rather than the segments shrinking, so the 52px
          target height is never traded away. */
+      /* The header is 96px below 768px, so the clearance steps with it - the same
+         128px/112px pair .lgd-section and .cl use. Declared in its own query because the
+         header's breakpoint is 767px and the padding tightening below is at 360px. */
+      @media(max-width:767px){
+        .pf-num{scroll-margin-top:112px}
+      }
+
       @media(max-width:360px){
         .pf-code{padding-inline:8px}
         .pf-num{padding-inline:12px}

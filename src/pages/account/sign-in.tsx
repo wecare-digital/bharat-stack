@@ -456,7 +456,23 @@ export default function CustomerSignIn (): React.ReactElement {
                 disabled={ busy }
                 invalid={ !!error }
                 describedBy={ error ? 'si-hint si-error' : 'si-hint' }
-                placeholder="9876543210"
+                /*
+                 * THE NATIVE REFUSAL IS MIRRORED INTO THIS PAGE'S OWN ERROR REGION.
+                 *
+                 * `required` on the number segment makes the browser block submit and show
+                 * its own bubble, so startPhone never runs - which means composeE164's
+                 * empty-number branch, and the BAD_NUMBER message it throws, were
+                 * UNREACHABLE. The page had an approved message for this exact state and no
+                 * way to ever show it; all a shopper got was a transient tooltip, with
+                 * aria-invalid unset and nothing left on screen once it dismissed.
+                 *
+                 * BAD_NUMBER is not a new string and not a new decision: it is already what
+                 * composeE164 raises for an empty value, so this makes the page's existing
+                 * answer reachable rather than inventing one. `required` is KEPT - removing
+                 * it to reach onSubmit would trade a real HTML constraint (and the "required"
+                 * a screen reader announces from it) for a message, when both fit.
+                 */
+                onInvalid={ () => setError( MSG.BAD_NUMBER ) }
               />
               {/* A text node, so it translates. It no longer tells the shopper to include a country
                   code - the segment beside the number does that - so the line says the one thing
@@ -560,6 +576,14 @@ export default function CustomerSignIn (): React.ReactElement {
              its own outline, radius and height - so the two controls on this page are styled in two
              places on purpose, and the numbers above are the ones PhoneField matches. */
           .si-input:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
+          /* THE CODE FIELD NEEDS THE SAME HEADER CLEARANCE THE NUMBER FIELD HAS, and it needs
+             it MORE: the code phase is reached by submitting, which moves focus into this input
+             on a page the shopper has usually already scrolled. Without it the browser reveals
+             the field at the top of the scrollport, which is behind the fixed 108px header - so
+             the shopper cannot see the code they are typing. 128px/112px are the site's
+             clearance constants for this header; see the long note on .pf-num in PhoneField for
+             why this is scroll-margin on the input and not scroll-padding on the document. */
+          .si-input{scroll-margin-top:128px}
           .si-hint{
             margin:0 0 20px;font-size:16px;line-height:1.55;color:rgba(0,0,0,.54);
           }
@@ -590,6 +614,8 @@ export default function CustomerSignIn (): React.ReactElement {
           .si-back :global(a:focus-visible){outline:3px solid #1a3a2a;outline-offset:3px;border-radius:2px}
           @media(max-width:767px){
             .si-body{font-size:18px}
+            /* The header is 96px below this breakpoint, so the clearance steps with it. */
+            .si-input{scroll-margin-top:112px}
           }
         `}</style>
       </PageTopBand>
