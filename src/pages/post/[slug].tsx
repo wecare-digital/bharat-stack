@@ -506,14 +506,12 @@ export default function BlogPostPage ( {
           ) }
 
           {/* SUBSCRIBE ON WHATSAPP - the in-page signup box was removed in favour of a single
-              button that opens a WhatsApp conversation. href is the short link wecare.digital/r/wa,
-              which 302-redirects to https://wa.me/message/APDM5HUWH26SG1 - the same convention
-              SupportWidget.tsx uses, so the destination stays editable without a deploy and the
-              chromecheck widget marker keeps matching. A real anchor, not a button+onClick: it
-              leaves the site, so it must be middle-clickable, long-pressable and copyable. */}
+              button that opens a WhatsApp conversation at this subscribe deep link. A real
+              anchor, not a button+onClick: it leaves the site, so it must be middle-clickable,
+              long-pressable and copyable. */}
           <a
             className="blog-wa-subscribe"
-            href="https://wecare.digital/r/wa"
+            href="https://wa.me/message/BEA3HNW3LNM3A1"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Subscribe on WhatsApp"
