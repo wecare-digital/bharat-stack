@@ -1,7 +1,40 @@
 # Customer WhatsApp OTP confirm failure + doubled sign-in label — findings
 
 Worktree `/Users/wecaredigital/wecare-store/.worktrees/otp-fix`, branch `fix/otp-confirm`,
-based on `72a2c5d3`. Nothing was deployed, no version published, no alias moved, no pool mutated.
+**rebased onto `origin/stack` at `cca83710`** (started from `72a2c5d3`). Nothing was deployed, no
+version published, no alias moved, no pool mutated.
+
+---
+
+## 0. Read this first — the pill fix is NOT mine, and one decision is open
+
+Two corrections to the brief's framing, both discovered mid-task and both load-bearing.
+
+**The pill repair landed upstream while I was working, in `2f742ec6`** ("fix(get): share the
+sign-in controls, add the home top section, repair the pill", #185). That commit reached the *same
+root cause I had proved independently* — segments hoisted into `const inner = (<>…</>)`, so
+styled-jsx never stamped them — and fixed it the same way, by inlining the segments into both
+branches. **I dropped my version of that fix entirely and rebased onto theirs.** My own C1 diff and
+duplicate source guards are discarded, not merged; their two anti-re-hoist guards are left intact.
+Attribution is theirs. What I kept is one *additive* test they do not have (see §4).
+
+**The "doubled label" is now a product decision, not a defect, and I have NOT made it.** Their fix
+repaired the *rendering*; `/account/sign-in` still passes `label="Sign in"` and still shows two
+segments. Measured after rebase, the confirm button is:
+
+| | |
+|---|---|
+| `textContent` (raw DOM) | `'Sign inConfirm code'` — still literally the reported string |
+| `innerText` (what a sighted user reads) | `'Sign in Confirm code'` — now two distinct styled segments |
+| accessible name | `'Confirm code'` — the action alone |
+
+So the *run-together appearance* the owner complained about is gone, but it is still two visible
+labels in one control, which is still a **WCAG 2.5.3 Label in Name** mismatch. Removing the
+"Sign in" segment would change what the owner sees and would **re-diverge `/account/sign-in` from
+`/get`, which `2f742ec6` had just unified onto this identical pill on owner instruction**. That is
+a design call, not a bug fix, so it is escalated rather than taken. See §9.
+
+**The auth outage in §1 is untouched by any of this** and is the real fix in this branch.
 
 ---
 
@@ -136,11 +169,16 @@ were corrected in `handler.py`, `identity/registration.py` and `test_registratio
 
 ---
 
-## 3. The doubled "Sign inConfirm code" label
+## 3. The doubled "Sign inConfirm code" label — diagnosed independently, FIXED UPSTREAM
 
 **A real CSS failure, not a text bug.** `PillButton.tsx` built its two segments in an intermediate
 variable (`const inner = (<>…</>)`). styled-jsx only adds its scope class to JSX in the tree it
 transforms, so the `<button>`/`<a>` got the hash and the spans did not.
+
+> **Attribution.** I reached this diagnosis and built a fix for it before learning that
+> **`2f742ec6` had already landed the same diagnosis and the same fix** on `origin/stack`. My
+> version is discarded; the tree now carries theirs. The evidence below is my own independent
+> measurement, which corroborates their commit message rather than duplicating their work.
 
 Measured in the **real build output**, pre-fix:
 
@@ -162,22 +200,52 @@ padding: 0px        font-weight: 400
 Two bare black text nodes stacked inside a `#1a3a2a` pill — exactly the reported
 `"Sign inConfirm code"`. **The cart CTA had the identical defect**, from the same component.
 
-### The fix, in two parts
+### C1 — scoping. DONE UPSTREAM in `2f742ec6`, verified by me, not reapplied
 
-- **C1 — scoping.** The segments are written inline in **both** the `<a>` and `<button>` branches;
-  the intermediate variable is gone. This fixes sign-in and cart together.
-- **C2 — one label per button.** `label` is now optional. Omitted, the pill renders a single
-  full-radius action segment (`.pill-solo`), and `/account/sign-in` passes the action only. Even
-  correctly styled, visible "Sign in Confirm code" with accessible name "Confirm code" fails
-  **WCAG 2.5.3 Label in Name**, and `aria-hidden` on a control's own visible label is the
-  anti-pattern that produced the mismatch. Now visible text == accessible name.
-  The owner's two-tone treatment survives: the 2 px `#1a3a2a` edge and the mint action surface.
-- **The cart keeps its two-segment form**, as instructed — its left segment ("Checkout") is not a
-  duplicate of its action ("Proceed").
+Their change writes the segments inline in **both** the `<a>` and `<button>` branches. Verified on
+the rebased tree:
 
-**I avoided introducing a 2.5.3 bug of my own.** My first attempt added `ariaLabel="Send code"`
-alongside `action="Sending…"`, which makes the accessible name not contain the visible text while
-busy. Removing it restores the original name behaviour exactly *and* satisfies 2.5.3.
+```
+built markup   class="jsx-69f2e5793ae0f718 pill-label"    class="jsx-69f2e5793ae0f718 pill-action"
+built CSS      .pill-label.jsx-69f2e5793ae0f718  (3x)     .pill-action.jsx-69f2e5793ae0f718  (4x)
+```
+
+Both segments now carry the hash their selectors require. Computed styles in Chrome 154 confirm
+the repair end to end: `pill-label` `rgb(26,58,42)` / white / weight 600, `pill-action`
+`rgb(95,227,176)` / `rgb(26,58,42)` / weight 700, both `display:flex` — against `display:block`,
+`rgba(0,0,0,0)`, weight 400 before.
+
+> A detail worth recording: **the hash is unchanged at `jsx-69f2e5793ae0f718`** across the fix. The
+> CSS was always correct; only the markup lacked the stamp. That is why the defect was invisible to
+> every source-level and jsdom-level check.
+
+This also fixes the cart CTA, which had the identical defect from the same component.
+
+### C2 — one label per button. NOT DONE. Escalated as a design decision
+
+Even correctly styled, visible "Sign in Confirm code" with accessible name "Confirm code" is a
+**WCAG 2.5.3 Label in Name** mismatch, and `aria-hidden` on a control's own visible label is the
+anti-pattern that produces it. I had implemented an optional-`label` single-segment mode and
+switched both sign-in CTAs to it.
+
+**I reverted that before committing**, for two reasons that only became visible after the rebase:
+
+1. It removes a visible label the owner's own design brief asked for ("make this style for cart
+   login or any other login" — a two-segment pill with a static label).
+2. `2f742ec6` had just **unified `/get` and `/account/sign-in` onto this identical two-segment
+   pill**, on owner instruction, and `/get` passes `label="Collect"` and `label="Pay"`. Making
+   sign-in single-label would re-diverge the two surfaces that commit had deliberately converged.
+
+That is a product call with a user-visible effect, so it is not mine to take inside the loop. My
+implementation is preserved at `.scratch/my-PillButton.tsx.c2` and
+`.scratch/my-PillButton.test.tsx.c2` if the owner wants it. See §9.
+
+**The cart keeps its two-segment form** regardless — its left segment ("Checkout") is not a
+duplicate of its action ("Proceed").
+
+**One bug of my own, avoided.** My first C2 attempt added `ariaLabel="Send code"` alongside
+`action="Sending…"`, which makes the accessible name *not contain* the visible text while busy —
+the very 2.5.3 failure C2 exists to fix. Caught and removed before commit.
 
 ### Why no test caught it
 Under vitest the styled-jsx transform **does not run at all**: `<style jsx>` renders as a plain
@@ -230,31 +298,40 @@ page imports them by name); the seven-string table and no-red assertions are unt
   `submitOtp` through a stubbed `fetch`, asserts navigation to the return path, **no**
   `role="alert"`, and explicitly that `signInMessages.TRY_LATER` is not rendered.
 - `signs in and remembers the device when the exchange succeeds (200)`.
-- `renders the confirm button with a single label, not a concatenation` — asserts
-  `textContent !== 'Sign inConfirm code'`, `=== 'Confirm code'`, name == visible text, and exactly
-  one segment. Plus the same for the send button.
+- `names the confirm button by its action alone, never the concatenation` — and the same for the
+  send button. **Rewritten after the rebase.** These originally asserted my C2 behaviour (one
+  segment, `textContent === 'Confirm code'`). With C2 escalated rather than applied, they now pin
+  the property that holds either way and is what actually keeps every role query working: the
+  accessible name is the action alone, `getByRole('button', {name: /Sign in\s*Confirm code/})`
+  finds nothing, and both segments are `aria-hidden`. If the owner approves C2 these tighten; they
+  do not need rewriting again.
 - **A mock-leak defect found while writing these:** an earlier `describe` in that file mocks
   `customerAuth.submitOtp` wholesale and never restores it. These tests exist to run the *real*
   `submitOtp`, so inheriting that mock made the first one silently test nothing (it failed on
   navigation). `vi.restoreAllMocks()` now runs in `beforeEach`, making the block order-independent.
 
-`src/test/PillButton.test.tsx`
-- Single-label mode: exactly one segment, visible text == accessible name, no `aria-hidden`
-  element carrying label text, `.pill-solo` applied, and two segments still render when a label
-  **is** given (so the cart is pinned unchanged). Solo anchors covered too.
-- A source guard that the segments are **not** hoisted out of the returned tree.
-  **It strips comments before matching**, because the docblock explaining the rule necessarily
-  quotes the pattern it forbids — the same trap the payment-vocabulary gate documents, and it
-  caught me on the first run. A third test guards the guard, so the stripping cannot empty the
-  file and make the other two pass vacuously.
+`src/test/PillButton.test.tsx` — **left exactly as `2f742ec6` wrote it.** My single-label cases and
+my source guard are discarded. Their two new cases (a comment-stripping source guard against
+re-hoisting, and a render check that both segments appear with the action as the accessible name)
+are intact and not weakened. Worth noting we independently arrived at the *same* comment-stripping
+technique, for the same reason: the docblock explaining the rule necessarily quotes the pattern it
+forbids, so matching raw source punishes the documentation. That trap caught my first attempt too.
 
-`src/test/PillButtonBuildScope.test.ts` (new) — the only layer where scoping is observable. Reads
-`out/account/sign-in/index.html`, collects every `.pill*` selector hash from the inlined `<style>`
-blocks and every pill-bearing `class` attribute from the markup, and asserts each pill-classed
-element carries a hash its selector was written with. It asserts the **property** ("the selector
-can reach the element") rather than any particular hash, which changes whenever the CSS does. It
-**skips with an explicit message naming the build command** when `out/` is absent, so it never
-silently passes.
+`src/test/PillButtonBuildScope.test.ts` (new, **kept — the one additive piece**) — the only layer
+where scoping is observable. Reads `out/account/sign-in/index.html`, collects every `.pill*`
+selector hash from the inlined `<style>` blocks and every pill-bearing `class` attribute from the
+markup, and asserts each pill-classed element carries a hash its selector was written with, with a
+second case narrowed specifically to `pill-label` and `pill-action`.
+
+It is **not a duplicate of their guards, and this is the reason it was kept**: their guards assert
+the *shape of the code* and enumerate the spellings they know about (`const inner`,
+`const segments`, `function renderSegments`). A fourth way of lifting the JSX out of the return
+tree — a child component, a `.map`, a render prop — passes all three and still ships unstyled.
+This asserts the *outcome in the built artifact*, which cannot be evaded that way. The narrowed
+case matters too: it still fails if only the **outer** control is scoped, which is exactly how the
+defect presented. It asserts the property ("the selector can reach the element") rather than any
+particular hash, and **skips with an explicit message naming the build command** when `out/` is
+absent, so it never silently passes.
 
 ---
 
@@ -307,10 +384,24 @@ between the QA recipient and the live business number; disambiguate on direction
 **POST-FIX**, exchange **200**: same navigation and token, **and** the hint lands in
 `localStorage` (`{"csrfToken":"canned-csrf",…}`).
 
-**POST-FIX pill**, both phases: single segment, `textContent` exactly `Send code` / `Confirm code`,
-`aria-label` equal to it, segment class `jsx-b7761065a244bd3 pill-action` — **hashed** — and
-computed `display:flex`, `background-color:rgb(95,227,176)` (#5fe3b0), `color:rgb(26,58,42)`,
-`padding:0px 24px`, `font-weight:700`; pill `border-radius:999px` on `rgb(26,58,42)`.
+Both were re-measured **after the rebase** onto `2f742ec6`+`cca83710` and are unchanged: 401 →
+`/cart/`, no alert, token stored, no hint; 200 → same plus the hint written. So the auth fix holds
+on the upstream tree, not just on my branch point.
+
+**POST-FIX pill, as committed** (upstream `2f742ec6`'s fix, my measurement) — two segments, both
+hashed and correctly styled:
+
+| Segment | class | computed |
+|---|---|---|
+| `pill-label` "Sign in" | `jsx-69f2e5793ae0f718 pill-label` | `display:flex`, `rgb(26,58,42)` bg, `rgb(255,255,255)` text, weight 600 |
+| `pill-action` "Confirm code" | `jsx-69f2e5793ae0f718 pill-action` | `display:flex`, `rgb(95,227,176)` bg, `rgb(26,58,42)` text, weight 700 |
+
+Accessible name `Confirm code`; `innerText` `Sign in Confirm code`; `textContent`
+`Sign inConfirm code`. The run-together *appearance* is gone; the two visible labels remain — the
+open decision in §9.
+
+*(The single-segment, `jsx-b7761065a244bd3`, `.pill-solo` measurements I took earlier were of my
+own C2 build, which is not what shipped in this commit. They are superseded by the table above.)*
 
 **Viewports:** 460×52 at 1280 px, 328×52 at 360 px, 288×52 at 320 px — no overflow at any width,
 font and padding stepping down via the existing media query. Under
@@ -333,7 +424,7 @@ defects rather than merely passing alongside them.
 |---|---|
 | `customer_id_from_attributes` back to `custom:customer_id` | **14 pytest failures**, including all four new auth cases and the new endpoint case. Restored → 45 pass |
 | `submitOtp` back to throwing on a failed exchange | **2 vitest failures**: the library case and the page-level 401 case. Restored → 20 pass |
-| Segments re-hoisted into `inner` + duplicate labels restored, then rebuilt | Built markup returned to bare `class="pill-action"` / `class="pill-label"` with **no hash** — the defect reproduced — and **6 vitest failures**, including the build-scope test. Restored and rebuilt → clean |
+| Segments re-hoisted into `inner`, then rebuilt | Built markup returned to bare `class="pill-action"` / `class="pill-label"` with **no hash** — the defect reproduced — and the **build-scope test failed**. Restored and rebuilt → clean. This check was run against my own C1 before the rebase; it is the evidence that `PillButtonBuildScope.test.ts` genuinely catches the defect, which is why that test was the one piece kept |
 
 ---
 
@@ -346,22 +437,30 @@ with `require.resolve`. A pre-existing `node_modules/node_modules` symlink was c
 too deep and does nothing; it was left alone as harmless and gitignored. **Nothing was installed,
 and nothing in the parent working tree was modified.**
 
-| Gate | Command | Baseline on `72a2c5d3` | After |
+All figures below are **after the rebase onto `cca83710`**, which is the tree that was committed.
+
+| Gate | Command | Baseline on `72a2c5d3` | After, on `cca83710` |
 |---|---|---|---|
-| Frontend tests | `npx vitest run` | 59 files / **799** passed | **60 files / 818 passed, 0 failed** |
-| Python tests | `./.venv/bin/python -m pytest tests/ -q` | 6749 passed, 5 failed | **6750 passed, 5 failed**, 3 skipped, 6 xfailed |
-| Targeted customer tests | `pytest tests/test_customer_{session_endpoint,auth_and_throttle,session,whatsapp_auth,registration_handler}.py -q` | 96 passed | **109 passed** |
+| Frontend tests | `npx vitest run` | 59 files / **799** passed | **61 files / 818 passed, 0 failed** |
+| Python tests | `./.venv/bin/python -m pytest tests/ -q` | 6749 passed, **5 failed** | **6757 passed, 0 FAILED**, 1 skipped, 7 xfailed |
+| Targeted customer tests | `pytest tests/test_customer_{session_endpoint,auth_and_throttle,session,whatsapp_auth,registration_handler}.py -q` | 96 passed | **101 passed** |
 | Typecheck | `npx tsc --noEmit` | — | **exit 0, no output** |
-| Lint | `npx eslint <7 changed files>` | — | **exit 0, clean** |
+| Lint | `npx eslint <5 changed files>` | — | **exit 0, no output** |
 | Build | `node scripts/generate-public-pages.js && npx next build --webpack` | succeeds | **succeeds, 0 errors** |
 
 `npx next build` without `--webpack` fails here: `next.config.js` pins `turbopack.root` to the
 worktree and Turbopack will not resolve `next` through the ancestor walk-up. `--webpack` is required.
 
-### Pre-existing failures — NOT mine, NOT fixed
+### The 5 pre-existing failures are GONE, and not by my hand
 
-`tests/test_url_host_routing_rules.py`, **5 failures**, from another session's `8b24baa0`,
-unrelated to OTP. Measured at baseline **before** any change and unchanged after:
+The brief asked me to report `tests/test_url_host_routing_rules.py`'s 5 failures separately and not
+fix them. I measured them at baseline and confirmed them untouched by my work — and then the rebase
+made the point moot: **`c7afae00` ("test(routing): pin the owner-instructed /access removal instead
+of the retired redirects") fixed them upstream.** On the committed tree that file is 13 passed / 0
+failed, and the full Python suite has **zero failures of any kind**.
+
+Recording this rather than quietly dropping it, because "5 known failures" was a stated premise of
+the task and it is no longer true. For the record, the baseline set was:
 
 ```
 test_no_sanctioned_redirect_can_shadow_a_passthrough_in_the_live_shape
@@ -400,6 +499,43 @@ reason recorded in the test.
    cannot add a custom attribute after creation. `AddCustomAttributes` exists; what cannot be done
    is deleting one or changing its type.
 4. **The cart pill's own WCAG 2.5.3 question** — visible "Checkout Proceed" vs name "Proceed to
-   checkout". Left alone as instructed; now visible rather than hidden by the styling bug.
+   checkout". Left alone as instructed; now visible rather than hidden by the styling bug. Same
+   question as §9, same answer needed.
 5. **`wecare-customer-registration` has neither a deployed function nor a route**, so the
    unregistered branch of `sign-in.tsx` would still fail if a new number reached it.
+
+---
+
+## 9. THE ONE OPEN DECISION — two visible labels in one button
+
+Raised rather than decided, because every available fix changes what the owner sees.
+
+**The finding.** `/account/sign-in`'s pill shows two labels ("Sign in" + "Confirm code") while
+announcing one ("Confirm code"). That is a **WCAG 2.5.3 Label in Name** mismatch, and
+`aria-hidden` on a control's own visible label is the pattern that causes it. It is also still the
+literal `textContent` the owner reported, `"Sign inConfirm code"`.
+
+**Why I did not fix it.** It is no longer a rendering bug — `2f742ec6` fixed that, and the pill now
+renders as the intended two-tone control. What remains is the *design*: the owner asked for this
+two-segment treatment, and `2f742ec6` had just unified `/get` onto the identical pill with
+`label="Collect"` / `label="Pay"`. Removing sign-in's label would re-diverge the two surfaces that
+commit deliberately converged.
+
+**The three options.**
+
+| | Change | What the owner sees | Cost |
+|---|---|---|---|
+| **A. Leave it** | nothing | two-tone pill, "Sign in \| Confirm code" | 2.5.3 mismatch stays on sign-in, cart and `/get` |
+| **B. Single-label on sign-in only** | my reverted C2 — `label` optional, one full-radius mint segment | sign-in loses its "Sign in" segment; `/get` and cart keep theirs | satisfies 2.5.3 on sign-in; re-diverges the surfaces just unified |
+| **C. Keep two segments, fold the label into the name** | drop `aria-hidden` from `pill-label`, remove `aria-label`, let the name become "Sign in Confirm code" | nothing changes visually | satisfies 2.5.3 everywhere with no visual change — **but** it renames every pill, so `getByRole('button', {name:'Confirm code'})` breaks across `AccountSignIn`, `SignInMessages`, `CartCheckout`, `GetPage` and `PillButton` tests |
+
+**C is the behaviour-preserving option** and is probably the right one, since it fixes the actual
+accessibility defect without touching the owner's design — but it changes the accessible name of
+every pill on the site, which is a visible contract several test files pin deliberately, so it is
+not a silent edit either.
+
+My option-B implementation is preserved at `.scratch/my-PillButton.tsx.c2`,
+`.scratch/my-PillButton.test.tsx.c2` and `.scratch/my-signin.tsx.c2`.
+
+**Nothing in §1–§2 depends on this.** The auth fix is complete, green and independently
+deployable.
