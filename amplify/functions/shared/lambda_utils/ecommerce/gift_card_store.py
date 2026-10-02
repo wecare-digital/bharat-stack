@@ -39,6 +39,13 @@ that ordering is what makes an insufficient-balance failure RECOVERABLE: a retry
 claim and re-attempts the decrement rather than reporting a redemption that never moved money.
 Nothing here deletes a claim, a transaction, a card or a pointer row - only a `GCHOLD#` audit row.
 
+The void path carries the SAME device under a different name, deliberately rather than a second
+mechanism: the `voidedBy` latch is written `credited: False` and only the credit sets it true, so a
+throttled credit leaves a void a retry can COMPLETE instead of a customer's balance stranded behind
+a permanent `AlreadyVoided` with no operator path back. Both strands of the ledger therefore fail
+and recover identically, which is the same reason payment status lives behind one module rather
+than being compared string by string in each handler.
+
 Every access is an exact-key operation
 --------------------------------------
 `get_item` / `put_item` / `update_item` on a fully specified partition key, plus the staff
@@ -1237,6 +1244,25 @@ def _mark_settled(table: Any, claim_row_key: str, *, balance_after: int, now: in
             f"could not settle a gift-card claim: {type(error).__name__}") from error
 
 
+def _mark_credited(table: Any, transaction_key: str, *, balance_after: int, now: int) -> None:
+    """`credited = True` on the voided redemption, written only AFTER the balance returned.
+
+    `_mark_settled` for the void path, and the ordering is the same: the flag follows the money,
+    so the one thing it can never say is that a credit landed when it did not.
+    """
+    try:
+        table.update_item(
+            Key={KEY_ATTRIBUTE: transaction_key},
+            UpdateExpression=("SET credited = :true, voidBalanceAfterPaise = :balance, "
+                              "creditedAt = :at"),
+            ConditionExpression=f"attribute_exists({KEY_ATTRIBUTE})",
+            ExpressionAttributeValues={":true": True, ":balance": balance_after, ":at": now},
+        )
+    except Exception as error:  # noqa: BLE001
+        raise GiftCardStoreUnavailable(
+            f"could not record a gift-card void credit: {type(error).__name__}") from error
+
+
 def void(table: Any, *, transaction_id: Any, clock: Clock = _default_clock) -> Dict[str, Any]:
     """Reverse one redemption, resolved from the transaction id ALONE.
 
@@ -1247,6 +1273,20 @@ def void(table: Any, *, transaction_id: Any, clock: Clock = _default_clock) -> D
     The `voidedBy` guard is written BEFORE the credit, for the same reason the claim precedes the
     decrement: if the credit went first and the guard then lost its race, the card would be
     credited twice.
+
+    The guard carries `credited`, and that is what makes the ordering SURVIVABLE as well as safe.
+    It is the same device `redeem` uses with the claim row's `settled`: the guard is latched
+    `credited = False` and only the credit marks it `True`, so a credit that fails - a throttle
+    surfacing as `GiftCardStoreUnavailable`, or a top-up between the redemption and the void
+    pushing the return over the SPI ceiling - leaves a void a retry can COMPLETE. Without the
+    flag, every retry read the latched `voidedBy` and refused, so the redemption stayed marked
+    voided with the balance never returned and no way to return it.
+
+    A retry re-drives the credit under the SAME `void_id`, read back off the latch, so it cannot
+    mint a second void transaction. `credited` ABSENT is treated as complete rather than as
+    pending: a latch written before this flag existed cannot be distinguished from one whose
+    credit landed, and re-driving a credit that already happened would hand the balance back
+    twice. Only an explicit `False` - which only this function writes - re-drives.
     """
     pointer = resolve_transaction(table, transaction_id=transaction_id)
     digest = _hash_hex(pointer["codeHash"])
@@ -1255,27 +1295,37 @@ def void(table: Any, *, transaction_id: Any, clock: Clock = _default_clock) -> D
         raise TransactionNotFound("no such gift-card transaction")
     if original.get("kind") != KIND_REDEEM:
         raise TransactionNotFound("only a redemption can be voided")
-    if original.get("voidedBy"):
-        raise AlreadyVoided("this transaction was already voided")
 
     now = _now_seconds(clock)
-    void_id = new_transaction_id()
-    try:
-        table.update_item(
-            Key={KEY_ATTRIBUTE: PREFIX_TRANSACTION + digest + "#" + _transaction_id(
-                transaction_id)},
-            UpdateExpression="SET voidedBy = :void, voidedAt = :at",
-            ConditionExpression="attribute_not_exists(voidedBy)",
-            ExpressionAttributeValues={":void": void_id, ":at": now},
-        )
-    except Exception as error:  # noqa: BLE001
-        if _is_conditional_failure(error):
-            raise AlreadyVoided("this transaction was already voided") from None
-        raise GiftCardStoreUnavailable(
-            f"could not void a gift-card transaction: {type(error).__name__}") from error
+    original_key = PREFIX_TRANSACTION + digest + "#" + _transaction_id(transaction_id)
+    latched = original.get("voidedBy")
+    if latched:
+        if original.get("credited") is not False:
+            raise AlreadyVoided("this transaction was already voided")
+        # An uncredited latch. Re-drive below under the void id that already exists.
+        void_id = _transaction_id(latched)
+    else:
+        void_id = new_transaction_id()
+        try:
+            table.update_item(
+                Key={KEY_ATTRIBUTE: original_key},
+                UpdateExpression="SET voidedBy = :void, voidedAt = :at, credited = :false",
+                ConditionExpression="attribute_not_exists(voidedBy)",
+                ExpressionAttributeValues={":void": void_id, ":at": now, ":false": False},
+            )
+        except Exception as error:  # noqa: BLE001
+            if _is_conditional_failure(error):
+                # Lost the latch to a CONCURRENT void, which is still mid-flight. Refusing is
+                # correct here and re-driving would not be: the winner is about to credit, so a
+                # second credit in this window is the double-credit the ordering exists to
+                # prevent. A later retry reads the latch above and completes it if it stalled.
+                raise AlreadyVoided("this transaction was already voided") from None
+            raise GiftCardStoreUnavailable(
+                f"could not void a gift-card transaction: {type(error).__name__}") from error
 
     amount = int(original.get("amountPaise") or 0)
     balance_after = credit(table, code_hash=digest, amount_paise=amount, clock=clock)
+    _mark_credited(table, original_key, balance_after=balance_after, now=now)
     _put(table, {KEY_ATTRIBUTE: PREFIX_TRANSACTION + digest + "#" + void_id,
                  "kind": KIND_VOID, "codeHash": digest, "transactionId": void_id,
                  "paymentAttemptId": pointer["paymentAttemptId"], "amountPaise": amount,

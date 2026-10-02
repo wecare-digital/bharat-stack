@@ -492,6 +492,129 @@ def test_a_second_void_is_already_voided():
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
 
 
+class _CreditThrottles(FakeTable):
+    """A `FakeTable` that throttles the first N balance CREDITS and nothing else.
+
+    `arm_failure` cannot express this: it fires on the next call of an operation, and in `void`
+    the next `update_item` is the `voidedBy` LATCH, not the credit. The window this test exists
+    for is the one strictly BETWEEN them, so the fault has to be aimed at the credit itself.
+
+    Aimed by expression rather than by call index: `credit` is `ADD balancePaise :amount` and
+    `_decrement` is `ADD balancePaise :neg`, so the two balance moves are distinguishable without
+    counting calls - which means this keeps working if either path gains a read.
+    """
+
+    def __init__(self, *args, credit_failures: int = 0, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.credit_failures = credit_failures
+
+    def update_item(self, **kwargs):
+        if self.credit_failures and "ADD balancePaise :amount" in str(
+                kwargs.get("UpdateExpression") or ""):
+            self.credit_failures -= 1
+            # A throttle, which `credit` surfaces as `GiftCardStoreUnavailable` - not a
+            # conditional failure, so it cannot be mistaken for a lost race.
+            raise RuntimeError("ProvisionedThroughputExceededException")
+        return super().update_item(**kwargs)
+
+
+def test_a_void_whose_credit_failed_is_completed_by_a_retry_not_refused():
+    """Not in the design's list, and it closes the void path's counterpart of the claim window.
+
+    The `voidedBy` latch is written BEFORE the credit, which is correct - the reverse order could
+    credit twice if the latch then lost its race. But a latch with no marker makes a transient
+    failure PERMANENT and IRREVERSIBLE: every retry read `voidedBy` and raised `AlreadyVoided`, so
+    the redemption stayed marked voided with the customer's balance never returned and no operator
+    path back except a manual ledger edit.
+
+    Same shape, same vocabulary and same recovery as `redeem`'s claim row one function earlier:
+    the marker is written unset, only the money move sets it, and a retry re-drives the move. Two
+    different recovery mechanisms in one liability ledger is how the next person gets one of them
+    wrong.
+
+    What this asserts is that the marker CLEARS, not merely that it is written: the credit is
+    throttled strictly between the latch and the balance move, the retry completes it, and the
+    balance lands correct EXACTLY ONCE - idempotent on replay, as `redeem` is.
+    """
+    store = _CreditThrottles(key_attr=gc.KEY_ATTRIBUTE,
+                             indexes={gc.STATUS_INDEX: (gc.STATUS_ATTRIBUTE, "createdAt")},
+                             credit_failures=1)
+    issue(store, value_paise=50000)
+    redeemed = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
+                         amount_paise=40000, clock=clock())
+    original_key = gc.PREFIX_TRANSACTION + digest_of() + "#" + redeemed["transactionId"]
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 10000
+
+    with pytest.raises(gc.GiftCardStoreUnavailable):
+        gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
+
+    # The latch stands, and it says EXPLICITLY that the money has not come back yet.
+    latched = store.rows[original_key]["voidedBy"]
+    assert latched
+    assert store.rows[original_key]["credited"] is False
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 10000
+
+    # The retry COMPLETES the void rather than refusing it, under the SAME void id - so a retry
+    # cannot mint a second void transaction - and the balance returns once.
+    completed = gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
+    assert completed["transactionId"] == latched
+    assert completed["remainingBalancePaise"] == 50000
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
+    assert store.rows[original_key]["credited"] is True
+    # One void transaction and one pointer for it, not two.
+    assert [key for key in store.rows
+            if key.startswith(gc.PREFIX_TRANSACTION) and store.rows[key].get(
+                "kind") == gc.KIND_VOID] == [gc.PREFIX_TRANSACTION + digest_of() + "#" + latched]
+
+    # And once the credit HAS landed the door re-closes: a third call refuses again rather than
+    # leaving the void permanently re-drivable.
+    with pytest.raises(gc.AlreadyVoided):
+        gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
+
+
+def test_a_void_credit_that_fails_twice_still_returns_the_balance_exactly_once():
+    """Recovery that works once is not recovery. The marker is not consumed by an attempt."""
+    store = _CreditThrottles(key_attr=gc.KEY_ATTRIBUTE,
+                             indexes={gc.STATUS_INDEX: (gc.STATUS_ATTRIBUTE, "createdAt")},
+                             credit_failures=2)
+    issue(store, value_paise=50000)
+    redeemed = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
+                         amount_paise=40000, clock=clock())
+
+    for _ in range(2):
+        with pytest.raises(gc.GiftCardStoreUnavailable):
+            gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
+        assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 10000
+
+    completed = gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
+    assert completed["remainingBalancePaise"] == 50000
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
+
+
+def test_a_void_latched_before_the_credited_flag_existed_is_never_re_credited():
+    """`credited` ABSENT must read as COMPLETE, not as pending.
+
+    A latch written by code that predates the flag is indistinguishable from one whose credit
+    landed, and treating absence as pending would hand the balance back a second time. Only an
+    explicit `False` - which only `void` itself writes - re-drives the credit.
+    """
+    store = table()
+    issue(store, value_paise=50000)
+    redeemed = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
+                         amount_paise=40000, clock=clock())
+    original_key = gc.PREFIX_TRANSACTION + digest_of() + "#" + redeemed["transactionId"]
+    legacy = dict(store.rows[original_key])
+    legacy["voidedBy"] = "legacy-void-id"
+    legacy["voidedAt"] = NOW
+    legacy.pop("credited", None)
+    store.seed(legacy)
+
+    with pytest.raises(gc.AlreadyVoided):
+        gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 10000
+
+
 def test_an_unknown_transaction_id_is_transaction_not_found():
     store = table()
     issue(store)
