@@ -14,7 +14,9 @@ on:
       - 'amplify/functions/shared/lambda_utils/**'
       - 'amplify/functions/shared/static_knowledge_base.py'
       - 'tests/test_task12_seo.py'
+      - 'tests/test_current_public_page_catalog.py'
       - 'scripts/deploy_seo_tools.py'
+      - 'config/public-pages.json'
       - '.github/workflows/seo-tools-deploy.yml'
   push:
     branches: [ stack ]
@@ -24,7 +26,9 @@ on:
       - 'amplify/functions/shared/lambda_utils/**'
       - 'amplify/functions/shared/static_knowledge_base.py'
       - 'tests/test_task12_seo.py'
+      - 'tests/test_current_public_page_catalog.py'
       - 'scripts/deploy_seo_tools.py'
+      - 'config/public-pages.json'
       - '.github/workflows/seo-tools-deploy.yml'
 
 env:
@@ -47,7 +51,7 @@ jobs:
         run: python -m pip install --disable-pip-version-check pytest boto3
 
       - name: Run SEO tools tests
-        run: python -m pytest tests/test_task12_seo.py -q
+        run: python -m pytest tests/test_task12_seo.py tests/test_current_public_page_catalog.py -q
 
   deploy:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

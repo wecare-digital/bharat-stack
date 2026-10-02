@@ -45,7 +45,7 @@ WORKFLOW_GLOB = "amplify-custom*.json"
 LIVE_RULES = [
     {"source": "https://www.wecare.digital", "target": "https://wecare.digital", "status": "301"},
     {"source": "/get/<*>", "target": "https://d1kf2rchz7yras.cloudfront.net/<*>", "status": "200"},
-    {"source": "/track", "target": "/my-order/", "status": "301"},
+    {"source": "/obsolete-fixture", "target": "/replacement-fixture/", "status": "301"},
     {"source": "/<*>", "target": "/404.html", "status": "404-200"},
 ]
 
@@ -146,8 +146,8 @@ def test_owner_policy_preserves_rewrites_without_restoring_legacy_destinations(r
     ]
     removals = [
         {"source": "https://www.wecare.digital", "target": "https://wecare.digital", "status": "301"},
-        {"source": "/swdhya/", "target": "/anew/", "status": "301"},
-        {"source": "/access/<*>", "target": "/workspace/access/<*>", "status": "302"},
+        {"source": "/obsolete-fixture-2/", "target": "/anew/", "status": "301"},
+        {"source": "/obsolete-login-fixture/<*>", "target": "/workspace/obsolete-login-fixture/<*>", "status": "302"},
         {"source": "/retired", "target": "/", "status": "404"},
     ]
     client = _FakeAmplify()
@@ -156,7 +156,7 @@ def test_owner_policy_preserves_rewrites_without_restoring_legacy_destinations(r
     assert client.written == approved + rewrites
     assert approved[0] == removals[0]
     assert approved == [removals[0]]
-    assert not any(r['source'].startswith('/access') for r in approved)
+    assert not any(r['source'].startswith('/obsolete-login-fixture') for r in approved)
     assert all("/workspace" not in r["target"] for r in approved)
     client.written = None
     assert redirects.apply(client, approved + rewrites) == 0

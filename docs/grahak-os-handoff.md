@@ -55,7 +55,7 @@ misled every reader so far. Re-verify with the harness, not with this table.
 | **The sitewide SEO no longer advertises one product.** `<title>`, `og:title`, `twitter:title`, `og:description` and `twitter:description` were WhatsApp-product copy inherited by all 15 public routes; `twitter:url` was hardcoded to the site root on every page. The messaging `Service` schema is now scoped to `/grahak-os/` instead of being emitted everywhere | `src/pages/_app.tsx` |
 | **`/grahak-os/` no longer ships two of every `og:` tag.** `next/head` de-duplicates meta by `name`, **not** by `property`, so the page's own og set and `_app`'s coexisted — measured 2× each of type, url, title, description, image, site_name, locale. Fixed with matching `key` props on both sides | `src/pages/_app.tsx`, `src/pages/grahak-os/index.tsx` |
 | **The home page stopped overriding its own metadata.** It declared `<title>WECARE.DIGITAL</title>` and `description="WECARE.DIGITAL."`, which beat the sitewide copy — so the most important URL on the site had a title with no content and a one-word description | `src/pages/index.tsx` |
-| **`/selfservice` and `/product-page/*` answer again.** They 404'd since a8d6a6c2 (#20) while 99 and 27 references stayed live, including the "Start Now" / "Book Slot" / "Upload Now" button URLs on outbound WhatsApp messages | `src/components/RetiredUrl.tsx`, `src/pages/selfservice.tsx`, `src/pages/product-page/*` |
+| **`[retired public path b180810d]` and `/product-page/*` answer again.** They 404'd since a8d6a6c2 (#20) while 99 and 27 references stayed live, including the "Start Now" / "Book Slot" / "Upload Now" button URLs on outbound WhatsApp messages | `src/components/RetiredUrl.tsx`, `src/pages/selfservice.tsx`, `src/pages/product-page/*` |
 
 ## Needs the owner, not an agent
 
@@ -356,7 +356,7 @@ these pages personally and rejected several agent drafts on substance:
 
 ### Still open, and an agent can do these
 
-- **A real 301 for `/selfservice` and `/product-page/*`.** The stubs added this session are
+- **A real 301 for `[retired public path b180810d]` and `/product-page/*`.** The stubs added this session are
   the in-repo fix and they work, but `output:'export'` means Next cannot emit a 3xx and
   Amplify Hosting redirects are console-managed. A CDN-level 301 would make
   `src/components/RetiredUrl.tsx` obsolete — which is the preferred outcome.
@@ -413,7 +413,7 @@ these pages personally and rejected several agent drafts on substance:
   and width glide, `(.34,1.56,.64,1)` for the dot pop. **There are FOUR rotating
   surfaces, not three** — `home-` on `/`, `hero-` on `/grahak-os/`, `vl-` on
   `/vayulok/`, and `rh-` in `RotatingHero` (used by `/contact/`, `/terms/`, `/privacy/`,
-  `/bharat-rx/`, `/my-order/`). They are one animation family: retune one and you must
+  `/bharat-rx/`, `[retired public path aaee9dd4]/`). They are one animation family: retune one and you must
   retune all four. `animcheck.js` compares the computed transitions across all four and
   currently measures them identical; `HomePage.test.tsx` fails if Home drifts.
   - Copy is **provisional** and carries owner positioning (lower cost, less
@@ -442,18 +442,18 @@ these pages personally and rejected several agent drafts on substance:
   - Below the hero there are now two sections — `.home-flow` (the `WorkflowTerminal`)
     and the `.home-close` band, which reveals on scroll via `IntersectionObserver`
     rather than a timer. `.home-layout`'s `gap:96px` is the section rhythm.
-- ~~`/faq` and `/partners` are now in the nav but are visually off-system.~~
+- ~~`[retired public path 1965ee0f]` and `/partners` are now in the nav but are visually off-system.~~
   **Both pages are deleted**, and the nav entries that pointed at
   `www.wecare.digital/selfservice` and `.../product-page/referral-partner` — both of which
   **404'd** — now point at `/contact/`. Those two external URLs also answer again: see
-  `src/components/RetiredUrl.tsx`. Note a 200 on a `/service/*` path is **not** evidence a
+  `src/components/RetiredUrl.tsx`. Note a 200 on a `[retired public path 6b3a02b3]/*` path is **not** evidence a
   route is public — those render `<Layout user onSignOut>` and are auth-gated, which is why
   the nav links go to `/contact/` and not there.
   Consequence worth knowing: `/partners` was the only **public**
   WhatsApp Embedded Signup entry point. `EmbeddedSignupPanel` survives because
   `dm/whatsapp/connected-accounts` and `dm/whatsapp/embedded-signup` still use it, but
   it is now reachable only behind auth. Two backend WhatsApp replies still send
-  customers to `https://wecare.digital/faq`
+  customers to `[retired public path ef456375]`
   (`inbound-whatsapp-handler/handler.py:1887` and `:6414`) — **owner call**, since
   that is marketing-site content, not a route in this app.
 - **VayuLok's rotation promises Pollen and Heatmap**, which have no endpoint wired.
@@ -483,12 +483,12 @@ these pages personally and rejected several agent drafts on substance:
 - **`cmd | tail; echo $?` reports `tail`'s exit code, not the command's.** Redirect to
   a file and check `$?`, or use `PIPESTATUS`.
 - **`trailingSlash: true`.** Links to exported pages need the trailing slash
-  (`/vayulok/`), or they redirect. `/access` is deliberately bare.
+  (`/vayulok/`), or they redirect. `[retired public path ef531503]` is deliberately bare.
 - **The Amplify `Authenticator` renders client-side only** — the static export contains
   none of its markup, so anything in that tree must be verified in a browser.
 - **`hideSignUp` means the Authenticator renders no tabs at all.** The
   `components.tabs.item` tokens in `authTheme` are therefore **inert** — measured in a
-  browser, `[role="tab"]` matches zero elements on `/access`. A whole block of theme
+  browser, `[role="tab"]` matches zero elements on `[retired public path ef531503]`. A whole block of theme
   config had drifted off-palette (`#6b7280`) with nothing on screen to reveal it. Do
   not tune those tokens expecting a visible change.
 - **The public pages' typeface came from an auth library.** `/` and `/vayulok/`

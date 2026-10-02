@@ -197,7 +197,7 @@ def _normalize_v3_product(product: dict) -> dict:
         'productOptions': compatible_options,
         'variants': compatible_variants,
         'lastUpdated': product.get('updatedDate', ''),
-        '_siteUrl': f"https://wecare.digital/product-page/{product.get('slug', '')}"
+        '_siteUrl': "https://wecare.digital/shop/"
                     if product.get('slug') else '',
         '_mainImage': main_media.get('url', '') if isinstance(main_media, dict) else '',
         '_mediaCount': len(media_items),

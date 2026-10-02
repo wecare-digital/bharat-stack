@@ -1,5 +1,5 @@
 /**
- * FAQ Management Page — /dm/faq
+ * FAQ Management Page — [retired public path]/faq
  * CRUD for FAQ entries with categories, sort order, active/inactive toggle
  */
 import React, { useState, useEffect, useCallback } from 'react';

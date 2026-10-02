@@ -7,6 +7,7 @@ import urllib.request
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
+from pathlib import Path
 
 import boto3
 
@@ -98,33 +99,12 @@ def clear_blog_cache() -> None:
     """
     _cache.clear()
 
-SITE_PAGES = [
-    ('/', 'Homepage', 'landing'), ('/bnb', 'BNB Club', 'brand_hub'),
-    ('/bnb-store', 'BNB Club Store', 'store'),
-    ('/legal-champ', 'Legal Champ', 'brand_hub'),
-    ('/legalchamp-store', 'Legal Champ Store', 'store'),
-    ('/ritual', 'Ritual Guru', 'brand_hub'),
-    ('/ritual-store', 'Ritual Guru Store', 'store'),
-    ('/swdhya', 'Swdhya', 'brand_hub'),
-    ('/swdhya-store', 'Swdhya Store', 'store'),
-    ('/no-fault', 'No Fault', 'brand_hub'),
-    ('/nofault-store', 'No Fault Store', 'store'),
-    ('/expoweek', 'Expo Week', 'brand_hub'), ('/star', 'STAR Member Hub', 'utility'),
-    ('/one', 'WECARE.DIGITAL App', 'utility'), ('/faq', 'FAQ', 'informational'),
-    ('/contact', 'Contact Us', 'informational'),
-    ('/legal-stuff', 'Terms & Policies', 'legal'), ('/privacy', 'Privacy Policy', 'legal'),
-    ('/careers-plus-culture', 'Careers & Culture', 'informational'),
-    ('/partner-up', 'Partnership Program', 'informational'),
-    ('/enterprise-assist', 'Enterprise Support', 'service'),
-    ('/perks', 'Perks', 'service'), ('/blog', 'Blog Index', 'blog_hub'),
-    ('/sitemap', 'HTML Sitemap', 'utility'), ('/appointment', 'Schedule Appointment', 'service'),
-    ('/submit-request', 'Submit Request', 'service'), ('/track-request', 'Track Request', 'service'),
-    ('/amend-request', 'Amend Request', 'service'), ('/order-notes', 'Order Notes', 'service'),
-    ('/drop-docs', 'Document Upload', 'service'), ('/rx-slot', 'Prescription Slot', 'service'),
-    ('/selfservice', 'Self-Service Portal', 'service'), ('/search', 'Search', 'utility'),
-    ('/leave-review', 'Leave Review', 'service'), ('/loyalty', 'Loyalty Rewards', 'service'),
-    ('/referral', 'Referral Program', 'service'), ('/bring-friends', 'Refer Friends', 'service'),
-]
+def public_page_catalog() -> list[dict]:
+    """Read the same generated catalogue that the public site and MCP publish."""
+    packaged = Path(__file__).resolve().parent / 'public-pages.json'
+    repository = Path(__file__).resolve().parents[4] / 'config' / 'public-pages.json'
+    catalog = packaged if packaged.is_file() else repository
+    return json.loads(catalog.read_text(encoding='utf-8'))['pages']
 
 
 def _load_api_key() -> str:
@@ -291,18 +271,17 @@ def page_seo(path: str) -> Dict[str, Any]:
 
 
 def list_site_pages() -> List[Dict[str, Any]]:
-    def load_page(definition):
-        path, name, page_type = definition
-        seo = page_seo(path)
-        return {
-            'path': path, 'name': name, 'type': page_type,
-            'url': SITE_BASE + path, **seo,
-            'title': seo.get('title') or name,
-            'canonical': seo.get('canonical') or SITE_BASE + path,
+    """Current published pages, without resurrecting a legacy Wix inventory."""
+    return [
+        {
+            'path': page['path'], 'name': page['name'], 'type': page['group'],
+            'url': SITE_BASE + page['path'], 'title': page['name'],
+            'metaDescription': page['description'], 'keywords': [],
+            'jsonLdTypes': [], 'hasJsonLd': False,
+            'canonical': SITE_BASE + page['path'],
         }
-
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        return list(executor.map(load_page, SITE_PAGES))
+        for page in public_page_catalog()
+    ]
 
 
 DEFAULT_BLOG_AUTHOR = os.environ.get('WIX_BLOG_AUTHOR_NAME', 'Anew by WECARE.DIGITAL').strip() or 'Anew by WECARE.DIGITAL'

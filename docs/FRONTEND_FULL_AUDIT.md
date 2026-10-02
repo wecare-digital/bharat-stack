@@ -51,7 +51,7 @@ Confirmed by reading source:
 `Layout`, `Tabs`, `Table`, `EmptyState`, `Spinner`, toast, and `api/client.ts` — good consistency.
 
 ## D. Reachability (corrected)
-- `dm/channels` is a launcher hub that links to `/dm/logs` (unified), `/dm/rcs/send`, `/dm/ses/inbox`, etc.
+- `dm/channels` is a launcher hub that links to `[retired public path 2de923b8]/logs` (unified), `[retired public path 2de923b8]/rcs/send`, `[retired public path 2de923b8]/ses/inbox`, etc.
   So the per-channel subpages and `dm/logs` ARE reachable via the hub (not fully orphaned) — but they're
   **still duplicates** of the unified `dm/inbox` / `dm/broadcast` / `dm/logs`.
 - **Genuinely orphaned** (not in nav, not linked from channels hub) → verify/remove: `admin/` (root),

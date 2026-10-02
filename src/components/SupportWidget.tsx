@@ -184,7 +184,7 @@ const SKIP_TAGS = new Set( [
   // document.title into it on every client navigation, so anything we translate there is
   // overwritten by the next route change - we would be paying per character to rewrite a
   // node that does not stay rewritten. It held the bare company name on the dynamic
-  // /seo/page/[id]/ shell, which is why it surfaced: it was the last node in the export
+  // [retired public path]/page/[id]/ shell, which is why it surfaced: it was the last node in the export
   // reporting the brand as translatable. Skipping it is the honest description of what the
   // walker can usefully own.
   'NEXT-ROUTE-ANNOUNCER',

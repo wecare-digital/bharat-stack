@@ -57,7 +57,7 @@ const FORBIDDEN_TARGETS = [ '/workspace', '/admin', '/access', 'sign-in' ];
  * `href="..."` and the navigation-data property `href: '...'`.
  *
  * Deliberately NOT a substring search over the whole file. Header.tsx and Footer.tsx both
- * discuss `/access`, `/workspace/forms/` and sign-in at length in their comments - recording
+ * discuss `[retired public path]`, `/workspace/forms/` and sign-in at length in their comments - recording
  * that the staff login was REMOVED from the public header - and a substring check would fail
  * on the explanation of the fix rather than on the defect.
  */

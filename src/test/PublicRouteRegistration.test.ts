@@ -154,7 +154,7 @@ describe( 'public route registration', () => {
   it( 'keeps the allowlist free of routes that have no page file', () => {
     // The mirror of the test above. A route left in the allowlist after its page is
     // deleted advertises structured data, and possibly a sitemap entry, for a URL that
-    // 404s - which is how /faq and /studio came to be listed long after deletion.
+    // 404s - which is how [retired public path] and /studio came to be listed long after deletion.
     const allowlist = readAllowlist();
     const rootRoutes = new Set( rootPageFiles.map( routeForFile ) );
     // Directory-backed public routes. These resolve to <dir>/index.tsx rather than a
@@ -171,7 +171,7 @@ describe( 'public route registration', () => {
      * content routes are matched by pattern, not by a literal file name". The prefix was the
      * problem: it exempted five real routes from the only check that notices a route left in the
      * allowlist after its page is deleted - which is the exact failure this test exists for, and
-     * the one that left /faq and /studio advertised long after deletion.
+     * the one that left [retired public path] and /studio advertised long after deletion.
      *
      * fileForRoute already resolves a bracketed pattern, because the path segments are literal
      * directory and file names on disk: '/shop/[slug]' is src/pages/shop/[slug].tsx and
@@ -197,7 +197,7 @@ describe( 'public route registration', () => {
     // in the allowlist shipped the staff sign-in screen with nothing to catch it.
     //
     // "Not on the dashboard" is read off the Layout import rather than guessed from the
-    // path, because the path says nothing: /store and /task are staff, /grahak-os and
+    // path, because the path says nothing: /store and [retired public path] are staff, /grahak-os and
     // /vayulok are marketing, and all four are a directory with an index.tsx.
     const allowlist = readAllowlist();
     const unregistered = dirPages

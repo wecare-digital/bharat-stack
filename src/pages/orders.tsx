@@ -5,11 +5,11 @@ import RotatingHero, { type CycleWord } from '../components/RotatingHero';
 /**
  * /orders — where a customer checks what they have already asked for.
  *
- * RENAMED FROM /my-order ON OWNER INSTRUCTION, label and URL together. The old path is not
+ * RENAMED FROM [retired public path] ON OWNER INSTRUCTION, label and URL together. The old path is not
  * simply gone: it 301s to this one from the Amplify customRules written by
  * scripts/provision_legacy_redirects.py (RETIRED), because the page has been live and linked.
- * The same change repointed FROZEN_EXTERNAL["/track"], which is printed inside a DLT-approved
- * SMS template that cannot be edited and used to land on /my-order/ - leaving it alone would
+ * The same change repointed FROZEN_EXTERNAL["[retired public path]"], which is printed inside a DLT-approved
+ * SMS template that cannot be edited and used to land on [retired public path]/ - leaving it alone would
  * have pointed an unchangeable template at a dead URL.
  *
  * ROUTING: '/orders' must be in the EXACT-MATCH allowlist in _app.tsx or this renders
@@ -32,9 +32,9 @@ import RotatingHero, { type CycleWord } from '../components/RotatingHero';
  * belongs here.
  *
  * "SELFSERVICE" NAMING REMOVED 2026-09-27 (owner instruction). It named a portal that no
- * longer exists at any address: the in-repo /selfservice stub went in commit 6bc44a35 and
+ * longer exists at any address: the in-repo [retired public path] stub went in commit 6bc44a35 and
  * nothing replaced it, so the word pointed customers at a concept with no page behind it.
- * The only /selfservice route in the codebase now is the ADMIN flow dashboard under
+ * The only [retired public path] route in the codebase now is the ADMIN flow dashboard under
  * /workspace/forms/, which is not a customer destination.
  */
 
@@ -50,8 +50,8 @@ const CYCLE_WORDS: CycleWord[] = [
 
 // A terminal URL, deliberately: `/contact/` is a real 200 page on the canonical host with
 // no redirect hop. Two earlier values both ended in a 404 -
-// 'https://www.wecare.digital/selfservice' (www 301s to apex, then /selfservice 404s) and
-// the apex '/selfservice' on its own. Verify with curl before changing this again.
+// '[retired public path]' (www 301s to apex, then [retired public path] 404s) and
+// the apex '[retired public path]' on its own. Verify with curl before changing this again.
 const CONTACT = 'https://wecare.digital/contact/';
 
 const OrdersPage: React.FC = () => (

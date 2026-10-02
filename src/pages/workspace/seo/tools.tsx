@@ -13,7 +13,7 @@ interface PageProps { signOut?: () => void; user?: any; }
 const SITE_BASE = 'https://wecare.digital';
 const BLOG_PUBLIC_API = `${process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api'}/seo-tools/blog-public`;
 const ALL_PAGES = [
-  '/', '/grahak-os', '/vayulok', '/faq', '/partners', '/blog',
+  '/', '/grahak-os', '/vayulok', '/contact', '/shop', '/blog',
 ];
 
 const SEOTools: React.FC<PageProps> = ({ signOut, user }) => {
@@ -196,7 +196,7 @@ const SEOTools: React.FC<PageProps> = ({ signOut, user }) => {
     clearLog();
     addLog('⚡ PageSpeed Insights (mobile)');
     addLog('');
-    const pages = ['/', '/bnb', '/faq', '/blog'];
+    const pages = ['/', '/elsewhere', '/contact', '/blog'];
     for (const pg of pages) {
       const url = SITE_BASE + pg;
       addLog(`Testing ${pg}...`);

@@ -5,7 +5,7 @@
  * by contact, and shows a threaded conversation with per-message channel badges.
  * Sending is channel-specific, so replies deep-link to the channel's own tool.
  *
- * WhatsApp's dedicated inbox (/dm/whatsapp) stays as-is for full WhatsApp send features.
+ * WhatsApp's dedicated inbox ([retired public path]/whatsapp) stays as-is for full WhatsApp send features.
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';

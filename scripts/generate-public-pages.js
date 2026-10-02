@@ -17,7 +17,7 @@
  * A hand-kept fifth copy fails in one direction silently and in the other direction
  * embarrassingly. Miss a new page and it is invisible to every agent that reads /llms.txt or
  * calls /mcp. Leave a deleted page in and /mcp hands an agent a URL that 404s - which already
- * happened once: /my-order was renamed to /orders, the catalogue was updated, and the MCP
+ * happened once: [retired public path] was renamed to /orders, the catalogue was updated, and the MCP
  * Lambda kept serving the old path because nothing redeployed it.
  *
  * So the array is generated. Add a page, delete a page, or reword its description, and the

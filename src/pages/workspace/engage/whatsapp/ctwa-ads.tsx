@@ -1,5 +1,5 @@
 /**
- * Ads that Click to WhatsApp (CTWA) — /dm/whatsapp/ctwa-ads
+ * Ads that Click to WhatsApp (CTWA) — [retired public path]/whatsapp/ctwa-ads
  *
  * Console for creating "Ads that Click to WhatsApp" via the Meta Marketing API.
  * A click on the ad opens a WhatsApp chat with our business number, optionally

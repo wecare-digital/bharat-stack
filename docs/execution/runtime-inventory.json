@@ -25,19 +25,19 @@
       "wecare-url-shortener"
     ],
     "routesTargetingLatest": [
-      "zllr9lrg7j POST /docs/scrape -> wecare-docs-scraper",
+      "zllr9lrg7j POST [retired public path a2557b8d]/scrape -> wecare-docs-scraper",
       "zllr9lrg7j ANY /seo-tools -> wecare-seo-tools",
-      "zllr9lrg7j GET /docs/sources -> wecare-docs-scraper",
+      "zllr9lrg7j GET [retired public path a2557b8d]/sources -> wecare-docs-scraper",
       "zllr9lrg7j ANY /seo-tools/{proxy+} -> wecare-seo-tools",
-      "zllr9lrg7j GET /docs/changelog -> wecare-docs-scraper",
-      "zllr9lrg7j POST /docs/sources -> wecare-docs-scraper"
+      "zllr9lrg7j GET [retired public path a2557b8d]/changelog -> wecare-docs-scraper",
+      "zllr9lrg7j POST [retired public path a2557b8d]/sources -> wecare-docs-scraper"
     ],
     "routesToAbsentFunction": [],
     "routesWithoutFrontendCaller": [
       "/agent-tool",
       "/ai/approvals/status",
       "/bulk/worker",
-      "/contacts/search",
+      "[retired public path 44011e36]/search",
       "/crm/activities",
       "/crm/contacts/{contactId}/360",
       "/crm/leads",
@@ -276,7 +276,7 @@
       "src/api/client.ts"
     ],
     "/bulk/worker": [],
-    "/contacts": [
+    "[retired public path 44011e36]": [
       "src/api/client.ts",
       "src/components/RichTextEditor.tsx",
       "src/components/SearchModal.tsx",
@@ -298,8 +298,8 @@
       "src/test/Navigation.test.tsx",
       "src/test/SearchModal.test.tsx"
     ],
-    "/contacts/search": [],
-    "/contacts/{contactId}": [
+    "[retired public path 44011e36]/search": [],
+    "[retired public path 44011e36]/{contactId}": [
       "src/api/client.ts",
       "src/components/RichTextEditor.tsx",
       "src/components/SearchModal.tsx",
@@ -341,13 +341,13 @@
       "src/pages/dashboard/lambda-functions.tsx",
       "src/pages/dashboard/system-architecture.tsx"
     ],
-    "/docs/changelog": [
+    "[retired public path a2557b8d]/changelog": [
       "src/pages/dm/docs/index.tsx"
     ],
-    "/docs/scrape": [
+    "[retired public path a2557b8d]/scrape": [
       "src/pages/dm/docs/index.tsx"
     ],
-    "/docs/sources": [
+    "[retired public path a2557b8d]/sources": [
       "src/pages/dm/docs/index.tsx"
     ],
     "/email/send": [
@@ -356,7 +356,7 @@
       "src/pages/dashboard/lambda-functions.tsx",
       "src/pages/dashboard/system-architecture.tsx"
     ],
-    "/faq": [
+    "[retired public path 1965ee0f]": [
       "src/api/client.ts",
       "src/components/Header.tsx",
       "src/components/dashboard/tabs/InfraTab.tsx",
@@ -1678,13 +1678,13 @@
       "role": "wecare-digital-lambda-role",
       "routeCount": 7,
       "routes": [
-        "DELETE /contacts",
-        "DELETE /contacts/{contactId}",
-        "GET /contacts",
-        "GET /contacts/search",
-        "POST /contacts",
-        "PUT /contacts",
-        "PUT /contacts/{contactId}"
+        "DELETE [retired public path 44011e36]",
+        "DELETE [retired public path 44011e36]/{contactId}",
+        "GET [retired public path 44011e36]",
+        "GET [retired public path 44011e36]/search",
+        "POST [retired public path 44011e36]",
+        "PUT [retired public path 44011e36]",
+        "PUT [retired public path 44011e36]/{contactId}"
       ],
       "runtime": "python3.12",
       "snapStart": "None",
@@ -1896,10 +1896,10 @@
       "role": "wecare-digital-lambda-role",
       "routeCount": 4,
       "routes": [
-        "GET /docs/changelog",
-        "GET /docs/sources",
-        "POST /docs/scrape",
-        "POST /docs/sources"
+        "GET [retired public path a2557b8d]/changelog",
+        "GET [retired public path a2557b8d]/sources",
+        "POST [retired public path a2557b8d]/scrape",
+        "POST [retired public path a2557b8d]/sources"
       ],
       "runtime": null,
       "snapStart": "None",
@@ -1933,7 +1933,7 @@
       "role": "wecare-digital-lambda-role",
       "routeCount": 1,
       "routes": [
-        "GET /faq"
+        "GET [retired public path 1965ee0f]"
       ],
       "runtime": "python3.12",
       "snapStart": "None",
@@ -4100,7 +4100,7 @@
       "authorizationType": "NONE",
       "qualifier": "live",
       "routeId": "2lhvy8a",
-      "routeKey": "DELETE /contacts",
+      "routeKey": "DELETE [retired public path 44011e36]",
       "targetFunction": "wecare-contacts"
     },
     {
@@ -4109,7 +4109,7 @@
       "authorizationType": "NONE",
       "qualifier": "live",
       "routeId": "2tbnwbi",
-      "routeKey": "DELETE /contacts/{contactId}",
+      "routeKey": "DELETE [retired public path 44011e36]/{contactId}",
       "targetFunction": "wecare-contacts"
     },
     {
@@ -4577,7 +4577,7 @@
       "authorizationType": "NONE",
       "qualifier": "live",
       "routeId": "16c16op",
-      "routeKey": "GET /contacts",
+      "routeKey": "GET [retired public path 44011e36]",
       "targetFunction": "wecare-contacts"
     },
     {
@@ -4586,7 +4586,7 @@
       "authorizationType": "NONE",
       "qualifier": "live",
       "routeId": "pim2408",
-      "routeKey": "GET /contacts/search",
+      "routeKey": "GET [retired public path 44011e36]/search",
       "targetFunction": "wecare-contacts"
     },
     {
@@ -4676,7 +4676,7 @@
       "authorizationType": "NONE",
       "qualifier": "$LATEST",
       "routeId": "sl7f3uq",
-      "routeKey": "GET /docs/changelog",
+      "routeKey": "GET [retired public path a2557b8d]/changelog",
       "targetFunction": "wecare-docs-scraper"
     },
     {
@@ -4685,7 +4685,7 @@
       "authorizationType": "NONE",
       "qualifier": "$LATEST",
       "routeId": "p5tpymd",
-      "routeKey": "GET /docs/sources",
+      "routeKey": "GET [retired public path a2557b8d]/sources",
       "targetFunction": "wecare-docs-scraper"
     },
     {
@@ -4694,7 +4694,7 @@
       "authorizationType": "NONE",
       "qualifier": "live",
       "routeId": "iwvnhhb",
-      "routeKey": "GET /faq",
+      "routeKey": "GET [retired public path 1965ee0f]",
       "targetFunction": "wecare-faq-handler"
     },
     {
@@ -5954,7 +5954,7 @@
       "authorizationType": "NONE",
       "qualifier": "live",
       "routeId": "41v1ur8",
-      "routeKey": "POST /contacts",
+      "routeKey": "POST [retired public path 44011e36]",
       "targetFunction": "wecare-contacts"
     },
     {
@@ -5999,7 +5999,7 @@
       "authorizationType": "NONE",
       "qualifier": "$LATEST",
       "routeId": "3tn2bqh",
-      "routeKey": "POST /docs/scrape",
+      "routeKey": "POST [retired public path a2557b8d]/scrape",
       "targetFunction": "wecare-docs-scraper"
     },
     {
@@ -6008,7 +6008,7 @@
       "authorizationType": "NONE",
       "qualifier": "$LATEST",
       "routeId": "wcrznjh",
-      "routeKey": "POST /docs/sources",
+      "routeKey": "POST [retired public path a2557b8d]/sources",
       "targetFunction": "wecare-docs-scraper"
     },
     {
@@ -7106,7 +7106,7 @@
       "authorizationType": "NONE",
       "qualifier": "live",
       "routeId": "24i0pcm",
-      "routeKey": "PUT /contacts",
+      "routeKey": "PUT [retired public path 44011e36]",
       "targetFunction": "wecare-contacts"
     },
     {
@@ -7115,7 +7115,7 @@
       "authorizationType": "NONE",
       "qualifier": "live",
       "routeId": "pox5bd2",
-      "routeKey": "PUT /contacts/{contactId}",
+      "routeKey": "PUT [retired public path 44011e36]/{contactId}",
       "targetFunction": "wecare-contacts"
     },
     {

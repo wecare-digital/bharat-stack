@@ -1,5 +1,5 @@
 /**
- * Meta Business Agent — /dm/meta-agent
+ * Meta Business Agent — [retired public path]/meta-agent
  * Onboard + configure Meta's Business AI Agent on WhatsApp (per WABA phone number).
  * Backed by the wecare-meta-business-agent Lambda (POST /meta-agent).
  * API: https://api.facebook.com/{entity_id}/agent_onboarding + /agent_config/settings

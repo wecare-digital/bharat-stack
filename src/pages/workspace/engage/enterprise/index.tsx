@@ -1,5 +1,5 @@
 /**
- * Enterprise Assist Admin Page — /dm/enterprise
+ * Enterprise Assist Admin Page — [retired public path]/enterprise
  * Case management: list, filter, detail panel, status/priority updates
  */
 import React, { useState, useEffect, useCallback } from 'react';

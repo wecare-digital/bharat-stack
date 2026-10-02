@@ -69,8 +69,8 @@ const publicPageMeta = (): Map<string, string> => {
  * PUBLIC_EXACT from the sitemap generator.
  *
  * COMMENT LINES ARE STRIPPED FIRST, and they have to be. That declaration carries long
- * explanatory comments between its entries which themselves quote route paths - '/swdhya'
- * and '/open-possibility', the two names /anew used to have. Matching the raw block picks up
+ * explanatory comments between its entries which themselves quote route paths - '[retired public path]'
+ * and '[retired public path]', the two names /anew used to have. Matching the raw block picks up
  * 24 paths for 21 entries, so the comparison below would fail against a correct catalogue
  * and the obvious "fix" would be to add two dead routes to it.
  */
@@ -149,7 +149,7 @@ describe( 'the catalogue matches the allowlists that decide what is public', () 
      * allowlists and src/content/*. Running it in --check mode here means the committed
      * catalogue cannot lag the tree: add, delete or reword a page and this fails until the
      * catalogue is regenerated, rather than /mcp quietly describing a site that no longer
-     * exists. That is the failure /my-order already produced once - the rename landed
+     * exists. That is the failure [retired public path] already produced once - the rename landed
      * everywhere except the copy inside the Lambda's zip, and search_pages handed agents a
      * URL that 404s with nothing reporting it.
      *

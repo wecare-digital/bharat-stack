@@ -75,9 +75,9 @@
       "cardOrientation": "HORIZONTAL",
       "thumbnailImageAlignment": "LEFT",
       "mediaHeight": "TALL",
-      "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+      "mediaUrl": "https://wecare.digital/get/o/stream/media/m/selfservice.mp4",
       "mediaExtension": "mp4",
-      "thumbnailUrl": "https://app.wecare.digital/stream/media/m/WECARE+SC.png",
+      "thumbnailUrl": "https://wecare.digital/get/o/stream/media/m/WECARE+SC.png",
       "forceRefresh": false,
       "title": "Thanks for contacting WECARE.DIGITAL!",
       "titleLength": 37,
@@ -91,7 +91,7 @@
           "actionTypes": [
             "openUrlAction"
           ],
-          "url": "https://r.wecare.digital/getstarted",
+          "url": "https://wecare.digital/r/getstarted",
           "application": "BROWSER"
         }
       ],
@@ -194,9 +194,9 @@
       "cardOrientation": "VERTICAL",
       "thumbnailImageAlignment": null,
       "mediaHeight": "SHORT",
-      "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+      "mediaUrl": "https://wecare.digital/get/o/stream/media/m/selfservice.mp4",
       "mediaExtension": "mp4",
-      "thumbnailUrl": "https://app.wecare.digital/stream/media/m/wecare-digital-rcs-h.png",
+      "thumbnailUrl": "https://wecare.digital/get/o/stream/media/m/wecare-digital-rcs-h.png",
       "forceRefresh": false,
       "title": "Thanks for contacting WECARE.DIGITAL!",
       "titleLength": 37,
@@ -210,7 +210,7 @@
           "actionTypes": [
             "openUrlAction"
           ],
-          "url": "https://r.wecare.digital/getstarted",
+          "url": "https://wecare.digital/r/getstarted",
           "application": "BROWSER"
         }
       ],
@@ -230,9 +230,9 @@
       "cardOrientation": "VERTICAL",
       "thumbnailImageAlignment": null,
       "mediaHeight": "SHORT",
-      "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+      "mediaUrl": "https://wecare.digital/get/o/stream/media/m/selfservice.mp4",
       "mediaExtension": "mp4",
-      "thumbnailUrl": "https://app.wecare.digital/stream/media/m/wecare-digital-rcs-h.png",
+      "thumbnailUrl": "https://wecare.digital/get/o/stream/media/m/wecare-digital-rcs-h.png",
       "forceRefresh": false,
       "title": "Thanks for placing your order with WECARE.DIGITAL!",
       "titleLength": 50,
@@ -246,7 +246,7 @@
           "actionTypes": [
             "openUrlAction"
           ],
-          "url": "https://r.wecare.digital/getstarted",
+          "url": "https://wecare.digital/r/getstarted",
           "application": "BROWSER"
         }
       ],
@@ -266,9 +266,9 @@
       "cardOrientation": "VERTICAL",
       "thumbnailImageAlignment": null,
       "mediaHeight": "MEDIUM",
-      "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+      "mediaUrl": "https://wecare.digital/get/o/stream/media/m/selfservice.mp4",
       "mediaExtension": "mp4",
-      "thumbnailUrl": "https://app.wecare.digital/stream/media/m/wecare-digital-rcs-h.png",
+      "thumbnailUrl": "https://wecare.digital/get/o/stream/media/m/wecare-digital-rcs-h.png",
       "forceRefresh": false,
       "title": "Thanks for contacting WECARE.DIGITAL!",
       "titleLength": 37,
@@ -282,7 +282,7 @@
           "actionTypes": [
             "openUrlAction"
           ],
-          "url": "https://r.wecare.digital/getstarted",
+          "url": "https://wecare.digital/r/getstarted",
           "application": "BROWSER"
         }
       ],
@@ -302,9 +302,9 @@
       "cardOrientation": "VERTICAL",
       "thumbnailImageAlignment": null,
       "mediaHeight": "MEDIUM",
-      "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+      "mediaUrl": "https://wecare.digital/get/o/stream/media/m/selfservice.mp4",
       "mediaExtension": "mp4",
-      "thumbnailUrl": "https://app.wecare.digital/stream/media/m/wecare-digital-rcs-h.png",
+      "thumbnailUrl": "https://wecare.digital/get/o/stream/media/m/wecare-digital-rcs-h.png",
       "forceRefresh": false,
       "title": "Thanks for contacting WECARE.DIGITAL!",
       "titleLength": 37,
@@ -318,7 +318,7 @@
           "actionTypes": [
             "openUrlAction"
           ],
-          "url": "https://r.wecare.digital/getstarted",
+          "url": "https://wecare.digital/r/getstarted",
           "application": "BROWSER"
         }
       ],
@@ -338,9 +338,9 @@
       "cardOrientation": "VERTICAL",
       "thumbnailImageAlignment": null,
       "mediaHeight": "MEDIUM",
-      "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+      "mediaUrl": "https://wecare.digital/get/o/stream/media/m/selfservice.mp4",
       "mediaExtension": "mp4",
-      "thumbnailUrl": "https://app.wecare.digital/stream/media/m/wecare-digital-rcs-h.png",
+      "thumbnailUrl": "https://wecare.digital/get/o/stream/media/m/wecare-digital-rcs-h.png",
       "forceRefresh": false,
       "title": "Thanks for placing your order with WECARE.DIGITAL!",
       "titleLength": 50,
@@ -354,7 +354,7 @@
           "actionTypes": [
             "openUrlAction"
           ],
-          "url": "https://r.wecare.digital/getstarted",
+          "url": "https://wecare.digital/r/getstarted",
           "application": "BROWSER"
         }
       ],
@@ -498,7 +498,7 @@
           "actionTypes": [
             "openUrlAction"
           ],
-          "url": "https://wecare.digital/selfservice",
+          "url": "https://wecare.digital/submit-request/",
           "application": "BROWSER"
         },
         {

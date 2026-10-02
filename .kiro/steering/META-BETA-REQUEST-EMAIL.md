@@ -83,12 +83,12 @@ Please enable the WhatsApp Business Bot API on both WABAs listed above.
 We need access to the Bot API endpoints to configure automated bot responses, commands, prompts, and welcome messages programmatically via the Graph API. Specifically:
 
 - `GET /{WABA-Bot-ID}?fields=id,prompts,commands,enable_welcome_message` — to retrieve and audit bot configuration
-- Bot command management — to set up structured commands (e.g. /pay, /help, /status, /request) that customers can use
+- Bot command management — to set up structured commands (e.g. [retired public path 47a81ed9], /help, /status, /request) that customers can use
 - Welcome message configuration — to enable/disable and customize the automated welcome message
 - Bot prompts — to configure AI-powered automated responses
 
 We currently handle 65+ payment trigger keywords, AI-powered responses (via Amazon Bedrock), and structured WhatsApp Flows. The Bot API would allow us to:
-1. Define discoverable slash commands for customers (/pay, /help, /track, /request)
+1. Define discoverable slash commands for customers ([retired public path 47a81ed9], /help, [retired public path 282d0fd5], /request)
 2. Configure welcome messages that guide new customers
 3. Set up bot prompts for common queries
 4. Manage bot state programmatically from our admin dashboard
@@ -237,7 +237,7 @@ python scripts/_create_checkout_template.py
 
 ### WhatsApp Business Bot API:
 - Query bot config: `GET /{bot_id}?fields=prompts,commands,enable_welcome_message`
-- Set up slash commands: /pay, /help, /track, /request, /invoice
+- Set up slash commands: [retired public path 47a81ed9], /help, [retired public path 282d0fd5], /request, /invoice
 - Enable welcome message for new customers
 - Configure bot prompts for automated responses
 - Integrate with existing AI automation (Bedrock) and keyword detection

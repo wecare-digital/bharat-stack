@@ -1,7 +1,7 @@
 /**
  * Design Reference — WECARE.DIGITAL
  * Complete inner page design system — ALL sections visible on one scrollable page.
- * URL: /dashboard/design-reference
+ * URL: [retired public path]/design-reference
  * 
  * Shows EVERYTHING: colors, typography, spacing, buttons, inputs, cards,
  * tables, tabs, badges, toasts, empty states, loading, modals, icons,

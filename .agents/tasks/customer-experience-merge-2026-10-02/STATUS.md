@@ -64,17 +64,17 @@ seo-tools/wix.py already use):
 - src/pages/workspace/engage/whatsapp/scripts.tsx:78         (cta_gift URL)
 - src/pages/workspace/engage/whatsapp/settings.tsx:68        (BOT_MENU row 6 action)
 
-Dead `/selfservice` CTAs (apex /selfservice 404s; documented in orders.tsx)
+Dead `[retired public path b180810d]` CTAs (apex [retired public path b180810d] 404s; documented in orders.tsx)
 -> intent-matched live Request-group routes:
-- amplify/functions/ai/ai-generate-response/handler.py:359  Start Now  /selfservice -> /submit-request/   (menu_submit_request)
-- amplify/functions/ai/ai-generate-response/handler.py:363  Start Now  /selfservice -> /request-amendment/ (menu_amend_request)
-- amplify/functions/ai/ai-generate-response/handler.py:367  Start Now  /selfservice -> /orders/            (menu_track_request)
-- amplify/functions/ai/ai-generate-response/handler.py:371  Book Slot  /selfservice -> /submit-request/    (menu_rx_slot; see ambiguous note)
-- amplify/functions/ai/ai-generate-response/handler.py:375  Upload Now /selfservice -> /drop-docs/          (menu_drop_docs)
+- amplify/functions/ai/ai-generate-response/handler.py:359  Start Now  [retired public path b180810d] -> /submit-request/   (menu_submit_request)
+- amplify/functions/ai/ai-generate-response/handler.py:363  Start Now  [retired public path b180810d] -> /request-amendment/ (menu_amend_request)
+- amplify/functions/ai/ai-generate-response/handler.py:367  Start Now  [retired public path b180810d] -> /orders/            (menu_track_request)
+- amplify/functions/ai/ai-generate-response/handler.py:371  Book Slot  [retired public path b180810d] -> /submit-request/    (menu_rx_slot; see ambiguous note)
+- amplify/functions/ai/ai-generate-response/handler.py:375  Upload Now [retired public path b180810d] -> /drop-docs/          (menu_drop_docs)
 - amplify/functions/ai/ai-generate-response/handler.py:379  Get Support/selfservice -> /submit-request/    (menu_enterprise; see note)
 - amplify/functions/ai/ai-generate-response/handler.py:383  Self Service/selfservice -> /submit-request/   (menu_hours; see note)
-- src/pages/workspace/engage/whatsapp/calling.tsx:642   "Submit your request here" /selfservice -> /submit-request/
-- src/pages/workspace/engage/whatsapp/calling.tsx:1266  "Submit your request here" /selfservice -> /submit-request/
+- src/pages/workspace/engage/whatsapp/calling.tsx:642   "Submit your request here" [retired public path b180810d] -> /submit-request/
+- src/pages/workspace/engage/whatsapp/calling.tsx:1266  "Submit your request here" [retired public path b180810d] -> /submit-request/
 
 ### Ambiguous-destination choices (stated per briefing)
 - **menu_rx_slot "Book Slot"** -> /submit-request/. Rationale: it is an
@@ -93,7 +93,7 @@ Dead `/selfservice` CTAs (apex /selfservice 404s; documented in orders.tsx)
   Wix apex), sitting in a coherent group of Wix system pages (`/cart-page`,
   `/checkout`, `/my-account`, `/my-addresses`, `/my-wallet`, `/members-area`,
   `/order-confirmation`). This is a different namespace from the public Next.js
-  `/orders/` route. The documented rename was `/my-order` (singular) -> `/orders`
+  `/orders/` route. The documented rename was `[retired public path aaee9dd4]` (singular) -> `/orders`
   for the PUBLIC page; this `/my-orders` (plural Wix system) is not that stale
   copy. Rename not proven safe, so per the master prompt it is untouched.
 - **The retired-origin + redirect system**: scripts/provision_legacy_redirects.py,
@@ -101,14 +101,14 @@ Dead `/selfservice` CTAs (apex /selfservice 404s; documented in orders.tsx)
 - **CORS `www.wecare.digital` allow-lists** — preserved (confirmed present in
   amplify/functions/ai/mcp/handler.py, site-language/handler.py). Not removed.
 - **src/config/analytics.ts BING.siteUrl = `https://www.wecare.digital/`** — intact.
-- Historical explanatory `/selfservice` comments (orders.tsx, bharat-rx.tsx,
+- Historical explanatory `[retired public path b180810d]` comments (orders.tsx, bharat-rx.tsx,
   products.ts) left as documentation.
 - No internal/technical `selfservice` identifiers, workspace routes, provider
   template ids or integration ids touched.
 
 ### No dead route registrations found to remove
 public-pages.json / PUBLIC_PAGE_META / sitemap PUBLIC_EXACT contain no
-`/my-order`, `/gift-card` or `/selfservice` registration. `/zip` and `/perks`
+`[retired public path aaee9dd4]`, `/gift-card` or `[retired public path b180810d]` registration. `/zip` and `/perks`
 remain registered (routes kept; labels changed only). Nothing to delete.
 
 ## Gate results (true counts, on final HEAD 0e11f3c3)

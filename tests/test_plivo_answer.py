@@ -318,7 +318,7 @@ def test_sms_body_matches_approved_dlt_template():
     """Operator drops mismatched content, so this copy is load-bearing."""
     body = pa.IVR_SMS_BODY
     assert body.startswith('Thanks for contacting WECARE.DIGITAL!')
-    assert 'https://wecare.digital/selfservice' in body
+    assert 'https://wecare.digital/submit-request/' in body
     assert 'https://wecare.digital/r/wa' in body
     assert body.count('\n\n') == 2, 'DLT template has two blank-line breaks'
     assert pa.DLT_TEMPLATE_KEY == 'ivr-default'

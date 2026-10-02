@@ -98,16 +98,16 @@ For each brand page, go to Wix Dashboard → Pages → [page] → SEO (Google):
 | /bnb | BNB Club: Travel Stays & Experiences \| WECARE.DIGITAL | Book travel stays and curated experiences across India with BNB Club by WECARE.DIGITAL. Transparent pricing, easy booking. |
 | /legal-champ | Legal Champ: Document & Paralegal Services \| WECARE.DIGITAL | Professional legal document preparation and paralegal workflows. Fast, affordable legal support for everyday Bharat. |
 | /ritual | Ritual Guru: Temple-Grade Puja Kits \| WECARE.DIGITAL | Authentic temple-grade puja kits and spiritual services delivered to your door. Ritual Guru by WECARE.DIGITAL. |
-| /swdhya | Swdhya: Reflection & Personal Growth \| WECARE.DIGITAL | Explore philosophical reflections on being, choice, and transformation. Swdhya by WECARE.DIGITAL. |
-| /no-fault | No Fault: Guided Dispute Resolution \| WECARE.DIGITAL | Resolve disputes fairly with guided online dispute resolution. No Fault by WECARE.DIGITAL. |
-| /expoweek | Expo Week: Virtual Events & Offers \| WECARE.DIGITAL | Discover exclusive virtual events and limited-time offers. Expo Week by WECARE.DIGITAL. |
+| [retired public path 74ea5c7a] | Swdhya: Reflection & Personal Growth \| WECARE.DIGITAL | Explore philosophical reflections on being, choice, and transformation. Swdhya by WECARE.DIGITAL. |
+| [retired public path 14041cbc] | No Fault: Guided Dispute Resolution \| WECARE.DIGITAL | Resolve disputes fairly with guided online dispute resolution. No Fault by WECARE.DIGITAL. |
+| [retired public path 9109e567] | Expo Week: Virtual Events & Offers \| WECARE.DIGITAL | Discover exclusive virtual events and limited-time offers. Expo Week by WECARE.DIGITAL. |
 
 ### Task 5: Service Pages — SEO Title & Description
 | Page | SEO Title | Meta Description |
 |---|---|---|
 | /appointment | Book an Appointment \| WECARE.DIGITAL | Schedule appointments for supported services. Choose your slot, provide details, get confirmation. |
 | /submit-request | Submit a Service Request \| WECARE.DIGITAL | Submit a new request with your details and Order ID. Track progress from submission to completion. |
-| /faq | Frequently Asked Questions \| WECARE.DIGITAL | Find answers about submitting requests, tracking orders, booking appointments, payments, and more. |
+| [retired public path 1965ee0f] | Frequently Asked Questions \| WECARE.DIGITAL | Find answers about submitting requests, tracking orders, booking appointments, payments, and more. |
 | /contact | Contact Us \| WECARE.DIGITAL | Reach WECARE.DIGITAL — email one@wecare.digital, call +91 9330994400, or visit us in Kolkata. |
 | /gift-card | Buy Gift Cards \| WECARE.DIGITAL | Send e-gift cards instantly with any amount and a personal message. WECARE.DIGITAL gift cards. |
 
@@ -127,7 +127,7 @@ Add Product + Offer schema with real price, availability, and brand. Example:
     "price": "999",
     "priceCurrency": "INR",
     "availability": "https://schema.org/InStock",
-    "url": "https://www.wecare.digital/product-page/partner-up"
+    "url": "[retired public path 4e7e61ae]"
   },
   "inLanguage": "en-IN"
 }
@@ -166,7 +166,7 @@ Use the 13 FAQ items from `faq_data.py` to build FAQPage schema.
 ## P2 — MEDIUM (Do This Month)
 
 ### Task 9: Legal Pages — Set noindex
-- /legal-stuff → noindex, follow
+- [retired public path 32bc4583] → noindex, follow
 - /privacy → noindex, follow
 
 ### Task 10: Search Page — Set noindex

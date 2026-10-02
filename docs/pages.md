@@ -39,142 +39,142 @@ Behind authentication. Listed so the set is reviewable, but none of these is pub
 
 | Route | Open locally |
 | --- | --- |
-| `/dm/` | [http://localhost:3000/dm/](http://localhost:3000/dm/) |
-| `/dm/analytics/` | [http://localhost:3000/dm/analytics/](http://localhost:3000/dm/analytics/) |
-| `/dm/appointments/` | [http://localhost:3000/dm/appointments/](http://localhost:3000/dm/appointments/) |
-| `/dm/automation/` | [http://localhost:3000/dm/automation/](http://localhost:3000/dm/automation/) |
-| `/dm/broadcast/` | [http://localhost:3000/dm/broadcast/](http://localhost:3000/dm/broadcast/) |
-| `/dm/calls/` | [http://localhost:3000/dm/calls/](http://localhost:3000/dm/calls/) |
-| `/dm/channels/` | [http://localhost:3000/dm/channels/](http://localhost:3000/dm/channels/) |
-| `/dm/commerce/` | [http://localhost:3000/dm/commerce/](http://localhost:3000/dm/commerce/) |
-| `/dm/contact-360/` | [http://localhost:3000/dm/contact-360/](http://localhost:3000/dm/contact-360/) |
-| `/dm/content/` | [http://localhost:3000/dm/content/](http://localhost:3000/dm/content/) |
-| `/dm/cost/` | [http://localhost:3000/dm/cost/](http://localhost:3000/dm/cost/) |
-| `/dm/docs/` | [http://localhost:3000/dm/docs/](http://localhost:3000/dm/docs/) |
-| `/dm/documents/` | [http://localhost:3000/dm/documents/](http://localhost:3000/dm/documents/) |
-| `/dm/enterprise/` | [http://localhost:3000/dm/enterprise/](http://localhost:3000/dm/enterprise/) |
-| `/dm/faq/` | [http://localhost:3000/dm/faq/](http://localhost:3000/dm/faq/) |
-| `/dm/inbox/` | [http://localhost:3000/dm/inbox/](http://localhost:3000/dm/inbox/) |
-| `/dm/logs/` | [http://localhost:3000/dm/logs/](http://localhost:3000/dm/logs/) |
-| `/dm/meta-agent/` | [http://localhost:3000/dm/meta-agent/](http://localhost:3000/dm/meta-agent/) |
-| `/dm/orders/` | [http://localhost:3000/dm/orders/](http://localhost:3000/dm/orders/) |
-| `/dm/push/` | [http://localhost:3000/dm/push/](http://localhost:3000/dm/push/) |
-| `/dm/rcs/` | [http://localhost:3000/dm/rcs/](http://localhost:3000/dm/rcs/) |
-| `/dm/rcs/campaign/` | [http://localhost:3000/dm/rcs/campaign/](http://localhost:3000/dm/rcs/campaign/) |
-| `/dm/rcs/inbox/` | [http://localhost:3000/dm/rcs/inbox/](http://localhost:3000/dm/rcs/inbox/) |
-| `/dm/rcs/logs/` | [http://localhost:3000/dm/rcs/logs/](http://localhost:3000/dm/rcs/logs/) |
-| `/dm/rcs/send/` | [http://localhost:3000/dm/rcs/send/](http://localhost:3000/dm/rcs/send/) |
-| `/dm/rcs/templates/` | [http://localhost:3000/dm/rcs/templates/](http://localhost:3000/dm/rcs/templates/) |
-| `/dm/reviews/` | [http://localhost:3000/dm/reviews/](http://localhost:3000/dm/reviews/) |
-| `/dm/rx-slots/` | [http://localhost:3000/dm/rx-slots/](http://localhost:3000/dm/rx-slots/) |
-| `/dm/scheduled/` | [http://localhost:3000/dm/scheduled/](http://localhost:3000/dm/scheduled/) |
-| `/dm/search/` | [http://localhost:3000/dm/search/](http://localhost:3000/dm/search/) |
-| `/dm/service-ops/` | [http://localhost:3000/dm/service-ops/](http://localhost:3000/dm/service-ops/) |
-| `/dm/ses/` | [http://localhost:3000/dm/ses/](http://localhost:3000/dm/ses/) |
-| `/dm/ses/campaign/` | [http://localhost:3000/dm/ses/campaign/](http://localhost:3000/dm/ses/campaign/) |
-| `/dm/ses/inbox/` | [http://localhost:3000/dm/ses/inbox/](http://localhost:3000/dm/ses/inbox/) |
-| `/dm/ses/logs/` | [http://localhost:3000/dm/ses/logs/](http://localhost:3000/dm/ses/logs/) |
-| `/dm/settings/` | [http://localhost:3000/dm/settings/](http://localhost:3000/dm/settings/) |
-| `/dm/sms/` | [http://localhost:3000/dm/sms/](http://localhost:3000/dm/sms/) |
-| `/dm/voice-in/` | [http://localhost:3000/dm/voice-in/](http://localhost:3000/dm/voice-in/) |
-| `/dm/voice/` | [http://localhost:3000/dm/voice/](http://localhost:3000/dm/voice/) |
-| `/dm/whatsapp/` | [http://localhost:3000/dm/whatsapp/](http://localhost:3000/dm/whatsapp/) |
-| `/dm/whatsapp/ai-agent/` | [http://localhost:3000/dm/whatsapp/ai-agent/](http://localhost:3000/dm/whatsapp/ai-agent/) |
-| `/dm/whatsapp/auto-response/` | [http://localhost:3000/dm/whatsapp/auto-response/](http://localhost:3000/dm/whatsapp/auto-response/) |
-| `/dm/whatsapp/bsuid/` | [http://localhost:3000/dm/whatsapp/bsuid/](http://localhost:3000/dm/whatsapp/bsuid/) |
-| `/dm/whatsapp/business-profile/` | [http://localhost:3000/dm/whatsapp/business-profile/](http://localhost:3000/dm/whatsapp/business-profile/) |
-| `/dm/whatsapp/calling/` | [http://localhost:3000/dm/whatsapp/calling/](http://localhost:3000/dm/whatsapp/calling/) |
-| `/dm/whatsapp/campaign/` | [http://localhost:3000/dm/whatsapp/campaign/](http://localhost:3000/dm/whatsapp/campaign/) |
-| `/dm/whatsapp/catalog-builder/` | [http://localhost:3000/dm/whatsapp/catalog-builder/](http://localhost:3000/dm/whatsapp/catalog-builder/) |
-| `/dm/whatsapp/connected-accounts/` | [http://localhost:3000/dm/whatsapp/connected-accounts/](http://localhost:3000/dm/whatsapp/connected-accounts/) |
-| `/dm/whatsapp/conversions-api/` | [http://localhost:3000/dm/whatsapp/conversions-api/](http://localhost:3000/dm/whatsapp/conversions-api/) |
-| `/dm/whatsapp/cost-controls/` | [http://localhost:3000/dm/whatsapp/cost-controls/](http://localhost:3000/dm/whatsapp/cost-controls/) |
-| `/dm/whatsapp/ctwa-ads/` | [http://localhost:3000/dm/whatsapp/ctwa-ads/](http://localhost:3000/dm/whatsapp/ctwa-ads/) |
-| `/dm/whatsapp/embedded-signup/` | [http://localhost:3000/dm/whatsapp/embedded-signup/](http://localhost:3000/dm/whatsapp/embedded-signup/) |
-| `/dm/whatsapp/flow-hub/` | [http://localhost:3000/dm/whatsapp/flow-hub/](http://localhost:3000/dm/whatsapp/flow-hub/) |
-| `/dm/whatsapp/flow-publish/` | [http://localhost:3000/dm/whatsapp/flow-publish/](http://localhost:3000/dm/whatsapp/flow-publish/) |
-| `/dm/whatsapp/flow-responses/` | [http://localhost:3000/dm/whatsapp/flow-responses/](http://localhost:3000/dm/whatsapp/flow-responses/) |
-| `/dm/whatsapp/flows/` | [http://localhost:3000/dm/whatsapp/flows/](http://localhost:3000/dm/whatsapp/flows/) |
-| `/dm/whatsapp/groups/` | [http://localhost:3000/dm/whatsapp/groups/](http://localhost:3000/dm/whatsapp/groups/) |
-| `/dm/whatsapp/inbox/` | [http://localhost:3000/dm/whatsapp/inbox/](http://localhost:3000/dm/whatsapp/inbox/) |
-| `/dm/whatsapp/interactive-lists/` | [http://localhost:3000/dm/whatsapp/interactive-lists/](http://localhost:3000/dm/whatsapp/interactive-lists/) |
-| `/dm/whatsapp/logs/` | [http://localhost:3000/dm/whatsapp/logs/](http://localhost:3000/dm/whatsapp/logs/) |
-| `/dm/whatsapp/migration/` | [http://localhost:3000/dm/whatsapp/migration/](http://localhost:3000/dm/whatsapp/migration/) |
-| `/dm/whatsapp/my-account/` | [http://localhost:3000/dm/whatsapp/my-account/](http://localhost:3000/dm/whatsapp/my-account/) |
-| `/dm/whatsapp/scripts/` | [http://localhost:3000/dm/whatsapp/scripts/](http://localhost:3000/dm/whatsapp/scripts/) |
-| `/dm/whatsapp/send-test/` | [http://localhost:3000/dm/whatsapp/send-test/](http://localhost:3000/dm/whatsapp/send-test/) |
-| `/dm/whatsapp/settings/` | [http://localhost:3000/dm/whatsapp/settings/](http://localhost:3000/dm/whatsapp/settings/) |
-| `/dm/whatsapp/tech-partner/` | [http://localhost:3000/dm/whatsapp/tech-partner/](http://localhost:3000/dm/whatsapp/tech-partner/) |
-| `/dm/whatsapp/template-builder/` | [http://localhost:3000/dm/whatsapp/template-builder/](http://localhost:3000/dm/whatsapp/template-builder/) |
-| `/dm/whatsapp/templates/` | [http://localhost:3000/dm/whatsapp/templates/](http://localhost:3000/dm/whatsapp/templates/) |
-| `/dm/whatsapp/waba-dashboard/` | [http://localhost:3000/dm/whatsapp/waba-dashboard/](http://localhost:3000/dm/whatsapp/waba-dashboard/) |
-| `/dm/whatsapp/webhooks/` | [http://localhost:3000/dm/whatsapp/webhooks/](http://localhost:3000/dm/whatsapp/webhooks/) |
-| `/dm/whatsapp/welcome/` | [http://localhost:3000/dm/whatsapp/welcome/](http://localhost:3000/dm/whatsapp/welcome/) |
+| `[retired public path 2de923b8]/` | [http://localhost:3000/dm/](http://localhost:3000/dm/) |
+| `[retired public path 2de923b8]/analytics/` | [http://localhost:3000/dm/analytics/](http://localhost:3000/dm/analytics/) |
+| `[retired public path 2de923b8]/appointments/` | [http://localhost:3000/dm/appointments/](http://localhost:3000/dm/appointments/) |
+| `[retired public path 2de923b8]/automation/` | [http://localhost:3000/dm/automation/](http://localhost:3000/dm/automation/) |
+| `[retired public path 2de923b8]/broadcast/` | [http://localhost:3000/dm/broadcast/](http://localhost:3000/dm/broadcast/) |
+| `[retired public path 2de923b8]/calls/` | [http://localhost:3000/dm/calls/](http://localhost:3000/dm/calls/) |
+| `[retired public path 2de923b8]/channels/` | [http://localhost:3000/dm/channels/](http://localhost:3000/dm/channels/) |
+| `[retired public path 2de923b8]/commerce/` | [http://localhost:3000/dm/commerce/](http://localhost:3000/dm/commerce/) |
+| `[retired public path 2de923b8]/contact-360/` | [http://localhost:3000/dm/contact-360/](http://localhost:3000/dm/contact-360/) |
+| `[retired public path 2de923b8]/content/` | [http://localhost:3000/dm/content/](http://localhost:3000/dm/content/) |
+| `[retired public path 2de923b8]/cost/` | [http://localhost:3000/dm/cost/](http://localhost:3000/dm/cost/) |
+| `[retired public path 2de923b8]/docs/` | [http://localhost:3000/dm/docs/](http://localhost:3000/dm/docs/) |
+| `[retired public path 2de923b8]/documents/` | [http://localhost:3000/dm/documents/](http://localhost:3000/dm/documents/) |
+| `[retired public path 2de923b8]/enterprise/` | [http://localhost:3000/dm/enterprise/](http://localhost:3000/dm/enterprise/) |
+| `[retired public path 2de923b8]/faq/` | [http://localhost:3000/dm/faq/](http://localhost:3000/dm/faq/) |
+| `[retired public path 2de923b8]/inbox/` | [http://localhost:3000/dm/inbox/](http://localhost:3000/dm/inbox/) |
+| `[retired public path 2de923b8]/logs/` | [http://localhost:3000/dm/logs/](http://localhost:3000/dm/logs/) |
+| `[retired public path 2de923b8]/meta-agent/` | [http://localhost:3000/dm/meta-agent/](http://localhost:3000/dm/meta-agent/) |
+| `[retired public path 2de923b8]/orders/` | [http://localhost:3000/dm/orders/](http://localhost:3000/dm/orders/) |
+| `[retired public path 2de923b8]/push/` | [http://localhost:3000/dm/push/](http://localhost:3000/dm/push/) |
+| `[retired public path 2de923b8]/rcs/` | [http://localhost:3000/dm/rcs/](http://localhost:3000/dm/rcs/) |
+| `[retired public path 2de923b8]/rcs/campaign/` | [http://localhost:3000/dm/rcs/campaign/](http://localhost:3000/dm/rcs/campaign/) |
+| `[retired public path 2de923b8]/rcs/inbox/` | [http://localhost:3000/dm/rcs/inbox/](http://localhost:3000/dm/rcs/inbox/) |
+| `[retired public path 2de923b8]/rcs/logs/` | [http://localhost:3000/dm/rcs/logs/](http://localhost:3000/dm/rcs/logs/) |
+| `[retired public path 2de923b8]/rcs/send/` | [http://localhost:3000/dm/rcs/send/](http://localhost:3000/dm/rcs/send/) |
+| `[retired public path 2de923b8]/rcs/templates/` | [http://localhost:3000/dm/rcs/templates/](http://localhost:3000/dm/rcs/templates/) |
+| `[retired public path 2de923b8]/reviews/` | [http://localhost:3000/dm/reviews/](http://localhost:3000/dm/reviews/) |
+| `[retired public path 2de923b8]/rx-slots/` | [http://localhost:3000/dm/rx-slots/](http://localhost:3000/dm/rx-slots/) |
+| `[retired public path 2de923b8]/scheduled/` | [http://localhost:3000/dm/scheduled/](http://localhost:3000/dm/scheduled/) |
+| `[retired public path 2de923b8]/search/` | [http://localhost:3000/dm/search/](http://localhost:3000/dm/search/) |
+| `[retired public path 2de923b8]/service-ops/` | [http://localhost:3000/dm/service-ops/](http://localhost:3000/dm/service-ops/) |
+| `[retired public path 2de923b8]/ses/` | [http://localhost:3000/dm/ses/](http://localhost:3000/dm/ses/) |
+| `[retired public path 2de923b8]/ses/campaign/` | [http://localhost:3000/dm/ses/campaign/](http://localhost:3000/dm/ses/campaign/) |
+| `[retired public path 2de923b8]/ses/inbox/` | [http://localhost:3000/dm/ses/inbox/](http://localhost:3000/dm/ses/inbox/) |
+| `[retired public path 2de923b8]/ses/logs/` | [http://localhost:3000/dm/ses/logs/](http://localhost:3000/dm/ses/logs/) |
+| `[retired public path 2de923b8]/settings/` | [http://localhost:3000/dm/settings/](http://localhost:3000/dm/settings/) |
+| `[retired public path 2de923b8]/sms/` | [http://localhost:3000/dm/sms/](http://localhost:3000/dm/sms/) |
+| `[retired public path 2de923b8]/voice-in/` | [http://localhost:3000/dm/voice-in/](http://localhost:3000/dm/voice-in/) |
+| `[retired public path 2de923b8]/voice/` | [http://localhost:3000/dm/voice/](http://localhost:3000/dm/voice/) |
+| `[retired public path 2de923b8]/whatsapp/` | [http://localhost:3000/dm/whatsapp/](http://localhost:3000/dm/whatsapp/) |
+| `[retired public path 2de923b8]/whatsapp/ai-agent/` | [http://localhost:3000/dm/whatsapp/ai-agent/](http://localhost:3000/dm/whatsapp/ai-agent/) |
+| `[retired public path 2de923b8]/whatsapp/auto-response/` | [http://localhost:3000/dm/whatsapp/auto-response/](http://localhost:3000/dm/whatsapp/auto-response/) |
+| `[retired public path 2de923b8]/whatsapp/bsuid/` | [http://localhost:3000/dm/whatsapp/bsuid/](http://localhost:3000/dm/whatsapp/bsuid/) |
+| `[retired public path 2de923b8]/whatsapp/business-profile/` | [http://localhost:3000/dm/whatsapp/business-profile/](http://localhost:3000/dm/whatsapp/business-profile/) |
+| `[retired public path 2de923b8]/whatsapp/calling/` | [http://localhost:3000/dm/whatsapp/calling/](http://localhost:3000/dm/whatsapp/calling/) |
+| `[retired public path 2de923b8]/whatsapp/campaign/` | [http://localhost:3000/dm/whatsapp/campaign/](http://localhost:3000/dm/whatsapp/campaign/) |
+| `[retired public path 2de923b8]/whatsapp/catalog-builder/` | [http://localhost:3000/dm/whatsapp/catalog-builder/](http://localhost:3000/dm/whatsapp/catalog-builder/) |
+| `[retired public path 2de923b8]/whatsapp/connected-accounts/` | [http://localhost:3000/dm/whatsapp/connected-accounts/](http://localhost:3000/dm/whatsapp/connected-accounts/) |
+| `[retired public path 2de923b8]/whatsapp/conversions-api/` | [http://localhost:3000/dm/whatsapp/conversions-api/](http://localhost:3000/dm/whatsapp/conversions-api/) |
+| `[retired public path 2de923b8]/whatsapp/cost-controls/` | [http://localhost:3000/dm/whatsapp/cost-controls/](http://localhost:3000/dm/whatsapp/cost-controls/) |
+| `[retired public path 2de923b8]/whatsapp/ctwa-ads/` | [http://localhost:3000/dm/whatsapp/ctwa-ads/](http://localhost:3000/dm/whatsapp/ctwa-ads/) |
+| `[retired public path 2de923b8]/whatsapp/embedded-signup/` | [http://localhost:3000/dm/whatsapp/embedded-signup/](http://localhost:3000/dm/whatsapp/embedded-signup/) |
+| `[retired public path 2de923b8]/whatsapp/flow-hub/` | [http://localhost:3000/dm/whatsapp/flow-hub/](http://localhost:3000/dm/whatsapp/flow-hub/) |
+| `[retired public path 2de923b8]/whatsapp/flow-publish/` | [http://localhost:3000/dm/whatsapp/flow-publish/](http://localhost:3000/dm/whatsapp/flow-publish/) |
+| `[retired public path 2de923b8]/whatsapp/flow-responses/` | [http://localhost:3000/dm/whatsapp/flow-responses/](http://localhost:3000/dm/whatsapp/flow-responses/) |
+| `[retired public path 2de923b8]/whatsapp/flows/` | [http://localhost:3000/dm/whatsapp/flows/](http://localhost:3000/dm/whatsapp/flows/) |
+| `[retired public path 2de923b8]/whatsapp/groups/` | [http://localhost:3000/dm/whatsapp/groups/](http://localhost:3000/dm/whatsapp/groups/) |
+| `[retired public path 2de923b8]/whatsapp/inbox/` | [http://localhost:3000/dm/whatsapp/inbox/](http://localhost:3000/dm/whatsapp/inbox/) |
+| `[retired public path 2de923b8]/whatsapp/interactive-lists/` | [http://localhost:3000/dm/whatsapp/interactive-lists/](http://localhost:3000/dm/whatsapp/interactive-lists/) |
+| `[retired public path 2de923b8]/whatsapp/logs/` | [http://localhost:3000/dm/whatsapp/logs/](http://localhost:3000/dm/whatsapp/logs/) |
+| `[retired public path 2de923b8]/whatsapp/migration/` | [http://localhost:3000/dm/whatsapp/migration/](http://localhost:3000/dm/whatsapp/migration/) |
+| `[retired public path 2de923b8]/whatsapp/my-account/` | [http://localhost:3000/dm/whatsapp/my-account/](http://localhost:3000/dm/whatsapp/my-account/) |
+| `[retired public path 2de923b8]/whatsapp/scripts/` | [http://localhost:3000/dm/whatsapp/scripts/](http://localhost:3000/dm/whatsapp/scripts/) |
+| `[retired public path 2de923b8]/whatsapp/send-test/` | [http://localhost:3000/dm/whatsapp/send-test/](http://localhost:3000/dm/whatsapp/send-test/) |
+| `[retired public path 2de923b8]/whatsapp/settings/` | [http://localhost:3000/dm/whatsapp/settings/](http://localhost:3000/dm/whatsapp/settings/) |
+| `[retired public path 2de923b8]/whatsapp/tech-partner/` | [http://localhost:3000/dm/whatsapp/tech-partner/](http://localhost:3000/dm/whatsapp/tech-partner/) |
+| `[retired public path 2de923b8]/whatsapp/template-builder/` | [http://localhost:3000/dm/whatsapp/template-builder/](http://localhost:3000/dm/whatsapp/template-builder/) |
+| `[retired public path 2de923b8]/whatsapp/templates/` | [http://localhost:3000/dm/whatsapp/templates/](http://localhost:3000/dm/whatsapp/templates/) |
+| `[retired public path 2de923b8]/whatsapp/waba-dashboard/` | [http://localhost:3000/dm/whatsapp/waba-dashboard/](http://localhost:3000/dm/whatsapp/waba-dashboard/) |
+| `[retired public path 2de923b8]/whatsapp/webhooks/` | [http://localhost:3000/dm/whatsapp/webhooks/](http://localhost:3000/dm/whatsapp/webhooks/) |
+| `[retired public path 2de923b8]/whatsapp/welcome/` | [http://localhost:3000/dm/whatsapp/welcome/](http://localhost:3000/dm/whatsapp/welcome/) |
 
 ### seo (13)
 
 | Route | Open locally |
 | --- | --- |
-| `/seo/` | [http://localhost:3000/seo/](http://localhost:3000/seo/) |
-| `/seo/InstructionsContent/` | [http://localhost:3000/seo/InstructionsContent/](http://localhost:3000/seo/InstructionsContent/) |
-| `/seo/analytics/` | [http://localhost:3000/seo/analytics/](http://localhost:3000/seo/analytics/) |
-| `/seo/blog-manager/` | [http://localhost:3000/seo/blog-manager/](http://localhost:3000/seo/blog-manager/) |
-| `/seo/issues/` | [http://localhost:3000/seo/issues/](http://localhost:3000/seo/issues/) |
-| `/seo/page/[id]/` | [http://localhost:3000/seo/page/[id]/](http://localhost:3000/seo/page/[id]/) |
-| `/seo/pages-manager/` | [http://localhost:3000/seo/pages-manager/](http://localhost:3000/seo/pages-manager/) |
-| `/seo/pages/` | [http://localhost:3000/seo/pages/](http://localhost:3000/seo/pages/) |
-| `/seo/properties/` | [http://localhost:3000/seo/properties/](http://localhost:3000/seo/properties/) |
-| `/seo/schema/` | [http://localhost:3000/seo/schema/](http://localhost:3000/seo/schema/) |
-| `/seo/sitemaps/` | [http://localhost:3000/seo/sitemaps/](http://localhost:3000/seo/sitemaps/) |
-| `/seo/tools/` | [http://localhost:3000/seo/tools/](http://localhost:3000/seo/tools/) |
-| `/seo/tracking/` | [http://localhost:3000/seo/tracking/](http://localhost:3000/seo/tracking/) |
+| `[retired public path 9463c8d8]/` | [http://localhost:3000/seo/](http://localhost:3000/seo/) |
+| `[retired public path 9463c8d8]/InstructionsContent/` | [http://localhost:3000/seo/InstructionsContent/](http://localhost:3000/seo/InstructionsContent/) |
+| `[retired public path 9463c8d8]/analytics/` | [http://localhost:3000/seo/analytics/](http://localhost:3000/seo/analytics/) |
+| `[retired public path 9463c8d8]/blog-manager/` | [http://localhost:3000/seo/blog-manager/](http://localhost:3000/seo/blog-manager/) |
+| `[retired public path 9463c8d8]/issues/` | [http://localhost:3000/seo/issues/](http://localhost:3000/seo/issues/) |
+| `[retired public path 9463c8d8]/page/[id]/` | [http://localhost:3000/seo/page/[id]/](http://localhost:3000/seo/page/[id]/) |
+| `[retired public path 9463c8d8]/pages-manager/` | [http://localhost:3000/seo/pages-manager/](http://localhost:3000/seo/pages-manager/) |
+| `[retired public path 9463c8d8]/pages/` | [http://localhost:3000/seo/pages/](http://localhost:3000/seo/pages/) |
+| `[retired public path 9463c8d8]/properties/` | [http://localhost:3000/seo/properties/](http://localhost:3000/seo/properties/) |
+| `[retired public path 9463c8d8]/schema/` | [http://localhost:3000/seo/schema/](http://localhost:3000/seo/schema/) |
+| `[retired public path 9463c8d8]/sitemaps/` | [http://localhost:3000/seo/sitemaps/](http://localhost:3000/seo/sitemaps/) |
+| `[retired public path 9463c8d8]/tools/` | [http://localhost:3000/seo/tools/](http://localhost:3000/seo/tools/) |
+| `[retired public path 9463c8d8]/tracking/` | [http://localhost:3000/seo/tracking/](http://localhost:3000/seo/tracking/) |
 
 ### dashboard (8)
 
 | Route | Open locally |
 | --- | --- |
-| `/dashboard/` | [http://localhost:3000/dashboard/](http://localhost:3000/dashboard/) |
-| `/dashboard/code-repo/` | [http://localhost:3000/dashboard/code-repo/](http://localhost:3000/dashboard/code-repo/) |
-| `/dashboard/cors-settings/` | [http://localhost:3000/dashboard/cors-settings/](http://localhost:3000/dashboard/cors-settings/) |
-| `/dashboard/design-reference/` | [http://localhost:3000/dashboard/design-reference/](http://localhost:3000/dashboard/design-reference/) |
-| `/dashboard/lambda-functions/` | [http://localhost:3000/dashboard/lambda-functions/](http://localhost:3000/dashboard/lambda-functions/) |
-| `/dashboard/system-architecture/` | [http://localhost:3000/dashboard/system-architecture/](http://localhost:3000/dashboard/system-architecture/) |
-| `/dashboard/wa-graph-tools/` | [http://localhost:3000/dashboard/wa-graph-tools/](http://localhost:3000/dashboard/wa-graph-tools/) |
-| `/dashboard/waba-usernames/` | [http://localhost:3000/dashboard/waba-usernames/](http://localhost:3000/dashboard/waba-usernames/) |
+| `[retired public path 89347bb2]/` | [http://localhost:3000/dashboard/](http://localhost:3000/dashboard/) |
+| `[retired public path 89347bb2]/code-repo/` | [http://localhost:3000/dashboard/code-repo/](http://localhost:3000/dashboard/code-repo/) |
+| `[retired public path 89347bb2]/cors-settings/` | [http://localhost:3000/dashboard/cors-settings/](http://localhost:3000/dashboard/cors-settings/) |
+| `[retired public path 89347bb2]/design-reference/` | [http://localhost:3000/dashboard/design-reference/](http://localhost:3000/dashboard/design-reference/) |
+| `[retired public path 89347bb2]/lambda-functions/` | [http://localhost:3000/dashboard/lambda-functions/](http://localhost:3000/dashboard/lambda-functions/) |
+| `[retired public path 89347bb2]/system-architecture/` | [http://localhost:3000/dashboard/system-architecture/](http://localhost:3000/dashboard/system-architecture/) |
+| `[retired public path 89347bb2]/wa-graph-tools/` | [http://localhost:3000/dashboard/wa-graph-tools/](http://localhost:3000/dashboard/wa-graph-tools/) |
+| `[retired public path 89347bb2]/waba-usernames/` | [http://localhost:3000/dashboard/waba-usernames/](http://localhost:3000/dashboard/waba-usernames/) |
 
 ### forms (4)
 
 | Route | Open locally |
 | --- | --- |
-| `/forms/` | [http://localhost:3000/forms/](http://localhost:3000/forms/) |
-| `/forms/create/` | [http://localhost:3000/forms/create/](http://localhost:3000/forms/create/) |
-| `/forms/logs/` | [http://localhost:3000/forms/logs/](http://localhost:3000/forms/logs/) |
-| `/forms/selfservice/` | [http://localhost:3000/forms/selfservice/](http://localhost:3000/forms/selfservice/) |
+| `[retired public path 169e0fd8]/` | [http://localhost:3000/forms/](http://localhost:3000/forms/) |
+| `[retired public path 169e0fd8]/create/` | [http://localhost:3000/forms/create/](http://localhost:3000/forms/create/) |
+| `[retired public path 169e0fd8]/logs/` | [http://localhost:3000/forms/logs/](http://localhost:3000/forms/logs/) |
+| `[retired public path 169e0fd8]/selfservice/` | [http://localhost:3000/forms/selfservice/](http://localhost:3000/forms/selfservice/) |
 
 ### service (4)
 
 | Route | Open locally |
 | --- | --- |
-| `/service/` | [http://localhost:3000/service/](http://localhost:3000/service/) |
-| `/service/amend-request/` | [http://localhost:3000/service/amend-request/](http://localhost:3000/service/amend-request/) |
-| `/service/submit-request/` | [http://localhost:3000/service/submit-request/](http://localhost:3000/service/submit-request/) |
-| `/service/track-request/` | [http://localhost:3000/service/track-request/](http://localhost:3000/service/track-request/) |
+| `[retired public path 6b3a02b3]/` | [http://localhost:3000/service/](http://localhost:3000/service/) |
+| `[retired public path 6b3a02b3]/amend-request/` | [http://localhost:3000/service/amend-request/](http://localhost:3000/service/amend-request/) |
+| `[retired public path 6b3a02b3]/submit-request/` | [http://localhost:3000/service/submit-request/](http://localhost:3000/service/submit-request/) |
+| `[retired public path 6b3a02b3]/track-request/` | [http://localhost:3000/service/track-request/](http://localhost:3000/service/track-request/) |
 
 ### link (3)
 
 | Route | Open locally |
 | --- | --- |
-| `/link/` | [http://localhost:3000/link/](http://localhost:3000/link/) |
-| `/link/create/` | [http://localhost:3000/link/create/](http://localhost:3000/link/create/) |
-| `/link/logs/` | [http://localhost:3000/link/logs/](http://localhost:3000/link/logs/) |
+| `[retired public path 21d99b11]/` | [http://localhost:3000/link/](http://localhost:3000/link/) |
+| `[retired public path 21d99b11]/create/` | [http://localhost:3000/link/create/](http://localhost:3000/link/create/) |
+| `[retired public path 21d99b11]/logs/` | [http://localhost:3000/link/logs/](http://localhost:3000/link/logs/) |
 
 ### pay (3)
 
 | Route | Open locally |
 | --- | --- |
-| `/pay/` | [http://localhost:3000/pay/](http://localhost:3000/pay/) |
-| `/pay/flow/` | [http://localhost:3000/pay/flow/](http://localhost:3000/pay/flow/) |
-| `/pay/link/` | [http://localhost:3000/pay/link/](http://localhost:3000/pay/link/) |
+| `[retired public path 47a81ed9]/` | [http://localhost:3000/pay/](http://localhost:3000/pay/) |
+| `[retired public path 47a81ed9]/flow/` | [http://localhost:3000/pay/flow/](http://localhost:3000/pay/flow/) |
+| `[retired public path 47a81ed9]/link/` | [http://localhost:3000/pay/link/](http://localhost:3000/pay/link/) |
 
 ### _not-found (1)
 
@@ -192,13 +192,13 @@ Behind authentication. Listed so the set is reviewable, but none of these is pub
 
 | Route | Open locally |
 | --- | --- |
-| `/access/` | [http://localhost:3000/access/](http://localhost:3000/access/) |
+| `[retired public path ef531503]/` | [http://localhost:3000/access/](http://localhost:3000/access/) |
 
 ### admin (1)
 
 | Route | Open locally |
 | --- | --- |
-| `/admin/` | [http://localhost:3000/admin/](http://localhost:3000/admin/) |
+| `[retired public path 84a04c24]/` | [http://localhost:3000/admin/](http://localhost:3000/admin/) |
 
 ### carbon (1)
 
@@ -216,13 +216,13 @@ Behind authentication. Listed so the set is reviewable, but none of these is pub
 
 | Route | Open locally |
 | --- | --- |
-| `/contacts/` | [http://localhost:3000/contacts/](http://localhost:3000/contacts/) |
+| `[retired public path 44011e36]/` | [http://localhost:3000/contacts/](http://localhost:3000/contacts/) |
 
 ### docs (1)
 
 | Route | Open locally |
 | --- | --- |
-| `/docs/` | [http://localhost:3000/docs/](http://localhost:3000/docs/) |
+| `[retired public path a2557b8d]/` | [http://localhost:3000/docs/](http://localhost:3000/docs/) |
 
 ### nocode (1)
 
@@ -234,7 +234,7 @@ Behind authentication. Listed so the set is reviewable, but none of these is pub
 
 | Route | Open locally |
 | --- | --- |
-| `/settings/internal-agent/` | [http://localhost:3000/settings/internal-agent/](http://localhost:3000/settings/internal-agent/) |
+| `[retired public path 2c56bef4]/internal-agent/` | [http://localhost:3000/settings/internal-agent/](http://localhost:3000/settings/internal-agent/) |
 
 ### store (1)
 
@@ -246,5 +246,5 @@ Behind authentication. Listed so the set is reviewable, but none of these is pub
 
 | Route | Open locally |
 | --- | --- |
-| `/task/` | [http://localhost:3000/task/](http://localhost:3000/task/) |
+| `[retired public path 4eca21b3]/` | [http://localhost:3000/task/](http://localhost:3000/task/) |
 

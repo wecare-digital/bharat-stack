@@ -171,7 +171,7 @@ another customer's data.
 
 ## T7 — Tracking token guessing
 
-**Threat.** Reaching `/track/...` or `/billing/...` for somebody else's order.
+**Threat.** Reaching `[retired public path 282d0fd5]/...` or `/billing/...` for somebody else's order.
 
 **Controls.**
 

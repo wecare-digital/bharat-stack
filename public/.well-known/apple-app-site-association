@@ -5,10 +5,7 @@
       {
         "appID": "TEAM_ID.digital.wecare.stackcrm",
         "paths": [
-          "/dashboard/*",
-          "/dm/*",
-          "/contacts/*",
-          "/pay/*",
+          "/workspace/*",
           "/grahak-os",
           "/r/*",
           "/"

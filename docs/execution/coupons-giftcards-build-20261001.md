@@ -660,7 +660,7 @@ A re-run after the documentation step reported **5 failed**, all inside
 tests/test_url_host_routing_rules.py   5 FAILED   (the only file with any failure)
 ```
 
-They are about `/access` redirects, `www` canonicalisation and Amplify rewrite rules, asserted against
+They are about `[retired public path ef531503]` redirects, `www` canonicalisation and Amplify rewrite rules, asserted against
 `scripts/provision_legacy_redirects.py` — a URL-routing convergence that a **different session** is
 mid-way through. `HEAD` moved during this step (a commit landed between the two runs), which is the
 normal condition in this workspace.

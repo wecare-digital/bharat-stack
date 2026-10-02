@@ -1,5 +1,5 @@
 /**
- * Service Hub — /service
+ * Service Hub — [retired public path]
  * Landing page for all service modules with quick-access cards.
  */
 import React from 'react';

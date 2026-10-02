@@ -103,21 +103,21 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     resource = event.get('resource', event.get('rawPath', ''))
 
     try:
-        # GET /contacts/search?q=...
+        # GET [retired public path]/search?q=...
         if method == 'GET' and ('search' in resource or query_params.get('q')):
             return _search(query_params, request_id, origin)
 
-        # GET /contacts?stats=count — lightweight count-only (no full scan)
+        # GET [retired public path]?stats=count — lightweight count-only (no full scan)
         if method == 'GET' and query_params.get('stats') == 'count':
             return _count_active(request_id, origin)
 
-        # GET /contacts or GET /contacts/{id}
+        # GET [retired public path] or GET [retired public path]/{id}
         if method == 'GET':
             if contact_id:
                 return _read_one(contact_id, request_id, origin)
             return _list_all(query_params, request_id, origin)
 
-        # POST /contacts — Fix #14: rate limited
+        # POST [retired public path] — Fix #14: rate limited
         if method == 'POST':
             source_ip = (event.get('requestContext', {}).get('identity', {}) or {}).get('sourceIp', 'unknown')
             if _check_rate_limit(source_ip):
@@ -125,14 +125,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body = json.loads(event.get('body', '{}'))
             return _create(body, request_id, origin)
 
-        # PUT /contacts/{id}
+        # PUT [retired public path]/{id}
         if method == 'PUT':
             if not contact_id:
                 return cors_response(400, {'error': 'contactId is required'}, origin)
             body = json.loads(event.get('body', '{}'))
             return _update(contact_id, body, request_id, origin)
 
-        # DELETE /contacts/{id}
+        # DELETE [retired public path]/{id}
         if method == 'DELETE':
             if not contact_id:
                 return cors_response(400, {'error': 'contactId is required'}, origin)

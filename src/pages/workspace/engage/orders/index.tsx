@@ -1,5 +1,5 @@
 /**
- * Order Management Dashboard — /dm/orders
+ * Order Management Dashboard — [retired public path]/orders
  * ORDER-CENTRIC: Order ID is the central key across the system.
  * Shows all orders with linked submissions, payments, status history.
  * Supports: search, filter, detail panel, manual creation, Wix sync, status updates.

@@ -17,7 +17,7 @@ import { selfserviceBySlug } from '../content/selfservice';
  * with HTTP 200, and in PUBLIC_EXACT in scripts/generate-sitemap.js or it is never
  * advertised. trailingSlash means the URL is /leave-review/.
  *
- * PUBLIC, AND NOT /service/leave-review. That route exists and is authenticated by design — it
+ * PUBLIC, AND NOT [retired public path]/leave-review. That route exists and is authenticated by design — it
  * renders the dashboard Layout and reads a Cognito session. This page touches neither.
  */
 const LeaveReviewPage: React.FC = () => <ProductPage product={ selfserviceBySlug( 'leave-review' ) } />;
