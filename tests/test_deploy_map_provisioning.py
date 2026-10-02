@@ -83,10 +83,13 @@ def test_exactly_one_spec_is_awaiting_provisioning(deploy_module):
     # calls with a signed JWT. Never created, and it cannot be deployed by code update alone
     # because provision_gift_cards_roles.py is what attaches the version-pinned cryptography
     # layer its verifier imports.
+    # wecare-blog-subscribe added 2026-10-02: the public OTP-gated blog subscriber front door.
+    # It intentionally has its own least-privilege role/routes and must be first-created by
+    # provision_blog_subscribe.py before deploy-all can update its code.
     # Session infrastructure is owned by its CloudFormation template; an account
     # without that stack must provision it rather than report a code-update failure.
     assert waiting == ["wecare-customer-session", "wecare-customer-whatsapp-auth", "wecare-email-verification",
-                       "wecare-customer-registration", "wecare-checkout",
+                       "wecare-customer-registration", "wecare-blog-subscribe", "wecare-checkout",
                        "wecare-coupons", "wecare-gift-cards", "wecare-wix-giftcard-spi"]
 
 
