@@ -1,5 +1,5 @@
 /**
- * Reviews Admin Page — /dm/reviews
+ * Reviews Admin Page — [retired public path]/reviews
  * Moderation: approve/hide, filter by status/source/rating, detail panel
  */
 import React, { useState, useEffect, useCallback } from 'react';

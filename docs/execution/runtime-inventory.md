@@ -34,12 +34,12 @@ Every entry above is a documented exception.
 
 ### Routes whose integration is unqualified — bypasses the version/alias model
 
-- `zllr9lrg7j POST /docs/scrape -> wecare-docs-scraper`
+- `zllr9lrg7j POST [retired public path a2557b8d]/scrape -> wecare-docs-scraper`
 - `zllr9lrg7j ANY /seo-tools -> wecare-seo-tools`
-- `zllr9lrg7j GET /docs/sources -> wecare-docs-scraper`
+- `zllr9lrg7j GET [retired public path a2557b8d]/sources -> wecare-docs-scraper`
 - `zllr9lrg7j ANY /seo-tools/{proxy+} -> wecare-seo-tools`
-- `zllr9lrg7j GET /docs/changelog -> wecare-docs-scraper`
-- `zllr9lrg7j POST /docs/sources -> wecare-docs-scraper`
+- `zllr9lrg7j GET [retired public path a2557b8d]/changelog -> wecare-docs-scraper`
+- `zllr9lrg7j POST [retired public path a2557b8d]/sources -> wecare-docs-scraper`
 
 ### Routes pointing at a function that does not exist
 
@@ -88,7 +88,7 @@ Every entry above is a documented exception.
 - `/agent-tool`
 - `/ai/approvals/status`
 - `/bulk/worker`
-- `/contacts/search`
+- `[retired public path 44011e36]/search`
 - `/crm/activities`
 - `/crm/contacts/{contactId}/360`
 - `/crm/leads`

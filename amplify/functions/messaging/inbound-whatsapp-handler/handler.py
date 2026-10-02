@@ -1690,7 +1690,7 @@ def _process_message(
 
         # ── Slash-command normalization (WhatsApp Conversational Components) ──
         # A configured command can be tapped OR typed with arguments/trailing
-        # text, e.g. "/pay 500", "/menu ", "/imagine cars". Meta delivers the
+        # text, e.g. "[retired public path] 500", "/menu ", "/imagine cars". Meta delivers the
         # FULL body. Collapse a KNOWN "/command [args]" to just the command
         # token so it reliably routes to the same handler as the bare command.
         # Unknown "/foo" is left intact so free-form input still reaches the AI.
@@ -1973,7 +1973,7 @@ def _process_message(
             _send_followup_buttons(contact_id, aws_phone_number_id, request_id)
             return
 
-        # ── Ice breaker: "Selfservice" / "/selfservice" ──
+        # ── Ice breaker: "Selfservice" / "[retired public path]" ──
         # THE KEYWORDS STAY, THE SECOND MENU GOES. `Selfservice` is a live ice
         # breaker and `selfservice` a live slash command on BOTH numbers (read
         # off Meta's conversational_automation on 2026-09-26), so dropping the
@@ -2015,7 +2015,7 @@ def _process_message(
             # Only `menu`, `subscribe`, `selfservice` and `pay` are registered as
             # tappable commands on Meta (both numbers, verified 2026-09-26).
             # `/bharatstack` and `/help` work when typed but cannot be tapped,
-            # so they are listed last. `/selfservice` no longer opens a second
+            # so they are listed last. `[retired public path]` no longer opens a second
             # menu — say so rather than implying there are two.
             commands_text = (
                 "*Available Commands*\n\n"
@@ -2044,7 +2044,7 @@ def _process_message(
         # ── Keyword: "faq" / "faqs" / "help" / "questions" ──
         FAQ_KEYWORDS = {'faq', 'faqs', 'help', 'questions', 'common questions', '\u2753 faqs'}
         if content_lower in FAQ_KEYWORDS:
-            _send_cta_button(contact_id, aws_phone_number_id, 'FAQs', 'https://wecare.digital/faq', request_id)
+            _send_cta_button(contact_id, aws_phone_number_id, 'FAQs', 'https://wecare.digital/contact/', request_id)
             return
 
         # ── Keyword: "about" / "about us" / "about wecare" ──
@@ -5191,7 +5191,7 @@ def _send_help_about(contact_id: str, phone_number_id: str, request_id: str) -> 
         "Prefer to talk? Call +91 9330994400 or email one@wecare.digital.\n\n"
         "Tap below for the full FAQ page. \U0001f447"
     )
-    _send_cta_button(contact_id, phone_number_id, 'Open FAQs', 'https://wecare.digital/faq', request_id,
+    _send_cta_button(contact_id, phone_number_id, 'Open FAQs', 'https://wecare.digital/contact/', request_id,
         body_text=help_text,
         footer_text='WECARE.DIGITAL')
     _send_followup_buttons(contact_id, phone_number_id, request_id)
@@ -6795,7 +6795,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
     # Each sends ONE interactive CTA message with body + button + footer
     # Then followup reply buttons as second message
     if action == '_cta_faq':
-        _send_cta_button(contact_id, phone_number_id, 'Open FAQs', 'https://wecare.digital/faq', request_id,
+        _send_cta_button(contact_id, phone_number_id, 'Open FAQs', 'https://wecare.digital/contact/', request_id,
             body_text="Find quick answers about requests, payments, appointments, business hours, the app, and more.\n\nTap below to open the FAQ page. \U0001f447",
             footer_text='WECARE.DIGITAL')
         _send_followup_buttons(contact_id, phone_number_id, request_id)
@@ -7185,7 +7185,7 @@ def _get_bharat_stack_menu() -> Dict:
 
 
 # ── RETIRED: the self-service sub-menu ─────────────────────────────────────
-# Folded into DEFAULT_ONE_MENU. Nothing sends this: `/selfservice`, the
+# Folded into DEFAULT_ONE_MENU. Nothing sends this: `[retired public path]`, the
 # `Selfservice` ice breaker and the `menu_selfservice` row all open the one menu
 # now. Kept for the one-line revert only; deleted in step 6 of the build order.
 DEFAULT_SELFSERVICE_MENU = {
@@ -7618,7 +7618,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 contact_id=contact_id,
                 phone_number_id=phone_number_id,
                 cta_text=cta.get('text', 'Start Now'),
-                cta_url=cta.get('url', 'https://wecare.digital/selfservice'),
+                cta_url=cta.get('url', 'https://wecare.digital/submit-request/'),
                 request_id=request_id
             )
 

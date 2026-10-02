@@ -99,7 +99,7 @@ Verdict key: **OK** = not in any restricted set, verified against the changelog 
 | `DELETE /{media-id}` | retention cleanup | `media-cleanup`, `whatsapp-business-api` | **OK** |
 | `GET /{phone-number-id}` (`display_phone_number`, `verified_name`, `quality_rating`, `status`, `messaging_limit_tier`, `is_official_business_account`, `name_status`, `code_verification_status`) | number health | `whatsapp-business-api`, `meta-analytics`, `meta-business-agent`, `partner-onboarding` | **OK** |
 | `GET\|POST /{phone-number-id}/whatsapp_business_profile` | business profile | `whatsapp-business-api` | **OK** |
-| `GET\|POST /{phone-number-id}/settings` | number settings | `whatsapp-business-api` | **OK** |
+| `GET\|POST /{phone-number-id}[retired public path 2c56bef4]` | number settings | `whatsapp-business-api` | **OK** |
 | `GET\|POST\|DELETE /{phone-number-id}/block_users` | block / unblock | `whatsapp-business-api`, `outbound-whatsapp` | **OK** |
 | `DELETE /{phone-number-id}/contact_book` | contact book delete | `whatsapp-business-api` | **OK** |
 | `GET\|POST\|DELETE /{phone-number-id}/username`, `GET …/username_suggestions` | username lifecycle | `whatsapp-business-api` | **OK** |

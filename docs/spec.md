@@ -434,7 +434,7 @@ path (`/post/[slug]`), 19 do not. There is no page-composition system.
 1. New: `/register`, `/verify/phone`, `/verify/email`, `/profile/setup`, `/address/setup`,
    `/account*`, `/shop`, `/shop/[category]`, `/product/[slug]`, `/blog/category/[slug]`,
    `/blog/tag/[slug]`, `/cart`, `/checkout`, `/orders/[orderNumber]`,
-   `/track/[trackingToken]`, `/billing/[trackingToken]`.
+   `[retired public path 282d0fd5]/[trackingToken]`, `/billing/[trackingToken]`.
 2. **Every new public route SHALL be added to the allowlist in `src/pages/_app.tsx`.** A
    public page absent from it renders an empty body with HTTP 200 — a 404 that does not look
    like one. `src/test/PublicRouteRegistration.test.ts` SHALL be extended to cover each.
@@ -444,7 +444,7 @@ path (`/post/[slug]`), 19 do not. There is no page-composition system.
 4. `/blog/[slug]` SHALL be reconciled with the live `/post/[slug]`. Whichever becomes
    canonical, the other SHALL 301 via an Amplify custom rule — redirects live there, not in
    `next.config.js`, because a static export emits no server redirects.
-5. Token-bearing routes (`/track/*`, `/billing/*`) SHALL be `noindex` and SHALL NOT appear in
+5. Token-bearing routes (`[retired public path 282d0fd5]/*`, `/billing/*`) SHALL be `noindex` and SHALL NOT appear in
    the sitemap.
 
 ## PUB-5 — Mobile-first, responsive

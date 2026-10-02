@@ -828,6 +828,7 @@ def package() -> bytes:
         z.write(shim, "seo_tools_handler.py")
         for f in sorted(seo_dir.glob("*.py")):
             z.write(f, f"operations/seo-tools/{f.name}")
+        z.write(ROOT / "config" / "public-pages.json", "operations/seo-tools/public-pages.json")
         for f in sorted(lambda_utils.glob("*.py")):
             z.write(f, f"shared/lambda_utils/{f.name}")
         skb = FUNCTIONS_DIR / "shared" / "static_knowledge_base.py"

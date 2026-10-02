@@ -1,5 +1,5 @@
 /**
- * Amend Request — /service/amend-request
+ * Amend Request — [retired public path]/amend-request
  * Order-centric amendment: select order → find linked requests → amend → track.
  */
 import React, { useState, useEffect, useCallback } from 'react';

@@ -20,22 +20,22 @@
                 "status": "301"
             },
             {
-                "source": "/selfservice",
+                "source": "[retired public path b180810d]",
                 "target": "/submit-request/",
                 "status": "301"
             },
             {
-                "source": "/selfservice/",
+                "source": "[retired public path b180810d]/",
                 "target": "/submit-request/",
                 "status": "301"
             },
             {
-                "source": "/track",
+                "source": "[retired public path 282d0fd5]",
                 "target": "/orders/",
                 "status": "301"
             },
             {
-                "source": "/track/",
+                "source": "[retired public path 282d0fd5]/",
                 "target": "/orders/",
                 "status": "301"
             },
@@ -130,12 +130,12 @@
                 "status": "301"
             },
             {
-                "source": "/my-order",
+                "source": "[retired public path aaee9dd4]",
                 "target": "/orders/",
                 "status": "301"
             },
             {
-                "source": "/my-order/",
+                "source": "[retired public path aaee9dd4]/",
                 "target": "/orders/",
                 "status": "301"
             },
@@ -150,397 +150,397 @@
                 "status": "301"
             },
             {
-                "source": "/dm/calls",
+                "source": "[retired public path 2de923b8]/calls",
                 "target": "/workspace/engage/inbox/?channel=voice",
                 "status": "301"
             },
             {
-                "source": "/dm/calls/",
+                "source": "[retired public path 2de923b8]/calls/",
                 "target": "/workspace/engage/inbox/?channel=voice",
                 "status": "301"
             },
             {
-                "source": "/dm/rcs/inbox",
+                "source": "[retired public path 2de923b8]/rcs/inbox",
                 "target": "/workspace/engage/inbox/?channel=rcs",
                 "status": "301"
             },
             {
-                "source": "/dm/rcs/inbox/",
+                "source": "[retired public path 2de923b8]/rcs/inbox/",
                 "target": "/workspace/engage/inbox/?channel=rcs",
                 "status": "301"
             },
             {
-                "source": "/dm/ses/inbox",
+                "source": "[retired public path 2de923b8]/ses/inbox",
                 "target": "/workspace/engage/inbox/?channel=email",
                 "status": "301"
             },
             {
-                "source": "/dm/ses/inbox/",
+                "source": "[retired public path 2de923b8]/ses/inbox/",
                 "target": "/workspace/engage/inbox/?channel=email",
                 "status": "301"
             },
             {
-                "source": "/dm/whatsapp/logs",
+                "source": "[retired public path 2de923b8]/whatsapp/logs",
                 "target": "/workspace/engage/logs/?channel=whatsapp",
                 "status": "301"
             },
             {
-                "source": "/dm/whatsapp/logs/",
+                "source": "[retired public path 2de923b8]/whatsapp/logs/",
                 "target": "/workspace/engage/logs/?channel=whatsapp",
                 "status": "301"
             },
             {
-                "source": "/dm/rcs/logs",
+                "source": "[retired public path 2de923b8]/rcs/logs",
                 "target": "/workspace/engage/logs/?channel=rcs",
                 "status": "301"
             },
             {
-                "source": "/dm/rcs/logs/",
+                "source": "[retired public path 2de923b8]/rcs/logs/",
                 "target": "/workspace/engage/logs/?channel=rcs",
                 "status": "301"
             },
             {
-                "source": "/dm/ses/logs",
+                "source": "[retired public path 2de923b8]/ses/logs",
                 "target": "/workspace/engage/logs/?channel=email",
                 "status": "301"
             },
             {
-                "source": "/dm/ses/logs/",
+                "source": "[retired public path 2de923b8]/ses/logs/",
                 "target": "/workspace/engage/logs/?channel=email",
                 "status": "301"
             },
             {
-                "source": "/dm/rcs/campaign",
+                "source": "[retired public path 2de923b8]/rcs/campaign",
                 "target": "/workspace/engage/broadcast/",
                 "status": "301"
             },
             {
-                "source": "/dm/rcs/campaign/",
+                "source": "[retired public path 2de923b8]/rcs/campaign/",
                 "target": "/workspace/engage/broadcast/",
                 "status": "301"
             },
             {
-                "source": "/dm/ses/campaign",
+                "source": "[retired public path 2de923b8]/ses/campaign",
                 "target": "/workspace/engage/broadcast/",
                 "status": "301"
             },
             {
-                "source": "/dm/ses/campaign/",
+                "source": "[retired public path 2de923b8]/ses/campaign/",
                 "target": "/workspace/engage/broadcast/",
                 "status": "301"
             },
             {
-                "source": "/dm",
+                "source": "[retired public path 2de923b8]",
                 "target": "/workspace/engage/",
                 "status": "301"
             },
             {
-                "source": "/dm/",
+                "source": "[retired public path 2de923b8]/",
                 "target": "/workspace/engage/",
                 "status": "301"
             },
             {
-                "source": "/dm/<*>",
+                "source": "[retired public path 2de923b8]/<*>",
                 "target": "/workspace/engage/<*>",
                 "status": "301"
             },
             {
-                "source": "/engage/calls",
+                "source": "[retired public path bf361a18]/calls",
                 "target": "/workspace/engage/inbox/?channel=voice",
                 "status": "301"
             },
             {
-                "source": "/engage/calls/",
+                "source": "[retired public path bf361a18]/calls/",
                 "target": "/workspace/engage/inbox/?channel=voice",
                 "status": "301"
             },
             {
-                "source": "/engage/rcs/inbox",
+                "source": "[retired public path bf361a18]/rcs/inbox",
                 "target": "/workspace/engage/inbox/?channel=rcs",
                 "status": "301"
             },
             {
-                "source": "/engage/rcs/inbox/",
+                "source": "[retired public path bf361a18]/rcs/inbox/",
                 "target": "/workspace/engage/inbox/?channel=rcs",
                 "status": "301"
             },
             {
-                "source": "/engage/ses/inbox",
+                "source": "[retired public path bf361a18]/ses/inbox",
                 "target": "/workspace/engage/inbox/?channel=email",
                 "status": "301"
             },
             {
-                "source": "/engage/ses/inbox/",
+                "source": "[retired public path bf361a18]/ses/inbox/",
                 "target": "/workspace/engage/inbox/?channel=email",
                 "status": "301"
             },
             {
-                "source": "/engage/whatsapp/logs",
+                "source": "[retired public path bf361a18]/whatsapp/logs",
                 "target": "/workspace/engage/logs/?channel=whatsapp",
                 "status": "301"
             },
             {
-                "source": "/engage/whatsapp/logs/",
+                "source": "[retired public path bf361a18]/whatsapp/logs/",
                 "target": "/workspace/engage/logs/?channel=whatsapp",
                 "status": "301"
             },
             {
-                "source": "/engage/rcs/logs",
+                "source": "[retired public path bf361a18]/rcs/logs",
                 "target": "/workspace/engage/logs/?channel=rcs",
                 "status": "301"
             },
             {
-                "source": "/engage/rcs/logs/",
+                "source": "[retired public path bf361a18]/rcs/logs/",
                 "target": "/workspace/engage/logs/?channel=rcs",
                 "status": "301"
             },
             {
-                "source": "/engage/ses/logs",
+                "source": "[retired public path bf361a18]/ses/logs",
                 "target": "/workspace/engage/logs/?channel=email",
                 "status": "301"
             },
             {
-                "source": "/engage/ses/logs/",
+                "source": "[retired public path bf361a18]/ses/logs/",
                 "target": "/workspace/engage/logs/?channel=email",
                 "status": "301"
             },
             {
-                "source": "/engage/rcs/campaign",
+                "source": "[retired public path bf361a18]/rcs/campaign",
                 "target": "/workspace/engage/broadcast/",
                 "status": "301"
             },
             {
-                "source": "/engage/rcs/campaign/",
+                "source": "[retired public path bf361a18]/rcs/campaign/",
                 "target": "/workspace/engage/broadcast/",
                 "status": "301"
             },
             {
-                "source": "/engage/ses/campaign",
+                "source": "[retired public path bf361a18]/ses/campaign",
                 "target": "/workspace/engage/broadcast/",
                 "status": "301"
             },
             {
-                "source": "/engage/ses/campaign/",
+                "source": "[retired public path bf361a18]/ses/campaign/",
                 "target": "/workspace/engage/broadcast/",
                 "status": "301"
             },
             {
-                "source": "/engage",
+                "source": "[retired public path bf361a18]",
                 "target": "/workspace/engage/",
                 "status": "301"
             },
             {
-                "source": "/engage/",
+                "source": "[retired public path bf361a18]/",
                 "target": "/workspace/engage/",
                 "status": "301"
             },
             {
-                "source": "/engage/<*>",
+                "source": "[retired public path bf361a18]/<*>",
                 "target": "/workspace/engage/<*>",
                 "status": "301"
             },
             {
-                "source": "/dashboard",
+                "source": "[retired public path 89347bb2]",
                 "target": "/workspace/dashboard/",
                 "status": "301"
             },
             {
-                "source": "/dashboard/",
+                "source": "[retired public path 89347bb2]/",
                 "target": "/workspace/dashboard/",
                 "status": "301"
             },
             {
-                "source": "/dashboard/<*>",
+                "source": "[retired public path 89347bb2]/<*>",
                 "target": "/workspace/dashboard/<*>",
                 "status": "301"
             },
             {
-                "source": "/contacts",
+                "source": "[retired public path 44011e36]",
                 "target": "/workspace/contacts/",
                 "status": "301"
             },
             {
-                "source": "/contacts/",
+                "source": "[retired public path 44011e36]/",
                 "target": "/workspace/contacts/",
                 "status": "301"
             },
             {
-                "source": "/contacts/<*>",
+                "source": "[retired public path 44011e36]/<*>",
                 "target": "/workspace/contacts/<*>",
                 "status": "301"
             },
             {
-                "source": "/commerce",
+                "source": "[retired public path 862cdc9c]",
                 "target": "/workspace/commerce/",
                 "status": "301"
             },
             {
-                "source": "/commerce/",
+                "source": "[retired public path 862cdc9c]/",
                 "target": "/workspace/commerce/",
                 "status": "301"
             },
             {
-                "source": "/commerce/<*>",
+                "source": "[retired public path 862cdc9c]/<*>",
                 "target": "/workspace/commerce/<*>",
                 "status": "301"
             },
             {
-                "source": "/pay",
+                "source": "[retired public path 47a81ed9]",
                 "target": "/workspace/pay/",
                 "status": "301"
             },
             {
-                "source": "/pay/",
+                "source": "[retired public path 47a81ed9]/",
                 "target": "/workspace/pay/",
                 "status": "301"
             },
             {
-                "source": "/pay/<*>",
+                "source": "[retired public path 47a81ed9]/<*>",
                 "target": "/workspace/pay/<*>",
                 "status": "301"
             },
             {
-                "source": "/forms",
+                "source": "[retired public path 169e0fd8]",
                 "target": "/workspace/forms/",
                 "status": "301"
             },
             {
-                "source": "/forms/",
+                "source": "[retired public path 169e0fd8]/",
                 "target": "/workspace/forms/",
                 "status": "301"
             },
             {
-                "source": "/forms/<*>",
+                "source": "[retired public path 169e0fd8]/<*>",
                 "target": "/workspace/forms/<*>",
                 "status": "301"
             },
             {
-                "source": "/service",
+                "source": "[retired public path 6b3a02b3]",
                 "target": "/workspace/service/",
                 "status": "301"
             },
             {
-                "source": "/service/",
+                "source": "[retired public path 6b3a02b3]/",
                 "target": "/workspace/service/",
                 "status": "301"
             },
             {
-                "source": "/service/<*>",
+                "source": "[retired public path 6b3a02b3]/<*>",
                 "target": "/workspace/service/<*>",
                 "status": "301"
             },
             {
-                "source": "/docs",
+                "source": "[retired public path a2557b8d]",
                 "target": "/workspace/docs/",
                 "status": "301"
             },
             {
-                "source": "/docs/",
+                "source": "[retired public path a2557b8d]/",
                 "target": "/workspace/docs/",
                 "status": "301"
             },
             {
-                "source": "/docs/<*>",
+                "source": "[retired public path a2557b8d]/<*>",
                 "target": "/workspace/docs/<*>",
                 "status": "301"
             },
             {
-                "source": "/seo",
+                "source": "[retired public path 9463c8d8]",
                 "target": "/workspace/seo/",
                 "status": "301"
             },
             {
-                "source": "/seo/",
+                "source": "[retired public path 9463c8d8]/",
                 "target": "/workspace/seo/",
                 "status": "301"
             },
             {
-                "source": "/seo/<*>",
+                "source": "[retired public path 9463c8d8]/<*>",
                 "target": "/workspace/seo/<*>",
                 "status": "301"
             },
             {
-                "source": "/admin",
+                "source": "[retired public path 84a04c24]",
                 "target": "/workspace/admin/",
                 "status": "301"
             },
             {
-                "source": "/admin/",
+                "source": "[retired public path 84a04c24]/",
                 "target": "/workspace/admin/",
                 "status": "301"
             },
             {
-                "source": "/admin/<*>",
+                "source": "[retired public path 84a04c24]/<*>",
                 "target": "/workspace/admin/<*>",
                 "status": "301"
             },
             {
-                "source": "/access",
+                "source": "[retired public path ef531503]",
                 "target": "/workspace/access/",
                 "status": "301"
             },
             {
-                "source": "/access/",
+                "source": "[retired public path ef531503]/",
                 "target": "/workspace/access/",
                 "status": "301"
             },
             {
-                "source": "/access/<*>",
+                "source": "[retired public path ef531503]/<*>",
                 "target": "/workspace/access/<*>",
                 "status": "301"
             },
             {
-                "source": "/link/logs",
+                "source": "[retired public path 21d99b11]/logs",
                 "target": "/workspace/link/",
                 "status": "301"
             },
             {
-                "source": "/link/logs/",
+                "source": "[retired public path 21d99b11]/logs/",
                 "target": "/workspace/link/",
                 "status": "301"
             },
             {
-                "source": "/link",
+                "source": "[retired public path 21d99b11]",
                 "target": "/workspace/link/",
                 "status": "301"
             },
             {
-                "source": "/link/",
+                "source": "[retired public path 21d99b11]/",
                 "target": "/workspace/link/",
                 "status": "301"
             },
             {
-                "source": "/link/<*>",
+                "source": "[retired public path 21d99b11]/<*>",
                 "target": "/workspace/link/<*>",
                 "status": "301"
             },
             {
-                "source": "/task",
+                "source": "[retired public path 4eca21b3]",
                 "target": "/workspace/task/",
                 "status": "301"
             },
             {
-                "source": "/task/",
+                "source": "[retired public path 4eca21b3]/",
                 "target": "/workspace/task/",
                 "status": "301"
             },
             {
-                "source": "/task/<*>",
+                "source": "[retired public path 4eca21b3]/<*>",
                 "target": "/workspace/task/<*>",
                 "status": "301"
             },
             {
-                "source": "/settings",
+                "source": "[retired public path 2c56bef4]",
                 "target": "/workspace/settings/",
                 "status": "301"
             },
             {
-                "source": "/settings/",
+                "source": "[retired public path 2c56bef4]/",
                 "target": "/workspace/settings/",
                 "status": "301"
             },
             {
-                "source": "/settings/<*>",
+                "source": "[retired public path 2c56bef4]/<*>",
                 "target": "/workspace/settings/<*>",
                 "status": "301"
             },

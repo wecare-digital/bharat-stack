@@ -36,7 +36,7 @@ describe( 'Header', () => {
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
 
     // SIGN IN IS GONE from the public menu, on owner instruction. The old row pointed at
-    // /access, the INTERNAL staff dashboard login (Cognito), which does not belong in
+    // [retired public path], the INTERNAL staff dashboard login (Cognito), which does not belong in
     // public navigation. A fresh customer login (WhatsApp OTP with SMS/email fallback)
     // will live on the /orders page instead. So there must be no "Sign in" link, and
     // no "Account" heading, anywhere in this menu.

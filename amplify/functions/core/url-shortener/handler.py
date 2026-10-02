@@ -137,10 +137,10 @@ HEADERS = {
 
 # Where an unknown, expired or malformed short code lands. Four call sites use it.
 #
-# This pointed at `https://wecare.digital/selfservice` until 2026-09-27, which had been a
+# This pointed at `[retired public path]` until 2026-09-27, which had been a
 # 404 since commit 6bc44a35 removed the in-repo stub on 2026-09-24 and nothing replaced
-# it. Measured live before the change: /r/<unknown> -> 302 -> /selfservice -> 301 ->
-# /selfservice/ -> 404. So every mistyped or expired PRINTED short link ended on an error
+# it. Measured live before the change: /r/<unknown> -> 302 -> [retired public path] -> 301 ->
+# [retired public path]/ -> 404. So every mistyped or expired PRINTED short link ended on an error
 # page, which is the worst possible destination for the one visitor who already got
 # something slightly wrong.
 #

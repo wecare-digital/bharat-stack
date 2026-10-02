@@ -192,7 +192,7 @@ npm run build
 
 ### FAQ Search API
 
-**Endpoint:** `GET /faq`
+**Endpoint:** `GET [retired public path 1965ee0f]`
 
 **Query Parameters:**
 - `query` (string): Search query

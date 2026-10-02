@@ -205,13 +205,13 @@ Grouped by target function. `auth` is the API Gateway `authorizationType`; `NONE
 
 | Route | Qualifier | Gateway auth | Frontend files |
 |---|---|---|---|
-| `DELETE /contacts` | live | NONE | `client.ts`, `RichTextEditor.tsx`, `SearchModal.tsx`, `InfraTab.tsx` +16 |
-| `DELETE /contacts/{contactId}` | live | NONE | `client.ts`, `RichTextEditor.tsx`, `SearchModal.tsx`, `InfraTab.tsx` +16 |
-| `GET /contacts` | live | NONE | `client.ts`, `RichTextEditor.tsx`, `SearchModal.tsx`, `InfraTab.tsx` +16 |
-| `GET /contacts/search` | live | NONE | — none |
-| `POST /contacts` | live | NONE | `client.ts`, `RichTextEditor.tsx`, `SearchModal.tsx`, `InfraTab.tsx` +16 |
-| `PUT /contacts` | live | NONE | `client.ts`, `RichTextEditor.tsx`, `SearchModal.tsx`, `InfraTab.tsx` +16 |
-| `PUT /contacts/{contactId}` | live | NONE | `client.ts`, `RichTextEditor.tsx`, `SearchModal.tsx`, `InfraTab.tsx` +16 |
+| `DELETE [retired public path 44011e36]` | live | NONE | `client.ts`, `RichTextEditor.tsx`, `SearchModal.tsx`, `InfraTab.tsx` +16 |
+| `DELETE [retired public path 44011e36]/{contactId}` | live | NONE | `client.ts`, `RichTextEditor.tsx`, `SearchModal.tsx`, `InfraTab.tsx` +16 |
+| `GET [retired public path 44011e36]` | live | NONE | `client.ts`, `RichTextEditor.tsx`, `SearchModal.tsx`, `InfraTab.tsx` +16 |
+| `GET [retired public path 44011e36]/search` | live | NONE | — none |
+| `POST [retired public path 44011e36]` | live | NONE | `client.ts`, `RichTextEditor.tsx`, `SearchModal.tsx`, `InfraTab.tsx` +16 |
+| `PUT [retired public path 44011e36]` | live | NONE | `client.ts`, `RichTextEditor.tsx`, `SearchModal.tsx`, `InfraTab.tsx` +16 |
+| `PUT [retired public path 44011e36]/{contactId}` | live | NONE | `client.ts`, `RichTextEditor.tsx`, `SearchModal.tsx`, `InfraTab.tsx` +16 |
 
 ### `wecare-conversation-meta`
 
@@ -254,16 +254,16 @@ Grouped by target function. `auth` is the API Gateway `authorizationType`; `NONE
 
 | Route | Qualifier | Gateway auth | Frontend files |
 |---|---|---|---|
-| `GET /docs/changelog` | $LATEST | NONE | `index.tsx` |
-| `GET /docs/sources` | $LATEST | NONE | `index.tsx` |
-| `POST /docs/scrape` | $LATEST | NONE | `index.tsx` |
-| `POST /docs/sources` | $LATEST | NONE | `index.tsx` |
+| `GET [retired public path a2557b8d]/changelog` | $LATEST | NONE | `index.tsx` |
+| `GET [retired public path a2557b8d]/sources` | $LATEST | NONE | `index.tsx` |
+| `POST [retired public path a2557b8d]/scrape` | $LATEST | NONE | `index.tsx` |
+| `POST [retired public path a2557b8d]/sources` | $LATEST | NONE | `index.tsx` |
 
 ### `wecare-faq-handler`
 
 | Route | Qualifier | Gateway auth | Frontend files |
 |---|---|---|---|
-| `GET /faq` | live | NONE | `client.ts`, `Header.tsx`, `InfraTab.tsx`, `navigation.ts` +12 |
+| `GET [retired public path 1965ee0f]` | live | NONE | `client.ts`, `Header.tsx`, `InfraTab.tsx`, `navigation.ts` +12 |
 
 ### `wecare-inbound-whatsapp`
 

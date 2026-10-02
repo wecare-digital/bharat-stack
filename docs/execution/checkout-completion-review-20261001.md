@@ -162,7 +162,7 @@ These checks do not close the website quote/payment/receipt/history wiring or
 the accountant and owner-controlled QA requirements listed above.
 
 Merged the subsequently committed routing/provisioning verification work
-8a48e5f9 without changing its live rules. `/access` now deliberately uses the
+8a48e5f9 without changing its live rules. `[retired public path ef531503]` now deliberately uses the
 fixed home marker `?from=access` so Amplify drops the caller's query as well as
 the path; the home page does not consume that marker. The matching source probe
 passed all 100 live HTTP matrix rows with zero mismatches. The previous six

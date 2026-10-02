@@ -20,93 +20,93 @@
         "status": "200"
     },
     {
-        "source": "/dm/calls",
+        "source": "[retired public path 2de923b8]/calls",
         "target": "/workspace/inbox/?channel=voice",
         "status": "301"
     },
     {
-        "source": "/dm/calls/",
+        "source": "[retired public path 2de923b8]/calls/",
         "target": "/workspace/inbox/?channel=voice",
         "status": "301"
     },
     {
-        "source": "/dm/rcs/inbox",
+        "source": "[retired public path 2de923b8]/rcs/inbox",
         "target": "/workspace/inbox/?channel=rcs",
         "status": "301"
     },
     {
-        "source": "/dm/rcs/inbox/",
+        "source": "[retired public path 2de923b8]/rcs/inbox/",
         "target": "/workspace/inbox/?channel=rcs",
         "status": "301"
     },
     {
-        "source": "/dm/ses/inbox",
+        "source": "[retired public path 2de923b8]/ses/inbox",
         "target": "/workspace/inbox/?channel=email",
         "status": "301"
     },
     {
-        "source": "/dm/ses/inbox/",
+        "source": "[retired public path 2de923b8]/ses/inbox/",
         "target": "/workspace/inbox/?channel=email",
         "status": "301"
     },
     {
-        "source": "/dm/whatsapp/logs",
+        "source": "[retired public path 2de923b8]/whatsapp/logs",
         "target": "/workspace/logs/?channel=whatsapp",
         "status": "301"
     },
     {
-        "source": "/dm/whatsapp/logs/",
+        "source": "[retired public path 2de923b8]/whatsapp/logs/",
         "target": "/workspace/logs/?channel=whatsapp",
         "status": "301"
     },
     {
-        "source": "/dm/rcs/logs",
+        "source": "[retired public path 2de923b8]/rcs/logs",
         "target": "/workspace/logs/?channel=rcs",
         "status": "301"
     },
     {
-        "source": "/dm/rcs/logs/",
+        "source": "[retired public path 2de923b8]/rcs/logs/",
         "target": "/workspace/logs/?channel=rcs",
         "status": "301"
     },
     {
-        "source": "/dm/ses/logs",
+        "source": "[retired public path 2de923b8]/ses/logs",
         "target": "/workspace/logs/?channel=email",
         "status": "301"
     },
     {
-        "source": "/dm/ses/logs/",
+        "source": "[retired public path 2de923b8]/ses/logs/",
         "target": "/workspace/logs/?channel=email",
         "status": "301"
     },
     {
-        "source": "/dm/rcs/campaign",
+        "source": "[retired public path 2de923b8]/rcs/campaign",
         "target": "/workspace/broadcast/",
         "status": "301"
     },
     {
-        "source": "/dm/rcs/campaign/",
+        "source": "[retired public path 2de923b8]/rcs/campaign/",
         "target": "/workspace/broadcast/",
         "status": "301"
     },
     {
-        "source": "/dm/ses/campaign",
+        "source": "[retired public path 2de923b8]/ses/campaign",
         "target": "/workspace/broadcast/",
         "status": "301"
     },
     {
-        "source": "/dm/ses/campaign/",
+        "source": "[retired public path 2de923b8]/ses/campaign/",
         "target": "/workspace/broadcast/",
         "status": "301"
     },
     {
-        "source": "/link/logs",
-        "target": "/link/",
+        "source": "[retired public path 21d99b11]/logs",
+        "target": "[retired public path 21d99b11]/",
         "status": "301"
     },
     {
-        "source": "/link/logs/",
-        "target": "/link/",
+        "source": "[retired public path 21d99b11]/logs/",
+        "target": "[retired public path 21d99b11]/",
         "status": "301"
     },
     {
@@ -200,17 +200,17 @@
         "status": "301"
     },
     {
-        "source": "/dm",
+        "source": "[retired public path 2de923b8]",
         "target": "/workspace/",
         "status": "301"
     },
     {
-        "source": "/dm/",
+        "source": "[retired public path 2de923b8]/",
         "target": "/workspace/",
         "status": "301"
     },
     {
-        "source": "/dm/<*>",
+        "source": "[retired public path 2de923b8]/<*>",
         "target": "/workspace/<*>",
         "status": "301"
     },

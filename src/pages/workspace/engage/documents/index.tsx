@@ -1,5 +1,5 @@
 /**
- * Drop Docs — Document Management — /dm/documents
+ * Drop Docs — Document Management — [retired public path]/documents
  *
  * Full document management system:
  * - List all documents from all sources (WhatsApp, manual, web, flow)

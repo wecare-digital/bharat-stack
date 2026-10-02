@@ -1,7 +1,7 @@
 # Owner-approved home fallback and access cleanup
 
 The owner explicitly requested unused WECARE subdomains and unknown website links
-to land at https://wecare.digital/, and removal of direct /access workspace links.
+to land at https://wecare.digital/, and removal of direct [retired public path ef531503] workspace links.
 This instruction supersedes the earlier blanket removal of custom redirects:
 canonical www and retired access-to-home redirects are now approved exceptions.
 
@@ -39,7 +39,7 @@ canonical www and retired access-to-home redirects are now approved exceptions.
 - 34 public-workspace-link, not-found and safe-return-path tests passed.
 - Typecheck and production static export passed; current public page files retained.
 - 12 edge-function execution cases passed: exact home destination and no path/query forwarding.
-- Live /access, /access/ and /access/security/ return 302 to home.
+- Live [retired public path ef531503], [retired public path ef531503]/ and [retired public path ef531503]/security/ return 302 to home.
 - Live /workspace/access/, home, cart and orders return 200.
 
 ## Scope limits and rollback

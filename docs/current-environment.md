@@ -133,7 +133,7 @@ Absent, confirmed by grep returning zero and by the 79-table list:
 | Web app | n/a | Next.js `16.2.9` + React `19.2.7`, Pages Router, `output: 'export'` | public site + 118-page admin | YES | **no server at runtime**: no middleware, no route handlers |
 | Styling | n/a | hand-written global CSS + CSS Modules + styled-jsx; `src/styles/tokens.css` | design system | PARTIALLY | **no Tailwind**; breakpoints are inline and **desktop-first** (`max-width` dominates) |
 | Public routes | n/a | 9 of 127 pages public, via exact-match allowlist in `src/pages/_app.tsx` | public site | YES | a public page missing from `PUBLIC_PAGE_META` renders an **empty body with HTTP 200** |
-| Admin | n/a | `/dm/*` (71), `/dashboard/*`, `/seo/*`, … behind Amplify Authenticator | staff console | YES | `/admin` is a 10-line redirect stub, not an app |
+| Admin | n/a | `[retired public path 2de923b8]/*` (71), `[retired public path 89347bb2]/*`, `[retired public path 9463c8d8]/*`, … behind Amplify Authenticator | staff console | YES | `[retired public path 84a04c24]` is a 10-line redirect stub, not an app |
 | Blog | n/a | `/blog` + `/post/[slug]`, `getStaticPaths` + `fallback:false` | publishing | YES | path is `/post/[slug]`, **not** `/blog/[slug]` |
 | Tests | n/a | `vitest 5.0.1` (19 specs) + `pytest` (~103 modules) | unit | YES | `@playwright/test` is **not** installed; the only Playwright is an out-of-band measurement harness in `tools/browser/` |
 | CI | n/a | 12 GitHub Actions workflows incl. `build-test`, `codeql`, `route-auth` | gates | YES | no cross-browser or E2E job exists |
@@ -360,7 +360,7 @@ turned out to be already satisfied, and they are recorded as such.
 | G6 | No canonical customer identity; no uniqueness enforcement | `HIGH` | `ContactsTable.id` + Cognito username | `customerId` + `UNIQUE#` markers under `TransactWriteItems` | YES |
 | G7 | No email verification path | `HIGH` | none | email OTP from the already-verified `one@wecare.digital` | YES |
 | G8 | 361 routes, 0 authorizers, all `NONE`; **no WebACL anywhere** since 2026-09-28 | `HIGH` | handler-level auth only | explicit auth strategy. **WAF is no longer part of the target** — the owner deleted both ACLs and withdrew the requirement | Partly |
-| G9 | Tracking authorised by guessable `orderId`; no `trackingToken` | `HIGH` | `/track/{orderId}` | high-entropy opaque token, hash at rest | YES |
+| G9 | Tracking authorised by guessable `orderId`; no `trackingToken` | `HIGH` | `[retired public path 282d0fd5]/{orderId}` | high-entropy opaque token, hash at rest | YES |
 | G10 | No cart, checkout, or `commerceOrderNumber` | `HIGH` | greenfield | Wix cart/checkout + unique order number marker | YES (needs G1) |
 | G11 | Customer session is a 60-min token in `sessionStorage`; no CSRF, rotation or revocation | `MEDIUM` | bearer token in tab storage | documented decision or HttpOnly cookie + CSRF | YES — but `output:'export'` constrains it |
 | G12 | Graph version reaches runtime 3 ways (env default, module constant, URL literal) | `MEDIUM` | `v25.0`, uncentralised | one configurable source | YES |

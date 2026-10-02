@@ -48,25 +48,25 @@ role for it.
 
 | typed path | hop 1 | final | staff Authenticator shell in body? |
 |---|---|---|---|
-| `/dm/` `/engage/` | 301 → `/workspace/engage/` | 200 | **yes** |
-| `/dashboard/` | 301 → `/workspace/dashboard/` | 200 | **yes** |
-| `/contacts/` | 301 → `/workspace/contacts/` | 200 | **yes** |
-| `/commerce/` | 301 → `/workspace/commerce/` | 200 | **yes** |
-| `/pay/` | 301 → `/workspace/pay/` | 200 | **yes** |
-| `/forms/` | 301 → `/workspace/forms/` | 200 | **yes** |
-| `/service/` | 301 → `/workspace/service/` | 200 | **yes** |
-| `/docs/` | 301 → `/workspace/docs/` | 200 | **yes** |
-| `/seo/` | 301 → `/workspace/seo/` | 200 | **yes** |
-| `/admin/` | 301 → `/workspace/admin/` | 200 | **yes** |
-| `/access/` | 301 → `/workspace/access/` | 200 | **yes** |
-| `/link/` | 301 → `/workspace/link/` | 200 | **yes** |
-| `/task/` | 301 → `/workspace/task/` | 200 | **yes** |
-| `/settings/` | 301 → `/workspace/settings/` | **404** | no (redirect to a dead page) |
+| `[retired public path 2de923b8]/` `[retired public path bf361a18]/` | 301 → `/workspace/engage/` | 200 | **yes** |
+| `[retired public path 89347bb2]/` | 301 → `/workspace/dashboard/` | 200 | **yes** |
+| `[retired public path 44011e36]/` | 301 → `/workspace/contacts/` | 200 | **yes** |
+| `[retired public path 862cdc9c]/` | 301 → `/workspace/commerce/` | 200 | **yes** |
+| `[retired public path 47a81ed9]/` | 301 → `/workspace/pay/` | 200 | **yes** |
+| `[retired public path 169e0fd8]/` | 301 → `/workspace/forms/` | 200 | **yes** |
+| `[retired public path 6b3a02b3]/` | 301 → `/workspace/service/` | 200 | **yes** |
+| `[retired public path a2557b8d]/` | 301 → `/workspace/docs/` | 200 | **yes** |
+| `[retired public path 9463c8d8]/` | 301 → `/workspace/seo/` | 200 | **yes** |
+| `[retired public path 84a04c24]/` | 301 → `/workspace/admin/` | 200 | **yes** |
+| `[retired public path ef531503]/` | 301 → `/workspace/access/` | 200 | **yes** |
+| `[retired public path 21d99b11]/` | 301 → `/workspace/link/` | 200 | **yes** |
+| `[retired public path 4eca21b3]/` | 301 → `/workspace/task/` | 200 | **yes** |
+| `[retired public path 2c56bef4]/` | 301 → `/workspace/settings/` | **404** | no (redirect to a dead page) |
 
-Several are plausible mistyped CUSTOMER paths — `/contacts` next to the real public
-`/contact/`, plus `/docs`, `/service`, `/pay`, `/link`, `/settings`. This is exactly the
+Several are plausible mistyped CUSTOMER paths — `[retired public path 44011e36]` next to the real public
+`/contact/`, plus `[retired public path a2557b8d]`, `[retired public path 6b3a02b3]`, `[retired public path 47a81ed9]`, `[retired public path 21d99b11]`, `[retired public path 2c56bef4]`. This is exactly the
 brief's "legacy redirect rules that send CUSTOMERS to workspace/staff/admin access or login
-surfaces". `/settings` is additionally broken for staff: it 301s to a page that 404s.
+surfaces". `[retired public path 2c56bef4]` is additionally broken for staff: it 301s to a page that 404s.
 
 ### 0.4 The unknown-path fallback already works and must NOT be turned into a 200
 
@@ -232,8 +232,8 @@ workstream reads, so it is cheap to reject. `src/lib/customerAuth.ts` and
 Four points, each reconciled against what was measured above. **These override anything
 earlier in this document that conflicts.**
 
-**(1) The legacy SEO/content redirect map is NOT a cleanup target.** `/swdhya`, `/no-fault`,
-`/legal-stuff` and every other verified legacy content redirect stay. Reconciled: those live
+**(1) The legacy SEO/content redirect map is NOT a cleanup target.** `[retired public path 74ea5c7a]`, `[retired public path 14041cbc]`,
+`[retired public path 32bc4583]` and every other verified legacy content redirect stay. Reconciled: those live
 in the `RETIRED`, `RETIRED_TREES` and `FROZEN_EXTERNAL` dicts, which this plan never touched —
 only `RENAMED_PREFIXES` changes. No conflict. But the handoff adds a requirement this plan did
 not have: **inventory each redirect's real consumer before removing it**, so the 15-prefix
@@ -254,7 +254,7 @@ New step 8b corrects the owned one and logs the other four for their owners. Cor
 comment in `_app.tsx` would be a zero-behaviour change, but the file is outside the owned-path
 list and heavily shared, so it is handed off rather than edited.
 
-**(3) `/access/` → `/workspace/access/` is explicitly confirmed as a cleanup target.** Already
+**(3) `[retired public path ef531503]/` → `/workspace/access/` is explicitly confirmed as a cleanup target.** Already
 row 18 of the §3 matrix and in the 15. No change needed, now named by the owner.
 
 **(4) The frontend is already deployed: Amplify job 1179, commit 43b26d4a, SUCCEED at
@@ -273,7 +273,7 @@ the actual propagation delay and record it.
 **D0 — per-prefix consumer inventory gates the change (§0.10 item 1).** Each of the 15
 prefixes is classified from evidence before its rule is altered. The legacy content/SEO map
 (`RETIRED`, `RETIRED_TREES`, `FROZEN_EXTERNAL`) is out of scope entirely and is not to be
-touched; `/access` and `/admin` are confirmed targets. A prefix is only converted once its
+touched; `[retired public path ef531503]` and `[retired public path 84a04c24]` are confirmed targets. A prefix is only converted once its
 inventory shows no non-staff consumer that a 302 to home would damage.
 
 **D1 — a legacy prefix that passes the inventory becomes `302 → /`, not a deletion.** A 302 guarantees the
@@ -282,7 +282,7 @@ rollout rule, and drops the untrusted path entirely (the target is a literal `/`
 path, query or fragment is forwarded). <!-- CORRECTED IN PLACE 2026-10-01, third convergence
 pass: the parenthesis above is HALF FALSE and was never probed when it was written. The PATH is
 dropped, as claimed. The QUERY is NOT - Amplify appends the incoming query string to the redirect
-target: `/access/?next=https://evil.example` -> `302` -> `https://wecare.digital/?next=https://evil.example`,
+target: `[retired public path ef531503]/?next=https://evil.example` -> `302` -> `https://wecare.digital/?next=https://evil.example`,
 measured. A fragment is never transmitted by a client, so it cannot be probed and is not claimed
 either way. The effect is inert - the `Location` host is a fixed literal so it cannot redirect
 anyone off-site, and neither `src/pages/index.tsx` nor `src/pages/_app.tsx` reads
@@ -338,7 +338,7 @@ recognized set of local customer return paths. Allowlist design in §FEAT-001 st
       `///evil`, `/\evil.example`, `\\evil.example`, `%2f%2fevil.example`,
       `%252f%252fevil`, `/cart/%0d%0aSet-Cookie:x`, `/cart/\t`, `/../etc/passwd`,
       `/cart/../workspace/access`, `javascript:alert(1)`, `data:text/html,x`,
-      `/workspace/access`, `/workspace/dashboard/`, `/admin/`, `/dashboard/`,
+      `/workspace/access`, `/workspace/dashboard/`, `[retired public path 84a04c24]/`, `[retired public path 89347bb2]/`,
       `mailto:a@b`, `''`, `null`, `undefined` — each must return `'/cart/'`. Accepted
       cases: `/cart/`, `/cart`, `/checkout/`, `/orders/`, `/shop/`, `/account/`, `/`.
       Add one case asserting an accepted value never carries a query or fragment.
@@ -371,7 +371,7 @@ recognized set of local customer return paths. Allowlist design in §FEAT-001 st
       `Amplify.configure`). Assert: (a) `src/components/ErrorBoundary.tsx` contains no
       `/workspace` string; (b) `public/manifest.json`, parsed, contains no value starting
       `/workspace`; (c) `src/components/Header.tsx` and `src/components/Footer.tsx` contain
-      no `/workspace`, `/admin`, `/access` or `sign-in` href. Add an
+      no `/workspace`, `[retired public path 84a04c24]`, `[retired public path ef531503]` or `sign-in` href. Add an
       `INTENTIONALLY_WORKSPACE_ONLY` map naming `Layout.tsx`, `SearchModal.tsx`,
       `Breadcrumbs.tsx` and `public/sw.js` with the one-line reason each is exempt, so the
       exemptions are decisions on the record rather than silent gaps.
@@ -405,8 +405,8 @@ recognized set of local customer return paths. Allowlist design in §FEAT-001 st
 
 - [ ] **8a. Inventory the real consumer of each of the 15 legacy prefixes BEFORE changing any
       of them** (§0.10 item 1 — the owner forbids a blanket purge of the legacy redirect map).
-      For each of `/dm /engage /dashboard /contacts /commerce /pay /forms /service /docs /seo
-      /admin /access /link /task /settings`, record in a table: (i) does the path appear in
+      For each of `[retired public path 2de923b8] [retired public path bf361a18] [retired public path 89347bb2] [retired public path 44011e36] [retired public path 862cdc9c] [retired public path 47a81ed9] [retired public path 169e0fd8] [retired public path 6b3a02b3] [retired public path a2557b8d] [retired public path 9463c8d8]
+      [retired public path 84a04c24] [retired public path ef531503] [retired public path 21d99b11] [retired public path 4eca21b3] [retired public path 2c56bef4]`, record in a table: (i) does the path appear in
       `out/sitemap.xml`, `public/robots.txt`, `out/llms.txt` or the MCP catalogue; (ii) does
       any approved provider artefact name it — cross-check `FROZEN_EXTERNAL` in
       `provision_legacy_redirects.py` and `stack-wecare-digital-DLTTemplates`, because a DLT or
@@ -417,12 +417,12 @@ recognized set of local customer return paths. Allowlist design in §FEAT-001 st
       40x under-report from using a 90-day window); (iv) in-repo references outside
       `src/pages/workspace/**`. Classify each as CONVERT (staff-only destination, no non-staff
       consumer), KEEP (a real external consumer a 302 to home would damage), or
-      NEEDS-OWNER. `/access` and `/admin` are CONVERT by explicit owner instruction. If
+      NEEDS-OWNER. `[retired public path ef531503]` and `[retired public path 84a04c24]` are CONVERT by explicit owner instruction. If
       `retired_url_equity.py` cannot authenticate, say so and classify from (i), (ii) and (iv)
       alone rather than guessing — do not treat an unrunnable measurement as a zero.
-      **Do not touch `RETIRED`, `RETIRED_TREES` or `FROZEN_EXTERNAL`** — `/swdhya`,
-      `/no-fault`, `/legal-stuff`, `/faq`, `/my-order`, `/product-page/<*>`, `/selfservice`,
-      `/track` and the rest of the content map are preserved verbatim.
+      **Do not touch `RETIRED`, `RETIRED_TREES` or `FROZEN_EXTERNAL`** — `[retired public path 74ea5c7a]`,
+      `[retired public path 14041cbc]`, `[retired public path 32bc4583]`, `[retired public path 1965ee0f]`, `[retired public path aaee9dd4]`, `/product-page/<*>`, `[retired public path b180810d]`,
+      `[retired public path 282d0fd5]` and the rest of the content map are preserved verbatim.
       Files: the inventory table goes into `docs/execution/url-host-matrix-20261001.md`
       Verify: every one of the 15 rows carries a classification with its evidence; the probe
       harness in step 11 asserts that every `RETIRED`/`FROZEN_EXTERNAL` source still redirects
@@ -449,13 +449,13 @@ recognized set of local customer return paths. Allowlist design in §FEAT-001 st
       `{'source': p, 'target': '/', 'status': '302'}`,
       `{'source': p + '/', 'target': '/', 'status': '302'}` and
       `{'source': f'{p}/<*>', 'target': '/', 'status': '302'}`, and **stop emitting** the
-      one-hop `/dm/calls`-style rules for those prefixes. Extend `is_ours()` so every source
+      one-hop `[retired public path 2de923b8]/calls`-style rules for those prefixes. Extend `is_ours()` so every source
       shape it used to own — `p`, `p/`, `p/<*>` and the one-hop forms — is still claimed, or
       `apply()` will preserve the old 301s in `middle` and the change will not stick (the
       docstring records this exact bug happening twice). Add `'/'` to
       `LIVE_TARGET_PREFIXES` so `_targets_dead_prefix` does not judge the new rules dead on
       sight. Replace the `RENAMED_PREFIXES` docstring block with a dated note recording:
-      the measured defect (14 of 15 ended on the Authenticator shell at 200, `/settings`
+      the measured defect (14 of 15 ended on the Authenticator shell at 200, `[retired public path 2c56bef4]`
       on a 404), that 302 was chosen for reversibility per the brief, and that staff
       bookmarks to the old prefixes now land on home while the real entry `/workspace/**`
       is unchanged.
@@ -574,10 +574,10 @@ recognized set of local customer return paths. Allowlist design in §FEAT-001 st
 | 4 | `https://wecare.digital/definitely-not-a-page` | 301 → `…/` | unchanged |
 | 5 | `https://wecare.digital/definitely-not-a-page/` | 404, `"page":"/404"`, noindex, canonical `/` | unchanged — **404, not 200** |
 | 6 | `/404/` | 200 (exported page, client replace to `/`) | unchanged |
-| 7–20 | `/dm/ /engage/ /dashboard/ /contacts/ /commerce/ /pay/ /forms/ /service/ /docs/ /seo/ /admin/ /access/ /link/ /task/` | 301 → `/workspace/…` → 200 **Authenticator shell** | **302 → `/`** for every CONVERT prefix from step 8a; a KEEP or NEEDS-OWNER prefix stays 301 and its row records why. `/access/` and `/admin/` are CONVERT by owner instruction |
-| 21 | `/settings/` | 301 → `/workspace/settings/` → 404 | **302 → `/`** if CONVERT (it currently redirects to a page that does not exist) |
-| 22 | `/dm/calls` | 301 → `/workspace/engage/inbox/?channel=voice` | **302 → `/`** if `/dm` is CONVERT |
-| 23 | `/admin/anything/deep` | 301 → `/workspace/admin/anything/deep` | **302 → `/`** |
+| 7–20 | `[retired public path 2de923b8]/ [retired public path bf361a18]/ [retired public path 89347bb2]/ [retired public path 44011e36]/ [retired public path 862cdc9c]/ [retired public path 47a81ed9]/ [retired public path 169e0fd8]/ [retired public path 6b3a02b3]/ [retired public path a2557b8d]/ [retired public path 9463c8d8]/ [retired public path 84a04c24]/ [retired public path ef531503]/ [retired public path 21d99b11]/ [retired public path 4eca21b3]/` | 301 → `/workspace/…` → 200 **Authenticator shell** | **302 → `/`** for every CONVERT prefix from step 8a; a KEEP or NEEDS-OWNER prefix stays 301 and its row records why. `[retired public path ef531503]/` and `[retired public path 84a04c24]/` are CONVERT by owner instruction |
+| 21 | `[retired public path 2c56bef4]/` | 301 → `/workspace/settings/` → 404 | **302 → `/`** if CONVERT (it currently redirects to a page that does not exist) |
+| 22 | `[retired public path 2de923b8]/calls` | 301 → `/workspace/engage/inbox/?channel=voice` | **302 → `/`** if `[retired public path 2de923b8]` is CONVERT |
+| 23 | `[retired public path 84a04c24]/anything/deep` | 301 → `/workspace/admin/anything/deep` | **302 → `/`** |
 | 24 | `/workspace/` | 200 Authenticator shell, `Disallow` in robots | **unchanged — staff entry, not hidden, not opened** |
 | 25 | `/workspace/access/` | 200 | unchanged |
 | 26 | `/workspace/engage/calls` | 301 → `/workspace/engage/inbox/?channel=voice` | unchanged (staff-internal) |
@@ -591,8 +591,8 @@ recognized set of local customer return paths. Allowlist design in §FEAT-001 st
 | 34 | `GET /get/o/stream/media/m/wecare-digital.png` | 200 | unchanged |
 | 35 | `GET /r/zzznotacode` | 302 → `/contact/` | unchanged (short-link miss) |
 | 36 | `GET /api/definitely-no-route` | 302 → `/contact/` | unchanged — **finding, another workstream owns it (§0.6)** |
-| 37 | `/selfservice` `/track` | 301 → `/submit-request/` `/orders/` | unchanged (DLT/RCS frozen links) |
-| 38 | **Every `RETIRED` / `RETIRED_TREES` / `FROZEN_EXTERNAL` source** — `/swdhya` `/no-fault` `/legal-stuff` `/legal-stuffs` `/faq` `/my-order` `/expoweek` `/ritual-store` `/swdhya-store` `/request-tracking` `/rx-slot` `/bring-friends` `/home` `/open-possibility` `/product-page/partner` `/selfservice` `/track` | 301 → live targets | **unchanged — the legacy content/SEO map is explicitly NOT a cleanup target (§0.10 item 1). Probe every one; any that stops redirecting is a failure** |
+| 37 | `[retired public path b180810d]` `[retired public path 282d0fd5]` | 301 → `/submit-request/` `/orders/` | unchanged (DLT/RCS frozen links) |
+| 38 | **Every `RETIRED` / `RETIRED_TREES` / `FROZEN_EXTERNAL` source** — `[retired public path 74ea5c7a]` `[retired public path 14041cbc]` `[retired public path 32bc4583]` `[retired public path f1430fb7]` `[retired public path 1965ee0f]` `[retired public path aaee9dd4]` `[retired public path 9109e567]` `[retired public path 5b217199]` `[retired public path b7b8d296]` `[retired public path 3b13e953]` `[retired public path a324e726]` `[retired public path fb3e74a7]` `[retired public path 2cc974af]` `[retired public path 8a68a2cf]` `[retired public path c86bd2b5]` `[retired public path b180810d]` `[retired public path 282d0fd5]` | 301 → live targets | **unchanged — the legacy content/SEO map is explicitly NOT a cleanup target (§0.10 item 1). Probe every one; any that stops redirecting is a failure** |
 | 39 | `https://shop.wecare.digital/` | no address; TLS alert 40 at the CF IP | unchanged — gap documented, §0.7 |
 | 40 | `https://xout.wecare.digital/` | 404 (Wix) | unchanged — out of scope, §0.7 |
 | 41 | `https://www.xout.wecare.digital/` | 301 → `xout…` → 404 | unchanged — second-label, no cert coverage |

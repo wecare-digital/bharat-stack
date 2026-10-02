@@ -456,7 +456,7 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   // reference in the repo.
   { path: '/workspace/forms', label: 'Forms', backend: 'whatsapp-business-api', tables: 'FlowRegistry' },
   { path: '/workspace/forms/selfservice', label: 'Self-Service Hub', backend: 'whatsapp-business-api, inbound-whatsapp-handler', tables: 'FlowRegistry, FlowSubmission, FlowLog, SubmitRequest' },
-  // Was '/faq'. The public page was deleted on owner instruction; the faq-handler backend
+  // Was '[retired public path]'. The public page was deleted on owner instruction; the faq-handler backend
   // and SystemConfig table are unchanged and are driven from the dashboard route.
   { path: '/workspace/engage/faq', label: 'FAQ', backend: 'faq-handler', tables: 'SystemConfig' },
   { path: '/grahak-os', label: 'Grahak OS', backend: '(public product page)', tables: '-' },
@@ -571,7 +571,7 @@ const CODE_ASSETS: CodeAsset[] = [
   { id: 'ss-docs', category: 'Selfservice Flows', name: '📄 Drop Docs', description: 'Send supporting documents for a request.', path: 'Flow ID: 1737801600902350', type: 'WA Flow', status: 'Draft' },
   { id: 'ss-enterprise', category: 'Selfservice Flows', name: '🏢 Enterprise Assist', description: 'Corporate, B2B, and bulk enquiries.', path: 'Flow ID: 2132515287534606', type: 'WA Flow', status: 'Draft' },
   { id: 'ss-review', category: 'Selfservice Flows', name: '⭐ Leave Review', description: 'Share experience and feedback.', path: 'Flow ID: 963443293213262', type: 'WA Flow', status: 'Draft' },
-  // path was '/faq' with status 'Active' until 2026-09-25. The public /faq page was
+  // path was '[retired public path]' with status 'Active' until 2026-09-25. The public [retired public path] page was
   // deleted on owner instruction, so that link 404'd and "Active" was a false claim in
   // the one table this project treats as its source of truth. The live FAQ surface is the
   // dashboard route below; the customer-facing answer arrives over WhatsApp, not as a page.
@@ -651,7 +651,7 @@ const BOT_MENU: BotMenuItem[] = [
   { row: 5, section: 'Explore WECARE', icon: '🛍️', title: 'Explore Store', description: 'Browse services, brands, and offers', action: 'CTA link → wecare.digital' },
   { row: 6, section: 'Explore WECARE', icon: '🎁', title: 'Gift Cards', description: 'Send a digital gift card', action: 'CTA link → wecare.digital/perks/' },
   { row: 7, section: 'Explore WECARE', icon: '🇮🇳', title: 'WECARE.DIGITAL', description: 'Discover WECARE.DIGITAL and services', action: 'Info text + evolving services' },
-  // The action was 'CTA link → wecare.digital/faq' until the public /faq page was deleted;
+  // The action was 'CTA link → wecare.digital/faq' until the public [retired public path] page was deleted;
   // that URL now 404s, so the row would have sent a WhatsApp user to a dead link. The answer
   // is delivered in chat by faq-handler from SystemConfig instead.
   { row: 8, section: 'Help & Answers', icon: '❓', title: 'FAQs', description: 'Find answers to common questions', action: 'Answered in chat by faq-handler' },

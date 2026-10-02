@@ -13,7 +13,7 @@
  *
  * Usage:
  *   node measure-fonts-sitewide.js                 # default public routes
- *   node measure-fonts-sitewide.js /dm /dm/inbox   # explicit routes
+ *   node measure-fonts-sitewide.js [retired public path] [retired public path]/inbox   # explicit routes
  */
 
 const { launch, gotoStable } = require( './lib/browser' );

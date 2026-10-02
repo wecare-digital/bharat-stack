@@ -102,7 +102,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             expression_values[':cid'] = contact_id
         
         # VOICE included: `message_store.VALID_CHANNELS` has held it since calls began
-        # writing a breadcrumb row, and `/dm/inbox?channel=voice` is now the Calls
+        # writing a breadcrumb row, and `[retired public path]/inbox?channel=voice` is now the Calls
         # destination. Its absence here was invisible because the filter built below is
         # not what reads the table - `_read_from_messages_table` queries the GSI and
         # does not consult this whitelist - but a list that silently disagrees with the

@@ -1,5 +1,5 @@
 /**
- * Legacy redirect — Admin moved under /dashboard
+ * Legacy redirect — Admin moved under [retired public path]
  */
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';

@@ -9,9 +9,9 @@ WECARE.DIGITAL operates six microservice brands designed to solve real problems 
 - [BNB Club](https://www.wecare.digital/bnb): Travel stays and curated experiences
 - [Legal Champ](https://www.wecare.digital/legal-champ): Legal document preparation and paralegal workflows
 - [Ritual Guru](https://www.wecare.digital/ritual): Temple-grade puja kits and spiritual services
-- [Swdhya](https://www.wecare.digital/swdhya): Philosophical reflection and personal growth
-- [No Fault](https://www.wecare.digital/no-fault): Guided online dispute resolution
-- [Expo Week](https://www.wecare.digital/expoweek): Virtual events and exclusive offers
+- [Swdhya]([retired public path 82dc825d]): Philosophical reflection and personal growth
+- [No Fault]([retired public path 9dd4cf10]): Guided online dispute resolution
+- [Expo Week]([retired public path 6a0e4bff]): Virtual events and exclusive offers
 
 ## Services
 
@@ -36,6 +36,6 @@ WECARE.DIGITAL operates six microservice brands designed to solve real problems 
 ## Optional
 
 - [Blog](https://www.wecare.digital/blog): Philosophical reflections by Swdhya Vaksetu on being, choice, and transformation
-- [Legal Stuff](https://www.wecare.digital/legal-stuff): Terms and conditions
+- [Legal Stuff]([retired public path 8afd0572]): Terms and conditions
 - [Privacy Policy](https://www.wecare.digital/privacy): Privacy policy
 - [Careers](https://www.wecare.digital/careers-plus-culture): Careers and culture

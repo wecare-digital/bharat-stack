@@ -1,5 +1,5 @@
 /**
- * RX Slots Admin Page — /dm/rx-slots
+ * RX Slots Admin Page — [retired public path]/rx-slots
  * Slot management: list, filter, create, status updates
  */
 import React, { useState, useEffect, useCallback } from 'react';

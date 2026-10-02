@@ -126,7 +126,7 @@ export const navigationConfig: NavItem[] = [
       { path: '/workspace/engage/documents', label: 'Drop Docs' },
       // Beside Drop Docs because the two are the same errand in opposite directions:
       // Drop Docs collects a file from a customer, Secure Files delivers one to them.
-      // NOT under Platform, where its /dashboard/ path would suggest it belongs - it
+      // NOT under Platform, where its [retired public path]/ path would suggest it belongs - it
       // charges a customer ₹49 per download and creates their Cognito login, which is
       // order work, not infrastructure. Until now nothing linked it at all: 535 lines
       // and the only four callers of initSecureUpload/confirmSecureUpload/
@@ -158,8 +158,8 @@ export const navigationConfig: NavItem[] = [
       { path: '/workspace/forms/responses', label: 'Responses' },
       // '/workspace/forms/create' ("Forms Builder") was here. Removed 2026-09-25 with the page: it
       // was a ComingSoon stub listing six features with no backend behind any of them,
-      // and /forms/index.tsx redirected straight to it, so the whole /forms landing was a
-      // redirect into a list of promises. /forms now goes to Responses.
+      // and [retired public path]/index.tsx redirected straight to it, so the whole [retired public path] landing was a
+      // redirect into a list of promises. [retired public path] now goes to Responses.
       { path: '/workspace/forms/selfservice', label: 'Self-service Hub' },
     ],
   },
@@ -244,7 +244,7 @@ export const settingsConfig: SettingsGroup[] = [
       { path: '/workspace/engage/rcs', label: 'RCS' },
       { path: '/workspace/engage/ses', label: 'Email' },
       { path: '/workspace/engage/push', label: 'Push' },
-      // Call CONFIGURATION. The call RECORDS are /dm/inbox?channel=voice.
+      // Call CONFIGURATION. The call RECORDS are [retired public path]/inbox?channel=voice.
       { path: '/workspace/engage/voice', label: 'Voice (outbound)' },
       { path: '/workspace/engage/voice-in', label: 'Voice In (IVR)' },
     ],
@@ -402,9 +402,9 @@ export const moduleHomes: ModuleHome[] = [
   },
   // The 'growth' module home was here, gated on NEXT_PUBLIC_ENABLE_GROWTH_MODULE.
   // Removed 2026-09-25 with /growth/index.tsx on owner instruction. The pages it listed
-  // as innerPages are all still reachable in their own right — /seo, /seo/pages,
-  // /seo/analytics, /seo/tracking, /seo/schema, /dm/whatsapp/ctwa-ads and
-  // /dm/whatsapp/conversions-api each have their own nav entry — so nothing became
+  // as innerPages are all still reachable in their own right — [retired public path], [retired public path]/pages,
+  // [retired public path]/analytics, [retired public path]/tracking, [retired public path]/schema, [retired public path]/whatsapp/ctwa-ads and
+  // [retired public path]/whatsapp/conversions-api each have their own nav entry — so nothing became
   // unreachable, only the grouping page went.
   {
     id: 'service-operations', label: 'Service Operations', path: '/workspace/engage/service-ops',

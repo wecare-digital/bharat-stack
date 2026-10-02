@@ -52,9 +52,8 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
       const payeeName = encodeURIComponent('WECARE.DIGITAL');
       const upiLink = `upi://pay?pa=${upiVpa}&pn=${payeeName}&am=${amount.toFixed(2)}&cu=INR&tn=${note}&tr=${referenceId}`;
 
-      // Generate a shareable wrapper URL
-      const encodedUpi = encodeURIComponent(upiLink);
-      setGeneratedLink(`https://wecare.digital/pay?ref=${referenceId}&amount=${amount}&upi=${encodedUpi}`);
+      // Share the existing UPI deep link directly; no unimplemented web wrapper.
+      setGeneratedLink(upiLink);
     } catch (err) {
       console.error('Link generation error:', err);
     } finally {

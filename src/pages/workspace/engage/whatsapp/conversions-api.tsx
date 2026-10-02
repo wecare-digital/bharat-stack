@@ -1,5 +1,5 @@
 /**
- * Conversions API for Business Messaging — /dm/whatsapp/conversions-api
+ * Conversions API for Business Messaging — [retired public path]/whatsapp/conversions-api
  *
  * Console for the Click-to-WhatsApp (CTWA) Conversions API. Uses the
  * whatsapp_business_manage_events permission to log in-thread conversion events

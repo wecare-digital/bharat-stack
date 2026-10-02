@@ -52,7 +52,7 @@
 
 ### LOW Issues
 
-16. **Legal pages could be noindex** — `/legal-stuff` and `/privacy` don't need search ranking.
+16. **Legal pages could be noindex** — `[retired public path 32bc4583]` and `/privacy` don't need search ranking.
 
 17. **No video schema** — No video content on site.
 

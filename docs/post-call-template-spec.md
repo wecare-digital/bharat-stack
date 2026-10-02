@@ -7,11 +7,11 @@ address and the hop count recorded; nothing is quoted from memory.
 
 ## 0. BLOCKER — fix this before any template ships
 
-**`https://wecare.digital/selfservice` returns 404.**
+**`[retired public path 68ca05fc]` returns 404.**
 
 ```
-https://wecare.digital/selfservice   301 -> /selfservice/
-https://wecare.digital/selfservice/  404
+[retired public path 68ca05fc]   301 -> [retired public path b180810d]/
+[retired public path 68ca05fc]/  404
 ```
 
 That is the primary call to action in the **DLT-approved SMS body**, in the
@@ -19,13 +19,13 @@ approved `rcsmenu` / `wecaremenu` / `wdorder` RCS cards, and behind the
 `/r/getstarted` short link every RCS "Get Started" button uses.
 
 Cause, dated rather than guessed: PR **#47** (`6bc44a35`, 2026-09-24 18:08)
-removed the in-repo `/selfservice` and `/product-page` redirect stubs. No Amplify
+removed the in-repo `[retired public path b180810d]` and `/product-page` redirect stubs. No Amplify
 rule replaced them — the live app has **zero** custom rules mentioning
 `selfservice`, out of 104. So the route has been dead for three days.
 
 It is **not** a side effect of the `/workspace/` nesting (`c143301d`,
 2026-09-27 05:44), which landed three days later and is what added the working
-`/forms/<*>` redirect.
+`[retired public path 169e0fd8]/<*>` redirect.
 
 The page itself is alive at `https://wecare.digital/workspace/forms/selfservice/`
 (200). The fix is one Amplify rule. **The SMS body cannot be changed to route
@@ -61,7 +61,7 @@ naming decision, not a technical one. Two options:
 
 * **A —** point the buttons at `/workspace/forms/selfservice/`. Zero redirects
   today, but a customer-facing URL that reads as internal.
-* **B —** restore a real page at `/selfservice` (not a redirect stub), then point
+* **B —** restore a real page at `[retired public path b180810d]` (not a redirect stub), then point
   the buttons there. Zero redirects **and** a clean public URL. Needs one page
   added, and it repairs the DLT-frozen SMS at the same time.
 
@@ -102,7 +102,7 @@ Text, exactly as approved and as sent today:
 ```
 Thanks for contacting WECARE.DIGITAL!
 
-Submit your request here: https://wecare.digital/selfservice or send us a
+Submit your request here: [retired public path 68ca05fc] or send us a
 message / voice note on WhatsApp: https://wecare.digital/r/wa.
 
 We'll review it and follow up if needed.
@@ -201,7 +201,7 @@ than pushed back into review — and that is why `r.wecare.digital` cannot be re
 | RCS | `wd_card_clean` | **created, approved**, test-sent `01M3GEM24ZZ79YYN8T5GH5PQYB` |
 
 Both created templates currently point `Get Started` at
-`https://wecare.digital/selfservice`, which is the 404 in §0. **Neither is wired to
+`[retired public path 68ca05fc]`, which is the 404 in §0. **Neither is wired to
 anything** — a real call still sends `wd_menu` and `rcsmenu`. So nothing customer
 facing is broken by them, and both can be deleted or recreated.
 
@@ -209,7 +209,7 @@ facing is broken by them, and both can be deleted or recreated.
 
 1. **§1 option A or B** for the self-service URL. B is recommended and is the only
    one that also repairs SMS.
-2. Whether to **fix `/selfservice`** now — it is a live 404 on the primary CTA,
+2. Whether to **fix `[retired public path b180810d]`** now — it is a live 404 on the primary CTA,
    independent of this template work.
 3. Whether to **recreate** the two templates once the URL is settled, so they ship
    with a terminal, working link rather than the 404.
@@ -247,7 +247,7 @@ the structured fields, body URLs from the decoded body text. 45 URLs, 10 dead:
 | `wecare_order_update` | body text | 404 | `wecare.digital/track` | no |
 
 **Every button and every media asset in `rcsmenu` returns 200.** Its 404 is the
-plain-text line in the body ("Submit your request: …/selfservice"), which is inert
+plain-text line in the body ("Submit your request: …[retired public path b180810d]"), which is inert
 until a customer long-presses it — so the live post-call card is degraded, not
 broken. That is a narrower claim than §0 implied, and it is the measured one.
 
@@ -265,7 +265,7 @@ Re-measured, and it contradicts the table in §1:
 
 `faa956e8` made `/contact/` canonical and fixed the short link. So the URL question
 §8 asked to be decided **has been decided by code**: the destination is `/contact/`.
-Option B in §1 is therefore moot — `/selfservice` was deliberately removed, not
+Option B in §1 is therefore moot — `[retired public path b180810d]` was deliberately removed, not
 pending restoration.
 
 ### 9.3 Re-filing ten templates is the wrong fix
@@ -273,7 +273,7 @@ pending restoration.
 All ten dead links are **one** root cause: `wecare.digital/selfservice` returns 404.
 Zero of the app's **104** live Amplify custom rules mention `selfservice` or `track`.
 
-One redirect rule, `/selfservice` → `/contact/`, repairs **nine of the ten** with no
+One redirect rule, `[retired public path b180810d]` → `/contact/`, repairs **nine of the ten** with no
 provider review, no new approvals, and no frozen-body problem. Re-filing cannot
 compete with that:
 
@@ -282,7 +282,7 @@ compete with that:
 * It would not repair SMS at all. The DLT-approved `ivr-default` body names
   `wecare.digital/selfservice` and is frozen character-for-character, so a redirect
   is the *only* thing that can fix the SMS path — exactly as §0 said.
-* `wecare_order_update`'s `/track` is a separate second rule, or a deliberate
+* `wecare_order_update`'s `[retired public path 282d0fd5]` is a separate second rule, or a deliberate
   retirement — it is a text template nothing sends.
 
 **The one template that genuinely warrants re-filing is `wd_card_clean`**, because
@@ -293,7 +293,7 @@ and recreate.
 
 ### 9.4 Not done here, and why
 
-The `/selfservice` redirect was **not** applied in this pass. Amplify `customRules`
+The `[retired public path b180810d]` redirect was **not** applied in this pass. Amplify `customRules`
 is replaced as a whole array by `UpdateApp`, and another session is concurrently
 editing exactly that surface — `scripts/provision_legacy_redirects.py` is modified in
 the working tree and `docs/execution/snapshots/amplify-custom-rules-before-seo404.json`
@@ -301,12 +301,12 @@ had just been written. Writing the array from two sessions is last-writer-wins a
 would silently drop their rules. Per `.kiro/steering/multi-session-parallel-agents.md`
 this is sequenced, not raced.
 
-Handover, precisely: that script's map does **not** currently contain `/selfservice`
-(its only related entry is `/contacts` → `/workspace/contacts`), so the rule is
+Handover, precisely: that script's map does **not** currently contain `[retired public path b180810d]`
+(its only related entry is `[retired public path 44011e36]` → `/workspace/contacts`), so the rule is
 unowned. Add to whoever holds the Amplify rule array:
 
-    /selfservice   ->  /contact/    301
-    /track         ->  /contact/    301   (or retire wecare_order_update)
+    [retired public path b180810d]   ->  /contact/    301
+    [retired public path 282d0fd5]         ->  /contact/    301   (or retire wecare_order_update)
 
 Then re-probe with the command in §9.1 and the table above should go fully green
 without touching a single template.

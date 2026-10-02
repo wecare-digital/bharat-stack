@@ -1603,7 +1603,7 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     #   * It logged at WARNING each time, for a condition that was permanent and
     #     not actionable. A warning that always fires trains people to ignore
     #     warnings.
-    #   * The encoded value is the constant `https://wecare.digital/selfservice`.
+    #   * The encoded value is the constant `[retired public path]`.
     #     Every invoice would have produced a byte-identical image, so generating
     #     it per render was work to reproduce a fixed asset.
     #

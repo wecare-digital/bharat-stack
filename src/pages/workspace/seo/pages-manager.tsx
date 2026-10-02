@@ -7,7 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 // Moved out of src/pages/. It is a content COMPONENT, but sitting under pages/
-// meant Next routed it as /seo/InstructionsContent - a 292-line chrome-less page
+// meant Next routed it as [retired public path]/InstructionsContent - a 292-line chrome-less page
 // nobody intended to publish.
 import InstructionsContent from '../../../components/seo/InstructionsContent';
 import { seoToolsFetch } from '../../../api/seo';
@@ -45,18 +45,8 @@ const btn: React.CSSProperties = { padding: '4px 10px', borderRadius: 6, border:
 const BASE = 'https://wecare.digital';
 
 const SYSTEM_PAGES: SitePage[] = [
-  { path: '/cart-page', name: 'Cart', type: 'system', url: `${BASE}/cart-page`, title: 'Cart', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
-  { path: '/checkout', name: 'Checkout', type: 'system', url: `${BASE}/checkout`, title: 'Checkout', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
-  { path: '/thank-you', name: 'Thank You', type: 'system', url: `${BASE}/thank-you`, title: 'Thank You', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
-  { path: '/login', name: 'Login', type: 'system', url: `${BASE}/login`, title: 'Login', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
-  { path: '/signup', name: 'Sign Up', type: 'system', url: `${BASE}/signup`, title: 'Sign Up', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
-  { path: '/404', name: '404 Not Found', type: 'system', url: `${BASE}/404`, title: '404', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
-  { path: '/members-area', name: 'Members Area', type: 'system', url: `${BASE}/members-area`, title: 'Members Area', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
-  { path: '/order-confirmation', name: 'Order Confirmation', type: 'system', url: `${BASE}/order-confirmation`, title: 'Order Confirmation', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
-  { path: '/my-account', name: 'My Account', type: 'system', url: `${BASE}/my-account`, title: 'My Account', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
-  { path: '/my-orders', name: 'My Orders', type: 'system', url: `${BASE}/my-orders`, title: 'My Orders', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
-  { path: '/my-addresses', name: 'My Addresses', type: 'system', url: `${BASE}/my-addresses`, title: 'My Addresses', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
-  { path: '/my-wallet', name: 'My Wallet', type: 'system', url: `${BASE}/my-wallet`, title: 'My Wallet', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
+  { path: '/account/sign-in/', name: 'Customer Sign In', type: 'system', url: `${BASE}/account/sign-in/`, title: 'Customer Sign In', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
+  { path: '/orders/', name: 'Orders', type: 'system', url: `${BASE}/orders/`, title: 'Orders', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
 ];
 
 const PagesManager: React.FC<PageProps> = ({ signOut, user }) => {
