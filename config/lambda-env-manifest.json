@@ -103,6 +103,7 @@
       "PAYMENT_WABA_ID": "2094615664435155",
       "SENDER_FUNCTION": "wecare-whatsapp-business-api:live",
       "WIX_API_KEY_SECRET": "wecare/wix/headless-api-key",
+      "WIX_CART_V2_ENABLED": "true",
       "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
     },
     "wecare-cognito-custom-message": {
@@ -528,6 +529,7 @@
       "WIX_ACCOUNT_ID": "sha256:9139bb2fe801",
       "WIX_API_BASE_URL": "https://www.wixapis.com",
       "WIX_API_KEY_SECRET": "wecare/wix/headless-api-key",
+      "WIX_CART_V2_ENABLED": "true",
       "WIX_ORDERS_CACHE_TABLE": "stack-wecare-digital-WixOrdersCache",
       "WIX_ORDER_IDS_TABLE": "stack-wecare-digital-WixOrderIds",
       "WIX_PRODUCTS_CACHE_TABLE": "stack-wecare-digital-WixProductsCache",
