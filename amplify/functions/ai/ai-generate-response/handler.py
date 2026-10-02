@@ -356,31 +356,31 @@ DEFAULT_BOT_FLOW = {
         # Self-service items
         'menu_submit_request': {
             'text': "\U0001f4cb *Submit a Request*\n\nSubmit a request - it\u2019s quick and easy. We\u2019ll review and keep you posted. \U0001f4e8",
-            'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/selfservice'},
+            'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/submit-request/'},
         },
         'menu_amend_request': {
             'text': "?? *Amend a Request*\n\nNeed to modify a previous request? Update it anytime, subject to terms and approval. ???",
-            'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/selfservice'},
+            'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/request-amendment/'},
         },
         'menu_track_request': {
             'text': "\U0001f50d *Track a Request*\n\nCheck your request status - see when it\u2019s received, reviewed, or completed. \U0001f4cb",
-            'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/selfservice'},
+            'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/orders/'},
         },
         'menu_rx_slot': {
             'text': "??? *RX Slot*\n\nSchedule a medical appointment for your MEd Tour package via BNB Club. ??",
-            'cta': {'text': 'Book Slot', 'url': 'https://wecare.digital/selfservice'},
+            'cta': {'text': 'Book Slot', 'url': 'https://wecare.digital/submit-request/'},
         },
         'menu_drop_docs': {
             'text': "?? *Drop Docs*\n\nUpload supporting documents directly to your request. All uploads are secure. ??",
-            'cta': {'text': 'Upload Now', 'url': 'https://wecare.digital/selfservice'},
+            'cta': {'text': 'Upload Now', 'url': 'https://wecare.digital/drop-docs/'},
         },
         'menu_enterprise': {
             'text': "?? *Enterprise Support*\n\nFor technical or business inquiries, our enterprise team is here. ??",
-            'cta': {'text': 'Get Support', 'url': 'https://wecare.digital/selfservice'},
+            'cta': {'text': 'Get Support', 'url': 'https://wecare.digital/submit-request/'},
         },
         'menu_hours': {
             'text': "\u23f0 *Business Hours*\n\nMon-Fri, 9 AM - 6 PM (IST). Our 24/7 self-service portal is always open. \U0001f310",
-            'cta': {'text': 'Self Service', 'url': 'https://wecare.digital/selfservice'},
+            'cta': {'text': 'Self Service', 'url': 'https://wecare.digital/submit-request/'},
         },
         'menu_app': {
             'text': "\U0001f4f1 *Download the App*\n\nManage services on the go - iOS and Android. Track, schedule, and more. \U0001f680",
