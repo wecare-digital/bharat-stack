@@ -1,5 +1,5 @@
 import React from 'react';
-import { DIAL_CODES } from '../lib/dialCodes';
+import { DIAL_CODES, nationalLengthHint } from '../lib/dialCodes';
 
 /**
  * ONE FIELD, DIVIDED: a country-code segment and a number segment inside a single rounded outline.
@@ -88,13 +88,21 @@ export interface PhoneFieldProps {
   /** id list for aria-describedby - the hint, plus the error when there is one. */
   describedBy?: string;
   placeholder?: string;
+  /**
+   * The number has been verified server-side (OTP answered). Draws the lime accent and a check.
+   *
+   * COLOUR IS NOT THE ONLY SIGNAL. The tick glyph and the aria-live status text carry the meaning
+   * too, so the state survives forced-colors, a colour-blind reader and a screen reader - the lime
+   * is confirmation for people who can see it, not the message itself.
+   */
+  verified?: boolean;
 }
 
 const PhoneField: React.FC<PhoneFieldProps> = ( {
   id, dialCode, onDialCodeChange, number, onNumberChange,
-  disabled, invalid, describedBy, placeholder,
+  disabled, invalid, describedBy, placeholder, verified,
 } ) => (
-  <div className="pf">
+  <div className={ `pf${ verified ? ' pf-verified' : '' }` }>
     {/*
       * aria-label, and the cost is stated rather than hidden: attribute text is not translated by
       * SupportWidget's walker, which rewrites text nodes only. The alternative was a visually
@@ -110,11 +118,21 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
       aria-invalid={ invalid ? 'true' : undefined }
     >
       { DIAL_CODES.map( entry => (
-        // The code is the value AND the start of the label, so the closed select shows "+91" while
-        // the open list shows which country that is. data-wc-no-translate on the code would be
-        // wrong here - the country name SHOULD translate - so only the name is free text.
+        // FLAG, CODE, THEN NAME - the owner's structure. The flag and code come first so the
+        // closed select reads as their mock ("🇮🇳 +91"), and the country name follows so the open
+        // list says which country that code belongs to.
+        //
+        // THE FLAG IS AN EMOJI AND ITS FALLBACK IS THE REASON THE CODE SITS BESIDE IT. Windows
+        // ships no flag glyphs, so Chrome/Edge there render the regional-indicator pair as two
+        // letters ("IN") rather than a flag. That stays legible precisely because the dial code is
+        // always shown next to it - a Windows visitor reads "IN +91 India", which says everything
+        // it needs to. An SVG sprite would make Windows match macOS at the cost of ~60 assets on a
+        // static export; the fallback already reads correctly, so it was not worth it.
+        //
+        // data-wc-no-translate on the code would be wrong here - the country NAME should
+        // translate - so only the name is free text.
         <option key={ entry.code } value={ entry.code }>
-          { entry.code } { entry.country }
+          { entry.flag } { entry.code } { entry.country }
         </option>
       ) ) }
     </select>
@@ -130,14 +148,44 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
        * a field that already has one beside it.
        */
       autoComplete="tel-national"
-      placeholder={ placeholder }
-      required
+      /*
+       * THE PLACEHOLDER NAMES THE EXPECTED LENGTH, from the selected country's own rule:
+       * "10-digit WhatsApp number" for India, "8- or 9-digit..." for the UAE. A caller may still
+       * override it. This is the owner's requested resting-state wording and it changes with the
+       * selector, so it can never contradict the validation.
+       */
+      placeholder={ placeholder
+        ?? `${ nationalLengthHint( dialCode ) } WhatsApp number`.trim() }
+      /*
+       * `required` IS DELIBERATELY ABSENT, and removing it was a fix.
+       *
+       * It made the browser render its OWN validation bubble - "Please fill out this field." with
+       * an orange warning icon - which the owner reported from the live sign-in page. That bubble
+       * is not themeable, cannot be translated by this site's walker, and contradicts the standing
+       * no-red instruction that stripped #fee2e2/#ef4444/#7f1d1d from these surfaces. Emptiness is
+       * now caught by the page's own submit path and surfaced through the in-page error treatment
+       * (the lime state tint with role=alert, wired here via aria-invalid + aria-describedby), so
+       * the message is themed, translatable and announced once.
+       */
       value={ number }
       onChange={ e => onNumberChange( e.target.value ) }
       disabled={ disabled }
       aria-invalid={ invalid ? 'true' : undefined }
       aria-describedby={ describedBy }
     />
+
+    {/*
+      * THE VERIFIED MARK, inside the field on the trailing edge - the owner's "small check/icon +
+      * lime accent rather than changing the whole field into a button".
+      * aria-hidden on the glyph plus a role=status sibling: the tick is decoration, the status text
+      * is what a screen reader announces, and it announces once rather than on every keystroke.
+      */}
+    { verified && (
+      <span className="pf-tick">
+        <span aria-hidden="true">✓</span>
+        <span className="pf-tick-sr" role="status">Number verified</span>
+      </span>
+    ) }
 
     <style jsx>{`
       /* THE ONE FIELD. The outline, the radius and the height live here, on the container, and the
@@ -196,6 +244,44 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
       .pf-code:focus-visible,
       .pf-num:focus-visible{
         outline:3px solid #1a3a2a;outline-offset:-3px;
+      }
+
+      /* THE LIME ACCENT, AND WHY LIME IS NOT THE RING ITSELF.
+         
+         The owner asked for #d1f470 as the focus/selected/verified accent. It cannot be the focus
+         INDICATOR: #d1f470 against this white field is 1.24:1, nowhere near the 3:1 WCAG 2.4.11
+         requires of a focus indicator, so a lime ring would be a focus state a low-vision keyboard
+         user cannot find. Measured, not assumed - #1a3a2a is 12.48:1 on white, which is why it
+         stays the ring on both segments above.
+         
+         So the lime is layered AROUND the dark ring instead: the container takes a #1a3a2a border
+         and a soft lime halo on focus-within. The accessible indicator and the brand accent are
+         then two different things doing two different jobs, and neither is weakened. A box-shadow
+         is used rather than a second outline because an element gets only one outline, and shadow
+         does not affect layout so the 52px height is untouched. */
+      .pf:focus-within{
+        border-color:#1a3a2a;
+        box-shadow:0 0 0 3px rgba(209,244,112,.55);
+      }
+
+      /* VERIFIED. The same lime accent, held permanently, plus the tick. The border goes dark green
+         because "verified" is an important state and dark green is this site's weight for that;
+         the lime says which KIND of important. */
+      .pf-verified{
+        border-color:#1a3a2a;
+        box-shadow:0 0 0 3px rgba(209,244,112,.55);
+      }
+      .pf-tick{
+        display:inline-flex;align-items:center;flex:0 0 auto;
+        padding-inline-end:14px;
+        color:#1a3a2a;font-size:17px;font-weight:700;line-height:1;
+      }
+      /* The announced half of the verified state. Positioned out of view rather than
+         display:none - a display:none node is not announced at all, which would leave the tick as
+         the only signal and make colour/glyph the whole message. */
+      .pf-tick-sr{
+        position:absolute;width:1px;height:1px;margin:-1px;padding:0;
+        overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;
       }
 
       /* Disabled is a tint on the whole field, not on one segment, because both go at once. */

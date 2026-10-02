@@ -367,7 +367,9 @@ export default function FilesPage () {
                                 disabled={ busy }
                                 invalid={ !!error }
                                 describedBy={ error ? 'sf-hint sf-error' : 'sf-hint' }
-                                placeholder="9876543210"
+                                /* No placeholder override - PhoneField derives the country-aware
+                                   wording ("10-digit WhatsApp number" on +91) from the same table
+                                   its validation uses, so the hint cannot contradict the rule. */
                             />
                             <p className="sf-hint" id="sf-hint">
                                 Pick your country code, then the number WhatsApp is on.

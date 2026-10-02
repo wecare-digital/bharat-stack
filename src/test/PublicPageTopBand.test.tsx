@@ -429,13 +429,25 @@ describe( 'the country code is a segment of the one divided field, on owner inst
     fireEvent.change( screen.getByLabelText( 'Country code' ), { target: { value } } );
   };
 
-  it( 'is one divided field: a code segment and a required number segment', () => {
+  it( 'is one divided field: a code segment and a number segment, with no native validation', () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( null );
     const { container } = render( <SignIn /> );
 
     const field = screen.getByLabelText( 'WhatsApp number' ) as HTMLInputElement;
     expect( field.tagName ).toBe( 'INPUT' );
-    expect( field.required ).toBe( true );
+    /*
+     * NOT `required`, AND THAT IS THE FIX RATHER THAN A REGRESSION.
+     *
+     * `required` made the browser render its OWN validation bubble - "Please fill out this field."
+     * with an orange warning icon - which the owner reported from the live sign-in page. That
+     * bubble cannot be themed, cannot be translated by this site's text walker, and contradicts
+     * the standing no-red instruction that stripped #fee2e2/#ef4444/#7f1d1d from these surfaces.
+     * Emptiness is still caught - by the page's own submit path, surfaced through the in-page
+     * error treatment (lime state tint, role=alert) and wired to the field with aria-invalid +
+     * aria-describedby, so the message is themed, translatable and announced exactly once.
+     * This assertion is inverted deliberately: if `required` comes back, the orange bubble does.
+     */
+    expect( field.required ).toBe( false );
     expect( field.type ).toBe( 'tel' );
     // EMPTY, not prefilled. v2 seeded "+91 " so the shape was visible; the code segment shows that
     // now, and a prefix sitting in the number box would be typed into twice.

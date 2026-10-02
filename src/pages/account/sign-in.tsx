@@ -456,7 +456,12 @@ export default function CustomerSignIn (): React.ReactElement {
                 disabled={ busy }
                 invalid={ !!error }
                 describedBy={ error ? 'si-hint si-error' : 'si-hint' }
-                placeholder="9876543210"
+                /* NO placeholder OVERRIDE. PhoneField now derives it from the selected country's
+                   own length rule - "10-digit WhatsApp number" on +91, "8- or 9-digit WhatsApp
+                   number" on +971 - which is the owner's requested resting-state wording and,
+                   because it is derived from the same table the validation uses, it cannot
+                   contradict what the field will actually accept. A hardcoded "9876543210" both
+                   lost that wording and would have gone stale the moment the rule changed. */
               />
               {/* A text node, so it translates. It no longer tells the shopper to include a country
                   code - the segment beside the number does that - so the line says the one thing
