@@ -236,20 +236,20 @@ const COLUMNS: NavColumn[] = [
       // column (where it sat beneath Selfservice) on owner instruction, so the third
       // column carries the "about the company" rows - Refer & Earn plus the policies -
       // and the middle column is purely the Selfservice actions.
-      // PERKS SITS IMMEDIATELY ABOVE LEGAL STUFF, on owner instruction (Section 4): gift cards,
-      // rewards and offers gathered in one place. Gift Cards is the repaired /gift-card
-      // destination - the Gift Cards section of /perks/, reached by the #gift-cards anchor - so
-      // the several systems that still link customers to a gift-card URL land on a real page.
-      // Rewards and Offers are anchors into the same /perks/ page. No third-party gift-card
-      // provider name ('Gift Up'/'GiftUp'/any vendor) appears here or on the page. Any affordance
-      // without a verified backend (buy/redeem/check-balance/rewards) renders as a clearly
-      // non-transacting 'coming soon' rather than a working-looking button.
+      // PERKS SITS IMMEDIATELY ABOVE LEGAL STUFF, on owner instruction (Section 4). The group
+      // once carried three ANCHOR rows into /perks (Gift Cards -> #gift-cards, Rewards ->
+      // #rewards, Offers -> #offers). The owner then asked to REMOVE those gift-card / offers /
+      // rewards sections from the page, so those anchors no longer exist. Rather than leave nav
+      // rows pointing at dead #gift-cards/#rewards/#offers anchors, the group is collapsed to a
+      // single link to the /perks/ page itself. The several systems that link customers to a
+      // gift-card URL already point at https://wecare.digital/perks/ (the page, not an anchor), so
+      // they still resolve. No third-party gift-card provider name ('Gift Up'/'GiftUp'/any vendor)
+      // appears here or on the page. The /perks page is a home-styled, non-transacting landing
+      // page; it carries no working-looking buy/redeem/check-balance control.
       {
         heading: 'Perks',
         links: [
-          { label: 'Gift Cards', href: '/perks/#gift-cards', match: '/perks' },
-          { label: 'Rewards', href: '/perks/#rewards' },
-          { label: 'Offers', href: '/perks/#offers' },
+          { label: 'Perks', href: '/perks/', match: '/perks' },
         ],
       },
       {

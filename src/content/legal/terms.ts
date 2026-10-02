@@ -471,7 +471,8 @@ export const TERMS_SECTIONS: LegalSection[] = [
      * CONFIG CONSTRAINT: coupons and offers are Wix-native and validated server-side, and the live
      * configuration (which codes exist, their validity, minimum order, eligible products, usage
      * limits, stacking rules) lives in our commerce backend and cannot be asserted as fixed values
-     * from here. The /perks page honestly shows no live offers. So this clause is written in terms
+     * from here. The /perks page is now a plain landing page and no longer lists offers; any
+     * eligible coupon is applied server-side at checkout. So this clause is written in terms
      * of "as configured in our commerce backend" / "where applicable" rather than listing specific
      * values, and does not claim any particular offer is currently available.
      */
@@ -486,9 +487,9 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     /*
      * ADDED for the customer-experience upgrade (Perks / rewards). HONESTY CONSTRAINT, and the
-     * reason this clause is short: there is NO rewards backend. The /perks Rewards section is a
-     * non-transacting placeholder with no points, balances, history, earning or redemption. So
-     * this clause must NOT invent eligibility, earning, redemption or expiry mechanics for a
+     * reason this clause is short: there is NO rewards backend. There is no rewards programme and
+     * no /perks rewards section any more, and nothing offers points, balances, history, earning or
+     * redemption. So this clause must NOT invent eligibility, earning, redemption or expiry mechanics for a
      * programme that does not exist. It states the truthful position - no rewards programme is
      * currently operating - and defers any future programme to its own published terms, which is
      * exactly as much as can be said truthfully today.
