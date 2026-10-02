@@ -530,7 +530,7 @@ def run_tool(owner, name, args):
         provider_config(provider)
         if provider == 'meta-ads':
             headers = {'Authorization': 'Bearer ' + token(owner, provider)}
-            permissions, _ = http('https://graph.facebook.com/v26.0/me/permissions', None, headers)
+            permissions, _ = http(f"https://graph.facebook.com/{POLICY['metaOAuthVersion']}/me/permissions", None, headers)
             entries = permissions.get('data')
             if not isinstance(entries, list):
                 raise Refusal('Meta Ads permission read could not be verified')
