@@ -23,6 +23,16 @@ and status response are inconsistent/draft-scoped and do not establish that a
 review is actually still pending. Check the exact current submission in Meta's
 UI before submitting. The permission evidence gaps remain independently clear.
 
+The live privileges read separately reports catalog_management,
+ads_management and ads_mcp_management with is_live=false,
+grant_status=REJECTED, access_level=none, and in_current_submission=true.
+pages_read_engagement is also reported not live, REJECTED, access_level=none,
+but in_current_submission=false. No explanatory rejection reasons were returned.
+These exact reported flags are recorded without inventing a rejection cause.
+Ready for testing in the use-case UI is not proof of approved live/Advanced
+Access. The native MCP tool's own working authorization likewise does not
+establish permission approval for this developer app's custom OAuth client.
+
 ## Readiness before you paste and submit
 
 The cloud callback https://wecare.digital/api/workspace/mcp/oauth/callback is
