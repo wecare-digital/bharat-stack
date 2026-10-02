@@ -768,3 +768,16 @@ that, and states the authority exactly as it stands rather than stronger.
   passed/one skipped; 100 live URL/host probes zero mismatches; FAQ and customer
   export gates passed. Frontend source unchanged from the 698-test build.
   Rollback by normal revert; no production configuration changed by this merge.
+
+- 2026-10-02 A0_READ/A1_LOCAL: reproduced Meta Social invalid MCP scope and
+  WhatsApp authorized_unverified followed by MCP authorization refusal. Native
+  Codex app-list and WhatsApp business-list reads passed; custom cloud DCR returned
+  invalid_client_metadata. Corrected cloud client registration, token/client
+  binding, SDK verification, Google cloud OAuth and documentation-only labeling.
+  Validation: 6036 Python passed/one skipped, 705 frontend passed, focused final
+  59 Python/seven frontend passed, typecheck/build and cfn-lint 1.40.2 passed.
+  A3_PRODUCTION: prepare two-stage CloudFormation update for the dedicated MCP
+  stack: retain version 1 first, then scoped IAM and version replacement. No
+  customer resources, payment writes, WhatsApp sends or code-job enablement.
+  Rollback: previous artifact 711c209c1a1c8d6b4c7a0cfd3e3f40eec806e7fb683acaa99aa2be37fa361803
+  and retained Lambda version 1. Applied/live results recorded separately.

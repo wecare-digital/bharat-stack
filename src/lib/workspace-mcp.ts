@@ -26,8 +26,10 @@ export async function workspaceMCP<T>(name: string, args: Record<string, unknown
 
 export function metaAuthorizationURL(value: string): string {
   const url = new URL(value);
-  if (url.origin !== 'https://www.facebook.com' || url.pathname !== '/v26.0/dialog/oauth'
-    || url.searchParams.get('client_id') !== '2238810740192680'
+  const meta = url.origin === 'https://www.facebook.com' && url.pathname === '/v26.0/dialog/oauth';
+  const google = url.origin === 'https://accounts.google.com' && url.pathname === '/o/oauth2/v2/auth'
+    && url.searchParams.get('client_id') === '756034744787-occ06h9v22rh0kbm83mmedpfqqqfni44.apps.googleusercontent.com';
+  if ((!meta && !google) || !url.searchParams.get('client_id')
     || url.searchParams.get('redirect_uri') !== 'https://wecare.digital/api/workspace/mcp/oauth/callback'
     || url.searchParams.get('code_challenge_method') !== 'S256') {
     throw new Error('The authorization link could not be verified.');

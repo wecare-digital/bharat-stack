@@ -1,16 +1,18 @@
-# AWS administrative MCP - first release
+# AWS administrative MCP
 
-Built on `feature/workspace-mcp`, based on stack commit `51445762`. Merge and
-activation are separate steps. This branch does not deploy resources or change
-the existing Kiro/Codex MCP settings automatically.
+The first release was merged through PR 179 and deployed as the dedicated
+`wecare-workspace-mcp` stack. Deployment evidence is recorded in
+`docs/execution/workspace-mcp-live-20261001.md`. Desktop provider authorizations
+and cloud provider authorizations are separate.
 
 ## Who calls what
 
 Kiro or Codex runs `scripts/workspace_mcp_proxy.py` as its stdio MCP client. The
 bridge uses the existing `wecare-prod` profile to sign requests to the API Gateway
-IAM route. The new Lambda calls Meta's remote MCP servers using their independently
-authorized OAuth credentials. Its SDK adapters read AWS status and GitHub repository
-access. GitHub Actions owns supplied-patch testing and committing.
+IAM route. The Lambda calls remote MCP servers only with independently authorized
+credentials. Its fixed SDK adapters read AWS, GitHub, Wix and Razorpay; Google
+Cloud and Ads use separate cloud OAuth grants. GitHub Actions owns supplied-patch
+testing and committing.
 
 The reasoning model stays in the client. There is no new Bedrock/OpenAI model,
 arbitrary shell tool or unrestricted AWS script runner. Backend infrastructure is
@@ -35,16 +37,16 @@ flowchart LR
 
 ## Authentication
 
-* Planned staff endpoint: `https://wecare.digital/api/workspace/mcp`.
+* Staff endpoint: `https://wecare.digital/api/workspace/mcp`.
   API Gateway verifies the existing staff pool issuer and client audience. The
   handler accepts access tokens only, rechecks Cognito revocation and current Admin
   membership, and rejects customer tokens. It does not expose a new native MCP
   OAuth authorization server; direct HTTP use needs a current staff bearer token.
-* Planned IAM bridge endpoint:
+* IAM bridge endpoint:
   `https://zllr9lrg7j.execute-api.us-east-1.amazonaws.com/prod/workspace/mcp-iam`.
   API Gateway verifies SigV4; the handler permits the established `wecare-admin`
   principal only. Existing developer credentials stay in the local profile.
-* Planned Meta callback:
+* Provider callback:
   `https://wecare.digital/api/workspace/mcp/oauth/callback`.
   This is the sole public route in the new stack. A ten-minute one-use random state
   binds a provider and caller. A new consent request invalidates the previous one.
@@ -63,8 +65,8 @@ Amplify rewrite rules or provider credentials are modified by this stack.
 | Tool | Behavior |
 |---|---|
 | `connections_list` | Reports versioned connection configuration and caller-specific OAuth status; never token values |
-| `connection_authorize` | Produces a separate cloud OAuth consent URL for Meta Social or WhatsApp |
-| `connection_verify` | Runs app-list or business-list through Lambda and records a successful read |
+| `connection_authorize` | Starts cloud OAuth for Meta Social, WhatsApp, Meta Ads, Google Cloud or Google Ads; unsupported client registration fails before opening a broken login |
+| `connection_verify` | Records a successful fixed account read, or separately records documentation MCP discovery |
 | `provider_read` | Allows selected Meta app reads for app 2238810740192680, or WhatsApp business-list only |
 | `aws_status` | Reads account identity and the two MCP live aliases |
 | `github_status` | Checks this repository using `wecare/github-pat`, field `token`, resolved inside Lambda |
@@ -80,10 +82,27 @@ and bounded SSE responses are supported; sessions are established separately per
 remote call. Provider content is untrusted data, and credential-named fields are
 redacted recursively, including JSON carried in text content.
 
-The registry also records Wix, Razorpay, Google Cloud, Google Ads and Meta Ads as
-`pending-adapter`, and Plivo/Sinch as `documentation-only`. Those records are not a
-claim that these services are authenticated in AWS. Existing desktop connections
-retain their own authentication. Razorpay stays read-only; Sinch stays RCS-only.
+Wix verification reads site properties. Razorpay verification fetches at most one
+order and returns only collection metadata, never customer or order content.
+Google Cloud reads only project `wecaredigitalbw`; Google Ads lists accessible
+customers using the developer token resolved inside Lambda. Google grants request
+offline access and retain encrypted refresh tokens. The Google web client secret
+is resolved from `wecare/seo/google-oauth` only inside token exchange/refresh.
+Runtime IAM grants name exact secret ARNs. Decryption of the Google Ads secret's
+existing CMK is restricted to Secrets Manager and that secret's encryption context.
+
+Plivo and Sinch perform public documentation MCP initialization and tool discovery,
+recorded as `documentation_verified`, never live-account access. Sinch remains
+RCS-only. Existing desktop connections retain their own authentication.
+
+Meta remote OAuth must use an MCP-registered client, not the WECARE business app
+ID. The published Meta metadata uses dynamic client registration. The tested
+custom cloud registration was rejected with `invalid_client_metadata` and
+`Dynamic registration is not available for this client`. The dashboard reports
+that restriction. An older business-app token cannot be forwarded as an MCP
+credential. Meta Ads account verification remains unavailable until an approved
+client and a bounded account-read tool are configured. Ordinary WhatsApp Graph
+authorization saved by the callback is not proof that its MCP is connected.
 
 ## Build and review
 

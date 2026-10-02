@@ -14,6 +14,7 @@ const names: Record<string, string> = {
 };
 const descriptions: Record<string, string> = {
   'remote-mcp': 'Connect your account, then verify an authorized read.',
+  'oauth-sdk': 'Connect your Google account, then verify an authorized read.',
   sdk: 'Check the AWS-backed account connection.',
   'pending-adapter': 'Dashboard connection is not available yet.',
   'documentation-only': 'Documentation access. Live account access is not connected.',
@@ -22,6 +23,8 @@ const statusNames: Record<string, string> = {
   consent_required: 'Sign-in needed', authorized_unverified: 'Ready to verify', verified: 'Verified',
   refresh_or_consent_required: 'Renew sign-in', sdk: 'Ready to check',
   'pending-adapter': 'Adapter pending', 'documentation-only': 'Documentation only',
+  documentation_verified: 'Documentation verified',
+  mcp_client_required: 'MCP client sign-in needed',
 };
 interface Authorization { url: string; expires: number; }
 
@@ -49,13 +52,14 @@ export default function MCPConnections({ user, signOut }: { user?: any; signOut?
     for (const provider of providers) {
       try {
         const value = await workspaceMCP<Record<string, unknown>>(
-          provider === 'aws' ? 'aws_status' : provider === 'github' ? 'github_status' : 'connection_verify',
-          provider === 'aws' || provider === 'github' ? {} : { provider },
+          'connection_verify', { provider },
         );
-        setChecks(old => ({ ...old, [provider]: 'Verified' }));
+        setChecks(old => ({ ...old, [provider]: value.status === 'documentation_verified' ? 'Documentation verified' : 'Verified' }));
         setAuthorizations(old => { const next = { ...old }; delete next[provider]; return next; });
-        const detail = provider === 'aws' ? `Account ${value.account} · ${value.region}`
-          : provider === 'github' ? `${value.repository} · ${value.defaultBranch}` : 'Authorized read passed';
+        const read = (value.read || {}) as Record<string, unknown>;
+        const detail = provider === 'aws' ? `Account ${read.account} · ${read.region}`
+          : provider === 'github' ? `${read.repository} · ${read.defaultBranch}`
+          : value.status === 'documentation_verified' ? 'Documentation MCP verified; live account access is separate' : 'Authorized read passed';
         setActivity(old => [`${names[provider] || provider}: ${detail}`, ...old].slice(0, 20));
       } catch (e) {
         setChecks(old => ({ ...old, [provider]: 'Check needed' }));
@@ -84,7 +88,7 @@ export default function MCPConnections({ user, signOut }: { user?: any; signOut?
       </header>
       {role.loading ? <p role="status">Checking your access…</p> : !admin ?
         <p className={styles.notice}>A staff Admin account is required to manage MCP connections.</p> : <>
-        <p className={styles.notice}>Connect each account separately. After sign-in in the new tab, return here and select Verify. Dashboard connections belong to your staff session; desktop MCP authorizations are separate.</p>
+        <p className={styles.notice}>Connect each account separately. After sign-in in the new tab, return here and select Verify. Dashboard connections belong to your staff session; desktop MCP authorizations are separate. Meta cloud connections require a supported MCP client registration.</p>
         {error && <p className={styles.notice} role="alert">{error}</p>}
         <div className={styles.toolbar}>
           <span>{selected.length} selected</span>
@@ -94,8 +98,8 @@ export default function MCPConnections({ user, signOut }: { user?: any; signOut?
         <div className={styles.grid}>
           {connections.map(connection => {
             const provider = connection.provider;
-            const remote = connection.kind === 'remote-mcp';
-            const supported = remote || connection.kind === 'sdk';
+            const remote = connection.kind === 'remote-mcp' || connection.kind === 'oauth-sdk';
+            const supported = remote || connection.kind === 'sdk' || connection.kind === 'documentation-only';
             const authorization = authorizations[provider];
             const validLink = authorization && authorization.expires > now;
             return <section className={styles.card} key={provider} aria-label={names[provider] || provider}>
@@ -109,7 +113,7 @@ export default function MCPConnections({ user, signOut }: { user?: any; signOut?
                 {remote && <Button variant="primary" disabled={busy} onClick={() => void connect(provider)}>Connect</Button>}
                 {supported && <Button disabled={busy} onClick={() => void run([provider])}>{remote ? 'Verify' : 'Check connection'}</Button>}
               </div>
-              {validLink && <div className={styles.notice}><a href={authorization.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Continue with Meta ↗</a><p>Complete sign-in, then return and verify.</p></div>}
+              {validLink && <div className={styles.notice}><a href={authorization.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Continue with {provider.startsWith('google-') ? 'Google' : 'Meta'} ↗</a><p>Complete sign-in, then return and verify.</p></div>}
               {authorization && !validLink && <p className={styles.notice}>Sign-in link expired. Select Connect for a fresh link.</p>}
             </section>;
           })}

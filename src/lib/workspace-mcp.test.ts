@@ -25,7 +25,10 @@ describe('workspace MCP transport', () => {
     const url = `https://www.facebook.com/v26.0/dialog/oauth?${params}`;
     expect(metaAuthorizationURL(url)).toBe(url);
     expect(() => metaAuthorizationURL(url.replace('www.facebook.com', 'facebook.com.attacker.example'))).toThrow();
-    expect(() => metaAuthorizationURL(url.replace('2238810740192680', 'another-app'))).toThrow();
+    const google = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    google.search = new URLSearchParams({client_id: '756034744787-occ06h9v22rh0kbm83mmedpfqqqfni44.apps.googleusercontent.com', redirect_uri: 'https://wecare.digital/api/workspace/mcp/oauth/callback', code_challenge_method: 'S256'}).toString();
+    expect(metaAuthorizationURL(google.href)).toBe(google.href);
+    expect(() => metaAuthorizationURL(google.href.replace('756034744787-', 'another-'))).toThrow();
     expect(() => metaAuthorizationURL('javascript:alert(1)')).toThrow();
   });
 });

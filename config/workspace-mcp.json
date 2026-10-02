@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "account": "775261844268",
   "region": "us-east-1",
   "repository": "wecare-digital/wecare-digital",
@@ -9,25 +9,103 @@
     "meta-social": {
       "kind": "remote-mcp",
       "endpoint": "https://mcp.facebook.com/devtools",
-      "clientId": "2238810740192680",
-      "scopes": ["developer_tools_mcp_app_read", "business_management"],
-      "tools": {"devtools_app_list": ["list"], "devtools_app": ["basic_settings", "advanced_settings", "security", "restrictions"], "devtools_api_usage": ["rate_limits", "call_volume", "deprecations"]}
+      "scopes": [
+        "developer_tools_mcp_app_read",
+        "business_management"
+      ],
+      "tools": {
+        "devtools_app_list": [
+          "list"
+        ],
+        "devtools_app": [
+          "basic_settings",
+          "advanced_settings",
+          "security",
+          "restrictions"
+        ],
+        "devtools_api_usage": [
+          "rate_limits",
+          "call_volume",
+          "deprecations"
+        ]
+      },
+      "registrationEndpoint": "https://mcp.facebook.com/.well-known/register/devtools"
     },
     "whatsapp": {
       "kind": "remote-mcp",
       "endpoint": "https://mcp.facebook.com/whatsapp_business_tools",
-      "clientId": "2238810740192680",
-      "scopes": ["business_management", "whatsapp_business_management"],
-      "tools": {"whatsapp_biz_businesses": ["list"]}
+      "scopes": [
+        "business_management",
+        "whatsapp_business_management"
+      ],
+      "tools": {
+        "whatsapp_biz_businesses": [
+          "list"
+        ]
+      },
+      "registrationEndpoint": "https://mcp.facebook.com/.well-known/register/whatsapp_business_tools"
     },
-    "aws": {"kind": "sdk", "tools": ["aws_status"]},
-    "github": {"kind": "sdk", "tools": ["github_status", "code_job_submit", "code_job_status"]},
-    "wix": {"kind": "pending-adapter", "endpoint": "https://mcp.wix.com/mcp"},
-    "razorpay": {"kind": "pending-adapter", "mode": "read-only"},
-    "google-cloud": {"kind": "pending-adapter", "project": "wecaredigitalbw"},
-    "google-ads": {"kind": "pending-adapter", "manager": "4270412231"},
-    "meta-ads": {"kind": "pending-adapter", "endpoint": "https://mcp.facebook.com/ads"},
-    "plivo": {"kind": "documentation-only", "endpoint": "https://plivo.mintlify.app/mcp"},
-    "sinch": {"kind": "documentation-only", "endpoint": "https://developers.sinch.com/mcp", "restriction": "RCS only"}
+    "aws": {
+      "kind": "sdk",
+      "tools": [
+        "aws_status"
+      ]
+    },
+    "github": {
+      "kind": "sdk",
+      "tools": [
+        "github_status",
+        "code_job_submit",
+        "code_job_status"
+      ]
+    },
+    "wix": {
+      "kind": "sdk",
+      "endpoint": "https://mcp.wix.com/mcp"
+    },
+    "razorpay": {
+      "kind": "sdk",
+      "mode": "read-only"
+    },
+    "google-cloud": {
+      "kind": "oauth-sdk",
+      "project": "wecaredigitalbw",
+      "clientId": "756034744787-occ06h9v22rh0kbm83mmedpfqqqfni44.apps.googleusercontent.com",
+      "authorizationEndpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+      "tokenEndpoint": "https://oauth2.googleapis.com/token",
+      "scopes": [
+        "https://www.googleapis.com/auth/cloud-platform.read-only"
+      ]
+    },
+    "google-ads": {
+      "kind": "oauth-sdk",
+      "manager": "4270412231",
+      "clientId": "756034744787-occ06h9v22rh0kbm83mmedpfqqqfni44.apps.googleusercontent.com",
+      "authorizationEndpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+      "tokenEndpoint": "https://oauth2.googleapis.com/token",
+      "scopes": [
+        "https://www.googleapis.com/auth/adwords"
+      ]
+    },
+    "meta-ads": {
+      "kind": "remote-mcp",
+      "endpoint": "https://mcp.facebook.com/ads",
+      "registrationEndpoint": "https://mcp.facebook.com/.well-known/register/ads",
+      "scopes": [
+        "ads_read",
+        "business_management",
+        "ads_mcp_management"
+      ],
+      "tools": {}
+    },
+    "plivo": {
+      "kind": "documentation-only",
+      "endpoint": "https://plivo.mintlify.app/mcp"
+    },
+    "sinch": {
+      "kind": "documentation-only",
+      "endpoint": "https://developers.sinch.com/mcp",
+      "restriction": "RCS only"
+    }
   }
 }

@@ -21,6 +21,9 @@ def module(monkeypatch):
     spec = importlib.util.spec_from_file_location("workspace_mcp_test", DIRECTORY / "handler.py")
     result = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(result)
+    for name in ('meta-social', 'whatsapp'):
+        result.POLICY['connections'][name].pop('registrationEndpoint', None)
+        result.POLICY['connections'][name]['clientId'] = 'fixture-client'
     return result
 
 
@@ -150,7 +153,71 @@ def test_registry_never_returns_ciphertext(module, memory):
     memory.rows["connection:owner:whatsapp"] = {"status": "verified", "expiresAt": int(time.time()) + 3600, "cipher": b"fixture-sensitive"}
     result = json.dumps(module.registry("owner"))
     assert "fixture-sensitive" not in result and "cipher" not in result
-    assert "pending-adapter" in result and "documentation-only" in result
+    assert "oauth-sdk" in result and "documentation-only" in result
+
+
+def test_meta_registration_failure_does_not_create_login_flow(module, memory, monkeypatch):
+    module.POLICY['connections']['meta-social']['registrationEndpoint'] = 'https://mcp.facebook.com/.well-known/register/devtools'
+    def blocked(*a, **kw): raise module.Refusal('Provider authorization required')
+    monkeypatch.setattr(module, 'http', blocked)
+    with pytest.raises(module.Refusal, match='client registration is unavailable'):
+        module.oauth_begin('owner', 'meta-social')
+    assert not memory.rows
+
+
+def test_registered_meta_client_is_reused_without_business_app_id(module, memory, monkeypatch):
+    module.POLICY['connections']['meta-social']['registrationEndpoint'] = 'https://mcp.facebook.com/.well-known/register/devtools'
+    calls = []
+    def register(url, payload, **kwargs):
+        calls.append(payload)
+        return {'client_id': 'registered-client', 'token_endpoint_auth_method': 'none'}, None
+    monkeypatch.setattr(module, 'http', register)
+    first = module.oauth_begin('owner', 'meta-social')
+    second = module.oauth_begin('owner', 'meta-social')
+    assert len(calls) == 1 and calls[0]['redirect_uris'] == [module.CALLBACK]
+    assert 'client_id=registered-client' in first['authorizationUrl']
+    assert '2238810740192680' not in second['authorizationUrl']
+
+
+def test_google_callback_uses_runtime_secret_and_keeps_tokens_out_of_response(module, memory, monkeypatch):
+    import urllib.parse
+    config = module.POLICY['connections']['google-cloud']
+    monkeypatch.setattr(module, 'secret_json', lambda name: {'client_id': config['clientId'], 'client_secret': 'fixture-confidential'})
+    begin = module.oauth_begin('owner', 'google-cloud')
+    query = urllib.parse.parse_qs(urllib.parse.urlparse(begin['authorizationUrl']).query)
+    assert query['access_type'] == ['offline']
+    assert query['scope'] == ['https://www.googleapis.com/auth/cloud-platform.read-only']
+    calls = []
+    def exchange(url, payload, **kwargs):
+        calls.append((url, payload))
+        return {'access_token': 'fixture-access', 'refresh_token': 'fixture-refresh', 'expires_in': 3600}, None
+    monkeypatch.setattr(module, 'http', exchange)
+    result = module.oauth_callback({'state': query['state'][0], 'code': 'fixture-code'})
+    assert calls[0][0] == 'https://oauth2.googleapis.com/token'
+    assert calls[0][1]['client_secret'] == 'fixture-confidential'
+    assert 'resource' not in calls[0][1]
+    assert 'fixture-' not in json.dumps(result)
+    assert result['status'] == 'authorized_unverified'
+
+
+def test_google_rejects_wrong_runtime_client_before_token_exchange(module, memory, monkeypatch):
+    monkeypatch.setattr(module, 'secret_json', lambda name: {'client_id': 'wrong', 'client_secret': 'fixture-confidential'})
+    monkeypatch.setattr(module, 'http', lambda *a, **kw: pytest.fail('must not send secret to token endpoint'))
+    with pytest.raises(module.Refusal, match='does not match'):
+        module.exchange_parameters('owner', 'google-ads')
+
+
+def test_old_business_app_token_is_not_used_for_meta_mcp(module, memory, monkeypatch):
+    module.POLICY['connections']['whatsapp']['registrationEndpoint'] = 'https://mcp.facebook.com/.well-known/register/whatsapp_business_tools'
+    module.save_tokens('owner', 'whatsapp', {'access_token': 'fixture-graph', 'expires_in': 3600})
+    monkeypatch.setattr(module, 'http', lambda *a, **kw: pytest.fail('must not forward an ordinary Graph token'))
+    with pytest.raises(module.Refusal, match='Prior business-app authorization'):
+        module.provider_call('owner', 'whatsapp', 'whatsapp_biz_businesses', {'action': 'list'})
+
+
+def test_sdk_provider_cannot_be_called_as_arbitrary_remote_tool(module):
+    with pytest.raises(module.Refusal, match='read allowlist'):
+        module.safe_provider_args('google-cloud', 'run_gcloud_command', {'action': 'list'})
 
 
 def test_notification_does_not_execute_tool(module, monkeypatch):
@@ -175,6 +242,8 @@ def test_iac_roles_cannot_mutate_providers_or_lambda():
     actions = {a for s in statements for a in s["Action"]}
     assert "lambda:UpdateFunctionCode" not in actions and "iam:PassRole" not in actions
     assert resources["Function"]["Properties"]["Environment"]["Variables"]["CODE_JOBS_ENABLED"] == "false"
+    assert resources['Version']['UpdateReplacePolicy'] == 'Retain'
+    assert resources['Version']['DeletionPolicy'] == 'Retain'
 
 
 @pytest.mark.parametrize("path", [".github/workflows/build-test.yml", ".kiro/steering/secret-handling.md", "amplify/functions/ecommerce/checkout/handler.py", "src/components/../lib/auth.ts", "src/components/Header.tsx\"", "/etc/passwd"])

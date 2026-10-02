@@ -15,7 +15,7 @@ const connections = [{ provider: 'aws', kind: 'sdk', status: 'sdk' }, { provider
 beforeEach(() => {
   vi.clearAllMocks();
   role.mockReturnValue({ role: 'Admin', groups: ['Admin'], isAdmin: true, isPartner: false, wabaId: null, loading: false });
-  call.mockImplementation(async name => name === 'connections_list' ? { connections } : { account: '775261844268', region: 'us-east-1', repository: 'wecare-digital/wecare-digital', defaultBranch: 'stack' });
+  call.mockImplementation(async name => name === 'connections_list' ? { connections } : { status: 'verified', read: { account: '775261844268', region: 'us-east-1', repository: 'wecare-digital/wecare-digital', defaultBranch: 'stack' } });
 });
 it('does not load or offer management to Operators', async () => {
   role.mockReturnValue({ role: 'Operator', groups: ['Operator'], isAdmin: true, isPartner: false, wabaId: null, loading: false });
@@ -30,8 +30,8 @@ it('checks multiple selected providers without offering Connect for pending adap
   fireEvent.click(screen.getByLabelText('Select AWS'));
   fireEvent.click(screen.getByLabelText('Select GitHub'));
   fireEvent.click(screen.getByRole('button', { name: 'Check selected' }));
-  await waitFor(() => expect(call).toHaveBeenCalledWith('github_status', {}));
-  expect(call).toHaveBeenCalledWith('aws_status', {});
+  await waitFor(() => expect(call).toHaveBeenCalledWith('connection_verify', {provider: 'github'}));
+  expect(call).toHaveBeenCalledWith('connection_verify', {provider: 'aws'});
   expect(await screen.findByText(/GitHub: wecare-digital/)).toBeInTheDocument();
 });
 it('shows a validated OAuth link only after the chosen provider starts authorization', async () => {

@@ -166,7 +166,26 @@
                   "Action": [
                     "secretsmanager:GetSecretValue"
                   ],
-                  "Resource": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/github-pat-y4tXJa"
+                  "Resource": [
+                    "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/github-pat-y4tXJa",
+                    "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/seo/google-oauth-XnSVlc",
+                    "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google/ads-HuIYKY",
+                    "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/razorpay/api-vaHEaM",
+                    "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/wix/headless-api-key-UTWQel"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Decrypt"
+                  ],
+                  "Resource": "arn:aws:kms:us-east-1:775261844268:key/9b5b8734-9968-4464-90a9-329dad12c1a9",
+                  "Condition": {
+                    "StringEquals": {
+                      "kms:ViaService": "secretsmanager.us-east-1.amazonaws.com",
+                      "kms:EncryptionContext:SecretARN": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google/ads-HuIYKY"
+                    }
+                  }
                 },
                 {
                   "Effect": "Allow",
@@ -243,6 +262,8 @@
     },
     "Version": {
       "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "Function"
@@ -250,7 +271,7 @@
         "CodeSha256": {
           "Ref": "CodeSha256"
         },
-        "Description": "Initial administrative MCP release"
+        "Description": "Administrative MCP fixed read adapters and registered OAuth"
       }
     },
     "Alias": {
@@ -500,6 +521,19 @@
     },
     "IamEndpoint": {
       "Value": "https://zllr9lrg7j.execute-api.us-east-1.amazonaws.com/prod/workspace/mcp-iam"
+    }
+  },
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
+    },
+    "com.aws.cloudformation.Context": {
+      "ref": [
+        {
+          "at": "docs/workspace-mcp.md",
+          "has": "Authentication, fixed read adapters, runtime credential custody and rollback constraints"
+        }
+      ]
     }
   }
 }
