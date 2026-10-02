@@ -118,13 +118,13 @@ const OrdersPage: React.FC = () => (
              interactive and 1px means static. */
           .mo-cta{
             display:inline-flex;align-items:center;min-height:52px;margin-top:6px;
-            padding:0 26px;border:2px solid #d1f470;border-radius:50px;
+            padding:0 26px;border:2px solid #1a3a2a;border-radius:50px;
             background:#d1f470;color:#1a3a2a;
             font-size:17px;font-weight:600;text-decoration:none;
             transition:background-color .2s,border-color .2s,transform .2s,box-shadow .2s;
           }
           .mo-cta:hover{
-            background:#fff;border-color:#d1f470;
+            background:#fff;border-color:#1a3a2a;
             transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12);
           }
           .mo-cta:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
