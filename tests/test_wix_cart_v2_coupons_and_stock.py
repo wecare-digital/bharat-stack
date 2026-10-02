@@ -88,7 +88,7 @@ def test_add_coupon_routes_to_the_dedicated_v2_method():
     CartV2(wix).add_coupon(response["cart"]["id"], "WELCOME10")
 
     assert wix.paths(response["cart"]["id"]) == [("POST", "/ecom/v2/carts/{id}/add-coupon")]
-    assert wix.calls[0][2] == {"couponCode": "WELCOME10"}
+    assert wix.calls[0][2] == {"coupon": {"code": "WELCOME10"}}
 
 
 def test_a_coupon_lowers_the_collection_total():
@@ -157,7 +157,8 @@ def test_a_browser_cannot_supply_a_discount_amount_only_a_code_to_validate():
     CartV2(wix).add_coupon(response["cart"]["id"], "WELCOME10")
 
     body = wix.calls[0][2]
-    assert set(body) == {"couponCode"}
+    assert set(body) == {"coupon"}
+    assert set(body["coupon"]) == {"code"}
     serialized = json.dumps(body).lower()
     for financial in ("amount", "price", "discount", "paise", "total", "currency", "percent"):
         assert financial not in serialized
@@ -180,7 +181,7 @@ def test_an_invented_coupon_cannot_change_the_amount_without_wix_agreeing():
     assert quoted["amountPaise"] == 2549900
 
 
-@pytest.mark.parametrize("bad", ["", "   ", None, 123, "x" * 101, b"code"])
+@pytest.mark.parametrize("bad", ["", "   ", None, 123, "x" * 51, b"code"])
 def test_a_malformed_coupon_code_never_reaches_the_provider(bad):
     def forbidden(*args, **kwargs):
         pytest.fail("invalid coupon input reached the provider")
@@ -210,56 +211,70 @@ def test_the_applied_coupon_is_visible_in_the_non_payable_view():
     assert preview["payable"] is False
 
 
-# ── gift cards: refused ──────────────────────────────────────────────────────────
+# ── Wix-native gift cards ───────────────────────────────────────────────────────
 
-def test_the_adapter_has_no_gift_card_methods_at_all():
-    """Refused by absence, not by a guard. `Add Gift Card` and `Remove Gift Card` are both
-    first-class V2 methods, so leaving them out is a decision and this records it."""
-    for forbidden in ("add_gift_card", "addGiftCard", "remove_gift_card", "gift_card"):
-        assert not hasattr(CartV2, forbidden)
+def test_add_and_remove_gift_card_use_current_cart_v2_shapes():
+    response = load("gift_card_partial")
+    cart_id = response["cart"]["id"]
+    gift_id = response["summary"]["paymentSummary"]["giftCards"][0]["giftCardId"]
+    wix = Wix(response)
+    adapter = CartV2(wix)
 
-    # The endpoint shapes specifically, not the phrase: this file and `cart_v2` both discuss gift
-    # cards at length in prose, and the thing being asserted is that no CALL is built.
-    source = (ROOT / "amplify/functions/shared/lambda_utils/ecommerce/cart_v2.py").read_text()
-    for endpoint in ("/add-gift-card", "/remove-gift-card"):
-        assert endpoint not in source, f"cart_v2 must not reference {endpoint}"
+    adapter.add_gift_card(cart_id, "GC-1234-5678-9012")
+    adapter.remove_gift_card(cart_id, gift_id)
+
+    assert wix.calls[0][1].endswith("/add-gift-card")
+    assert wix.calls[0][2] == {"giftCard": {"code": "GC-1234-5678-9012"}}
+    assert wix.calls[1][1].endswith("/remove-gift-card")
+    assert wix.calls[1][2] == {"giftCardId": gift_id}
 
 
-def test_a_gift_card_on_the_cart_is_refused_rather_than_part_paid():
-    """A gift card is a partial payment, and partial payment is off for this release.
+@pytest.mark.parametrize("bad", ["", "short", "x" * 21, None, 123])
+def test_malformed_gift_card_code_never_reaches_wix(bad):
+    def forbidden(*args, **kwargs):
+        pytest.fail("invalid gift card input reached Wix")
+    with pytest.raises(ValueError):
+        CartV2(forbidden).add_gift_card(load("gift_card_partial")["cart"]["id"], bad)
 
-    The decisive reason is narrower than that, though: a gift card settles INSIDE Wix, and every
-    verification here can only confirm a Razorpay capture. The gift-card leg would be money moving
-    on a rail the payment-integrity work cannot see.
-    """
-    response = load("delivery_complete")
-    response["summary"]["paymentSummary"]["giftCards"] = [
-        {"id": "gc-1", "amount": {"amount": "500.00"}}]
+
+def test_partial_wix_gift_card_is_authoritative_and_reconciles():
+    response = load("gift_card_partial")
+    result = CartV2(Wix(response)).calculate(response["cart"]["id"])
+
+    assert result["amountPaise"] == 100000
+    assert result["wixGiftCardRedeemPaise"] == 40000
+    assert result["wixPayNowPaise"] == 60000
+    assert result["wixGiftCard"]["giftCardId"] ==         response["summary"]["paymentSummary"]["giftCards"][0]["giftCardId"]
+    assert result["wixGiftCard"]["redeemPaise"] == 40000
+
+
+def test_gift_card_split_must_match_wix_total_exactly():
+    response = load("gift_card_partial")
+    response["summary"]["paymentSummary"]["payNow"]["amount"] = "600.01"
     with pytest.raises(CartContractError):
         CartV2(Wix(response)).calculate(response["cart"]["id"])
 
 
-def test_a_gift_card_that_covers_the_whole_total_is_still_refused():
-    """The case where Wix omits the payment gateway order id entirely, leaving nothing to verify."""
-    response = load("delivery_complete")
-    response["summary"]["paymentSummary"]["giftCards"] = [
-        {"id": "gc-1", "amount": {"amount": "25499.00"}}]
-    response["summary"]["paymentSummary"]["payNow"] = {"amount": "0", "convertedAmount": "0"}
-    response["summary"]["paymentSummary"]["totalAfterGiftCards"] = {
-        "amount": "0", "convertedAmount": "0"}
-    with pytest.raises(CartContractError):
-        CartV2(Wix(response)).calculate(response["cart"]["id"])
+def test_full_wix_gift_card_coverage_is_allowed_when_wix_says_no_external_payment_required():
+    response = load("gift_card_partial")
+    payment = response["summary"]["paymentSummary"]
+    payment["giftCards"][0]["redeemAmount"] = {"amount": "1000.00", "convertedAmount": "1000.00"}
+    payment["payNow"] = {"amount": "0.00", "convertedAmount": "0.00"}
+    payment["totalAfterGiftCards"] = {"amount": "0.00", "convertedAmount": "0.00"}
+    payment["requiresPaymentAfterGiftCard"] = False
+    result = CartV2(Wix(response)).calculate(response["cart"]["id"])
+    assert result["wixGiftCardRedeemPaise"] == 100000
+    assert result["wixPayNowPaise"] == 0
 
 
-def test_the_estimate_never_asks_wix_to_calculate_gift_cards():
-    """So a gift-card balance cannot appear in a figure a customer might read as their price."""
+def test_the_estimate_does_not_apply_gift_cards_before_the_customer_requests_one():
     response = load("delivery_complete")
     wix = Wix(response)
     CartV2(wix).estimate(response["cart"]["id"])
     assert wix.calls[0][2]["calculateGiftCards"] is False
 
 
-def test_memberships_and_subscription_charges_are_refused_on_the_same_grounds():
+def test_memberships_and_subscription_charges_remain_refused():
     for field in ("memberships", "subscriptionCharges"):
         response = load("delivery_complete")
         response["summary"]["paymentSummary"][field] = [{"id": "x"}]
