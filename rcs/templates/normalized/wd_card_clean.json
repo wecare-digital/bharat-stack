@@ -8,7 +8,7 @@
       "kind": "action",
       "postbackData": "wd_get_started",
       "text": "Get Started",
-      "url": "https://wecare.digital/selfservice"
+      "url": "https://wecare.digital/submit-request/"
     },
     {
       "actionTypes": [

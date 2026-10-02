@@ -1,5 +1,5 @@
 /**
- * Submit Request — /service/submit-request
+ * Submit Request — [retired public path]/submit-request
  * Order-centric service request submission with draft support.
  * Flow: ORDER_SELECT → SUBMIT_FORM → TERMS → REVIEW → THANK_YOU
  */

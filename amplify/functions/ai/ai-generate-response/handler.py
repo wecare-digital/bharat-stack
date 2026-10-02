@@ -384,7 +384,7 @@ DEFAULT_BOT_FLOW = {
         },
         'menu_app': {
             'text': "\U0001f4f1 *Download the App*\n\nManage services on the go - iOS and Android. Track, schedule, and more. \U0001f680",
-            'cta': {'text': 'GET APP', 'url': 'https://wecare.digital/one'},
+            'cta': {'text': 'GET APP', 'url': 'https://wecare.digital/get/'},
         },
         'menu_about': {
             'text': "\U0001f30d *About Us*\n\nWECARE.DIGITAL creates helpful products for everyday life - with you at the heart.\n\nOur brands: BNB Club, Expo Week, Legal Champ, No-Fault, Ritual Guru, and Swdhya.",
@@ -393,27 +393,27 @@ DEFAULT_BOT_FLOW = {
         # Store brand responses
         'store_bnb_club': {
             'text': "\U0001f30d *BNB Club - Travel*\n\nYour travel club for visas, corporate travel, FIT packages, and itinerary planning. \u2708\ufe0f",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/bnbclub'},
+            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/elsewhere/'},
         },
         'store_no_fault': {
             'text': "\u2696\ufe0f *No Fault - ODR*\n\nFaster, lower-cost online dispute resolution. Fair, transparent, efficient. \U0001f4bc",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/nofault'},
+            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/clear-closure/'},
         },
         'store_expo_week': {
             'text': "\U0001f3aa *Expo Week - Digital Events*\n\nVirtual travel fairs, exclusive offers, and sustainable discovery. \U0001f30d",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/expoweek'},
+            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/expo-week/'},
         },
         'store_ritual_guru': {
             'text': "\U0001f54c *Ritual Guru - Culture*\n\nTemple-grade puja kits with step-by-step guides. Global delivery. \U0001f4e6",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/ritualguru'},
+            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/ritual-guru/'},
         },
         'store_legal_champ': {
             'text': "\U0001f4dc *Legal Champ - Documentation*\n\nBusiness docs, registrations, and compliance made simple. \u2705",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/legalchamp'},
+            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/dastavez/'},
         },
         'store_swdhya': {
             'text': "\U0001f9d8 *Swdhya - Samvad*\n\nSelf-inquiry conversations for clarity and action. \U0001f4ac",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/swdhya'},
+            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/anew/'},
         },
         'store_gift_card': {
             'text': "?? *Gift Card*\n\nGive the gift of choice! Redeemable across all WECARE.DIGITAL brands. ??",

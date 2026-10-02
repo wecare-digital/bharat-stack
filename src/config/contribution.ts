@@ -37,12 +37,20 @@
 export const CONTRIBUTION_CURRENCY = 'INR' as const;
 
 /**
- * The suggested preset amounts, in INTEGER PAISE, in the order the brief lists them: ₹49, ₹99,
- * ₹199. Declared in paise because paise is the canonical unit (see the header note); the rupee
- * labels below are derived from these, so there is one source and the label can never claim a
- * different amount than the value sent.
+ * The suggested preset amounts, in INTEGER PAISE: ₹200, ₹400, ₹600. Declared in paise because
+ * paise is the canonical unit (see the header note); the rupee labels below are derived from these,
+ * so there is one source and the label can never claim a different amount than the value sent.
+ *
+ * CHANGED FROM [4900, 9900, 19900] = ₹49/₹99/₹199 on owner instruction (2026-10-02).
+ * THE SERVER KEEPS ITS OWN COPY AND BOTH MUST MOVE TOGETHER: the authoritative set lives in
+ * amplify/functions/shared/lambda_utils/ecommerce/blog_contribution.py
+ * (CONTRIBUTION_PRESETS_PAISE), declared separately ON PURPOSE so the browser cannot widen the
+ * trusted amount. Changing this list alone would leave the server and the UI disagreeing about
+ * what a preset is; tests/test_blog_contribution.py::test_server_presets_mirror_the_frontend_contract
+ * fails if they drift. The custom-amount bounds below are unchanged, and every new preset sits
+ * inside them.
  */
-export const CONTRIBUTION_PRESETS_PAISE: readonly number[] = [ 4900, 9900, 19900 ] as const;
+export const CONTRIBUTION_PRESETS_PAISE: readonly number[] = [ 20000, 40000, 60000 ] as const;
 
 /**
  * CUSTOM-AMOUNT BOUNDS, in integer paise. A custom contribution must be at least ₹10 and at most

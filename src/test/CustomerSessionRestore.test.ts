@@ -18,6 +18,72 @@ it( 'exchanges refresh custody without persisting the refresh token in browser s
   expect( JSON.stringify( { ...window.localStorage, ...window.sessionStorage } ) ).not.toContain( 'qa-refresh' );
 } );
 
+/**
+ * THE REGRESSION TEST FOR THE 2026-10-02 CONFIRM OUTAGE.
+ *
+ * Only the 200 path above was ever covered, which is the gap that let this ship. When the
+ * session exchange failed, `submitOtp` threw BEFORE storing the token - so a shopper who had
+ * just answered a CORRECT code was signed out and shown "Try again shortly.", because the
+ * thrown Error carries name 'Error' and falls through every branch of the sign-in page's
+ * messageForAuthError to its catch-all.
+ *
+ * The Cognito challenge has already succeeded by that point. The exchange buys PERSISTENCE,
+ * not authentication, so its failure must degrade remember-me and nothing more.
+ */
+it( 'keeps a successful sign-in when the session exchange is refused', async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce( response( {
+    AuthenticationResult: { AccessToken: 'qa-access', RefreshToken: 'qa-refresh', ExpiresIn: 3600 },
+  } ) ).mockResolvedValueOnce( response( { error: 'VERIFICATION_REQUIRED' }, 401 ) );
+  vi.stubGlobal( 'fetch', fetchMock );
+  const auth = await import( '../lib/customerAuth' );
+
+  // It RESOLVES rather than rejecting. Before the fix this rejected.
+  const session = await auth.submitOtp( '+910000000000', '000000', 'qa-challenge' );
+
+  expect( session?.accessToken ).toBe( 'qa-access' );
+  // Degraded, and marked as such, rather than failed.
+  expect( session?.remembered ).toBe( false );
+  // The valid token survived instead of being discarded.
+  expect( auth.getSession()?.accessToken ).toBe( 'qa-access' );
+  // No device-level session was claimed, so restoreSession() will ask for a fresh sign-in.
+  expect( window.localStorage.getItem( 'wecare.customer.sessionHint' ) ).toBeNull();
+  // The refresh token never reaches browser storage, failure path included.
+  expect( JSON.stringify( { ...window.localStorage, ...window.sessionStorage } ) )
+    .not.toContain( 'qa-refresh' );
+} );
+
+it( 'marks a successful exchange as remembered and writes the hint', async () => {
+  const fetchMock = vi.fn().mockResolvedValueOnce( response( {
+    AuthenticationResult: { AccessToken: 'qa-access', RefreshToken: 'qa-refresh', ExpiresIn: 3600 },
+  } ) ).mockResolvedValueOnce( response( hint ) );
+  vi.stubGlobal( 'fetch', fetchMock );
+  const auth = await import( '../lib/customerAuth' );
+
+  const session = await auth.submitOtp( '+910000000000', '000000', 'qa-challenge' );
+  expect( session?.remembered ).toBe( true );
+  expect( JSON.parse( window.localStorage.getItem( 'wecare.customer.sessionHint' ) || 'null' ).csrfToken )
+    .toBe( 'qa-csrf' );
+} );
+
+it( 'treats a 200 with an unreadable body as a degraded session, not a failure', async () => {
+  // Same class of bug as the 401: anything that throws after the challenge succeeded destroys
+  // a valid sign-in, so an unparseable success body must degrade rather than reject.
+  const fetchMock = vi.fn().mockResolvedValueOnce( response( {
+    AuthenticationResult: { AccessToken: 'qa-access', RefreshToken: 'qa-refresh', ExpiresIn: 3600 },
+  } ) ).mockResolvedValueOnce( {
+    ok: true, status: 200,
+    text: async () => 'not json',
+    json: async () => { throw new SyntaxError( 'Unexpected token' ); },
+  } );
+  vi.stubGlobal( 'fetch', fetchMock );
+  const auth = await import( '../lib/customerAuth' );
+
+  const session = await auth.submitOtp( '+910000000000', '000000', 'qa-challenge' );
+  expect( session?.accessToken ).toBe( 'qa-access' );
+  expect( session?.remembered ).toBe( false );
+  expect( window.localStorage.getItem( 'wecare.customer.sessionHint' ) ).toBeNull();
+} );
+
 it( 'restores a new tab silently and shares one refresh between simultaneous requests', async () => {
   window.localStorage.setItem( 'wecare.customer.sessionHint', JSON.stringify( hint ) );
   const fetchMock = vi.fn().mockResolvedValue( response( { accessToken: 'qa-renewed', expiresAt: Date.now() + 3_600_000 } ) );

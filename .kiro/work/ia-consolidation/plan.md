@@ -9,13 +9,13 @@ Repo `/Users/wecaredigital/wecare-store` · branch `stack` · account `775261844
 ## Owner decisions taken (2026-09-24)
 
 1. Consolidate the duplicate clusters — **yes**.
-2. `/access/security` stays reachable in the sidebar — **yes**.
+2. `[retired public path ef531503]/security` stays reachable in the sidebar — **yes**.
 3. Build the plan/approval/receipt path so agent writes can be enabled — **yes**.
 4. Also in scope: Task, Payments, Invoice-engine records, Forms.
-5. **Calls is a filter inside the Inbox, not a sidebar entry.** `/dm/calls` is already a
+5. **Calls is a filter inside the Inbox, not a sidebar entry.** `[retired public path 2de923b8]/calls` is already a
    filtered view of the same `MessagesTable`; the Inbox already has `voice` in its
    `CHANNEL` map, renders voice notes with an audio player, and has `voice` in its
-   channel dropdown. Call *configuration* (`/dm/voice`, `/dm/voice-in`) goes behind
+   channel dropdown. Call *configuration* (`[retired public path 2de923b8]/voice`, `[retired public path 2de923b8]/voice-in`) goes behind
    the gear.
 
 ## The governing principle
@@ -99,14 +99,14 @@ from the nav. Removes the odd `listRcsMessages` path that reaches the canonical 
 through `POST /rcs/send {action:'list'}` instead of `GET /messages?channel=RCS`.
 
 ### A4 — Calls becomes an Inbox filter · DONE
-`dm/calls` deleted. Nav entry is now `/dm/inbox?channel=voice`; `dm/channels` link
+`dm/calls` deleted. Nav entry is now `[retired public path 2de923b8]/inbox?channel=voice`; `dm/channels` link
 repointed. The dial button in the inbox stays disabled and labelled — browser routing is
 off and stays off, so this is see-and-hear, not dial.
-Retire `/dm/calls` (159 lines, same table). Keep the dial button disabled and labelled.
+Retire `[retired public path 2de923b8]/calls` (159 lines, same table). Keep the dial button disabled and labelled.
 
 ### B1 — Wrap the shell-less routes · DONE
-**15 → 3**, and the three that remain are correct: `/access` (the sign-in page, no shell
-by design) and `/admin` + `/forms` (redirects that return `null`). Five of the original 15
+**15 → 3**, and the three that remain are correct: `[retired public path ef531503]` (the sign-in page, no shell
+by design) and `[retired public path 84a04c24]` + `[retired public path 169e0fd8]` (redirects that return `null`). Five of the original 15
 had already gone with the A-item deletions.
 
 Six wrapped in `MaybeLayout` by a mechanical transform — the existing component renamed
@@ -118,7 +118,7 @@ Three of the six declared an `embedded` prop and then ignored it completely
 (`auto-response`, `scripts`, `ai-agent`), which is the tell that the standalone case was
 never exercised.
 
-`/seo/InstructionsContent` was not wrapped — it is a content **component** that happened
+`[retired public path 9463c8d8]/InstructionsContent` was not wrapped — it is a content **component** that happened
 to sit under `src/pages/`, so Next was publishing it as a 292-line chrome-less route.
 Moved to `src/components/seo/`, both importers repointed, and confirmed absent from the
 export. Wrapping it would have blessed a route that should not exist.
@@ -127,10 +127,10 @@ export. Wrapping it would have blessed a route that should not exist.
 Sidebar is now **8 top-level streams**: Inbox (with six channel-filter children,
 including Calls) · Contacts · Broadcast · Payments · Service Ops · Store · Forms · Tasks.
 The 30-item WhatsApp branch is gone from the sidebar entirely — a test asserts zero
-`/dm/whatsapp*` paths remain in it.
+`[retired public path 2de923b8]/whatsapp*` paths remain in it.
 
 Everything else lives in `settingsConfig`, six labelled and hinted groups opened by a
-gear above the sidebar footer. `SettingsGear` is a panel, not a route: a `/settings` page
+gear above the sidebar footer. `SettingsGear` is a panel, not a route: a `[retired public path 2c56bef4]` page
 would be one more destination to navigate to before navigating, and would need its own
 shell, breadcrumb and a decision about the page you were on.
 
@@ -140,14 +140,14 @@ and is the single source the command palette uses, so:
 | | before | after |
 |---|---|---|
 | unique destinations reachable | 87 | **95** |
-| lost | — | **1**, `/dm`, which was re-added once found to be a real 160-line page |
+| lost | — | **1**, `[retired public path 2de923b8]`, which was re-added once found to be a real 160-line page |
 | newly reachable (were orphaned) | — | **9** incl. `cors-settings`, `ai-agent`, `scripts`, `forms/create` |
 
 Three independent routes to every settings page: the gear panel, `Ctrl+K`, and the
 sidebar search box — deliberate redundancy, because for the 21 orphans navigation is the
 only way in.
 
-`/access/security` is first in the account group, and a test pins that: it cannot be
+`[retired public path ef531503]/security` is first in the account group, and a test pins that: it cannot be
 reached any other way and Cognito will not let anyone enrol TOTP on the operator's behalf.
 
 One subtlety the tests caught: the Inbox children are one page with six query strings, so
@@ -310,7 +310,7 @@ test fails too.
 Each built on data that **already exists**, and the investigation mattered more than the
 building.
 
-**`/task` — there is no tasks backend in this repository.** No `TasksTable`, no task API,
+**`[retired public path 4eca21b3]` — there is no tasks backend in this repository.** No `TasksTable`, no task API,
 nothing. The old 33-line `ComingSoon` promised six features: create/assign, priorities,
 deadlines, progress, collaboration, templates, reminders — five had nothing behind them.
 Building that screen would have been fabrication, the same defect as the agent panel
@@ -322,7 +322,7 @@ What does exist is `conversation-meta`: `status` (open/pending/resolved), `assig
 that priorities, due dates, templates and reminders are **not stored anywhere yet** —
 absent rather than rendered as an empty column implying the field exists and is unset.
 
-**`/pay/records`** over `listInvoicesEngine` — full GST breakdown, delivery log per
+**`[retired public path 47a81ed9]/records`** over `listInvoicesEngine` — full GST breakdown, delivery log per
 invoice via `getInvoiceDeliveryLog`. **Read-only deliberately**: `cancelInvoice`,
 `deleteInvoice` and `updateInvoiceEngine` all exist in the API and none is wired, because
 `deleteInvoice` takes an `adjustSequence` flag — a mis-click could renumber a statutory
@@ -330,7 +330,7 @@ GST series. Totals are summed from each invoice's **stored** total, never recomp
 line items: the invoice is the record, and a second calculation is a second answer that
 disagrees the first time a rounding rule changes.
 
-**`/forms/responses`** over `listSubmitRequests`. Sorted **oldest unpaid first**, not by
+**`[retired public path 169e0fd8]/responses`** over `listSubmitRequests`. Sorted **oldest unpaid first**, not by
 recency, because a recency sort buries exactly the rows that need attention and an
 unactioned request is a customer who paid and heard nothing. `isExpired` and `daysOld` are
 server-computed and called out rather than left as columns to notice.

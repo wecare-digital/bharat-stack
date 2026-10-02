@@ -47,8 +47,8 @@ const CYCLE_WORDS: CycleWord[] = [
   { word: 'records', tint: '#ede9fe', dot: '#9849e8' },
 ];
 
-// Was 'https://www.wecare.digital/selfservice' until 2026-09-25: `www` 301s to the apex
-// and /selfservice was deleted in commit 6bc44a35, so every button here ran
+// Was '[retired public path]' until 2026-09-25: `www` 301s to the apex
+// and [retired public path] was deleted in commit 6bc44a35, so every button here ran
 // 301 -> 301 -> 404. /contact/ is a real 200 page on the canonical host.
 const SELFSERVICE = 'https://wecare.digital/contact/';
 

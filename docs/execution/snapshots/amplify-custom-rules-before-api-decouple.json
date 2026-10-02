@@ -5,283 +5,283 @@
         "status": "301"
     },
     {
-        "source": "/engage/calls",
-        "target": "/engage/inbox/?channel=voice",
+        "source": "[retired public path bf361a18]/calls",
+        "target": "[retired public path bf361a18]/inbox/?channel=voice",
         "status": "301"
     },
     {
-        "source": "/engage/calls/",
-        "target": "/engage/inbox/?channel=voice",
+        "source": "[retired public path bf361a18]/calls/",
+        "target": "[retired public path bf361a18]/inbox/?channel=voice",
         "status": "301"
     },
     {
-        "source": "/engage/rcs/inbox",
-        "target": "/engage/inbox/?channel=rcs",
+        "source": "[retired public path bf361a18]/rcs/inbox",
+        "target": "[retired public path bf361a18]/inbox/?channel=rcs",
         "status": "301"
     },
     {
-        "source": "/engage/rcs/inbox/",
-        "target": "/engage/inbox/?channel=rcs",
+        "source": "[retired public path bf361a18]/rcs/inbox/",
+        "target": "[retired public path bf361a18]/inbox/?channel=rcs",
         "status": "301"
     },
     {
-        "source": "/engage/ses/inbox",
-        "target": "/engage/inbox/?channel=email",
+        "source": "[retired public path bf361a18]/ses/inbox",
+        "target": "[retired public path bf361a18]/inbox/?channel=email",
         "status": "301"
     },
     {
-        "source": "/engage/ses/inbox/",
-        "target": "/engage/inbox/?channel=email",
+        "source": "[retired public path bf361a18]/ses/inbox/",
+        "target": "[retired public path bf361a18]/inbox/?channel=email",
         "status": "301"
     },
     {
-        "source": "/engage/whatsapp/logs",
-        "target": "/engage/logs/?channel=whatsapp",
+        "source": "[retired public path bf361a18]/whatsapp/logs",
+        "target": "[retired public path bf361a18]/logs/?channel=whatsapp",
         "status": "301"
     },
     {
-        "source": "/engage/whatsapp/logs/",
-        "target": "/engage/logs/?channel=whatsapp",
+        "source": "[retired public path bf361a18]/whatsapp/logs/",
+        "target": "[retired public path bf361a18]/logs/?channel=whatsapp",
         "status": "301"
     },
     {
-        "source": "/engage/rcs/logs",
-        "target": "/engage/logs/?channel=rcs",
+        "source": "[retired public path bf361a18]/rcs/logs",
+        "target": "[retired public path bf361a18]/logs/?channel=rcs",
         "status": "301"
     },
     {
-        "source": "/engage/rcs/logs/",
-        "target": "/engage/logs/?channel=rcs",
+        "source": "[retired public path bf361a18]/rcs/logs/",
+        "target": "[retired public path bf361a18]/logs/?channel=rcs",
         "status": "301"
     },
     {
-        "source": "/engage/ses/logs",
-        "target": "/engage/logs/?channel=email",
+        "source": "[retired public path bf361a18]/ses/logs",
+        "target": "[retired public path bf361a18]/logs/?channel=email",
         "status": "301"
     },
     {
-        "source": "/engage/ses/logs/",
-        "target": "/engage/logs/?channel=email",
+        "source": "[retired public path bf361a18]/ses/logs/",
+        "target": "[retired public path bf361a18]/logs/?channel=email",
         "status": "301"
     },
     {
-        "source": "/engage/rcs/campaign",
-        "target": "/engage/broadcast/",
+        "source": "[retired public path bf361a18]/rcs/campaign",
+        "target": "[retired public path bf361a18]/broadcast/",
         "status": "301"
     },
     {
-        "source": "/engage/rcs/campaign/",
-        "target": "/engage/broadcast/",
+        "source": "[retired public path bf361a18]/rcs/campaign/",
+        "target": "[retired public path bf361a18]/broadcast/",
         "status": "301"
     },
     {
-        "source": "/engage/ses/campaign",
-        "target": "/engage/broadcast/",
+        "source": "[retired public path bf361a18]/ses/campaign",
+        "target": "[retired public path bf361a18]/broadcast/",
         "status": "301"
     },
     {
-        "source": "/engage/ses/campaign/",
-        "target": "/engage/broadcast/",
+        "source": "[retired public path bf361a18]/ses/campaign/",
+        "target": "[retired public path bf361a18]/broadcast/",
         "status": "301"
     },
     {
-        "source": "/link/logs",
-        "target": "/link/",
+        "source": "[retired public path 21d99b11]/logs",
+        "target": "[retired public path 21d99b11]/",
         "status": "301"
     },
     {
-        "source": "/link/logs/",
-        "target": "/link/",
+        "source": "[retired public path 21d99b11]/logs/",
+        "target": "[retired public path 21d99b11]/",
         "status": "301"
     },
     {
-        "source": "/dm/calls",
-        "target": "/engage/inbox/?channel=voice",
+        "source": "[retired public path 2de923b8]/calls",
+        "target": "[retired public path bf361a18]/inbox/?channel=voice",
         "status": "301"
     },
     {
-        "source": "/dm/calls/",
-        "target": "/engage/inbox/?channel=voice",
+        "source": "[retired public path 2de923b8]/calls/",
+        "target": "[retired public path bf361a18]/inbox/?channel=voice",
         "status": "301"
     },
     {
-        "source": "/dm/rcs/inbox",
-        "target": "/engage/inbox/?channel=rcs",
+        "source": "[retired public path 2de923b8]/rcs/inbox",
+        "target": "[retired public path bf361a18]/inbox/?channel=rcs",
         "status": "301"
     },
     {
-        "source": "/dm/rcs/inbox/",
-        "target": "/engage/inbox/?channel=rcs",
+        "source": "[retired public path 2de923b8]/rcs/inbox/",
+        "target": "[retired public path bf361a18]/inbox/?channel=rcs",
         "status": "301"
     },
     {
-        "source": "/dm/ses/inbox",
-        "target": "/engage/inbox/?channel=email",
+        "source": "[retired public path 2de923b8]/ses/inbox",
+        "target": "[retired public path bf361a18]/inbox/?channel=email",
         "status": "301"
     },
     {
-        "source": "/dm/ses/inbox/",
-        "target": "/engage/inbox/?channel=email",
+        "source": "[retired public path 2de923b8]/ses/inbox/",
+        "target": "[retired public path bf361a18]/inbox/?channel=email",
         "status": "301"
     },
     {
-        "source": "/dm/whatsapp/logs",
-        "target": "/engage/logs/?channel=whatsapp",
+        "source": "[retired public path 2de923b8]/whatsapp/logs",
+        "target": "[retired public path bf361a18]/logs/?channel=whatsapp",
         "status": "301"
     },
     {
-        "source": "/dm/whatsapp/logs/",
-        "target": "/engage/logs/?channel=whatsapp",
+        "source": "[retired public path 2de923b8]/whatsapp/logs/",
+        "target": "[retired public path bf361a18]/logs/?channel=whatsapp",
         "status": "301"
     },
     {
-        "source": "/dm/rcs/logs",
-        "target": "/engage/logs/?channel=rcs",
+        "source": "[retired public path 2de923b8]/rcs/logs",
+        "target": "[retired public path bf361a18]/logs/?channel=rcs",
         "status": "301"
     },
     {
-        "source": "/dm/rcs/logs/",
-        "target": "/engage/logs/?channel=rcs",
+        "source": "[retired public path 2de923b8]/rcs/logs/",
+        "target": "[retired public path bf361a18]/logs/?channel=rcs",
         "status": "301"
     },
     {
-        "source": "/dm/ses/logs",
-        "target": "/engage/logs/?channel=email",
+        "source": "[retired public path 2de923b8]/ses/logs",
+        "target": "[retired public path bf361a18]/logs/?channel=email",
         "status": "301"
     },
     {
-        "source": "/dm/ses/logs/",
-        "target": "/engage/logs/?channel=email",
+        "source": "[retired public path 2de923b8]/ses/logs/",
+        "target": "[retired public path bf361a18]/logs/?channel=email",
         "status": "301"
     },
     {
-        "source": "/dm/rcs/campaign",
-        "target": "/engage/broadcast/",
+        "source": "[retired public path 2de923b8]/rcs/campaign",
+        "target": "[retired public path bf361a18]/broadcast/",
         "status": "301"
     },
     {
-        "source": "/dm/rcs/campaign/",
-        "target": "/engage/broadcast/",
+        "source": "[retired public path 2de923b8]/rcs/campaign/",
+        "target": "[retired public path bf361a18]/broadcast/",
         "status": "301"
     },
     {
-        "source": "/dm/ses/campaign",
-        "target": "/engage/broadcast/",
+        "source": "[retired public path 2de923b8]/ses/campaign",
+        "target": "[retired public path bf361a18]/broadcast/",
         "status": "301"
     },
     {
-        "source": "/dm/ses/campaign/",
-        "target": "/engage/broadcast/",
+        "source": "[retired public path 2de923b8]/ses/campaign/",
+        "target": "[retired public path bf361a18]/broadcast/",
         "status": "301"
     },
     {
-        "source": "/dm",
-        "target": "/engage/",
+        "source": "[retired public path 2de923b8]",
+        "target": "[retired public path bf361a18]/",
         "status": "301"
     },
     {
-        "source": "/dm/",
-        "target": "/engage/",
+        "source": "[retired public path 2de923b8]/",
+        "target": "[retired public path bf361a18]/",
         "status": "301"
     },
     {
-        "source": "/dm/<*>",
-        "target": "/engage/<*>",
+        "source": "[retired public path 2de923b8]/<*>",
+        "target": "[retired public path bf361a18]/<*>",
         "status": "301"
     },
     {
         "source": "/workspace/calls",
-        "target": "/engage/inbox/?channel=voice",
+        "target": "[retired public path bf361a18]/inbox/?channel=voice",
         "status": "301"
     },
     {
         "source": "/workspace/calls/",
-        "target": "/engage/inbox/?channel=voice",
+        "target": "[retired public path bf361a18]/inbox/?channel=voice",
         "status": "301"
     },
     {
         "source": "/workspace/rcs/inbox",
-        "target": "/engage/inbox/?channel=rcs",
+        "target": "[retired public path bf361a18]/inbox/?channel=rcs",
         "status": "301"
     },
     {
         "source": "/workspace/rcs/inbox/",
-        "target": "/engage/inbox/?channel=rcs",
+        "target": "[retired public path bf361a18]/inbox/?channel=rcs",
         "status": "301"
     },
     {
         "source": "/workspace/ses/inbox",
-        "target": "/engage/inbox/?channel=email",
+        "target": "[retired public path bf361a18]/inbox/?channel=email",
         "status": "301"
     },
     {
         "source": "/workspace/ses/inbox/",
-        "target": "/engage/inbox/?channel=email",
+        "target": "[retired public path bf361a18]/inbox/?channel=email",
         "status": "301"
     },
     {
         "source": "/workspace/whatsapp/logs",
-        "target": "/engage/logs/?channel=whatsapp",
+        "target": "[retired public path bf361a18]/logs/?channel=whatsapp",
         "status": "301"
     },
     {
         "source": "/workspace/whatsapp/logs/",
-        "target": "/engage/logs/?channel=whatsapp",
+        "target": "[retired public path bf361a18]/logs/?channel=whatsapp",
         "status": "301"
     },
     {
         "source": "/workspace/rcs/logs",
-        "target": "/engage/logs/?channel=rcs",
+        "target": "[retired public path bf361a18]/logs/?channel=rcs",
         "status": "301"
     },
     {
         "source": "/workspace/rcs/logs/",
-        "target": "/engage/logs/?channel=rcs",
+        "target": "[retired public path bf361a18]/logs/?channel=rcs",
         "status": "301"
     },
     {
         "source": "/workspace/ses/logs",
-        "target": "/engage/logs/?channel=email",
+        "target": "[retired public path bf361a18]/logs/?channel=email",
         "status": "301"
     },
     {
         "source": "/workspace/ses/logs/",
-        "target": "/engage/logs/?channel=email",
+        "target": "[retired public path bf361a18]/logs/?channel=email",
         "status": "301"
     },
     {
         "source": "/workspace/rcs/campaign",
-        "target": "/engage/broadcast/",
+        "target": "[retired public path bf361a18]/broadcast/",
         "status": "301"
     },
     {
         "source": "/workspace/rcs/campaign/",
-        "target": "/engage/broadcast/",
+        "target": "[retired public path bf361a18]/broadcast/",
         "status": "301"
     },
     {
         "source": "/workspace/ses/campaign",
-        "target": "/engage/broadcast/",
+        "target": "[retired public path bf361a18]/broadcast/",
         "status": "301"
     },
     {
         "source": "/workspace/ses/campaign/",
-        "target": "/engage/broadcast/",
+        "target": "[retired public path bf361a18]/broadcast/",
         "status": "301"
     },
     {
         "source": "/workspace",
-        "target": "/engage/",
+        "target": "[retired public path bf361a18]/",
         "status": "301"
     },
     {
         "source": "/workspace/",
-        "target": "/engage/",
+        "target": "[retired public path bf361a18]/",
         "status": "301"
     },
     {
         "source": "/workspace/<*>",
-        "target": "/engage/<*>",
+        "target": "[retired public path bf361a18]/<*>",
         "status": "301"
     },
     {

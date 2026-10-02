@@ -566,7 +566,7 @@ Note the `media-prefixes.yml` workflow exists and reported **success** on HEAD, 
 
 The **public** shell is `Header` + `Footer`, centrally inherited via `_app.tsx:32-33,737-742`:
 
-- `src/components/Header.tsx` — the only hard-coded `href` is `"/"` (`:362`); the rest render from config (`:403,431,441`). **No `/workspace`, `/login`, `/admin` or `sign-in` link.**
+- `src/components/Header.tsx` — the only hard-coded `href` is `"/"` (`:362`); the rest render from config (`:403,431,441`). **No `/workspace`, `/login`, `[retired public path 84a04c24]` or `sign-in` link.**
 - `src/components/Footer.tsx` — `grep` for `workspace|/login|/admin|sign-in|Sign in` returns **one comment mention only** (`:6`), no link.
 - `src/pages/404.tsx` — two `href`s total: `rel="canonical"` to `https://wecare.digital/` (`:55`) and one CTA `<a className="nf-cta" href="/">Go to WECARE.DIGITAL</a>` (`:66`). **Clean — no staff link, no login link.**
 
@@ -584,7 +584,7 @@ The handoff is right to say the blanket "every shell is missing" finding should 
 
 - **`_routes.json`** is a **dated API-route inventory, not configuration.** Nothing in the tree reads it (`grep -rln "_routes.json"` over `*.py`/`*.js`/`*.ts`/`*.yml` → no results). It lists `POST /razorpay-webhook`, `POST /payments/webhook`, `POST /partners/billing/topup-order`, `GET|POST /wix-store/{proxy+}` — and **zero** `ecommerce/*` entries, so the `/ecommerce/checkout` route the cart page posts to is absent from this snapshot. Live route existence is **BLOCKED-ON-ENVIRONMENT** (unblock commands in the C7 row).
 - **`amplify.yml`** — frontend-only, no `backend:` phase (the Lambdas are deployed by separate boto3 scripts). `npm ci --no-audit --no-fund` then `npm run build`, then `python3 scripts/verify_public_bundle_secrets.py` as the real credential gate, artifacts from `baseDirectory: out`. Contains **no** redirect/rewrite rules and a prominent instruction not to re-add a `customHeaders:` block.
-- **Hosting redirects are NOT in the repo.** `src/pages/orders.tsx:8-13` records that `/my-order` → `/orders` is a 301 from "the Amplify customRules written by `scripts/provision_legacy_redirects.py` (**RETIRED**)". So the live redirect set is Amplify app state with its generator retired — **BLOCKED-ON-ENVIRONMENT**. Unblock: `aws amplify get-app --app-id d22dm4b0jn71jw --query 'app.customRules'`.
+- **Hosting redirects are NOT in the repo.** `src/pages/orders.tsx:8-13` records that `[retired public path aaee9dd4]` → `/orders` is a 301 from "the Amplify customRules written by `scripts/provision_legacy_redirects.py` (**RETIRED**)". So the live redirect set is Amplify app state with its generator retired — **BLOCKED-ON-ENVIRONMENT**. Unblock: `aws amplify get-app --app-id d22dm4b0jn71jw --query 'app.customRules'`.
 - **URL cleanup (§15)** — no customer-facing leak found on the public shell, so the remaining §15 work is the Amplify `customRules` review above plus the `public-pages.json` decision. Nothing was changed.
 
 ### Group 10 — tests and checks

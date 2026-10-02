@@ -490,7 +490,7 @@ def send_rcs_ivr_notification(phone: str, request_id: str = '') -> dict:
         phone=phone,
         title='Thanks for contacting WECARE.DIGITAL!',
         description=(
-            'Submit your request here: https://wecare.digital/selfservice '
+            'Submit your request here: https://wecare.digital/submit-request/ '
             'or send us a message / voice note on WhatsApp: https://wecare.digital/r/wa.\n\n'
             "We'll review it and follow up if needed.\nWECARE.DIGITAL"
         ),

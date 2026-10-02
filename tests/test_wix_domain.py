@@ -65,7 +65,7 @@ PRODUCT_V3 = {
          "physicalProperties": {"weight": 0.25}}]},
     "inventory": {"availabilityStatus": "IN_STOCK"},
     "visible": True, "currency": "INR",
-    "url": {"relativePath": "/product-page/ayurvedic-hair-oil"},
+    "url": {"relativePath": "/shop/ayurvedic-hair-oil"},
 }
 
 

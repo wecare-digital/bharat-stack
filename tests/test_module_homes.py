@@ -143,7 +143,7 @@ class TestTheDeclaredHomesExist:
         settings = next(h for h in homes if h["id"] == "settings")
         assert settings["path"] is None
         # The reason has to be written down, or the next person "fixes" it by adding a
-        # /settings page and reintroduces a destination you navigate to before
+        # [retired public path] page and reintroduces a destination you navigate to before
         # navigating.
         assert "panel, not a route" in nav_source
 
@@ -159,7 +159,7 @@ class TestCommunicationsExposesExactlyThree:
         block = nav_source.split("id: 'communications'")[1]
         block = block[: block.index("},")]
         # Only the innerPages array. The first naive version of this also matched the
-        # module's own `path: '/dm'` and reported four.
+        # module's own `path: '[retired public path]'` and reported four.
         inner = block.split("innerPages:")[1]
         inner = inner[: inner.index("]")]
         pages = re.findall(r"'(/[a-z0-9/-]+)'", inner)

@@ -27,29 +27,29 @@ last or it shadows everything after it.
 | 2 | `/get` | `/get/index.html` | 200 | rewrite, not a retirement |
 | 3 | `/get/` | `/get/index.html` | 200 | trailing-slash form |
 | 4 | `/get/<*>` | `d1kf2rchz7yras.cloudfront.net/<*>` | 200 | secure-file delivery origin |
-| 5 | `/dm/calls` | `/dm/inbox/?channel=voice` | **301** | provider inbox → Common Inbox filter |
-| 6 | `/dm/calls/` | `/dm/inbox/?channel=voice` | **301** | trailing-slash form |
-| 7 | `/dm/rcs/inbox` | `/dm/inbox/?channel=rcs` | **301** | provider inbox → filter |
-| 8 | `/dm/rcs/inbox/` | `/dm/inbox/?channel=rcs` | **301** | trailing-slash form |
-| 9 | `/dm/ses/inbox` | `/dm/inbox/?channel=email` | **301** | provider inbox → filter |
-| 10 | `/dm/ses/inbox/` | `/dm/inbox/?channel=email` | **301** | trailing-slash form |
-| 11 | `/dm/whatsapp/logs` | `/dm/logs/?channel=whatsapp` | **301** | per-provider log page → one log page |
-| 12 | `/dm/whatsapp/logs/` | `/dm/logs/?channel=whatsapp` | **301** | trailing-slash form |
-| 13 | `/dm/rcs/logs` | `/dm/logs/?channel=rcs` | **301** | per-provider log page → one log page |
-| 14 | `/dm/rcs/logs/` | `/dm/logs/?channel=rcs` | **301** | trailing-slash form |
-| 15 | `/dm/ses/logs` | `/dm/logs/?channel=email` | **301** | per-provider log page → one log page |
-| 16 | `/dm/ses/logs/` | `/dm/logs/?channel=email` | **301** | trailing-slash form |
-| 17 | `/dm/rcs/campaign` | `/dm/broadcast/` | **301** | per-provider campaign → one broadcast |
-| 18 | `/dm/rcs/campaign/` | `/dm/broadcast/` | **301** | trailing-slash form |
-| 19 | `/dm/ses/campaign` | `/dm/broadcast/` | **301** | per-provider campaign → one broadcast |
-| 20 | `/dm/ses/campaign/` | `/dm/broadcast/` | **301** | trailing-slash form |
-| 21 | `/link/logs` | `/link/` | **301** | sub-page folded into its parent |
-| 22 | `/link/logs/` | `/link/` | **301** | trailing-slash form |
+| 5 | `[retired public path 2de923b8]/calls` | `[retired public path 2de923b8]/inbox/?channel=voice` | **301** | provider inbox → Common Inbox filter |
+| 6 | `[retired public path 2de923b8]/calls/` | `[retired public path 2de923b8]/inbox/?channel=voice` | **301** | trailing-slash form |
+| 7 | `[retired public path 2de923b8]/rcs/inbox` | `[retired public path 2de923b8]/inbox/?channel=rcs` | **301** | provider inbox → filter |
+| 8 | `[retired public path 2de923b8]/rcs/inbox/` | `[retired public path 2de923b8]/inbox/?channel=rcs` | **301** | trailing-slash form |
+| 9 | `[retired public path 2de923b8]/ses/inbox` | `[retired public path 2de923b8]/inbox/?channel=email` | **301** | provider inbox → filter |
+| 10 | `[retired public path 2de923b8]/ses/inbox/` | `[retired public path 2de923b8]/inbox/?channel=email` | **301** | trailing-slash form |
+| 11 | `[retired public path 2de923b8]/whatsapp/logs` | `[retired public path 2de923b8]/logs/?channel=whatsapp` | **301** | per-provider log page → one log page |
+| 12 | `[retired public path 2de923b8]/whatsapp/logs/` | `[retired public path 2de923b8]/logs/?channel=whatsapp` | **301** | trailing-slash form |
+| 13 | `[retired public path 2de923b8]/rcs/logs` | `[retired public path 2de923b8]/logs/?channel=rcs` | **301** | per-provider log page → one log page |
+| 14 | `[retired public path 2de923b8]/rcs/logs/` | `[retired public path 2de923b8]/logs/?channel=rcs` | **301** | trailing-slash form |
+| 15 | `[retired public path 2de923b8]/ses/logs` | `[retired public path 2de923b8]/logs/?channel=email` | **301** | per-provider log page → one log page |
+| 16 | `[retired public path 2de923b8]/ses/logs/` | `[retired public path 2de923b8]/logs/?channel=email` | **301** | trailing-slash form |
+| 17 | `[retired public path 2de923b8]/rcs/campaign` | `[retired public path 2de923b8]/broadcast/` | **301** | per-provider campaign → one broadcast |
+| 18 | `[retired public path 2de923b8]/rcs/campaign/` | `[retired public path 2de923b8]/broadcast/` | **301** | trailing-slash form |
+| 19 | `[retired public path 2de923b8]/ses/campaign` | `[retired public path 2de923b8]/broadcast/` | **301** | per-provider campaign → one broadcast |
+| 20 | `[retired public path 2de923b8]/ses/campaign/` | `[retired public path 2de923b8]/broadcast/` | **301** | trailing-slash form |
+| 21 | `[retired public path 21d99b11]/logs` | `[retired public path 21d99b11]/` | **301** | sub-page folded into its parent |
+| 22 | `[retired public path 21d99b11]/logs/` | `[retired public path 21d99b11]/` | **301** | trailing-slash form |
 | 23 | `/<*>` | `/index.html` | 404-200 | SPA catch-all. **Must stay last** |
 
 **18 of the 23 are 301 retirements**, covering 9 distinct retired paths in both their
 bare and trailing-slash forms. Both forms are required: a static host does not treat
-`/dm/calls` and `/dm/calls/` as the same key, so a single rule leaves one of them 404.
+`[retired public path 2de923b8]/calls` and `[retired public path 2de923b8]/calls/` as the same key, so a single rule leaves one of them 404.
 
 Every retired path preserves intent rather than dumping the user at a hub: the channel
 becomes a query parameter (`?channel=voice|rcs|email`) on the surviving page. That is
@@ -119,7 +119,7 @@ So the honest count is: **0 proven dead**, 42 needing a caller resolved, and a m
 ```bash
 aws amplify get-app --app-id d22dm4b0jn71jw --query 'app.customRules'
 python scripts/generate_runtime_inventory.py   # re-derives the 117
-curl -sI https://wecare.digital/dm/calls       # expect 301
+curl -sI [retired public path 0e838b48]/calls       # expect 301
 ```
 
 Use **`wecare.digital`**, not `stack.wecare.digital`. The `stack` CNAME
@@ -133,7 +133,7 @@ filter intent intact:
 
 | Probe | Result |
 |---|---|
-| `/dm/calls` | `301 → /dm/inbox/?channel=voice` |
-| `/dm/rcs/inbox` | `301 → /dm/inbox/?channel=rcs` |
-| `/dm/ses/logs` | `301 → /dm/logs/?channel=email` |
-| `/link/logs` | `301 → /link/` |
+| `[retired public path 2de923b8]/calls` | `301 → [retired public path 2de923b8]/inbox/?channel=voice` |
+| `[retired public path 2de923b8]/rcs/inbox` | `301 → [retired public path 2de923b8]/inbox/?channel=rcs` |
+| `[retired public path 2de923b8]/ses/logs` | `301 → [retired public path 2de923b8]/logs/?channel=email` |
+| `[retired public path 21d99b11]/logs` | `301 → [retired public path 21d99b11]/` |

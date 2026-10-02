@@ -175,7 +175,7 @@ called anywhere today.
 | 6.5 | `PageSectionRenderer`, 15 types | PUB-3.3 | ⏳ PENDING | unknown type renders nothing and does not break the page |
 | 6.6 | Batched reference resolution | design §7 | ⏳ PENDING | `query-variants` takes a page of ids and cursor-pages to 1,000 variants |
 | 6.7 | Graceful degradation for deleted Wix content | PUB-3.5 | ⏳ PENDING | drop the card, render the rest, never 500 |
-| 6.8 | Admin page composer UI | §40 | ⏳ PENDING | `/admin/content/pages` |
+| 6.8 | Admin page composer UI | §40 | ⏳ PENDING | `[retired public path 84a04c24]/content/pages` |
 
 ---
 

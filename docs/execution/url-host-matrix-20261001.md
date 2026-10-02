@@ -23,8 +23,8 @@ planned from).
 **The plan this task started from is SUPERSEDED, and the reason is worth stating plainly
 rather than quietly dropping.** It was written to convert 15 legacy top-level prefixes from
 `301 → /workspace/<prefix>` into `302 → /`. The defect was real and measured: 14 of the 15
-terminated on the **staff Authenticator shell at HTTP 200** — a customer who typed `/contacts`,
-which sits next to the genuine public `/contact/`, was handed a staff login — and `/settings`
+terminated on the **staff Authenticator shell at HTTP 200** — a customer who typed `[retired public path 44011e36]`,
+which sits next to the genuine public `/contact/`, was handed a staff login — and `[retired public path 2c56bef4]`
 301d to a `/workspace/settings/` page that 404s.
 
 Change 1 closed that defect by deletion instead. All 15 now terminate at **404** on the
@@ -72,9 +72,9 @@ from the provisioner:
 | # | source | target | status |
 |---:|---|---|---|
 | 0 | `https://www.wecare.digital` | `https://wecare.digital` | 301 |
-| 1 | `/access` | `https://wecare.digital/` | 302 |
-| 2 | `/access/` | `https://wecare.digital/` | 302 |
-| 3 | `/access/<*>` | `https://wecare.digital/` | 302 |
+| 1 | `[retired public path ef531503]` | `https://wecare.digital/` | 302 |
+| 2 | `[retired public path ef531503]/` | `https://wecare.digital/` | 302 |
+| 3 | `[retired public path ef531503]/<*>` | `https://wecare.digital/` | 302 |
 | 4 | `/get` | `/get/index.html` | 200 |
 | 5 | `/get/` | `/get/index.html` | 200 |
 | 6 | `/get/<*>` | `https://d1kf2rchz7yras.cloudfront.net/<*>` | 200 |
@@ -84,7 +84,7 @@ from the provisioner:
 | 10 | `/mcp/` | `…/prod/mcp` | 200 |
 | 11 | `/<*>` | `/404.html` | 404-200 |
 
-The 9 → 12 step is the three `/access` → home 302s emitted by `desired_redirects()`, applied by
+The 9 → 12 step is the three `[retired public path ef531503]` → home 302s emitted by `desired_redirects()`, applied by
 the concurrent session described in §5.5. **This task made exactly one production write** — the
 single rule in change 2 — and that is unchanged by the restatement.
 
@@ -118,12 +118,12 @@ makes Amplify carry the request path across.
 
 > **CORRECTED 2026-10-01T13:15Z.** The second property read *"all seven passthrough rewrites
 > precede every redirect"*, and that was **false in production** while no gate could see it. The
-> live array (§0.1) has the three `/access` 302s at indexes **1-3, ahead of all seven
+> live array (§0.1) has the three `[retired public path ef531503]` 302s at indexes **1-3, ahead of all seven
 > passthroughs**, because `desired_redirects()` emits redirects first and `apply()` rebuilds the
 > array as `domain + desired_redirects() + middle + catch_all`. The assertion that existed
 > (`test_every_passthrough_precedes_every_redirect`) only ever read the committed **9-rule**
 > `after` snapshot, which contains no path redirect, so it passed while the stated guarantee did
-> not hold. Harmless in fact — no `/access` source overlaps `/api`, `/get`, `/r` or `/mcp` — but
+> not hold. Harmless in fact — no `[retired public path ef531503]` source overlaps `/api`, `/get`, `/r` or `/mcp` — but
 > the claim and the assertion had diverged, which is the defect. Resolved by stating the
 > property that is actually true, and by asserting it on the **live shape**: that test was
 > renamed `test_in_the_committed_snapshot_every_passthrough_precedes_every_redirect` (rescoped,
@@ -137,12 +137,12 @@ makes Amplify carry the request path across.
 ## 1. The matrix
 
 85 rows, probed by `scripts/probe_url_host_matrix.py`, exit 0 — **88 rows as of
-2026-10-01T13:15Z**: +1 for the third `/access` wildcard row (§5.5) and +2 for the two new
+2026-10-01T13:15Z**: +1 for the third `[retired public path ef531503]` wildcard row (§5.5) and +2 for the two new
 subdomain rows 83a/83b below. **98 rows as of the third convergence pass, 2026-10-01**: +10 for
 rows 86–95, the evidence rows added for the surface categories that had none (§1.1–§1.4). Only
 the **terminal** status in
 a chain is judged: `trailingSlash: true` means an extensionless path always 301s to add the
-slash first, so a first-hop reading calls `/admin` "301, fine" whether the chain ends on a 404
+slash first, so a first-hop reading calls `[retired public path 84a04c24]` "301, fine" whether the chain ends on a 404
 or on a staff login at 200. Chains are walked with a seen-set, so a loop is a hard failure
 rather than two individually-correct status codes.
 
@@ -156,12 +156,12 @@ rather than two individually-correct status codes.
 | 6 | `/definitely-not-a-page` | 301 → `…/` → 404 | same | unchanged |
 | 7 | `/definitely-not-a-page/` | 404, `"page":"/404"`, `noindex`, canonical `/` | same, all three asserted in the body | unchanged — **404, not 200** |
 | 8 | `/404/` | 200 | 200 | unchanged |
-| 9–23 | `/dm/ /engage/ /dashboard/ /contacts/ /commerce/ /pay/ /forms/ /service/ /docs/ /seo/ /admin/ /link/ /task/ /settings/` **+ `/access/`, see 23a** | **301 → `/workspace/…` → 200 Authenticator shell** (`/settings/` → 404) | **404, every one** | **defect closed by the owner's removal, not by this task's 302** |
-| **23a** | **`/access/`, `/access`, `/access/anything/deep`** | **301 → `/workspace/access/` → 200 staff shell** | **302 → `https://wecare.digital/` → 200 home** | **superseded 15:54 IST — now the planned CONVERT destination, §5.5** |
-| 24–38 | the same 15 in bare form (`/dm`, `/admin`, …) | 301 → slash → staff shell | 301 → slash → **404** (`/access` → 302 → home) | closed |
-| 39 | `/dm/calls` | 301 → `/workspace/engage/inbox/?channel=voice` | 301 → slash → **404** | closed |
-| 40 | `/admin/anything/deep` | 301 → `/workspace/admin/anything/deep` | 301 → slash → **404** | closed |
-| 41–57 | `/swdhya/ /no-fault/ /legal-stuff/ /legal-stuffs/ /faq/ /my-order/ /expoweek/ /ritual-store/ /swdhya-store/ /request-tracking/ /rx-slot/ /bring-friends/ /home/ /open-possibility/ /product-page/partner/ /selfservice/ /track/` | 301 → live targets | **404, every one** | **owner-retired — see §3, this is the intended end state** |
+| 9–23 | `[retired public path 2de923b8]/ [retired public path bf361a18]/ [retired public path 89347bb2]/ [retired public path 44011e36]/ [retired public path 862cdc9c]/ [retired public path 47a81ed9]/ [retired public path 169e0fd8]/ [retired public path 6b3a02b3]/ [retired public path a2557b8d]/ [retired public path 9463c8d8]/ [retired public path 84a04c24]/ [retired public path 21d99b11]/ [retired public path 4eca21b3]/ [retired public path 2c56bef4]/` **+ `[retired public path ef531503]/`, see 23a** | **301 → `/workspace/…` → 200 Authenticator shell** (`[retired public path 2c56bef4]/` → 404) | **404, every one** | **defect closed by the owner's removal, not by this task's 302** |
+| **23a** | **`[retired public path ef531503]/`, `[retired public path ef531503]`, `[retired public path ef531503]/anything/deep`** | **301 → `/workspace/access/` → 200 staff shell** | **302 → `https://wecare.digital/` → 200 home** | **superseded 15:54 IST — now the planned CONVERT destination, §5.5** |
+| 24–38 | the same 15 in bare form (`[retired public path 2de923b8]`, `[retired public path 84a04c24]`, …) | 301 → slash → staff shell | 301 → slash → **404** (`[retired public path ef531503]` → 302 → home) | closed |
+| 39 | `[retired public path 2de923b8]/calls` | 301 → `/workspace/engage/inbox/?channel=voice` | 301 → slash → **404** | closed |
+| 40 | `[retired public path 84a04c24]/anything/deep` | 301 → `/workspace/admin/anything/deep` | 301 → slash → **404** | closed |
+| 41–57 | `[retired public path 74ea5c7a]/ [retired public path 14041cbc]/ [retired public path 32bc4583]/ [retired public path f1430fb7]/ [retired public path 1965ee0f]/ [retired public path aaee9dd4]/ [retired public path 9109e567]/ [retired public path 5b217199]/ [retired public path b7b8d296]/ [retired public path 3b13e953]/ [retired public path a324e726]/ [retired public path fb3e74a7]/ [retired public path 2cc974af]/ [retired public path 8a68a2cf]/ [retired public path c86bd2b5]/ [retired public path b180810d]/ [retired public path 282d0fd5]/` | 301 → live targets | **404, every one** | **owner-retired — see §3, this is the intended end state** |
 | 58 | `/workspace/` | 200 Authenticator shell, `Disallow` in robots | 200 | **unchanged — staff entry, neither hidden nor opened** |
 | 59 | `/workspace/access/` | 200 | 200 | unchanged |
 | 60 | `/account/sign-in/` | 200 | 200 | unchanged — customer auth |
@@ -188,10 +188,10 @@ rather than two individually-correct status codes.
 | **90** | `GET https://www.wecare.digital/?code=…&state=…` | not measured before | **301 → `https://wecare.digital/?code=…&state=…`**, terminal 200 | **the `?code=` survives the host 301** — §1.2 |
 | **91** | `GET /api/checkout/download-receipt` | not measured before | **404** `{"message":"Not Found"}` | **no live route — unprovisioned, not broken** — §1.3 |
 | **92** | `GET /api/auth/verify-email` | not measured before | **404** `{"message":"Not Found"}` | **no live route — unprovisioned, not broken** — §1.3 |
-| **93** | `/access/?next=https://evil.example` | **302 → `https://wecare.digital/?next=https://evil.example`** (measured 2026-10-01, before the fix) | **302 → `https://wecare.digital/?from=access`**, terminal 200 | **FIXED — path and caller's query both dropped** — §1.4 |
-| **94** | `/access?a=b&c=d` | **302 → `https://wecare.digital/?a=b&c=d`** | **302 → `https://wecare.digital/?from=access`** | **FIXED** — §1.4 |
-| **95** | `/access/x/y?return=//evil` | **302 → `https://wecare.digital/?return=//evil`** | **302 → `https://wecare.digital/?from=access`** | **FIXED** — §1.4 |
-| 23a/59 (restated) | `/access`, `/access/`, `/access/anything/deep` | 302 → `https://wecare.digital/` | **302 → `https://wecare.digital/?from=access`**, terminal 200 | target narrowed by the same fix — §1.4 |
+| **93** | `[retired public path ef531503]/?next=https://evil.example` | **302 → `https://wecare.digital/?next=https://evil.example`** (measured 2026-10-01, before the fix) | **302 → `https://wecare.digital/?from=access`**, terminal 200 | **FIXED — path and caller's query both dropped** — §1.4 |
+| **94** | `[retired public path ef531503]?a=b&c=d` | **302 → `https://wecare.digital/?a=b&c=d`** | **302 → `https://wecare.digital/?from=access`** | **FIXED** — §1.4 |
+| **95** | `[retired public path ef531503]/x/y?return=//evil` | **302 → `https://wecare.digital/?return=//evil`** | **302 → `https://wecare.digital/?from=access`** | **FIXED** — §1.4 |
+| 23a/59 (restated) | `[retired public path ef531503]`, `[retired public path ef531503]/`, `[retired public path ef531503]/anything/deep` | 302 → `https://wecare.digital/` | **302 → `https://wecare.digital/?from=access`**, terminal 200 | target narrowed by the same fix — §1.4 |
 
 Rows 86–95 were **added in the third convergence pass, 2026-10-01**, after a review found that
 four of the surface categories the brief names had no row at all, so a reader could not tell
@@ -270,7 +270,7 @@ constraint is unaffected by this task.
 ### 1.4 The redirect home retained the untrusted query — FIXED 2026-10-01
 
 Found in the third convergence pass, correcting a claim this task carried without probing it. The
-plan's design note **D1** asserted that `/access/**` → `/` *"drops the untrusted path entirely
+plan's design note **D1** asserted that `[retired public path ef531503]/**` → `/` *"drops the untrusted path entirely
 (the target is a literal `/`, so no path, query or fragment is forwarded)"*. **That was half
 false**, and the half that was false is a real defect against the handoff's requirement that
 untrusted path, query and fragment content be dropped when a retired customer URL is sent home.
@@ -278,9 +278,9 @@ untrusted path, query and fragment content be dropped when a retired customer UR
 **Before the fix**, measured:
 
 ```
-/access/?next=https://evil.example   302 -> https://wecare.digital/?next=https://evil.example
-/access?a=b&c=d                      302 -> https://wecare.digital/?a=b&c=d
-/access/x/y?return=//evil             302 -> https://wecare.digital/?return=//evil
+[retired public path ef531503]/?next=https://evil.example   302 -> https://wecare.digital/?next=https://evil.example
+[retired public path ef531503]?a=b&c=d                      302 -> https://wecare.digital/?a=b&c=d
+[retired public path ef531503]/x/y?return=//evil             302 -> https://wecare.digital/?return=//evil
 ```
 
 The **path** was dropped, as claimed. The **query was appended** to the redirect target, because
@@ -289,10 +289,10 @@ that is Amplify's default for a 301/302.
 **After the fix**, measured on six consecutive readings roughly 25 seconds apart:
 
 ```
-/access/?next=https://evil.example   302 -> https://wecare.digital/?from=access   terminal 200
-/access?a=b&c=d                      302 -> https://wecare.digital/?from=access   terminal 200
-/access/x/y?return=//evil             302 -> https://wecare.digital/?from=access   terminal 200
-/access/                             302 -> https://wecare.digital/?from=access   terminal 200
+[retired public path ef531503]/?next=https://evil.example   302 -> https://wecare.digital/?from=access   terminal 200
+[retired public path ef531503]?a=b&c=d                      302 -> https://wecare.digital/?from=access   terminal 200
+[retired public path ef531503]/x/y?return=//evil             302 -> https://wecare.digital/?from=access   terminal 200
+[retired public path ef531503]/                             302 -> https://wecare.digital/?from=access   terminal 200
 ```
 
 **How, and why the fix is a query parameter rather than its removal.** Amplify's documented
@@ -300,7 +300,7 @@ behaviour is that it forwards all query parameters to a 301/302 destination *exc
 destination address for the matching rule has query parameters", in which case they are not
 forwarded. So the way to drop the caller's query is to give the destination one of our own.
 `scripts/provision_legacy_redirects.py` now emits
-`https://wecare.digital/?from=access` for all three `/access` sources, and `ACCESS_HOME_TARGET`
+`https://wecare.digital/?from=access` for all three `[retired public path ef531503]` sources, and `ACCESS_HOME_TARGET`
 carries the reasoning at the point of definition.
 
 `from=access` is deliberately inert and deliberately ours:
@@ -329,7 +329,7 @@ the mechanism, so re-asserting the bare apex reinstates the defect rather than t
 pre-change state in
 `docs/execution/snapshots/amplify-custom-rules-before-access-query-drop-20261001.json` (12 rules,
 with the no-ETag fact recorded — Amplify `get-app`/`update-app` expose none) plus the
-provisioner's own timestamped `.scratch/` rollback. Blast radius is the three `/access` sources;
+provisioner's own timestamped `.scratch/` rollback. Blast radius is the three `[retired public path ef531503]` sources;
 the host 301, every passthrough rewrite and the `/<*>` → `/404.html` `404-200` catch-all are
 rebuilt unchanged by construction, and `apply()` refuses to write without exactly one catch-all.
 Propagation was immediate — the first probe after the write already showed the new target.
@@ -347,21 +347,21 @@ is recorded rather than dropped.
 
 | prefix | rules it owned in the 146-rule array | every target was | in live sitemap (1,407 `<loc>`) | in `llms.txt` | in `robots.txt` | approved provider artefact | search impressions | class |
 |---|---:|---|---:|---:|---|---|---:|---|
-| `/dm` | 19 | `/workspace/engage/**` | 0 | 0 | no | no | **0** | CONVERT |
-| `/engage` | 19 | `/workspace/engage/**` | 0 | 0 | no | no | **0** | CONVERT |
-| `/dashboard` | 3 | `/workspace/dashboard/` | 0 | 0 | no | no | **0** | CONVERT |
-| `/contacts` | 3 | `/workspace/contacts/` | 0 | 0 | no | no | **0** | CONVERT |
-| `/commerce` | 3 | `/workspace/commerce/` | 0 | 0 | no | no | **0** | CONVERT |
-| `/pay` | 3 | `/workspace/pay/` | 0 | 0 | no | no | **0** | CONVERT |
-| `/forms` | 3 | `/workspace/forms/` | 0 | 0 | no | no | **0** | CONVERT |
-| `/service` | 3 | `/workspace/service/` | 0 | 0 | no | no | **0** | CONVERT |
-| `/docs` | 3 | `/workspace/docs/` | 0 | 0 | no | no | **0** | CONVERT |
-| `/seo` | 3 | `/workspace/seo/` | 0 | 0 | no | no | **0** | CONVERT |
-| `/admin` | 3 | `/workspace/admin/` | 0 | 0 | no | no | **0** | CONVERT (owner-named) |
-| `/access` | 3 | `/workspace/access/` | 0 | 0 | no | no | **0** | CONVERT (owner-named) |
-| `/link` | 5 | `/workspace/link/` | 0 | 0 | no | no | **0** | CONVERT |
-| `/task` | 3 | `/workspace/task/` | 0 | 0 | no | no | **0** | CONVERT |
-| `/settings` | 3 | `/workspace/settings/` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path 2de923b8]` | 19 | `/workspace/engage/**` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path bf361a18]` | 19 | `/workspace/engage/**` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path 89347bb2]` | 3 | `/workspace/dashboard/` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path 44011e36]` | 3 | `/workspace/contacts/` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path 862cdc9c]` | 3 | `/workspace/commerce/` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path 47a81ed9]` | 3 | `/workspace/pay/` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path 169e0fd8]` | 3 | `/workspace/forms/` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path 6b3a02b3]` | 3 | `/workspace/service/` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path a2557b8d]` | 3 | `/workspace/docs/` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path 9463c8d8]` | 3 | `/workspace/seo/` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path 84a04c24]` | 3 | `/workspace/admin/` | 0 | 0 | no | no | **0** | CONVERT (owner-named) |
+| `[retired public path ef531503]` | 3 | `/workspace/access/` | 0 | 0 | no | no | **0** | CONVERT (owner-named) |
+| `[retired public path 21d99b11]` | 5 | `/workspace/link/` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path 4eca21b3]` | 3 | `/workspace/task/` | 0 | 0 | no | no | **0** | CONVERT |
+| `[retired public path 2c56bef4]` | 3 | `/workspace/settings/` | 0 | 0 | no | no | **0** | CONVERT |
 
 75 of the 138 removed rules belonged to these 15. **Every target, without exception, was under
 `/workspace/`** — read from the committed 146-rule snapshot, not inferred.
@@ -379,7 +379,7 @@ That is the expected shape: they are `Disallow`ed staff paths that were never in
 This is a real zero from a successful measurement, not an unrunnable tool reported as zero.
 
 **No approved provider artefact names any of the 15.** The two paths frozen inside approved
-provider templates are `/selfservice` and `/track`, and neither is in this set — see §3, where
+provider templates are `[retired public path b180810d]` and `[retired public path 282d0fd5]`, and neither is in this set — see §3, where
 they matter a great deal.
 
 ---
@@ -397,32 +397,32 @@ are that Search Console property's own, over its full retained window:
 
 | retired source | former target | impressions | clicks |
 |---|---|---:|---:|
-| `/selfservice` | `/submit-request/` | **1,128** | 4 |
-| `/swdhya` | `/anew/` | 531 | 3 |
-| `/no-fault` | `/clear-closure/` | 499 | 1 |
-| `/legal-stuff` | `/terms/` | 379 | 0 |
-| `/expoweek` | `/expo-week/` | 292 | 1 |
-| `/legal-stuffs` | `/terms/` | 241 | 1 |
-| `/ritual-store` | `/ritual-guru/` | 226 | 0 |
-| `/swdhya-store` | `/anew/` | 212 | 1 |
-| `/request-tracking` | `/orders/` | 201 | 2 |
-| `/rx-slot` | `/bharat-rx/` | 188 | 3 |
-| `/bring-friends` | `/refer-and-earn/` | 132 | 0 |
-| `/faq` | `/contact/` | 127 | 4 |
-| `/home` | `/` | 8 | 0 |
+| `[retired public path b180810d]` | `/submit-request/` | **1,128** | 4 |
+| `[retired public path 74ea5c7a]` | `/anew/` | 531 | 3 |
+| `[retired public path 14041cbc]` | `/clear-closure/` | 499 | 1 |
+| `[retired public path 32bc4583]` | `/terms/` | 379 | 0 |
+| `[retired public path 9109e567]` | `/expo-week/` | 292 | 1 |
+| `[retired public path f1430fb7]` | `/terms/` | 241 | 1 |
+| `[retired public path 5b217199]` | `/ritual-guru/` | 226 | 0 |
+| `[retired public path b7b8d296]` | `/anew/` | 212 | 1 |
+| `[retired public path 3b13e953]` | `/orders/` | 201 | 2 |
+| `[retired public path a324e726]` | `/bharat-rx/` | 188 | 3 |
+| `[retired public path fb3e74a7]` | `/refer-and-earn/` | 132 | 0 |
+| `[retired public path 1965ee0f]` | `/contact/` | 127 | 4 |
+| `[retired public path 2cc974af]` | `/` | 8 | 0 |
 | | **subtotal** | **4,164** | **20** |
 
 A 404 drops the URL from the index cleanly, which is a legitimate outcome — it discards the
 accumulated signal instead of consolidating it onto the replacement page. That is the trade
 the owner made.
 
-### ⚠️ OWNER-DECISION ITEM 1 — `/selfservice` and `/track` are printed inside approved provider templates
+### ⚠️ OWNER-DECISION ITEM 1 — `[retired public path b180810d]` and `[retired public path 282d0fd5]` are printed inside approved provider templates
 
 These two are not ordinary retired aliases and they carry the largest single impression count
-in the table. `/selfservice` is printed in the body of **DLT-approved SMS template
+in the table. `[retired public path b180810d]` is printed in the body of **DLT-approved SMS template
 `ivr-default`** (registration `1007277993798259629`) as "Submit your request here: …", and in
 the body of **nine approved Sinch RCS templates** including `rcsmenu`, the only one any code
-sends. `/track` is in approved `wecare_order_update`.
+sends. `[retired public path 282d0fd5]` is in approved `wecare_order_update`.
 
 An approved DLT body must match its registration character for character and **cannot be
 edited**; an approved RCS body cannot be edited in place either. So for these two a redirect
@@ -434,7 +434,7 @@ The removal document acknowledges this ("their old links now use missing-page be
 the owner's override"), so it is an accepted consequence rather than an oversight. It is
 raised here because it is the one row where the cost lands on a message already in a
 customer's hand rather than on a search ranking. **Reversing it is two rules and needs one
-owner instruction:** `/selfservice` → `/submit-request/` and `/track` → `/orders/`, both
+owner instruction:** `[retired public path b180810d]` → `/submit-request/` and `[retired public path 282d0fd5]` → `/orders/`, both
 targets measured 200 today.
 
 ---
@@ -648,7 +648,7 @@ owned and had uncommitted, plus that session's own test.
 **What changed, measured not assumed.** That session rewrote `desired_redirects()` to emit the
 rule rather than merely spare it, which is the stronger fix: `--apply` now **rebuilds** host
 canonicalisation, so the rule is restored if it ever goes missing instead of only surviving.
-Its docstring now reads "Only www canonicalisation and the retired `/access` entry point may
+Its docstring now reads "Only www canonicalisation and the retired `[retired public path ef531503]` entry point may
 redirect." They also applied it to production.
 
 | | before (this task's §0 state) | after (measured 15:55 IST) |
@@ -656,13 +656,13 @@ redirect." They also applied it to production.
 | live `customRules` | **9** | **12** |
 | `provision_legacy_redirects.py` (no flag) | exit **1** — "1 redirects to remove" | exit **0** — "4 redirects to reconcile" |
 | `provision_legacy_redirects.py --verify` | exit **1** — `FAIL: custom redirect rules remain` | exit **0** — `Verified: only approved home/access redirects remain` |
-| `GET /access/` | 404 | **302 → `https://wecare.digital/`**, terminal 200 |
+| `GET [retired public path ef531503]/` | 404 | **302 → `https://wecare.digital/`**, terminal 200 |
 | `GET /workspace/access/` | 200 staff shell | **200, unchanged** — staff entry unaffected |
 
-The three new rules are `/access`, `/access/` and `/access/<*>` → the canonical home at **302**.
-That is the destination **this task's own plan asked for** (`/access` was a CONVERT prefix,
+The three new rules are `[retired public path ef531503]`, `[retired public path ef531503]/` and `[retired public path ef531503]/<*>` → the canonical home at **302**.
+That is the destination **this task's own plan asked for** (`[retired public path ef531503]` was a CONVERT prefix,
 target `/` at 302, by explicit owner instruction), so the net effect is that the planned end
-state landed via config-as-code. The 404 recorded in §1 for `/access` was the stale middle
+state landed via config-as-code. The 404 recorded in §1 for `[retired public path ef531503]` was the stale middle
 state left by the redirect removal, not the goal.
 
 **Re-verified after their production write**, because three new rules in front of the rewrites
@@ -682,7 +682,7 @@ as their own docstrings instructed:
   **exactly**, so a third entry fails as loudly as the second one did, and asserts no sanctioned
   rule targets `/workspace`.
 
-`scripts/probe_url_host_matrix.py` grew the `/access` rows from 2 to 3 and now asserts them on
+`scripts/probe_url_host_matrix.py` grew the `[retired public path ef531503]` rows from 2 to 3 and now asserts them on
 the **terminal URL** rather than the status alone — 200 by itself cannot distinguish the
 canonical home from the staff Authenticator shell, and the shell is the thing these rows exist
 to forbid.
@@ -950,7 +950,7 @@ vouch for itself. **Every row matched.**
 | `npx vitest run` | exit 0 — 47 files, **677 tests** (674 + the 3 KNOWN GAP tests in §7) |
 | `npm run build` | exit 0 — `out/404/index.html` present, `out/sitemap.xml` **1,407 `<loc>`** |
 | `pytest …routing_rules …rollback_snapshot -q` | **14 passed** |
-| `scripts/probe_url_host_matrix.py --json` | **probed 86, failed 0**, exit 0 (85 → 86: the third `/access` wildcard row, §5.5) |
+| `scripts/probe_url_host_matrix.py --json` | **probed 86, failed 0**, exit 0 (85 → 86: the third `[retired public path ef531503]` wildcard row, §5.5) |
 | `scripts/retired_url_probe.py` | exit 0 — 24 rows, 21 `OK-gone` + 3 `OK-redirect`, none still live |
 | `scripts/provision_legacy_redirects.py` / `--verify` | **exit 0 / exit 0** — both were exit 1 earlier in this same run; the §5.5 hazard was fixed mid-convergence and `--verify` now reports `Verified: only approved home/access redirects remain` |
 | `git diff --stat _routes.json` | empty |
@@ -1159,7 +1159,7 @@ this pass.
 | `pytest test_legacy_redirect_rollback_snapshot.py test_url_host_routing_rules.py -q` | **17 passed**, 0 skipped (13 + 4; an earlier write-up said 20, which counted a wider file set) |
 | `scripts/probe_url_host_matrix.py --json` | **98 probed, 0 failed, 0 informational drift**, exit 0 — **100 after the §9.6 merge, still 0 failed** |
 | `scripts/retired_url_probe.py` | exit **0** — no retired public URL answers 200 |
-| `scripts/provision_legacy_redirects.py --verify` | exit **0** — 12 rules, only the approved host 301 and three `/access` 302s |
+| `scripts/provision_legacy_redirects.py --verify` | exit **0** — 12 rules, only the approved host 301 and three `[retired public path ef531503]` 302s |
 | `git diff --stat _routes.json` | **empty** — byte-identical, and clean in `git status` |
 
 ### Independently re-measured with `curl`, not through the harness
@@ -1278,7 +1278,7 @@ different number, this section says so rather than editing the earlier reading a
 | `e080b209` `4c603188` `faccfbae` `023a385b` | review-response passes on the guards and the harness | yes |
 | `5114ae70` `f00d9b93` | convergence passes | yes |
 | `d0584e94` | `Close the post-sign-in open redirect, and narrow the allowlist to pages that exist` | yes |
-| `f8912068` | `Stop the retired /access redirect forwarding the caller's query string to home` | **no — unpushed, pushed by this closing pass** |
+| `f8912068` | `Stop the retired [retired public path ef531503] redirect forwarding the caller's query string to home` | **no — unpushed, pushed by this closing pass** |
 
 The closing commit itself carries this section plus `status: "completed"` in
 `.agents/tasks/url-host-cleanup/task.json`; its SHA is recorded in §10.7 below, in a follow-up
@@ -1299,11 +1299,11 @@ paths.
 | Before another session's owner-instructed removal | 146 | their snapshot, not this task's |
 | **This task's BEFORE** (post-removal) | **8** | `snapshots/amplify-custom-rules-before-url-host-cleanup-20261001.json`, 8 entries, re-parsed at closure |
 | After the host-rule restore | 9 | `snapshots/amplify-custom-rules-after-url-host-cleanup-20261001.json`, 9 entries |
-| Before the `/access` query-drop narrowing | 12 | `snapshots/amplify-custom-rules-before-access-query-drop-20261001.json`, `ruleCount: 12` |
+| Before the `[retired public path ef531503]` query-drop narrowing | 12 | `snapshots/amplify-custom-rules-before-access-query-drop-20261001.json`, `ruleCount: 12` |
 | **AFTER — live at closure** | **12** | read live, `length(app.customRules)` = 12 |
 
 Net for this task: **8 → 12**, four rules added and **zero removed or reordered**. One
-host-canonicalisation 301 restored verbatim from the 146-rule snapshot, and three `/access`
+host-canonicalisation 301 restored verbatim from the 146-rule snapshot, and three `[retired public path ef531503]`
 sources at 302 whose target carries the literal `?from=access` — that query parameter **is** the
 mechanism that stops Amplify forwarding the caller's query, so it must not be tidied to a bare
 apex. The `/<*> → /404.html` 404-200 catch-all is still the last rule and was never touched.
@@ -1339,7 +1339,7 @@ GET  /workspace/                               200   (Authenticator shell, uncha
 GET  /account/sign-in/                         200
 GET  / /shop/ /cart/ /orders/ /blog/           200   (all five)
 GET  https://www.wecare.digital/shop/          301 -> https://wecare.digital/shop/   (path preserved)
-GET  /access/?next=https://evil.example        302 -> https://wecare.digital/?from=access   (caller's query dropped)
+GET  [retired public path ef531503]/?next=https://evil.example        302 -> https://wecare.digital/?from=access   (caller's query dropped)
 ```
 
 ### 10.4 The exact subdomain coverage gap — CORRECTED at closure
@@ -1388,7 +1388,7 @@ existing second-label Wix hosts and are out of scope either way.
 | 2 | **Unknown API route answers `302 → /contact/`** — `GET /api/definitely-no-route` from the HTTP API's `GET /{code}` catch-all | **`amplify/functions` workstream** | OPEN, untouched here. Asserted in `probe_url_host_matrix.py` at its measured value, so a change becomes visible rather than silent |
 | 3 | **`public/sw.js:180` push-click destination `/workspace/dashboard/`** | **staff push / service-worker owner** | OPEN, needs-verification. Not reproduced as customer-reachable — it is a push-notification destination, not a navigation link — and changing it could break staff push, so it is recorded in `INTENTIONALLY_WORKSPACE_ONLY` rather than edited |
 | 4 | **`src/pages/account/sign-in.tsx` wiring handoff** | **`src/pages/account/**` workstream** | **CLOSED by that owner, not by this task.** `origin/stack`'s `sign-in.tsx` imports `safeLocalReturnPath` and returns it from `returnPathFromUrl()`, with `restoreSession()` and a persistent flag added around it. The three-line crossing recorded in `docs/execution/change-authority-matrix.md` was ratified twice: in writing by the orchestrator, and by that owner keeping the wiring when it resumed. The verbatim one-line handoff stays in §7 for the record |
-| 5 | **`/selfservice` and `/track` now 404** — both are printed inside approved provider template bodies (DLT `ivr-default`, nine Sinch RCS templates incl. `rcsmenu`, `wecare_order_update`) that cannot be edited | **owner** | OPEN and **accepted**, not an oversight: the owner's removal document acknowledges it. Reversal is two rules plus one instruction; both intended targets (`/submit-request/`, `/orders/`) measured 200 |
+| 5 | **`[retired public path b180810d]` and `[retired public path 282d0fd5]` now 404** — both are printed inside approved provider template bodies (DLT `ivr-default`, nine Sinch RCS templates incl. `rcsmenu`, `wecare_order_update`) that cannot be edited | **owner** | OPEN and **accepted**, not an oversight: the owner's removal document acknowledges it. Reversal is two rules plus one instruction; both intended targets (`/submit-request/`, `/orders/`) measured 200 |
 | 6 | **`xout` / `www.xout` promoted to hard probe gates, and ~50 lines of deleted rationale** in `probe_url_host_matrix.py` | **release-gating workstream that made the edit** | OPEN. Survived the integration merge intact; reported, not reverted |
 | 7 | **`_routes.json` has zero code consumers** | unassigned | OPEN as information only. Left byte-identical on purpose |
 | 8 | **Four stale catch-all comments** at `src/pages/_app.tsx:938,999,1098` and `src/pages/workspace/commerce/catalog.tsx:28` | their file owners | OPEN, handed over unedited |
@@ -1408,7 +1408,7 @@ aws amplify update-app --app-id d22dm4b0jn71jw --region us-east-1 \
 ```
 
 That returns the app to the 8-rule post-removal state, undoing **all four** rules this task
-added — the host 301 and the three `/access` 302s. To undo only the `/access` narrowing and keep
+added — the host 301 and the three `[retired public path ef531503]` 302s. To undo only the `[retired public path ef531503]` narrowing and keep
 the host rule, restore
 `snapshots/amplify-custom-rules-before-access-query-drop-20261001.json` (12 rules) instead. Do
 **not** restore the 146-rule or the 3-rule snapshots; §8 records why each would be worse than

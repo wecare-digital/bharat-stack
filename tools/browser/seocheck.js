@@ -160,7 +160,7 @@ async function main() {
     }
 
     /**
-     * THE IN-REPO REDIRECT STUBS WERE REMOVED (owner instruction). /selfservice and
+     * THE IN-REPO REDIRECT STUBS WERE REMOVED (owner instruction). [retired public path] and
      * /product-page/* no longer exist in the export, so the origin returns the 404 page
      * for them. The redirect to /contact/ is now expected to live at the CDN (Amplify
      * Console: Rewrites and redirects), which this static export cannot express and this

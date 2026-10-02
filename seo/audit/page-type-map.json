@@ -11,35 +11,35 @@
     },
     "brand_hub": {
       "count": 6,
-      "urls": ["/bnb", "/legal-champ", "/ritual", "/swdhya", "/no-fault", "/expoweek"],
+      "urls": ["/bnb", "/legal-champ", "/ritual", "[retired public path 74ea5c7a]", "[retired public path 14041cbc]", "[retired public path 9109e567]"],
       "schema": ["WebPage", "BreadcrumbList", "FAQPage"],
       "update_method": "manual_dashboard",
       "indexability": "index, follow"
     },
     "brand_store": {
       "count": 5,
-      "urls": ["/bnb-store", "/legalchamp-store", "/ritual-store", "/swdhya-store", "/nofault-store"],
+      "urls": ["/bnb-store", "/legalchamp-store", "[retired public path 5b217199]", "[retired public path b7b8d296]", "/nofault-store"],
       "schema": ["WebPage", "BreadcrumbList", "ItemList"],
       "update_method": "manual_dashboard",
       "indexability": "index, follow"
     },
     "service": {
       "count": 11,
-      "urls": ["/appointment", "/submit-request", "/track-request", "/amend-request", "/rx-slot", "/drop-docs", "/enterprise-assist", "/leave-review", "/selfservice", "/loyalty", "/referral"],
+      "urls": ["/appointment", "/submit-request", "/track-request", "/amend-request", "[retired public path a324e726]", "/drop-docs", "/enterprise-assist", "/leave-review", "[retired public path b180810d]", "/loyalty", "/referral"],
       "schema": ["WebPage", "BreadcrumbList", "Service"],
       "update_method": "manual_dashboard",
       "indexability": "index, follow"
     },
     "informational": {
       "count": 6,
-      "urls": ["/faq", "/contact", "/careers-plus-culture", "/partner-up", "/gift-card", "/one"],
+      "urls": ["[retired public path 1965ee0f]", "/contact", "/careers-plus-culture", "/partner-up", "/gift-card", "/one"],
       "schema": ["WebPage", "BreadcrumbList", "FAQPage", "LocalBusiness (contact only)"],
       "update_method": "manual_dashboard",
       "indexability": "index, follow"
     },
     "legal": {
       "count": 2,
-      "urls": ["/legal-stuff", "/privacy"],
+      "urls": ["[retired public path 32bc4583]", "/privacy"],
       "schema": ["WebPage", "BreadcrumbList"],
       "update_method": "manual_dashboard",
       "indexability": "noindex, follow"
@@ -67,7 +67,7 @@
     },
     "system": {
       "count": 14,
-      "urls": ["/cart-page", "/checkout", "/thank-you", "/login", "/signup", "/404", "/members-area", "/account/my-orders", "/account/my-subscriptions", "/account/my-rewards", "/account/settings", "/order-notes", "/bring-friends"],
+      "urls": ["/cart-page", "/checkout", "/thank-you", "/login", "/signup", "/404", "/members-area", "/account/my-orders", "/account/my-subscriptions", "/account/my-rewards", "/account/settings", "/order-notes", "[retired public path fb3e74a7]"],
       "schema": [],
       "update_method": "manual_dashboard",
       "indexability": "noindex, nofollow"

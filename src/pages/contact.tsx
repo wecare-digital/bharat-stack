@@ -7,8 +7,8 @@ import ContactLocation from '../components/ContactLocation';
  * /contact — the request entry point.
  *
  * "SELFSERVICE" NAMING REMOVED 2026-09-27 (owner instruction). The word named a portal
- * with no page at any address: the in-repo /selfservice route went in PR #47 on
- * 2026-09-24 and nothing replaced it. The only /selfservice route left in the codebase
+ * with no page at any address: the in-repo [retired public path] route went in PR #47 on
+ * 2026-09-24 and nothing replaced it. The only [retired public path] route left in the codebase
  * is the ADMIN flow dashboard under /workspace/forms/, which is not a customer
  * destination. This page is where a customer actually starts a request.
  *
@@ -16,7 +16,7 @@ import ContactLocation from '../components/ContactLocation';
  * registered there or this page renders an empty body with HTTP 200 - a 404 that does
  * not look like one. next.config.js also sets trailingSlash, so the URL is /contact/.
  *
- * Note the neighbouring routes this is NOT: /contacts is the authenticated CRM
+ * Note the neighbouring routes this is NOT: [retired public path] is the authenticated CRM
  * contact list and /contact-test is an older public test page. Three similar names,
  * three different things - do not consolidate them without checking the allowlist and
  * the dashboard nav.

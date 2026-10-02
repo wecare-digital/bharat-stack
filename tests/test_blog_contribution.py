@@ -70,9 +70,11 @@ def test_each_preset_amount_is_accepted(preset):
 
 
 def test_server_presets_mirror_the_frontend_contract():
-    # The shipped UI (src/config/contribution.ts) declares [4900, 9900, 19900] + bounds; the
-    # server MUST mirror these so the browser cannot widen the trusted amount.
-    assert bc.CONTRIBUTION_PRESETS_PAISE == (4900, 9900, 19900)
+    # The shipped UI (src/config/contribution.ts) declares [20000, 40000, 60000] = ₹200/₹400/₹600
+    # + bounds; the server MUST mirror these so the browser cannot widen the trusted amount.
+    # Amounts changed from ₹49/₹99/₹199 on owner instruction (2026-10-02); this assertion is the
+    # guard that the two separate declarations never drift apart.
+    assert bc.CONTRIBUTION_PRESETS_PAISE == (20000, 40000, 60000)
     assert bc.CONTRIBUTION_MIN_PAISE == 1000
     assert bc.CONTRIBUTION_MAX_PAISE == 10_000_000
 

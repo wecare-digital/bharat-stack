@@ -255,7 +255,7 @@ const authTheme: Theme = {
       },
       // INERT while the Authenticator is mounted with hideSignUp - with sign-up
       // hidden, Amplify renders no tab list at all, so nothing below is visible on
-      // /access today (measured in a browser: zero elements match [role="tab"]).
+      // [retired public path] today (measured in a browser: zero elements match [role="tab"]).
       // Kept and corrected rather than deleted so that flipping hideSignUp cannot
       // ship off-palette tabs: the idle colour was #6b7280, which is the legacy
       // --color-muted from Pages.css and not a palette value at all.
@@ -533,7 +533,7 @@ const PUBLIC_PAGE_META: Record<string, {
   '/dastavez': { name: 'Dastavez', type: 'WebPage', description: 'Business documentation and registrations in India.', serviceType: 'Business documentation and company registration' },
   '/clear-closure': { name: 'Clear Closure', type: 'WebPage', description: 'Online dispute resolution, fully online.', serviceType: 'Online dispute resolution' },
   '/ritual-guru': { name: 'Ritual Guru', type: 'WebPage', description: 'Curated, temple-grade puja kits.', serviceType: 'Puja kit supply' },
-  // Renamed twice: '/swdhya' -> '/open-possibility' -> '/anew'. The route moved with the
+  // Renamed twice: '[retired public path]' -> '[retired public path]' -> '/anew'. The route moved with the
   // brand name each time; neither earlier address was ever published, so there is nothing
   // to redirect from.
   '/anew': { name: 'Anew', type: 'WebPage', description: 'Reflection-led conversations that create clarity and action.', serviceType: 'Reflective conversation and coaching' },
@@ -601,15 +601,15 @@ const PUBLIC_PAGE_META: Record<string, {
 /**
  * RETIRED URLS: now handled at the CDN, not in the code.
  *
- * /selfservice and /product-page/* were previously kept alive by an in-repo client-side
+ * [retired public path] and /product-page/* were previously kept alive by an in-repo client-side
  * redirect (src/components/RetiredUrl.tsx + these RETIRED_ROUTES entries), because a
  * static export cannot emit a server 301 and Amplify Hosting redirects are console-managed.
  *
  * On owner instruction those stubs were REMOVED. The routes no longer exist in the export,
  * so a request for them now 404s at the origin UNLESS a CDN-level 301 is configured in the
- * Amplify Console (Rewrites and redirects: /selfservice -> /contact/ and /product-page/<*>
+ * Amplify Console (Rewrites and redirects: [retired public path] -> /contact/ and /product-page/<*>
  * -> /contact/). That console redirect is the owner's responsibility and is the correct,
- * single place for it. NOTE: any /selfservice or /product-page link already delivered in a
+ * single place for it. NOTE: any [retired public path] or /product-page link already delivered in a
  * WhatsApp message will break until that console 301 exists.
  */
 const SITE = 'https://wecare.digital';
@@ -921,7 +921,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
     // including the Organization and WebSite entities, which otherwise would not exist on the page
     // for its Product.brand and Offer.seller references to resolve against.
     || router.pathname === '/shop/[slug]';
-  // /faq and /partners are deliberately ABSENT. stack still lists them because this
+  // [retired public path] and /partners are deliberately ABSENT. stack still lists them because this
   // branch's removal has not landed there yet; both pages were deleted on owner
   // instruction and re-adding the routes here would render blank 200s for them.
   // PUBLIC_PAGE_META is the single list of public marketing routes now. The seven new product
@@ -946,7 +946,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // https://wecare.digital/contact-test/ returned HTTP 200 carrying the entire staff
   // sidebar - Inbox, Contacts, Broadcast, Payments, Service Ops, Store, Forms, Tasks - the
   // page search box and the BottomNav, to anyone who asked. Verified live before removal;
-  // /dm/inbox/ and /store/ were clean, so this page was the whole of the exposure.
+  // [retired public path]/inbox/ and /store/ were clean, so this page was the whole of the exposure.
   //
   // It was also a duplicate: /contact is the real public contact page, and this one's form
   // resolved a setTimeout and threw the message away. De-listed rather than deleted so the

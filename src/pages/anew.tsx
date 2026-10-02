@@ -8,8 +8,8 @@ import { productBySlug } from '../content/products';
  * RENAMED TWICE. This file was src/pages/swdhya.tsx, then src/pages/open-possibility.tsx.
  * The route followed the brand name each time rather than leaving a new name at an old
  * address. No redirects are needed because neither earlier URL was ever published - the
- * page has only ever existed on an unmerged branch, so nothing links to /swdhya/ or
- * /open-possibility/.
+ * page has only ever existed on an unmerged branch, so nothing links to [retired public path]/ or
+ * [retired public path]/.
  *
  * NOT TO BE CONFUSED with the other "Swdhya" references still in this repo, which are
  * deliberately untouched: "Swdhya Vaksetu" is the blog author's name (src/lib/seo-prompt.ts,

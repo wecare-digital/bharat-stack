@@ -14,7 +14,7 @@ import type { ProductDef } from './products';
  * otherwise they render a blank 200 or a login wall." This is that. Contact us keeps
  * /contact/, which is its real destination, so five pages are needed rather than six.
  *
- * THEY ARE PUBLIC, AND NOT THE /service/ PAGES. /service/submit-request and its siblings
+ * THEY ARE PUBLIC, AND NOT THE [retired public path]/ PAGES. [retired public path]/submit-request and its siblings
  * already exist and are AUTHENTICATED by design - they render the dashboard Layout and read
  * the requester from a Cognito session. Pointing a public menu row at one shows an anonymous
  * visitor a login wall; Header.tsx measured that at 144,800 bytes of auth shell against

@@ -1,5 +1,5 @@
 /**
- * Commerce — /dm/commerce
+ * Commerce — [retired public path]/commerce
  * Admin UI for WhatsApp native commerce: send the catalog, compose & send a
  * native order_details (Review & Pay) bill, view orders/payments, and see the
  * live Razorpay payment configs per WABA. Backed by:

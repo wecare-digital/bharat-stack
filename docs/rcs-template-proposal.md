@@ -67,7 +67,7 @@ type : text_message
 ```
 Thanks for contacting WECARE.DIGITAL!
 
-Submit your request: https://wecare.digital/selfservice
+Submit your request: [retired public path 68ca05fc]
 Or message / voice note us on WhatsApp: https://wecare.digital/r/wa
 
 We'll review it and follow up if needed.
@@ -91,7 +91,7 @@ orientation : VERTICAL
 media height: MEDIUM
 media       : https://wecare.digital/get/o/stream/media/m/wecare-digital-rcs-h.png
 title       : Thanks for contacting WECARE.DIGITAL!
-description : Submit your request here: https://wecare.digital/selfservice
+description : Submit your request here: [retired public path 68ca05fc]
               or send us a message / voice note on WhatsApp:
               https://wecare.digital/r/wa.
 
@@ -131,7 +131,7 @@ media       : https://wecare.digital/get/o/stream/media/m/wd-card-front-7x3.png
 title       : WECARE.DIGITAL
 description : Building digital railroads for Everyday Bharat.
 
-              Submit a request: https://wecare.digital/selfservice
+              Submit a request: [retired public path 68ca05fc]
               WhatsApp us: https://wecare.digital/r/wa
 suggestion  : "Get Started" → https://wecare.digital/r/getstarted
 ```
@@ -154,7 +154,7 @@ orientation : VERTICAL
 media height: MEDIUM
 media       : https://wecare.digital/get/o/stream/media/m/wd-card-hello-7x3.png
 title       : Thanks for contacting WECARE.DIGITAL!
-description : Submit your request here: https://wecare.digital/selfservice
+description : Submit your request here: [retired public path 68ca05fc]
               or send us a message / voice note on WhatsApp:
               https://wecare.digital/r/wa.
 
@@ -203,7 +203,7 @@ card = {"richCard": {"standaloneCard": {
     "cardOrientation": "VERTICAL",
     "cardContent": {
         "title": "Thanks for contacting WECARE.DIGITAL!",
-        "description": ("Submit your request here: https://wecare.digital/selfservice "
+        "description": ("Submit your request here: [retired public path 68ca05fc] "
                         "or send us a message / voice note on WhatsApp: "
                         "https://wecare.digital/r/wa.\n\nWe'll review it and follow "
                         "up if needed."),
@@ -378,7 +378,7 @@ orientation : VERTICAL
 title       : WECARE.DIGITAL
 description : Building digital railroads for Everyday Bharat.
 
-              Submit your request: https://wecare.digital/selfservice
+              Submit your request: [retired public path 68ca05fc]
               Message / voice note us on WhatsApp: https://wecare.digital/r/wa
 suggestion  : "Get Started" -> https://wecare.digital/r/getstarted
 ```

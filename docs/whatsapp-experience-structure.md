@@ -32,7 +32,7 @@ What moved:
 - `DEFAULT_ONE_MENU` (10 rows, 5 sections) is served by `_get_welcome_config()`,
   still overridable from `welcome_message_config`, still with no phone argument —
   so both WABAs render the identical menu.
-- `/selfservice`, `/service`, the `Selfservice` ice breaker and the
+- `[retired public path b180810d]`, `[retired public path 6b3a02b3]`, the `Selfservice` ice breaker and the
   `menu_selfservice` row all open **that** menu. The keywords stayed; only the
   second list went. `selfservice` also joined `BUTTON_MENU_TRIGGERS`, because an
   ice-breaker tap can arrive as `button`, which skips the text block entirely —
@@ -170,7 +170,7 @@ flows on WABA2, or accept that the menu degrades to links there. Do not paper ov
 | Entry | Mechanism | Arrives as | Lands on |
 |---|---|---|---|
 | Ice breaker tap | Conversational components: `Get Started`, `Subscribe`, `Selfservice` | `text` (or `button`) | keyword routing |
-| Slash command | Commands: `/menu` `/subscribe` `/selfservice` `/pay` | `text` starting `/` | normalised, then keyword routing |
+| Slash command | Commands: `/menu` `/subscribe` `[retired public path b180810d]` `[retired public path 47a81ed9]` | `text` starting `/` | normalised, then keyword routing |
 | Typed keyword | free text | `text` | keyword routing (§4) |
 | QR / `wa.me/message/*` | prefilled message | `text` | keyword routing. **Dismisses ice breakers** |
 | Site widget | `SupportWidget.tsx`, `wecare-wa-widget.js` → `wa.me/message/APDM5HUWH26SG1` | `text` "Get Help" | main menu (fixed 2026-09-26) |
@@ -205,7 +205,7 @@ Body: *Choose what you'd like to do — get started, explore our services, or fi
 | Explore WECARE | `menu_store` | 🛍️ Explore Store | Browse services, brands, and offers | CTA `wecare.digital` |
 | | `menu_gift_card` | 🎁 Gift Cards | Send a digital gift card | CTA `/gift-card` |
 | | `menu_bharat_stack` | 🇮🇳 Bharat Stack | Discover Bharat Stack and services | CTA `wecare.digital` |
-| Help & Answers | `menu_faq` | ❓ FAQs | Find answers to common questions | CTA `/faq` |
+| Help & Answers | `menu_faq` | ❓ FAQs | Find answers to common questions | CTA `[retired public path 1965ee0f]` |
 | | `menu_about` | 💛 About WECARE.DIGITAL | Learn more about WECARE.DIGITAL | text block |
 
 ### 3.2 Self-service menu — `DEFAULT_SELFSERVICE_MENU` (`:6797`), override `selfservice_menu_config`
@@ -222,7 +222,7 @@ Header `Selfservice` · Button `Browse Services` · nine sections of one row eac
 | Documents | `ss_drop_docs` | 📄 Drop Docs | Send supporting documents for your request | `drop_docs` flow |
 | Business Support | `ss_enterprise_assist` | 🏢 Enterprise Assist | Corporate, B2B, and bulk enquiries | `enterprise_assist` flow |
 | Feedback | `ss_leave_review` | ⭐ Leave Review | Share your experience with our service | `leave_review` flow |
-| Help | `ss_faq` | ❓ FAQ | View frequently asked questions | CTA `/faq` |
+| Help | `ss_faq` | ❓ FAQ | View frequently asked questions | CTA `[retired public path 1965ee0f]` |
 
 ### 3.3 Bharat Stack menu — `DEFAULT_BHARAT_STACK_MENU` (`:6759`) — **DEAD**
 
@@ -249,17 +249,17 @@ against `content.strip().lower()`. **Every step returns** — first match wins.
 
 | # | Set (line) | Members (abridged) | Effect |
 |---|---|---|---|
-| 0 | `_KNOWN_SLASH_COMMANDS` `:1601` | `/menu /subscribe /bharatstack /selfservice /service /pay /help /commands` | rewrite only: `"/pay 500"` → `/pay`. Unknown `/foo` passes through |
+| 0 | `_KNOWN_SLASH_COMMANDS` `:1601` | `/menu /subscribe /bharatstack [retired public path b180810d] [retired public path 6b3a02b3] [retired public path 47a81ed9] /help /commands` | rewrite only: `"[retired public path 47a81ed9] 500"` → `[retired public path 47a81ed9]`. Unknown `/foo` passes through |
 | 1 | `MY_ID_KEYWORDS` `:1615` | `my id, sub id, subscriber id, /myid, /id, profile id, …` | subscriber lookup, text reply |
 | 2 | **`DEFAULT_FLOW_TRIGGERS`** `:6044` | 10 flows, exact match on any keyword | sends that flow (or WABA2 CTA) |
-| 3 | `PAY_KEYWORDS` + `PAY_FUZZY` `:1695` | `pay, payment, invoice, /pay, baaki, भुगतान, …` + substrings | pay path |
+| 3 | `PAY_KEYWORDS` + `PAY_FUZZY` `:1695` | `pay, payment, invoice, [retired public path 47a81ed9], baaki, भुगतान, …` + substrings | pay path |
 | 4 | `HI_KEYWORDS` `:1802` | `hi, hello, hey, menu, main menu, show menu, start, browse menu, /menu, need help!, get started` | **main menu** |
 | 5 | `BHARAT_KEYWORDS` `:1834` | `bharat stack, /bharatstack, bharat, aadhaar, upi, digilocker` | CTA `wecare.digital` |
-| 6 | `SELFSERVICE_KEYWORDS` `:1849` | `selfservice, self-service, self service, /selfservice, /service` | **self-service menu** |
+| 6 | `SELFSERVICE_KEYWORDS` `:1849` | `selfservice, self-service, self service, [retired public path b180810d], [retired public path 6b3a02b3]` | **self-service menu** |
 | 7 | `COMMANDS_KEYWORDS` `:1866` | `commands, /commands, /help, help` | text list of commands |
 | 8 | `STORE_KEYWORDS` | `store, shop, brands, marketplace` | CTA |
 | 9 | `GIFT_KEYWORDS` | `gift card, gift, buy gift card` | CTA |
-| 10 | `FAQ_KEYWORDS` | `faq, faqs, help, questions` | CTA `/faq` |
+| 10 | `FAQ_KEYWORDS` | `faq, faqs, help, questions` | CTA `[retired public path 1965ee0f]` |
 | 11 | `ABOUT_KEYWORDS` | `about, about us, about wecare` | text |
 | — | no match | | message stored, **no reply sent** (`:1945`) |
 
@@ -334,8 +334,8 @@ double-submit or double-charge. `_handle_postpay_submission` writes directly wit
 
 ### Web forms
 
-`src/pages/forms/` holds **no customer data-entry form**. `/forms` redirects to
-`/forms/responses` (operator queue); `/forms/selfservice` is an admin catalogue whose only
+`src/pages/forms/` holds **no customer data-entry form**. `[retired public path 169e0fd8]` redirects to
+`[retired public path 169e0fd8]/responses` (operator queue); `[retired public path 169e0fd8][retired public path b180810d]` is an admin catalogue whose only
 customer-facing element is the `MESSAGE_LINKS` map of 12 `wa.me/message/*` codes. See §9 —
 11 of those 12 codes do not exist on either number.
 
@@ -346,7 +346,7 @@ customer-facing element is the `MESSAGE_LINKS` map of 12 `wa.me/message/*` codes
 Four entry points converge on one pipeline:
 
 ```
-/pay · "pay" keyword · menu_pay row · catalog cart · dashboard
+[retired public path 47a81ed9] · "pay" keyword · menu_pay row · catalog cart · dashboard
    └─► inbound-whatsapp-handler
          ├─ WABA2 → CTA button "Pay Now" → wecare.digital/r/pay   [no native pay]
          └─ WABA1 → "👀 Pulling your pending invoice..."
@@ -398,7 +398,7 @@ confirmation) and `whatsapp_auto_next_due` (post-payment next-invoice nag).
 | Trigger | Response | Type |
 |---|---|---|
 | `hi` / `menu` / `get started` / `/menu` | main menu | interactive list |
-| `selfservice` / `/selfservice` | self-service menu | interactive list |
+| `selfservice` / `[retired public path b180810d]` | self-service menu | interactive list |
 | `commands` / `/commands` / `/help` / `help` | 6-line text list of commands | text |
 | `my id` / `profile id` | subscriber details, or "No subscription found" | text |
 | `store` / `shop` | CTA "Visit Store" → wecare.digital | cta_url |
@@ -569,7 +569,7 @@ Nothing is deleted; these move to keyword, slash command and web access. State t
 
 1. **Delete** `DEFAULT_SELFSERVICE_MENU`, `DEFAULT_BHARAT_STACK_MENU`, `_get_selfservice_menu`,
    `_get_bharat_stack_menu`, and the `selfservice_menu_config` / `bharat_stack_menu_config` keys.
-2. **Keep** `SELFSERVICE_KEYWORDS` and `/selfservice` as triggers — they are live ice breakers
+2. **Keep** `SELFSERVICE_KEYWORDS` and `[retired public path b180810d]` as triggers — they are live ice breakers
    and a live slash command — but point them at **the one menu**.
 3. **Retarget legacy ids** in `MENU_TO_KEYWORD` so handsets holding the old menus still work:
    `menu_selfservice`, `menu_self_service` → the one menu (not a submenu);

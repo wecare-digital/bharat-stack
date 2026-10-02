@@ -208,7 +208,7 @@ function slim( p ) {
     variantCount: ( p.variantSummary || {} ).variantCount || 0,
     mediaCount: ( ( ( p.media || {} ).itemsInfo || {} ).items || [] ).length,
     infoSectionCount: ( p.infoSections || [] ).length,
-    productUrl: ( p.url || {} ).url || '',
+    productUrl: `https://wecare.digital/shop/${p.slug}/`,
   };
 }
 

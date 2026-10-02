@@ -27,24 +27,38 @@ import PillButton from '../components/PillButton';
 
 afterEach( () => vi.restoreAllMocks() );
 
-describe( 'the accessible name is the action, not the visible two-word pill', () => {
-  it( 'answers to the action text alone, with the static label hidden from the name', () => {
+/**
+ * THIS CONTRACT WAS INVERTED ON PURPOSE, and the old one is worth recording because it looked
+ * reasonable and was a WCAG 2.5.3 failure.
+ *
+ * It used to assert that the name was the ACTION ALONE and that the label must NOT appear in it
+ * ("Send code", never "Sign in Send code"), achieved with `aria-hidden` on both segments plus an
+ * `aria-label`. That hides a control's own visible label from its accessible name, so a
+ * speech-input user saying "click Sign in" at that button got nothing. 2.5.3 Label in Name is
+ * Level A and requires the opposite: the name must CONTAIN the visible text.
+ *
+ * So the name is now the platform's concatenation of what is on screen, and the `ariaLabel`
+ * override has been removed from the component entirely - see PillButtonAccessibleName.test.tsx,
+ * which asserts the property across every call site rather than these two spellings.
+ */
+describe( 'the accessible name contains the visible pill text', () => {
+  it( 'answers to the full visible text, label included', () => {
     render( <PillButton label="Sign in" action="Send code" /> );
-    // The pinned login query form: by role + exact action name.
-    expect( screen.getByRole( 'button', { name: 'Send code' } ) ).toBeTruthy();
-    // The label is decoration: it must not be concatenated into the name.
-    expect( screen.queryByRole( 'button', { name: /Sign in Send code/ } ) ).toBeNull();
-    // Both segments are still visible to sighted users.
+    // The pinned login query form: by role + exact full name.
+    expect( screen.getByRole( 'button', { name: 'Sign in Send code' } ) ).toBeTruthy();
+    // The action alone is no longer the name, because it omitted the visible label.
+    expect( screen.queryByRole( 'button', { name: 'Send code' } ) ).toBeNull();
+    // Both segments are still visible to sighted users, and now also to AT.
     expect( screen.getByText( 'Sign in' ) ).toBeTruthy();
     expect( screen.getByText( 'Send code' ) ).toBeTruthy();
   } );
 
-  it( 'lets ariaLabel set a name that differs from the shorter visible action (the cart case)', () => {
-    render(
-      <PillButton label="Checkout" action="Proceed" ariaLabel="Proceed to checkout" />,
-    );
-    // The cart test queries this exact name, while the pill only shows "Proceed".
-    expect( screen.getByRole( 'button', { name: 'Proceed to checkout' } ) ).toBeTruthy();
+  it( 'names the cart pill by its visible text too, with no override available', () => {
+    render( <PillButton label="Checkout" action="Proceed" /> );
+    // The cart test queries this exact name. It used to be "Proceed to checkout", set by
+    // ariaLabel - a name containing neither visible word in order.
+    expect( screen.getByRole( 'button', { name: 'Checkout Proceed' } ) ).toBeTruthy();
+    expect( screen.queryByRole( 'button', { name: 'Proceed to checkout' } ) ).toBeNull();
     expect( screen.getByText( 'Proceed' ) ).toBeTruthy();
   } );
 } );
@@ -57,17 +71,18 @@ describe( 'it is a real control, not a styled div', () => {
         <PillButton label="Sign in" action="Send code" type="submit" />
       </form>,
     );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Sign in Send code' } ) );
     expect( onSubmit ).toHaveBeenCalledTimes( 1 );
   } );
 
   it( 'does not fire onClick while disabled, and marks aria-busy when busy', () => {
     const onClick = vi.fn();
     render(
-      <PillButton label="Sign in" action="Sending…" ariaLabel="Send code"
-        onClick={ onClick } disabled busy />,
+      <PillButton label="Sign in" action="Sending…" onClick={ onClick } disabled busy />,
     );
-    const button = screen.getByRole( 'button', { name: 'Send code' } );
+    // The busy name follows the visible text, so it is the busy wording - not a frozen
+    // "Send code" supplied by an override. That override is gone; see the docblock.
+    const button = screen.getByRole( 'button', { name: 'Sign in Sending…' } );
     fireEvent.click( button );
     expect( onClick ).not.toHaveBeenCalled();
     expect( ( button as HTMLButtonElement ).disabled ).toBe( true );
@@ -76,7 +91,7 @@ describe( 'it is a real control, not a styled div', () => {
 
   it( 'renders an anchor with an href when as="a"', () => {
     render( <PillButton as="a" href="/account/sign-in/" label="Sign in" action="Continue" /> );
-    const link = screen.getByRole( 'link', { name: 'Continue' } );
+    const link = screen.getByRole( 'link', { name: 'Sign in Continue' } );
     expect( link.getAttribute( 'href' ) ).toBe( '/account/sign-in/' );
   } );
 } );
@@ -96,5 +111,66 @@ describe( 'the measured palette is the one in the file', () => {
     expect( SOURCE ).toContain( 'border-radius:999px' );
     // Reduced motion is respected.
     expect( SOURCE ).toContain( 'prefers-reduced-motion' );
+  } );
+
+  /**
+   * THE REGRESSION THAT SHIPPED TO PRODUCTION, and the reason this test exists.
+   *
+   * The two segments were once hoisted into a single `const inner = (<>...</>)` and referenced from
+   * both the <a> and <button> branches. styled-jsx's transform only stamps its scoping hash class
+   * onto JSX inside the same return tree as the <style jsx> element, so hoisted JSX was never
+   * stamped: the built markup emitted `class="pill-label"` / `class="pill-action"` with NO hash,
+   * while the rules compiled to `.pill-label.jsx-<hash>{...}`. Those selectors could not match.
+   * The outer control WAS stamped, so the pill kept its shape, its 2px edge and its dark fill
+   * while neither segment got its own background or colour - it rendered as one dark slab reading
+   * "Sign inSend code". It was live on /account/sign-in/ in that state.
+   *
+   * jsdom cannot compute styled-jsx, so this is asserted on the SOURCE: each segment class must
+   * appear exactly TWICE - once inside each branch's own return tree - and never be assigned to a
+   * variable or produced by a helper.
+   */
+  it( 'writes both segments inline in each branch, so styled-jsx can scope them', () => {
+    // COMMENTS ARE STRIPPED FIRST. The fix's own docblock quotes the broken pattern it replaced
+    // ("const inner = ...") so that the next reader understands why the duplication below is
+    // deliberate - asserting against the raw source would match that explanation and fail,
+    // punishing the documentation rather than the defect. What must be absent is real CODE.
+    const code = SOURCE
+      .replace( /\/\*[\s\S]*?\*\//g, '' )
+      .replace( /^\s*\/\/.*$/gm, '' );
+
+    const labels = code.match( /className="pill-label"/g ) || [];
+    const actions = code.match( /className="pill-action"/g ) || [];
+    // Twice each: the <a> branch and the <button> branch write their own.
+    expect( labels ).toHaveLength( 2 );
+    expect( actions ).toHaveLength( 2 );
+
+    // NOT HOISTED. Any of these means the segments have been lifted out of the return tree again
+    // and the scoping hash will silently stop being applied.
+    expect( code ).not.toMatch( /const\s+inner\s*=/ );
+    expect( code ).not.toMatch( /const\s+segments\s*=/ );
+    expect( code ).not.toMatch( /function\s+renderSegments/ );
+  } );
+
+  /**
+   * The same guard from the other side: the component must still render both segments, with the
+   * label visible-but-aria-hidden and the action carrying the accessible name.
+   */
+  it( 'renders both segments, and names the control by both of them', () => {
+    const { container } = render( <PillButton label="Collect" action="Send code" /> );
+    const label = container.querySelector( '.pill-label' );
+    const action = container.querySelector( '.pill-action' );
+    expect( label?.textContent ).toBe( 'Collect' );
+    expect( action?.textContent ).toBe( 'Send code' );
+    /*
+     * UPDATED, NOT WEAKENED. This case arrived with 2f742ec6 as the render-side half of its
+     * anti-re-hoist guard, and it asserted that BOTH segments were aria-hidden and that the
+     * control answered to the action alone. Both of those were WCAG 2.5.3 Label in Name
+     * failures rather than requirements - hiding a control's visible label from its name is
+     * what breaks speech input. The segment-presence half of the guard is unchanged above; only
+     * the accessibility-tree expectations are inverted, and the exact-name pin is kept exact.
+     */
+    expect( label?.hasAttribute( 'aria-hidden' ) ).toBe( false );
+    expect( action?.hasAttribute( 'aria-hidden' ) ).toBe( false );
+    expect( screen.getByRole( 'button', { name: 'Collect Send code' } ) ).toBeTruthy();
   } );
 } );

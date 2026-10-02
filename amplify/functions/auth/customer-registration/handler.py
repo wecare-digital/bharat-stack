@@ -23,7 +23,8 @@ Two endpoints, and the security properties that shape them
            code is generated inside `otp_challenge.issue`, handed straight to the sender, and never
            logged, echoed, or stored in plaintext.
 `verify`   check the code and, on success, resolve or create the immutable `CUS_<ULID>` customer and
-           administratively provision the Cognito login (stamping `custom:customer_id`). The browser
+           administratively provision the Cognito login. It stamps no customer id on the Cognito
+           user — that attribute is not in the pool's schema; see `_provision_login`. The browser
            then signs in with the existing WhatsApp-OTP `CUSTOM_AUTH` flow — which now works because
            the user exists as CONFIRMED. This handler never returns the customer id or a token: the
            session credential comes from the Cognito sign-in, not from here.
@@ -281,8 +282,12 @@ def _create_customer(e164: str) -> Dict[str, Any]:
     return record
 
 
-def _provision_login(e164: str, customer_id: str) -> None:
+def _provision_login(e164: str, customer_id: str) -> None:  # noqa: ARG001 - see below
     """Administratively create or update the phone-keyed Cognito user. Idempotent.
+
+    `customer_id` is accepted and deliberately unused. It is part of the `provision_login`
+    contract `identity.registration.verify_and_register` injects and calls positionally, so the
+    parameter stays; what changed is that there is no longer a Cognito attribute to put it in.
 
     Mirrors `secure-files._ensure_customer_user`:
     - `MessageAction=SUPPRESS` so Cognito sends no invite (these users have no email and the channel
@@ -291,9 +296,20 @@ def _provision_login(e164: str, customer_id: str) -> None:
       would block CUSTOM_AUTH. Nobody learns it; the only way in is a WhatsApp OTP. Never logged.
     - `custom:partner_waba_id` so the OTP trigger, which fails closed on a WABA mismatch, will issue
       codes for this user.
-    - `custom:customer_id` so `customer_auth` can bind a session to the immutable identity. Without
-      it a session is refused as half-provisioned, and repairing that is why this runs for existing
-      users too, not only new ones.
+
+    IT DOES NOT STAMP `custom:customer_id`, AND IT CANNOT. That attribute is not in pool
+    `us-east-1_46ULYuukt`'s schema (measured 2026-10-02: the only custom attribute is
+    `custom:partner_waba_id`), so sending it here would have Cognito reject the whole
+    `AdminCreateUser` call with `InvalidParameterException`. It was never reached in production
+    because this function has **no deployed Lambda and no API route** today, so removing it is
+    pinning the real contract rather than changing behaviour.
+
+    Session identity now comes from `customer_auth.customer_id_from_attributes`, which derives it
+    from the Cognito `sub` - so the login this provisions and the session `customer_auth` proves
+    cannot disagree, because neither of them stores a customer id on the user any more. The
+    `CUS_<ULID>` in `CustomersTable` remains the customer RECORD's identity; see
+    `customer_auth.customer_id_from_attributes` for why the two are deliberately not reconciled
+    here (that table does not exist in the account yet).
     """
     import secrets as pysecrets
 
@@ -302,7 +318,6 @@ def _provision_login(e164: str, customer_id: str) -> None:
         {"Name": "phone_number", "Value": e164},
         {"Name": "phone_number_verified", "Value": "true"},
         {"Name": "custom:partner_waba_id", "Value": META_WABA_ID},
-        {"Name": "custom:customer_id", "Value": customer_id},
     ]
     try:
         created = client.admin_create_user(

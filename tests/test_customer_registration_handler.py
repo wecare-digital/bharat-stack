@@ -257,15 +257,24 @@ def test_verify_creates_the_customer_and_provisions_a_login(handler_env):
     assert rows[0]['phoneVerifiedAt']
     assert rows[0]['normalizedPhone'] == E164
 
-    # The Cognito login was provisioned administratively, stamped with the customer id and WABA,
-    # with a permanent password (so it is CONFIRMED and CUSTOM_AUTH works). No SignUp anywhere.
+    # The Cognito login was provisioned administratively, stamped with the WABA, with a permanent
+    # password (so it is CONFIRMED and CUSTOM_AUTH works). No SignUp anywhere.
     assert len(cog.created) == 1
     attrs = {a['Name']: a['Value'] for a in cog.created[0]['UserAttributes']}
-    assert attrs['custom:customer_id'] == rows[0]['customerId']
     assert attrs['custom:partner_waba_id']
     assert attrs['phone_number'] == E164
     assert cog.created[0]['MessageAction'] == 'SUPPRESS'
     assert len(cog.passwords) == 1 and cog.passwords[0]['Permanent'] is True
+
+    # IT MUST NOT STAMP `custom:customer_id`, AND THAT IS THE POINT OF THIS ASSERTION.
+    # The attribute is not in pool us-east-1_46ULYuukt's schema (measured 2026-10-02: the only
+    # custom attribute is `custom:partner_waba_id`), so sending it would have Cognito reject the
+    # whole AdminCreateUser call with InvalidParameterException. Session identity comes from the
+    # Cognito `sub` via `customer_auth.customer_id_from_attributes` instead. The CUS_<ULID> above
+    # remains the customer RECORD's identity, which is a different thing from the session's.
+    assert 'custom:customer_id' not in attrs
+    # Only attributes the pool can actually hold.
+    assert set(attrs) <= {'phone_number', 'phone_number_verified', 'custom:partner_waba_id'}
 
 
 def test_verify_of_existing_customer_reuses_the_identity(handler_env):

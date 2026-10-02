@@ -26,7 +26,7 @@ export function getConnectionStatus () {
  * an expired session, an 8s timeout and a genuinely empty table all arrive at
  * the UI as "nothing". A page cannot then choose between "Sign in again",
  * "Retry" and "No messages yet", so it shows the emptiest of the three — which
- * is how a stuck channel filter on /dm/inbox looked exactly like an outage.
+ * is how a stuck channel filter on [retired public path]/inbox looked exactly like an outage.
  *
  * `apiCall` keeps its old shape so the ~300 wrappers are untouched. The failure
  * is additionally recorded here, and `apiCallResult` / `collectApiFailures`

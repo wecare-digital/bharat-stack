@@ -246,10 +246,10 @@ describe( 'Brand assets', () => {
      *   [ '/workspace/dashboard/', '/workspace/engage/inbox/', '/workspace/contacts/' ].
      *
      * THE ORIGINAL REASONING IS KEPT because it is still correct about what it was about:
-     * those three were /dashboard, /dm and /contacts - the pre-/workspace/ paths. All three
+     * those three were [retired public path], [retired public path] and [retired public path] - the pre-/workspace/ paths. All three
      * still resolve, verified live at 301 to /workspace/dashboard/, /workspace/engage/ and
      * /workspace/contacts/, so that change was a hop rather than a break. A launcher shortcut
-     * is a cold start, and the redirect is a round trip before any HTML arrives; /dm also
+     * is a cold start, and the redirect is a round trip before any HTML arrives; [retired public path] also
      * landed on /workspace/engage/ rather than the inbox, so "Messages" opened a section index.
      * If workspace shortcuts ever belong in a manifest again, that is the shape they take.
      *

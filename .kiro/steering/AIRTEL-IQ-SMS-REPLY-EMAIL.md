@@ -111,7 +111,7 @@ Please remove the earlier SMS template and update with the below registered temp
 ```
 Thanks for contacting WECARE.DIGITAL!
 
-Submit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.
+Submit your request here: [retired public path 68ca05fc] or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.
 
 We'll review it and follow up if needed.
 ```
@@ -132,7 +132,7 @@ We tested multiple line break approaches via the Airtel IQ v4 API and found that
 {
   "customerId": "WECAREDIG_v6J1SyLLI2auy7Lw9JrW",
   "destinationAddress": ["9903300044"],
-  "message": "Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.",
+  "message": "Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: [retired public path 68ca05fc] or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.",
   "sourceAddress": "WDBEEP",
   "messageType": "SERVICE_IMPLICIT",
   "dltTemplateId": "1007277993798259629",

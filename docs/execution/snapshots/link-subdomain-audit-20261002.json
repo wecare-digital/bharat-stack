@@ -2733,12 +2733,12 @@
     ],
     "retiredPaths": [
       {
-        "url": "https://wecare.digital/access/",
+        "url": "[retired public path 4de4916f]/",
         "status": 200,
         "terminal": "https://wecare.digital/?from=access",
         "hops": [
           {
-            "url": "https://wecare.digital/access/",
+            "url": "[retired public path 4de4916f]/",
             "status": 302,
             "location": "https://wecare.digital/?from=access"
           },
@@ -2752,12 +2752,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/access/nested/",
+        "url": "[retired public path 4de4916f]/nested/",
         "status": 200,
         "terminal": "https://wecare.digital/?from=access",
         "hops": [
           {
-            "url": "https://wecare.digital/access/nested/",
+            "url": "[retired public path 4de4916f]/nested/",
             "status": 302,
             "location": "https://wecare.digital/?from=access"
           },
@@ -2771,12 +2771,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/admin/",
+        "url": "[retired public path 7fe2c71b]/",
         "status": 404,
-        "terminal": "https://wecare.digital/admin/",
+        "terminal": "[retired public path 7fe2c71b]/",
         "hops": [
           {
-            "url": "https://wecare.digital/admin/",
+            "url": "[retired public path 7fe2c71b]/",
             "status": 404,
             "location": null
           }
@@ -2785,12 +2785,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/contacts/",
+        "url": "[retired public path 90a0ef7a]/",
         "status": 404,
-        "terminal": "https://wecare.digital/contacts/",
+        "terminal": "[retired public path 90a0ef7a]/",
         "hops": [
           {
-            "url": "https://wecare.digital/contacts/",
+            "url": "[retired public path 90a0ef7a]/",
             "status": 404,
             "location": null
           }
@@ -2799,12 +2799,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/dashboard/",
+        "url": "[retired public path 5213f24c]/",
         "status": 404,
-        "terminal": "https://wecare.digital/dashboard/",
+        "terminal": "[retired public path 5213f24c]/",
         "hops": [
           {
-            "url": "https://wecare.digital/dashboard/",
+            "url": "[retired public path 5213f24c]/",
             "status": 404,
             "location": null
           }
@@ -2827,12 +2827,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/faq/",
+        "url": "[retired public path ef456375]/",
         "status": 404,
-        "terminal": "https://wecare.digital/faq/",
+        "terminal": "[retired public path ef456375]/",
         "hops": [
           {
-            "url": "https://wecare.digital/faq/",
+            "url": "[retired public path ef456375]/",
             "status": 404,
             "location": null
           }
@@ -2841,12 +2841,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/legal-stuff/",
+        "url": "[retired public path 2ede3fd1]/",
         "status": 404,
-        "terminal": "https://wecare.digital/legal-stuff/",
+        "terminal": "[retired public path 2ede3fd1]/",
         "hops": [
           {
-            "url": "https://wecare.digital/legal-stuff/",
+            "url": "[retired public path 2ede3fd1]/",
             "status": 404,
             "location": null
           }
@@ -2855,12 +2855,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/legal-stuffs/",
+        "url": "[retired public path 69a623a8]/",
         "status": 404,
-        "terminal": "https://wecare.digital/legal-stuffs/",
+        "terminal": "[retired public path 69a623a8]/",
         "hops": [
           {
-            "url": "https://wecare.digital/legal-stuffs/",
+            "url": "[retired public path 69a623a8]/",
             "status": 404,
             "location": null
           }
@@ -2883,12 +2883,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/no-fault/",
+        "url": "[retired public path 2531611c]/",
         "status": 404,
-        "terminal": "https://wecare.digital/no-fault/",
+        "terminal": "[retired public path 2531611c]/",
         "hops": [
           {
-            "url": "https://wecare.digital/no-fault/",
+            "url": "[retired public path 2531611c]/",
             "status": 404,
             "location": null
           }
@@ -2897,12 +2897,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/open-possibility/",
+        "url": "[retired public path f977c0cb]/",
         "status": 404,
-        "terminal": "https://wecare.digital/open-possibility/",
+        "terminal": "[retired public path f977c0cb]/",
         "hops": [
           {
-            "url": "https://wecare.digital/open-possibility/",
+            "url": "[retired public path f977c0cb]/",
             "status": 404,
             "location": null
           }
@@ -2925,12 +2925,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/request-tracking/",
+        "url": "[retired public path f517c20b]/",
         "status": 404,
-        "terminal": "https://wecare.digital/request-tracking/",
+        "terminal": "[retired public path f517c20b]/",
         "hops": [
           {
-            "url": "https://wecare.digital/request-tracking/",
+            "url": "[retired public path f517c20b]/",
             "status": 404,
             "location": null
           }
@@ -2939,12 +2939,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/ritual-store/",
+        "url": "[retired public path 583fa2cc]/",
         "status": 404,
-        "terminal": "https://wecare.digital/ritual-store/",
+        "terminal": "[retired public path 583fa2cc]/",
         "hops": [
           {
-            "url": "https://wecare.digital/ritual-store/",
+            "url": "[retired public path 583fa2cc]/",
             "status": 404,
             "location": null
           }
@@ -2953,12 +2953,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/selfservice/",
+        "url": "[retired public path 68ca05fc]/",
         "status": 404,
-        "terminal": "https://wecare.digital/selfservice/",
+        "terminal": "[retired public path 68ca05fc]/",
         "hops": [
           {
-            "url": "https://wecare.digital/selfservice/",
+            "url": "[retired public path 68ca05fc]/",
             "status": 404,
             "location": null
           }
@@ -2967,12 +2967,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/settings/",
+        "url": "[retired public path c83b940f]/",
         "status": 404,
-        "terminal": "https://wecare.digital/settings/",
+        "terminal": "[retired public path c83b940f]/",
         "hops": [
           {
-            "url": "https://wecare.digital/settings/",
+            "url": "[retired public path c83b940f]/",
             "status": 404,
             "location": null
           }
@@ -2981,12 +2981,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/swdhya/",
+        "url": "[retired public path 049c189c]/",
         "status": 404,
-        "terminal": "https://wecare.digital/swdhya/",
+        "terminal": "[retired public path 049c189c]/",
         "hops": [
           {
-            "url": "https://wecare.digital/swdhya/",
+            "url": "[retired public path 049c189c]/",
             "status": 404,
             "location": null
           }
@@ -2995,12 +2995,12 @@
         "contentType": "text/html"
       },
       {
-        "url": "https://wecare.digital/track/",
+        "url": "[retired public path b93c9470]/",
         "status": 404,
-        "terminal": "https://wecare.digital/track/",
+        "terminal": "[retired public path b93c9470]/",
         "hops": [
           {
-            "url": "https://wecare.digital/track/",
+            "url": "[retired public path b93c9470]/",
             "status": 404,
             "location": null
           }

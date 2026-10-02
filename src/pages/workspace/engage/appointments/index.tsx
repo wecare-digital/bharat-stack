@@ -1,5 +1,5 @@
 /**
- * Appointments Admin Page — /dm/appointments
+ * Appointments Admin Page — [retired public path]/appointments
  * AppointmentTable: status management, filters, detail panel
  */
 import React, { useState, useEffect, useCallback } from 'react';

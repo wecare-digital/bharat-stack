@@ -20,7 +20,7 @@
  *                it would put a false statement on five pages.
  *   mediaCount   zero on all seven, so there is no image URL. The pages ship no product image and
  *                no placeholder frame, and the Product schema emits no `image`.
- *   productUrl   points at the retired Wix-hosted storefront these pages replace.
+ *   productUrl   points at the current canonical product page.
  */
 import catalog from './wix-catalog.json';
 

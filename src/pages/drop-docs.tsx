@@ -17,7 +17,7 @@ import { selfserviceBySlug } from '../content/selfservice';
  * with HTTP 200, and in PUBLIC_EXACT in scripts/generate-sitemap.js or it is never
  * advertised. trailingSlash means the URL is /drop-docs/.
  *
- * PUBLIC, AND NOT /service/drop-docs. That route exists and is authenticated by design — it
+ * PUBLIC, AND NOT [retired public path]/drop-docs. That route exists and is authenticated by design — it
  * renders the dashboard Layout and reads a Cognito session. This page touches neither.
  */
 const DropDocsPage: React.FC = () => <ProductPage product={ selfserviceBySlug( 'drop-docs' ) } />;

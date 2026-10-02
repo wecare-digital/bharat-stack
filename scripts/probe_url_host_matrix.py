@@ -25,21 +25,8 @@ read, no write of any kind. The POST rows exist because the provider webhooks ar
 by POST and a rewrite can behave differently per method - `GET /mcp` is 405 while
 `POST /mcp` is 400, which is only visible if both are probed.
 
-MEASURED STATE THIS ENCODES (2026-10-01). The live Amplify rule array went from 146 rules to
-8 when the owner instructed "delete all url redirects now"
-(docs/execution/url-redirect-removal-20261001.md), then to 9 when the host-canonicalisation
-301 was restored (docs/execution/url-host-matrix-20261001.md). So the ~150 legacy aliases
-that used to 301 now terminate at 404 on the `/<*>` -> `/404.html` catch-all, and that 404 is
-the EXPECTED value here, not a regression. The 15 former top-level workspace prefixes are the
-rows that matter most: every one of them used to end on the staff Authenticator shell at
-HTTP 200, and this file fails if any of them ever does again.
-
-CORRECTED 2026-10-01T13:15:19Z (second convergence pass): the array is now **12 rules**, not
-9. A later owner instruction authorised sending the retired `/access` entry point home, so
-`desired_redirects()` emits three more 302s (`/access`, `/access/`, `/access/<*>` ->
-`https://wecare.digital/`) at live indexes 1-3. Read live, not assumed. Nothing above changes:
-the 404 expectation for the other ~150 aliases and the 15 workspace prefixes is untouched, and
-the `/access` rows in this file already assert the new destination on its TERMINAL URL.
+CURRENT POLICY: current pages resolve normally. Missing pages return HTTP 404 and the
+shared browser fallback goes home. No individual retired-path redirects are maintained.
 
 Usage:
     .venv/bin/python scripts/probe_url_host_matrix.py            # human table
@@ -60,27 +47,6 @@ SITE = "https://wecare.digital"
 WWW = "https://www.wecare.digital"
 UA = "wecare-url-host-matrix-probe/1"
 MAX_HOPS = 5
-
-# The 15 top-level prefixes that used to redirect into the staff tree. Until 2026-10-01 every
-# one of these terminated on the Authenticator shell at 200 - /contacts sits right next to the
-# genuine public /contact/, so a mistyped customer path handed back a staff login. /settings
-# was worse for staff: it 301d to a /workspace/settings/ page that 404s.
-LEGACY_WORKSPACE_PREFIXES = (
-    "/dm", "/engage", "/dashboard", "/contacts", "/commerce", "/pay", "/forms",
-    "/service", "/docs", "/seo", "/admin", "/link", "/task", "/settings",
-)
-
-# The retired direct access URL stays unavailable, like the other retired prefixes.
-ACCESS_PREFIX = "/access"
-
-# The legacy content/SEO aliases. Owner-retired 2026-10-01; 404 is the intended answer and a
-# 301 reappearing here would mean the removal was reverted.
-RETIRED_CONTENT = (
-    "/swdhya/", "/no-fault/", "/legal-stuff/", "/legal-stuffs/", "/faq/", "/my-order/",
-    "/expoweek/", "/ritual-store/", "/swdhya-store/", "/request-tracking/", "/rx-slot/",
-    "/bring-friends/", "/home/", "/open-possibility/", "/product-page/partner/",
-    "/selfservice/", "/track/",
-)
 
 PUBLIC_PAGES = (
     "/", "/shop/", "/cart/", "/orders/", "/blog/", "/contact/", "/checkout/status/",
@@ -148,31 +114,6 @@ def matrix() -> list[dict]:
                      "must serve 404.html with noindex and the apex canonical",
                      body_contains=('"page":"/404"', 'name="robots"', 'noindex')))
     rows.append(_row("fallback", f"{SITE}/404/", 200, "the exported page itself"))
-
-    # ── the 15 legacy workspace prefixes ────────────────────────────────────────────
-    for prefix in LEGACY_WORKSPACE_PREFIXES:
-        rows.append(_row("legacy-workspace", f"{SITE}{prefix}/", 404,
-                         "must NOT reach the staff Authenticator shell"))
-        rows.append(_row("legacy-workspace", f"{SITE}{prefix}", 404,
-                         "bare form: 301 to add the slash, then 404"))
-    rows.append(_row("legacy-workspace", f"{SITE}/dm/calls", 404,
-                     "the one-hop channel alias is gone with its prefix"))
-    rows.append(_row("legacy-workspace", f"{SITE}/admin/anything/deep", 404,
-                     "a deep path under a retired prefix"))
-
-    # Retired access paths must return the missing-page document, never a redirect.
-    for access_path in (
-        '/access', '/access/', '/access/anything/deep',
-        '/access/?next=https://evil.example', '/access?a=b&c=d',
-        '/access/x/y?return=//evil',
-    ):
-        rows.append(_row('legacy-workspace', f'{SITE}{access_path}', 404,
-                         'retired direct access stays unavailable without forwarding'))
-
-    # ── retired content aliases ─────────────────────────────────────────────────────
-    for path in RETIRED_CONTENT:
-        rows.append(_row("retired-content", f"{SITE}{path}", 404,
-                         "owner-retired 2026-10-01; a 301 here means the removal reverted"))
 
     # ── the staff entry, untouched ──────────────────────────────────────────────────
     # Not hidden and not opened. This task does not touch authorization, and a 200 here is

@@ -89,7 +89,7 @@
       "ApiKeyRequired": false,
       "AuthorizationType": "NONE",
       "RouteId": "16c16op",
-      "RouteKey": "GET /contacts",
+      "RouteKey": "GET [retired public path 44011e36]",
       "Target": "integrations/mhs8lsk"
     },
     {
@@ -138,7 +138,7 @@
       "ApiKeyRequired": false,
       "AuthorizationType": "NONE",
       "RouteId": "24i0pcm",
-      "RouteKey": "PUT /contacts",
+      "RouteKey": "PUT [retired public path 44011e36]",
       "Target": "integrations/mhs8lsk"
     },
     {
@@ -222,7 +222,7 @@
       "ApiKeyRequired": false,
       "AuthorizationType": "NONE",
       "RouteId": "2lhvy8a",
-      "RouteKey": "DELETE /contacts",
+      "RouteKey": "DELETE [retired public path 44011e36]",
       "Target": "integrations/mhs8lsk"
     },
     {
@@ -257,7 +257,7 @@
       "ApiKeyRequired": false,
       "AuthorizationType": "NONE",
       "RouteId": "2tbnwbi",
-      "RouteKey": "DELETE /contacts/{contactId}",
+      "RouteKey": "DELETE [retired public path 44011e36]/{contactId}",
       "Target": "integrations/mhs8lsk"
     },
     {
@@ -327,7 +327,7 @@
       "ApiKeyRequired": false,
       "AuthorizationType": "NONE",
       "RouteId": "3tn2bqh",
-      "RouteKey": "POST /docs/scrape",
+      "RouteKey": "POST [retired public path a2557b8d]/scrape",
       "Target": "integrations/u8df9do"
     },
     {
@@ -348,7 +348,7 @@
       "ApiKeyRequired": false,
       "AuthorizationType": "NONE",
       "RouteId": "41v1ur8",
-      "RouteKey": "POST /contacts",
+      "RouteKey": "POST [retired public path 44011e36]",
       "Target": "integrations/mhs8lsk"
     },
     {
@@ -1335,7 +1335,7 @@
       "ApiKeyRequired": false,
       "AuthorizationType": "NONE",
       "RouteId": "iwvnhhb",
-      "RouteKey": "GET /faq",
+      "RouteKey": "GET [retired public path 1965ee0f]",
       "Target": "integrations/bmufv90"
     },
     {
@@ -1790,7 +1790,7 @@
       "ApiKeyRequired": false,
       "AuthorizationType": "NONE",
       "RouteId": "p5tpymd",
-      "RouteKey": "GET /docs/sources",
+      "RouteKey": "GET [retired public path a2557b8d]/sources",
       "Target": "integrations/u8df9do"
     },
     {
@@ -1839,14 +1839,14 @@
       "ApiKeyRequired": false,
       "AuthorizationType": "NONE",
       "RouteId": "pim2408",
-      "RouteKey": "GET /contacts/search",
+      "RouteKey": "GET [retired public path 44011e36]/search",
       "Target": "integrations/mhs8lsk"
     },
     {
       "ApiKeyRequired": false,
       "AuthorizationType": "NONE",
       "RouteId": "pox5bd2",
-      "RouteKey": "PUT /contacts/{contactId}",
+      "RouteKey": "PUT [retired public path 44011e36]/{contactId}",
       "Target": "integrations/mhs8lsk"
     },
     {
@@ -2098,7 +2098,7 @@
       "ApiKeyRequired": false,
       "AuthorizationType": "NONE",
       "RouteId": "sl7f3uq",
-      "RouteKey": "GET /docs/changelog",
+      "RouteKey": "GET [retired public path a2557b8d]/changelog",
       "Target": "integrations/u8df9do"
     },
     {
@@ -2364,7 +2364,7 @@
       "ApiKeyRequired": false,
       "AuthorizationType": "NONE",
       "RouteId": "wcrznjh",
-      "RouteKey": "POST /docs/sources",
+      "RouteKey": "POST [retired public path a2557b8d]/sources",
       "Target": "integrations/u8df9do"
     },
     {

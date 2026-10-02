@@ -1,5 +1,5 @@
 /**
- * Track Request — /service/track-request
+ * Track Request — [retired public path]/track-request
  * Order-centric tracking: select order → view all requests, status, timeline, payments, outcomes.
  * Uses Order ID as the primary customer-facing key.
  */

@@ -10,7 +10,7 @@ AWS account 775261844268, us-east-1. Amplify latest build 1215 succeeded for com
 - All 34 distinct non-blog internal navigation targets found in live HTML resolved successfully. The /r/wa target is a short-link flow, not a content page. No public workspace navigation link was found.
 - The sitemap contains 1409 URLs; 1376 blog post/pagination/topic URLs were excluded from this audit, following the owner request to omit repeated blog links.
 - /checkout/ and /sign-in/ are diagnostic unknown paths and return 404. The real customer sign-in route is /account/sign-in/; current checkout pages are /checkout/status/ and /checkout/success/. These diagnostic 404s are not broken links advertised by public navigation.
-- /access/ and /access/nested/ redirect home with the fixed from=access parameter. Other sampled retired routes return 404 with the home-navigation document. HTTP checks do not execute its JavaScript; router.replace home behavior was confirmed from source, not a browser run.
+- [retired public path ef531503]/ and [retired public path ef531503]/nested/ redirect home with the fixed from=access parameter. Other sampled retired routes return 404 with the home-navigation document. HTTP checks do not execute its JavaScript; router.replace home behavior was confirmed from source, not a browser run.
 - The public MCP endpoint returns 405 to GET by design. It is not a missing content page.
 - MTA-STS policy at https://mta-sts.wecare.digital/.well-known/mta-sts.txt returns 200; the host root returns 403. The policy should remain on its dedicated email hostname.
 
@@ -103,25 +103,25 @@ AWS account 775261844268, us-east-1. Amplify latest build 1215 succeeded for com
 
 | URL | Result |
 |---|---|
-| https://wecare.digital/access/ | 200 - https://wecare.digital/?from=access |
-| https://wecare.digital/access/nested/ | 200 - https://wecare.digital/?from=access |
-| https://wecare.digital/admin/ | 404 - https://wecare.digital/admin/ |
-| https://wecare.digital/contacts/ | 404 - https://wecare.digital/contacts/ |
-| https://wecare.digital/dashboard/ | 404 - https://wecare.digital/dashboard/ |
+| [retired public path 4de4916f]/ | 200 - https://wecare.digital/?from=access |
+| [retired public path 4de4916f]/nested/ | 200 - https://wecare.digital/?from=access |
+| [retired public path 7fe2c71b]/ | 404 - [retired public path 7fe2c71b]/ |
+| [retired public path 90a0ef7a]/ | 404 - [retired public path 90a0ef7a]/ |
+| [retired public path 5213f24c]/ | 404 - [retired public path 5213f24c]/ |
 | https://wecare.digital/definitely-not-a-page/ | 404 - https://wecare.digital/definitely-not-a-page/ |
-| https://wecare.digital/faq/ | 404 - https://wecare.digital/faq/ |
-| https://wecare.digital/legal-stuff/ | 404 - https://wecare.digital/legal-stuff/ |
-| https://wecare.digital/legal-stuffs/ | 404 - https://wecare.digital/legal-stuffs/ |
+| [retired public path ef456375]/ | 404 - [retired public path ef456375]/ |
+| [retired public path 2ede3fd1]/ | 404 - [retired public path 2ede3fd1]/ |
+| [retired public path 69a623a8]/ | 404 - [retired public path 69a623a8]/ |
 | https://wecare.digital/llm/ | 404 - https://wecare.digital/llm/ |
-| https://wecare.digital/no-fault/ | 404 - https://wecare.digital/no-fault/ |
-| https://wecare.digital/open-possibility/ | 404 - https://wecare.digital/open-possibility/ |
+| [retired public path 2531611c]/ | 404 - [retired public path 2531611c]/ |
+| [retired public path f977c0cb]/ | 404 - [retired public path f977c0cb]/ |
 | https://wecare.digital/partners/ | 404 - https://wecare.digital/partners/ |
-| https://wecare.digital/request-tracking/ | 404 - https://wecare.digital/request-tracking/ |
-| https://wecare.digital/ritual-store/ | 404 - https://wecare.digital/ritual-store/ |
-| https://wecare.digital/selfservice/ | 404 - https://wecare.digital/selfservice/ |
-| https://wecare.digital/settings/ | 404 - https://wecare.digital/settings/ |
-| https://wecare.digital/swdhya/ | 404 - https://wecare.digital/swdhya/ |
-| https://wecare.digital/track/ | 404 - https://wecare.digital/track/ |
+| [retired public path f517c20b]/ | 404 - [retired public path f517c20b]/ |
+| [retired public path 583fa2cc]/ | 404 - [retired public path 583fa2cc]/ |
+| [retired public path 68ca05fc]/ | 404 - [retired public path 68ca05fc]/ |
+| [retired public path c83b940f]/ | 404 - [retired public path c83b940f]/ |
+| [retired public path 049c189c]/ | 404 - [retired public path 049c189c]/ |
+| [retired public path b93c9470]/ | 404 - [retired public path b93c9470]/ |
 
 ## Scope limits
 
