@@ -165,6 +165,53 @@ def test_meta_registration_failure_does_not_create_login_flow(module, memory, mo
     assert not memory.rows
 
 
+def test_ads_existing_app_uses_pkce_without_dynamic_registration(module, memory, monkeypatch):
+    import urllib.parse
+    monkeypatch.setattr(module, 'http', lambda *a, **kw: pytest.fail('must not register a dynamic Ads client'))
+    value = module.oauth_begin('owner', 'meta-ads')
+    query = urllib.parse.parse_qs(urllib.parse.urlparse(value['authorizationUrl']).query)
+    assert query['client_id'] == ['2238810740192680']
+    assert query['code_challenge_method'] == ['S256']
+    assert query['redirect_uri'] == [module.CALLBACK]
+    assert 'ads_mcp_management' in query['scope'][0]
+    assert 'client_secret' not in query
+
+
+def test_ads_rejects_token_from_a_different_oauth_client(module, memory):
+    memory.rows['connection:owner:meta-ads'] = {'expiresAt': int(time.time()) + 3600,
+        'cipher': json.dumps({'access_token': 'fixture', '_oauth_client_id': 'other-app'}).encode()}
+    with pytest.raises(module.Refusal, match='configured Ads MCP app'):
+        module.token('owner', 'meta-ads')
+
+
+def test_ads_verification_discovers_tools_without_claiming_account_access(module, memory, monkeypatch):
+    monkeypatch.setattr(module, 'token', lambda *a: 'fixture-access')
+    calls = []
+    def remote(url, payload, headers):
+        calls.append((payload['method'], dict(headers)))
+        if payload['method'] == 'initialize': return {'result': {'protocolVersion': '2025-06-18'}}, 'fixture-session'
+        if payload['method'] == 'notifications/initialized': return {}, None
+        return {'result': {'tools': [{'name': 'fixture-ad-write'}]}}, None
+    monkeypatch.setattr(module, 'http', remote)
+    result = module.run_tool('owner', 'connection_verify', {'provider': 'meta-ads'})
+    assert result['status'] == 'authenticated'
+    assert result['read']['accountReadVerified'] is False
+    assert result['read']['toolExecutionEnabled'] is False
+    assert [x[0] for x in calls] == ['initialize', 'notifications/initialized', 'tools/list']
+    assert calls[-1][1]['Mcp-Session-Id'] == 'fixture-session'
+    assert calls[-1][1]['MCP-Protocol-Version'] == '2025-06-18'
+
+
+def test_ads_empty_or_failed_tool_discovery_is_not_authenticated(module, memory, monkeypatch):
+    monkeypatch.setattr(module, 'token', lambda *a: 'fixture-access')
+    def remote(url, payload, headers):
+        if payload['method'] == 'initialize': return {'result': {'protocolVersion': '2025-11-25'}}, None
+        return {'error': {'code': -32000}}, None
+    monkeypatch.setattr(module, 'http', remote)
+    with pytest.raises(module.Refusal, match='discovery failed'):
+        module.run_tool('owner', 'connection_verify', {'provider': 'meta-ads'})
+
+
 def test_registered_meta_client_is_reused_without_business_app_id(module, memory, monkeypatch):
     module.POLICY['connections']['meta-social']['registrationEndpoint'] = 'https://mcp.facebook.com/.well-known/register/devtools'
     calls = []

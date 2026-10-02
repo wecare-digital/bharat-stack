@@ -95,13 +95,17 @@ Plivo and Sinch perform public documentation MCP initialization and tool discove
 recorded as `documentation_verified`, never live-account access. Sinch remains
 RCS-only. Existing desktop connections retain their own authentication.
 
-Meta remote OAuth must use an MCP-registered client, not the WECARE business app
-ID. The published Meta metadata uses dynamic client registration. The tested
+Meta Social and WhatsApp remote OAuth require a supported MCP client rather
+than substituting a business-app Graph token. Their metadata advertises dynamic
+registration. The tested
 custom cloud registration was rejected with `invalid_client_metadata` and
 `Dynamic registration is not available for this client`. The dashboard reports
 that restriction. An older business-app token cannot be forwarded as an MCP
-credential. Meta Ads account verification remains unavailable until an approved
-client and a bounded account-read tool are configured. Ordinary WhatsApp Graph
+credential. Meta Ads uses the existing WECARE app 2238810740192680 after enabling
+its Ads MCP use case. The advertised Ads OAuth metadata supports public-client
+PKCE (S256, token endpoint auth method none). Its connection check performs
+authenticated initialize/tools-list only, recorded as authenticated, not
+verified account data. Ad-tool execution remains disabled. Ordinary WhatsApp Graph
 authorization saved by the callback is not proof that its MCP is connected.
 
 ## Build and review
@@ -147,10 +151,12 @@ wheels, unexpected distributions and mismatched pins are refused.
 6. Add the example `wecare-workspace` server to Kiro/Codex alongside existing entries,
    set `disabled` false only after deployment, and run the bridge. The example paths
    point to the primary checkout after merge, not this temporary checkout.
-7. Register the exact HTTPS callback above in Meta app 2238810740192680. Run
-   `connection_authorize` separately for `meta-social` and `whatsapp`, complete each
-   owner consent, then `connection_verify`. Until both authorized reads succeed,
-   report them as consent-required or unverified. No system-user Graph token is
+7. Register the exact HTTPS callback above in Meta app 2238810740192680 for
+   Meta Ads, enable its Ads MCP use case, and run connection_authorize for
+   meta-ads. Complete owner consent and check authenticated tool discovery.
+   Meta Social and WhatsApp still need supported MCP client registration;
+   until their authorized reads succeed, report them as unverified.
+   No system-user Graph token is
    substituted for this MCP OAuth flow. The provider OAuth version in config is
    v26.0, as advertised by Meta's server metadata on 2026-10-01; this does not bump
    the rest of the application's Graph API calls.

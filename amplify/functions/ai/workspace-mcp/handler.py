@@ -289,6 +289,8 @@ def token(owner, provider):
     if not item:
         raise Refusal("Provider OAuth consent required")
     tokens = decrypt(item["cipher"], owner, provider)
+    if config.get('clientMode') == 'existing-meta-app' and tokens.get('_oauth_client_id') != config.get('clientId'):
+        raise Refusal('Reconnect Meta Ads with the configured Ads MCP app')
     if config.get('registrationEndpoint'):
         registered = row('oauth-client:' + owner + ':' + provider)
         if not registered or tokens.get('_oauth_client_id') != decrypt(registered['cipher'], owner, provider).get('client_id'):
@@ -527,7 +529,26 @@ def run_tool(owner, name, args):
             return {'status': verified_status, 'provider': provider, 'read': answer}
         provider_config(provider)
         if provider == 'meta-ads':
-            raise Refusal('Meta Ads requires an approved MCP client before account verification is available')
+            headers = {'Authorization': 'Bearer ' + token(owner, provider)}
+            initialized, session = http(config['endpoint'], {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize',
+                'params': {'protocolVersion': '2025-11-25', 'capabilities': {},
+                    'clientInfo': {'name': 'wecare-workspace', 'version': '1.2.0'}}}, headers)
+            negotiated = initialized.get('result', {}).get('protocolVersion')
+            if negotiated not in PROTOCOLS:
+                raise Refusal('Meta Ads MCP initialization failed')
+            headers['MCP-Protocol-Version'] = negotiated
+            if session: headers['Mcp-Session-Id'] = session
+            http(config['endpoint'], {'jsonrpc': '2.0', 'method': 'notifications/initialized'}, headers)
+            discovered, _ = http(config['endpoint'], {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list'}, headers)
+            tools = discovered.get('result', {}).get('tools')
+            if not isinstance(tools, list) or not tools:
+                raise Refusal('Meta Ads authenticated tool discovery failed')
+            table().update_item(Key={'pk': 'connection:' + owner + ':' + provider},
+                UpdateExpression='SET #s = :s, lastVerifiedAt = :t', ExpressionAttributeNames={'#s': 'status'},
+                ExpressionAttributeValues={':s': 'authenticated', ':t': int(time.time())})
+            return {'status': 'authenticated', 'provider': provider,
+                'read': {'authenticatedToolDiscovery': True, 'toolCount': len(tools),
+                    'accountReadVerified': False, 'toolExecutionEnabled': False}}
         tool = "devtools_app_list" if provider == "meta-social" else "whatsapp_biz_businesses"
         answer = provider_call(owner, provider, tool, {"action": "list"})
         if answer.get("isError"):

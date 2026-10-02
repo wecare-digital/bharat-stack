@@ -119,10 +119,11 @@ user and provider. Provider credentials are handled on the backend. The
 current release is designed for bounded reads; production ad publishing and
 automated ad spend are not enabled in this workspace MCP release.
 
-Do not submit this as an already-completed workflow. The Ads MCP use case and
-callback setup are present, but the deployed cloud adapter's dynamic client
-registration is refused. Meta supports own-app OAuth for Ads; that specific
-adapter still needs to be implemented and verified. Its broader permission
+Do not submit this as an already-completed workflow. At the initial review check,
+the deployed cloud adapter's dynamic client registration was refused. A later
+version 3 update added the supported existing-app PKCE path and successfully
+generated an AWS-backed authorization URL; owner consent and authenticated
+Meta tool discovery have not yet been confirmed. Its broader permission
 cannot honestly be described as intrinsically read-only. Meta's App Review
 reference requires both an MCP read and an MCP write demonstration; the
 current read-only router cannot yet supply that complete evidence.
