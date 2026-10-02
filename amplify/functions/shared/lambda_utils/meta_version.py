@@ -31,6 +31,19 @@ AGREEMENT WITH `config/vendor-versions.json`. That file already carries
 TypeScript side; this is the source for the Python side, and a test asserts the two match
 so they cannot drift apart silently. Neither is derived from the other at runtime,
 because a Lambda should not read a repo file to learn its own configuration.
+
+`META_GRAPH_BASE` IS A SECOND CONFIGURATION ROUTE, AND IT IS VALIDATED RATHER THAN REMOVED.
+The 2026-10-01 version audit found a fourth source of truth this module did not own: one
+function (`wecare-marketing-ads`) is configured with a whole `META_GRAPH_BASE` URL instead
+of a bare version, and the handler lets that env value win over this module. So a malformed
+or unexpected version could reach Graph without ever passing `_VERSION_RE`.
+
+The variable is kept because the capability is legitimate -- a single function sometimes
+needs a deliberate pin away from the fleet default, which is exactly the `marketing-ads`
+Shop Ads case -- but it is now parsed and shape-checked here. If `META_API_VERSION` and
+`META_GRAPH_BASE` are both set and name different versions this raises instead of applying
+a silent precedence rule, because an undocumented winner is how that audit finding came
+about in the first place.
 """
 
 from __future__ import annotations
@@ -45,17 +58,49 @@ _VERSION_RE = re.compile(r"^v\d{1,3}\.\d$")
 
 GRAPH_HOST = "https://graph.facebook.com"
 
+#: A whole Graph base URL: the host, exactly, plus one version segment and nothing else.
+#: Anchored at both ends on purpose -- `https://evil.example.com/v26.0` and
+#: `https://graph.facebook.com/v26.0/extra` must both be refused, and a trailing slash is a
+#: typo rather than a variant spelling, because `graph_url` joins with `/` itself.
+_BASE_RE = re.compile(r"^https://graph\.facebook\.com/(v\d{1,3}\.\d)$")
+
 #: The default is pinned rather than "latest" on purpose. A floating version means a
 #: vendor-side release can change this application's behaviour with no deploy and no
 #: commit, which is the opposite of what `docs/compatibility.md` exists to record.
-_DEFAULT = "v25.0"
+#:
+#: Moved v25.0 -> v26.0 on 2026-10-01 after `docs/execution/meta-graph-version-audit-20261001.md`
+#: cleared every endpoint this repo calls against the v26.0 changelog. v26.0 is the latest
+#: Graph version; v25.0 remains supported until 2028-07-29, so this is a correctness move
+#: rather than an outage deadline. Live round trip on v26.0 is still UNVERIFIED -- see that
+#: document -- and the live Lambda environments pin v25.0 explicitly, so merging this does
+#: not move production.
+_DEFAULT = "v26.0"
 
 
 class MetaVersionError(ValueError):
-    """Raised at import when META_API_VERSION is not a Graph version."""
+    """Raised at import when META_API_VERSION or META_GRAPH_BASE is not a Graph version."""
 
 
-def _resolve() -> str:
+def base_version(candidate: str) -> str:
+    """The version embedded in a Graph base URL, or `''` when it is not one.
+
+        base_version('https://graph.facebook.com/v26.0')  -> 'v26.0'
+        base_version('https://graph.facebook.com')        -> ''
+
+    Exposed so the version gate, health endpoints and tests parse a base the same way this
+    module does, instead of each re-deriving a regex that is subtly different.
+    """
+    match = _BASE_RE.match((candidate or "").strip())
+    return match.group(1) if match else ""
+
+
+def _resolve() -> tuple[str, str]:
+    """Resolve `(version, base)` from the environment, or raise.
+
+    Returns both, because the two are one decision: a `META_GRAPH_BASE` carries a version,
+    and deriving the base from the version afterwards would discard whatever the operator
+    actually configured.
+    """
     # ABSENT and EMPTY are deliberately different. Absent means "no opinion", so the
     # pinned default applies. Explicitly set to "" means someone configured it and got it
     # wrong -- probably an unresolved substitution in a deploy template -- and silently
@@ -65,27 +110,49 @@ def _resolve() -> str:
     if not _VERSION_RE.match(raw):
         raise MetaVersionError(
             f"META_API_VERSION={raw!r} is not a Meta Graph version. Expected the form "
-            f"'v25.0' (a 'v', a major number, a dot, a single-digit minor). Refusing to "
+            f"'v26.0' (a 'v', a major number, a dot, a single-digit minor). Refusing to "
             f"start rather than letting Graph answer 400 for an unknown path at request "
             f"time."
         )
-    return raw
+
+    base = os.environ.get("META_GRAPH_BASE")
+    if base is None:
+        return raw, f"{GRAPH_HOST}/{raw}"
+
+    from_base = base_version(base)
+    if not from_base:
+        raise MetaVersionError(
+            f"META_GRAPH_BASE={base.strip()!r} is not a Meta Graph base URL. Expected "
+            f"exactly '{GRAPH_HOST}/<version>', e.g. '{GRAPH_HOST}/{_DEFAULT}' -- https, "
+            f"that host, one version segment, no trailing slash and no extra path. "
+            f"Refusing to start rather than letting an unchecked URL reach Graph."
+        )
+    if configured is not None and from_base != raw:
+        # No precedence rule, deliberately. Picking a winner here is what let one function
+        # run on a version nothing had validated while the fleet read a different variable.
+        raise MetaVersionError(
+            f"META_API_VERSION={raw!r} and META_GRAPH_BASE={base.strip()!r} name different "
+            f"Graph versions ({raw} vs {from_base}). Set one, or set both to the same "
+            f"version. Refusing to guess which one was meant."
+        )
+    return from_base, base.strip()
 
 
 #: Import-time, deliberately. A handler that cannot resolve its API version has nothing
 #: useful to do, and failing in the init phase puts the reason in the first log line
 #: instead of in every subsequent request.
-META_API_VERSION: str = _resolve()
-
-#: `https://graph.facebook.com/v25.0`
-GRAPH_BASE: str = f"{GRAPH_HOST}/{META_API_VERSION}"
+META_API_VERSION: str
+#: `https://graph.facebook.com/v26.0`. Equal to `META_GRAPH_BASE` when that is set, so a
+#: deliberate per-function pin is reflected here rather than silently re-derived.
+GRAPH_BASE: str
+META_API_VERSION, GRAPH_BASE = _resolve()
 
 
 def graph_url(*parts: str) -> str:
     """Build a versioned Graph URL from path segments.
 
         graph_url('1016149501586345', 'messages')
-        -> 'https://graph.facebook.com/v25.0/1016149501586345/messages'
+        -> 'https://graph.facebook.com/v26.0/1016149501586345/messages'
 
     Use this instead of an f-string with the version in it. The five remaining URL
     literals were found only because someone grepped for `graph.facebook.com/v`; a

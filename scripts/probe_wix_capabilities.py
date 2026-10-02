@@ -167,7 +167,12 @@ def main() -> int:
         "storesBrandsV3": ("POST", "/stores/v3/brands/query",
                            {"query": {"cursorPaging": {"limit": 1}}}),
         "blogV3": ("GET", "/blog/v3/categories?paging.limit=1", None),
-        "ecomCart": ("GET", "/ecom/v1/carts/current", None),
+        # The Cart V1 probe (`GET /ecom/v1/carts/current`) was removed on 2026-10-01.
+        # `ecomCartV2Get` below already proves the cart route resolves, and Cart V1 is removed by
+        # Wix on 2027-02-01 — probing a retiring API tells us nothing we would act on, and two
+        # probes for one capability invite the reading that both are supported paths.
+        # `ecomOrders` stays: Orders API is a DIFFERENT, current API that merely shares the
+        # `/ecom/v1` prefix, and it is not in the Cart V2 migration at all.
         "ecomOrders": ("POST", "/ecom/v1/orders/search",
                        {"search": {"cursorPaging": {"limit": 1}}}),
         # Cart V2 base-path resolution. A GET on a random, non-existent cart id
@@ -208,11 +213,14 @@ def main() -> int:
     out["verdicts"] = {
         "wixStores": verdict("storesInventoryV3"),
         "wixBlog": verdict("blogV3"),
+        # Re-derived from the V2 cart probe and Orders, now that the Cart V1 probe is gone. A
+        # semantic CART_NOT_FOUND proves the eCommerce app is installed and answering just as
+        # well as V1's OWNED_CART_NOT_FOUND did, and it does so against the API that will still
+        # exist after 2027-02-01.
         "wixEcommerce": ("INSTALLED (admin scope required)"
                          if results["ecomOrders"]["status"] == 403
-                         or results["ecomCart"]["applicationError"]
-                         == "OWNED_CART_NOT_FOUND"
-                         else verdict("ecomCart")),
+                         or results["ecomCartV2Get"]["applicationError"] == "CART_NOT_FOUND"
+                         else verdict("ecomOrders")),
         # V2 route resolves when a GET on a nonexistent cart is a semantic
         # CART_NOT_FOUND (404) rather than a route/uninmplemented error.
         "ecomCartV2": ("LIVE"

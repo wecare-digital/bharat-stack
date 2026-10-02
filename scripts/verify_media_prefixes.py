@@ -155,6 +155,36 @@ def enclosing_statements(tree):
     return owner
 
 
+def constant_is_always_rooted(tree: ast.AST, statement: ast.AST) -> bool:
+    """Accept a named suffix only when every local load is inside a root helper.
+
+    A declaration such as RECEIPT_PREFIX = 'stack/receipts/' is not itself an S3
+    address when its only use is media_paths.secure(f'{RECEIPT_PREFIX}...'). Any
+    bare load, return, alias, or direct S3 use keeps the original check failing.
+    """
+    if not isinstance(statement, ast.Assign) or len(statement.targets) != 1 or not isinstance(statement.targets[0], ast.Name):
+        return False
+    name = statement.targets[0].id
+    parents = {id(child): parent for parent in ast.walk(tree) for child in ast.iter_child_nodes(parent)}
+    loads = [node for node in ast.walk(tree) if isinstance(node, ast.Name) and node.id == name and isinstance(node.ctx, ast.Load)]
+    if not loads:
+        return False
+    for load in loads:
+        node, rooted = load, False
+        while id(node) in parents:
+            node = parents[id(node)]
+            if isinstance(node, ast.Call):
+                function = node.func
+                if isinstance(function, ast.Attribute) and isinstance(function.value, ast.Name) and function.value.id == "media_paths" and function.attr in {"secure", "dual_homed"}:
+                    rooted = True
+                break  # Do not assume an intervening function roots its output.
+            if isinstance(node, ast.stmt):
+                break
+        if not rooted:
+            return False
+    return True
+
+
 def check_keys_rooted(r: Result) -> None:
     print("\n2. every S3 key prefix is rooted in o/ or secure/")
     offenders: list[str] = []
@@ -178,6 +208,8 @@ def check_keys_rooted(r: Result) -> None:
             # Rooted at runtime by a media_paths call in the same statement, or used only
             # to CLASSIFY a legacy string rather than to address an object.
             if "media_paths." in stmt_src or ".startswith(" in stmt_src:
+                continue
+            if stmt is not None and constant_is_always_rooted(tree, stmt):
                 continue
             offenders.append(f"{p.relative_to(FUNCTIONS)}:{node.lineno} {key}")
     r.add("no un-rooted key addresses an object", not offenders,

@@ -62,9 +62,22 @@ CREATE_ORDER = ("POST", "/ecom/v1/orders")
 #: charging - the order is only updated with records of the payments." The `{orderId}` is
 #: substituted at call time; the template is what the allowlist matches on.
 ADD_PAYMENT = ("POST", "/ecom/v1/payments/orders/{orderId}/add-payment")
+#: Close the Cart V2 cart an externally-created order came from.
+#:
+#: Cart V2's own introduction names this as the call to make when an external system created the
+#: order, which is exactly this architecture: Razorpay collects on our website, we record the
+#: order with Orders API Create Order, and the cart is then marked completed. Without it a paid
+#: cart is never closed and remains live for the customer.
+#:
+#: It CANNOT charge, and the distinction from its neighbour matters: Cart V2 **Place Order** is
+#: the replacement for Checkout V1's Create Order and can enter Wix payment collection, which is
+#: why it is absent from this list and from `cart_v2.CartV2` altogether. Mark Cart As Completed
+#: only sets `orderPlaced` on the cart and attaches the order id -- it moves no money and offers
+#: no payment surface.
+MARK_CART_COMPLETED = ("POST", "/ecom/v2/carts/{cartId}/mark-as-completed")
 
 #: The ONLY endpoints reachable from this module. Enumerated so R7.4's test can assert the set.
-ALLOWED_ENDPOINTS = frozenset({CREATE_ORDER, ADD_PAYMENT})
+ALLOWED_ENDPOINTS = frozenset({CREATE_ORDER, ADD_PAYMENT, MARK_CART_COMPLETED})
 CONFIRMED_SITE_ID = "fcd82f0c-9572-49c7-acfb-88fb05042ece"
 WRITE_CONTRACT = "cart-v2-external-v1"
 
@@ -121,16 +134,30 @@ def _endpoint_would_charge(path: str) -> bool:
     return any(marker in lowered for marker in FORBIDDEN_ENDPOINT_MARKERS)
 
 
+#: A single `{name}` placeholder in an allowlist template. Generalised from a hard-coded
+#: `{orderId}` when Mark Cart As Completed arrived with a `{cartId}` slot — the slot's NAME was
+#: never the point, and special-casing one name would have meant a new endpoint silently matching
+#: nothing and being refused as off-list.
+_SLOT_RE = re.compile(r"\{[A-Za-z][A-Za-z0-9]*\}")
+
+
 def _matches_allowed(method: str, path: str) -> bool:
-    """True when (method, path) matches an allowlisted endpoint, treating `{orderId}` as a slot."""
+    """True when (method, path) matches an allowlisted endpoint, treating `{name}` as one slot.
+
+    The slot accepts only `[A-Za-z0-9_-]{1,100}`, so a path cannot smuggle an extra segment, a
+    query string or traversal through it and land on a different endpoint than the template
+    describes.
+    """
     for allowed_method, template in ALLOWED_ENDPOINTS:
         if method.upper() != allowed_method:
             continue
-        if "{orderId}" in template:
-            prefix, _, suffix = template.partition("{orderId}")
+        slot = _SLOT_RE.search(template)
+        if slot:
+            prefix, suffix = template[:slot.start()], template[slot.end():]
             if path.startswith(prefix) and path.endswith(suffix) and \
                     len(path) > len(prefix) + len(suffix):
-                if re.fullmatch(r"[A-Za-z0-9_-]{1,100}", path[len(prefix):-len(suffix)]):
+                if re.fullmatch(r"[A-Za-z0-9_-]{1,100}", path[len(prefix):len(path) - len(suffix)]
+                                if suffix else path[len(prefix):]):
                     return True
         elif path == template:
             return True
@@ -275,9 +302,64 @@ def _paise_to_decimal_string(amount_paise: int) -> str:
     return Money(amount_paise).to_wix()
 
 
+def mark_cart_completed(table: Any, wix_request: Callable[..., Dict[str, Any]], *,
+                        order_id: str, cart_id: str, wix_order_id: str,
+                        key_attr: str = "orderId") -> Dict[str, Any]:
+    """Close the Cart V2 cart behind a verified-paid, externally-created order. Idempotent.
+
+    The last step of the external-order recording sequence: Orders API Create Order, Order
+    Transactions Add Payments, then Cart V2 Mark Cart As Completed. The repo did the first two and
+    not the third, so a paid cart was never closed and stayed live for the customer.
+
+    It cannot charge. `mark-as-completed` sets `orderPlaced` and attaches the order id; it moves
+    no money and exposes no payment surface. Cart V2's **Place Order** is the one that can enter
+    Wix payment collection, and it is deliberately absent from `ALLOWED_ENDPOINTS` and from
+    `cart_v2.CartV2` entirely.
+
+    Guarded by its own `WIX_CART_COMPLETED` side effect rather than sharing `WIX_ORDER`: a timeout
+    here is ambiguous about the CART, and folding it into the order's marker would make an
+    unresolved completion look like an unresolved order creation and invite a second order.
+
+    Returns `{"completed": bool}` — `False` when a previous call already completed it.
+    """
+    if not is_enabled():
+        raise WixWritebackDisabled("Wix write-back is not enabled for this site")
+    if not order_id:
+        raise ValueError("order_id is required")
+    if not wix_order_id:
+        # Completing a cart with no order to attach would lose the link between the two, and the
+        # cart is the only place that link is recorded on the Wix side.
+        raise ValueError("wix_order_id is required to complete a cart")
+    try:
+        from lambda_utils.ecommerce.cart_v2 import identifier
+        cart = identifier(cart_id)
+    except (ImportError, ValueError, TypeError, AttributeError):
+        raise ValueError("a valid Wix cart id is required") from None
+
+    existing = side_effect_guard.resolve(
+        table, order_id=order_id, effect=side_effect_guard.WIX_CART_COMPLETED,
+        key_attr=key_attr)
+    if existing and existing.get("state") == side_effect_guard.DONE:
+        return {"completed": False}
+    if existing or not side_effect_guard.claim(
+            table, order_id=order_id, effect=side_effect_guard.WIX_CART_COMPLETED,
+            key_attr=key_attr):
+        raise WixWritebackPending("cart completion outcome needs readback before retry")
+
+    _guarded_call(wix_request, method="POST",
+                  path=f"/ecom/v2/carts/{cart}/mark-as-completed",
+                  body={"orderId": wix_order_id})
+    side_effect_guard.confirm(
+        table, order_id=order_id, effect=side_effect_guard.WIX_CART_COMPLETED,
+        result={"wixCartId": cart}, key_attr=key_attr)
+    logger.info('{"event":"wix_cart_completed"}')
+    return {"completed": True}
+
+
 __all__ = [
     "CREATE_ORDER",
     "ADD_PAYMENT",
+    "MARK_CART_COMPLETED",
     "ALLOWED_ENDPOINTS",
     "FORBIDDEN_ENDPOINT_MARKERS",
     "WixWritebackDisabled",
@@ -287,4 +369,5 @@ __all__ = [
     "is_enabled",
     "create_wix_order",
     "record_external_payment",
+    "mark_cart_completed",
 ]

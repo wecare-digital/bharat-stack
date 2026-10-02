@@ -1330,6 +1330,7 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
         <header className="dash-header">
           <div className="dash-brand">
             <h1>Overview</h1>
+            <Link href="/workspace/dashboard/mcp-connections/">MCP Connections & Playground</Link>
             <div className="dash-status">
               <span className={ `status-dot ${apiConnected ? 'online' : 'offline'}` } />
               <span>{ apiConnected ? `${apiLatency}ms` : 'Offline' }</span>

@@ -89,7 +89,8 @@ from typing import Any, Dict, Optional
 import boto3
 
 from lambda_utils import customer_auth, payment_readiness
-from lambda_utils.ecommerce import order_keys, payment_attempt
+from lambda_utils.ecommerce import (
+    cart_v2, customer_cart, order_keys, payment_attempt, purchase_intent)
 from lambda_utils import wix_ecom
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, extract_origin, options_response
@@ -121,6 +122,24 @@ EXPECTED_PROVIDER_MID = os.environ.get("EXPECTED_PROVIDER_MID", "")
 #: Off by default. The plumbing runs; the payable message does not go out until this is truthy.
 INITIATION_ENABLED = str(
     os.environ.get("CHECKOUT_INITIATION_ENABLED", "")).strip().lower() in ("1", "true", "yes", "on")
+
+#: Loader for the authenticated customer's OWNED delivery address, injected rather than
+#: imported.
+#:
+#: Signature: `(customer_id: str) -> dict | None`, returning a structured address in
+#: `lambda_utils.identity.address` shape, or `None` when the customer has not chosen one.
+#:
+#: It is a seam rather than a call because this function has no customers table: its environment
+#: carries `PAYMENT_ATTEMPTS_TABLE` and `COMMERCE_KEYS_TABLE` and nothing else. Wiring the
+#: profile read is the remaining half of the producer chain, recorded in
+#: `docs/execution/wix-cart-v2-migration-20261001.md` rather than faked here.
+#:
+#: While it is `None`, a Cart V2 checkout answers `DELIVERY_DETAILS_REQUIRED`. That is deliberate
+#: and it is the whole reason this is not a default value: the delivery address is the place of
+#: supply, so a placeholder would produce a real total with the wrong CGST/SGST-versus-IGST split
+#: on an invoice carrying seller GSTIN 19AAFFW7196L1Z8 -- and that total would be charged. An
+#: honest refusal is the cheaper failure.
+LOAD_OWNED_ADDRESS = None
 
 _dynamodb = None
 _lambda = None
@@ -245,6 +264,126 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return cors_response(500, {"error": "INTERNAL_ERROR"}, origin)
 
 
+def _wix_request(endpoint: str, method: str = "GET",
+                 body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Transport for the Cart V2 adapter, delegating to `wix_ecom`'s authenticated client.
+
+    `wix_ecom._request` already owns the credential (read by reference from Secrets Manager,
+    lazily, at request time) and the site header. Reusing it keeps one authenticated client in
+    this package rather than giving Cart V2 a second one that would need its own lazy-read
+    discipline to stay rotation-safe.
+    """
+    return wix_ecom._request(endpoint, method=method, body=body)
+
+
+def _v2_catalog_items(line_items: list) -> list:
+    """Bridge the browser's `{catalogReference, quantity}` shape to Cart V2's catalog items.
+
+    `cart_v2.catalog_item` demands exactly `{productId, variantId, quantity}` with both ids as
+    UUIDs, while the browser sends a nested `catalogReference` and may omit the variant.
+    Resolving a product's single visible, in-stock variant against the live catalogue -- and
+    refusing to guess when there is more than one -- is work `wix_ecom.normalized_catalog_items`
+    already does correctly, so this reuses it rather than growing a second copy that could
+    disagree about which variant a cart line means.
+    """
+    return [{"productId": line["catalogReference"]["catalogItemId"],
+             "variantId": line["catalogReference"]["options"]["variantId"],
+             "quantity": line["quantity"]}
+            for line in wix_ecom.normalized_catalog_items(line_items)]
+
+
+def _require_same_basket(cart: Dict[str, Any], requested: list) -> None:
+    """Refuse when the customer's saved cart is not the basket this request asked to price.
+
+    Reusing the saved cart is what keeps one purchase to one cart, but the cart is maintained by
+    the `/wix-store/cart` route, so it can legitimately hold something else by the time checkout
+    is pressed -- a second tab, another device, an edit made after this page loaded. Pricing it
+    anyway would charge for a basket the customer is not looking at, which is worse than asking
+    them to review it.
+
+    Quantities are compared on `requestedQuantity`, never `confirmedQuantity`: Wix reduces the
+    confirmed figure to available stock, and reporting that reduction is `CartQuantityReduced`'s
+    job. Reading it here would turn an out-of-stock item into "your cart changed".
+    """
+    asked: Dict[tuple, int] = {}
+    for item in requested:
+        key = (str(item["productId"]).lower(), str(item["variantId"]).lower())
+        asked[key] = asked.get(key, 0) + int(item["quantity"])
+    saved: Dict[tuple, int] = {}
+    for line in cart.get("lineItems") or []:
+        reference = (line.get("source") or {}).get("catalogReference") or {}
+        quantities = line.get("quantityInfo") or {}
+        key = (str(reference.get("catalogItemId") or "").lower(),
+               str((reference.get("options") or {}).get("variantId") or "").lower())
+        quantity = quantities.get("requestedQuantity")
+        if quantity is None:
+            quantity = quantities.get("confirmedQuantity")
+        saved[key] = saved.get(key, 0) + int(quantity or 0)
+    if saved != asked:
+        logger.info(json.dumps({"event": "checkout_cart_basket_mismatch",
+                                "savedLines": len(saved), "requestedLines": len(asked)}))
+        raise cart_v2.CartContractError("the saved cart is not the basket that was requested")
+
+
+def _v2_snapshot(identity: customer_auth.CustomerIdentity, line_items: list):
+    """The Cart V2 price authority. Returns `(snapshot, price_free_items)`.
+
+    This is the producer half of the chain `website_checkout` and `customer_receipt` already
+    consume, and which nothing in production produced before. `QuoteSnapshot.quote`'s
+    `collection_before_convenience_paise` is Wix's own `summary.priceSummary.total` -- items,
+    discounts, delivery and supply GST, all computed by Wix from the catalogue and the delivery
+    address. This handler adds nothing to that figure; `compute_quote` adds only our convenience
+    fee and the GST on that fee, and `total_payable_paise` is what a customer pays.
+
+    ORDERING IS LOAD-BEARING, NOT STYLE. The owned address is resolved BEFORE any call that can
+    write to Wix. A cart created and then refused is a real cart abandoned on the live site, one
+    per attempt, and nothing deletes it; an earlier revision created the cart first and then
+    discovered there was no address, so every attempt leaked one. A request that cannot be priced
+    must be refused before it leaves anything behind.
+
+    The cart itself is resolved before it is generated. `customer_cart` already owns identity-keyed
+    cart persistence and its lock protocol, so this asks it for the customer's existing cart and
+    lets it create one only when there is none -- a retried checkout then reuses the same Wix cart
+    instead of minting another.
+
+    Raises `purchase_intent.DeliveryDetailsRequired` when no owned address is on file or the cart
+    has no delivery method, which is a recoverable step in the purchase flow rather than an
+    error.
+    """
+    loader = LOAD_OWNED_ADDRESS
+    owned = loader(identity.customer_id) if callable(loader) else None
+    if not owned:
+        raise purchase_intent.DeliveryDetailsRequired("no owned delivery address on file")
+
+    adapter = cart_v2.CartV2(_wix_request)
+    requested = _v2_catalog_items(line_items)
+    cart_id, created = customer_cart.CustomerCart(_keys_table(), adapter).ensure(
+        identity, requested)
+    if not created:
+        _require_same_basket(adapter.get(cart_id), requested)
+
+    prepared = purchase_intent.prepare_delivery(adapter, cart_id, owned)
+    snapshot = purchase_intent.build_intent(
+        adapter, customer_id=identity.customer_id, cart_id=cart_id,
+        owned_address=owned, now=int(time.time()), site=wix_ecom.WIX_SITE_ID)
+    # Names and quantities only, for the payment request and the receipt. Line money never
+    # travels with the item list: the authoritative amount is the one computed once, above, and
+    # the snapshot hash already covers the per-line figures Wix calculated.
+    items = [{"name": _translatable(line.get("name")),
+              "quantity": int((line.get("quantityInfo") or {}).get("confirmedQuantity") or 1)}
+             for line in (prepared.get("lineItems") or [])]
+    return snapshot, items
+
+
+def _translatable(value: Any) -> str:
+    """Cart V2 renamed `lineItems[].productName` to `name` and changed it to a translatable
+    string, so a plain `str()` would render a dict. Original preferred over translated, matching
+    `wix_ecom.line_item_summary`'s existing behaviour on the V1 shape."""
+    if isinstance(value, dict):
+        return str(value.get("original") or value.get("translated") or "")
+    return str(value or "")
+
+
 def _create(identity: customer_auth.CustomerIdentity, body: Dict[str, Any],
             origin: str) -> Dict[str, Any]:
     """Resolve authoritative totals, gate on readiness, reserve an attempt, hand off to WhatsApp."""
@@ -253,24 +392,93 @@ def _create(identity: customer_auth.CustomerIdentity, body: Dict[str, Any],
         return cors_response(400, {"error": "LINE_ITEMS_REQUIRED",
                                    "message": "Your cart is empty."}, origin)
 
-    # 1. Authoritative checkout + total, from Wix. The browser sent catalogue references and
-    #    quantities; Wix computes the price. A non-INR or non-whole-paise total fails closed.
-    try:
-        checkout = wix_ecom.create_checkout(line_items)
-        currency = wix_ecom.checkout_currency(checkout)
-        if currency != "INR":
-            logger.warning(json.dumps({"event": "checkout_non_inr", "currency": currency}))
-            return cors_response(409, {"error": "UNSUPPORTED_CURRENCY"}, origin)
-        amount_paise = wix_ecom.authoritative_total_paise(checkout)
-    except wix_ecom.AmountNotWhole:
-        return cors_response(409, {"error": "AMOUNT_NOT_SETTLED",
-                                   "message": "We could not price this cart. Please try again."},
-                             origin)
-    except wix_ecom.WixEcomError:
-        return cors_response(502, {"error": "CATALOGUE_UNAVAILABLE",
-                                   "message": "The store is temporarily unavailable."}, origin)
-
-    wix_checkout_id = str(checkout.get("id") or "")
+    # 1. Authoritative total, from Wix. The browser sent catalogue references and quantities;
+    #    Wix computes the price. A non-INR or non-whole-paise total fails closed.
+    #
+    #    Checkout V1 is what serves: Cart V2 is opt-in behind `WIX_CART_V2_ENABLED`
+    #    (`cart_v2.is_enabled`), which is absent on every function, so absence keeps V1. Both are
+    #    the SAME checkout mode -- website Razorpay Standard Checkout -- differing only in which
+    #    Wix API prices the cart. Neither routes a customer to a Wix-hosted checkout surface.
+    wix_checkout_id = ""
+    snapshot = None
+    if cart_v2.is_enabled():
+        try:
+            snapshot, item_summary = _v2_snapshot(identity, line_items)
+            # The amount a customer pays is the CALCULATOR total -- Wix's collection total plus
+            # our convenience fee plus the GST on that fee -- not the raw Wix total. That is the
+            # contract section 8 of this module's docstring states for the website path, and
+            # before the Cart V2 producer existed there was no code path that honoured it.
+            amount_paise = snapshot.quote.total_payable_paise
+        except purchase_intent.DeliveryDetailsRequired:
+            # Not an error. The customer has not chosen where this is going, and Cart V2 is right
+            # to refuse a price for an unknown destination: delivery is a component of the total
+            # and the address is the place of supply. Never substitute a default address.
+            logger.info(json.dumps({"event": "checkout_delivery_details_required"}))
+            return cors_response(409, {
+                "error": "DELIVERY_DETAILS_REQUIRED",
+                "message": "Choose a delivery address and method to see your final total.",
+            }, origin)
+        except cart_v2.CartItemUnavailable as unavailable:
+            # Checkout V1 dropped a missing item and priced what was left, so a cart could shrink
+            # silently between review and payment. Named per line so the customer can act, and the
+            # line ids and statuses are safe to return: they are opaque and carry no personal data.
+            logger.info(json.dumps({"event": "checkout_item_unavailable",
+                                    "count": len(unavailable.items)}))
+            return cors_response(409, {
+                "error": "ITEMS_UNAVAILABLE", "items": unavailable.items,
+                "message": "Some items are no longer available. Please review your cart.",
+            }, origin)
+        except cart_v2.CartQuantityReduced as reduced:
+            # Wix still auto-reduces `confirmedQuantity` to available stock in V2, and it prices the
+            # reduced amount -- so the money reconciles perfectly while being the total for goods
+            # the customer did not agree to buy. Refused and shown, never silently accepted.
+            logger.info(json.dumps({"event": "checkout_quantity_reduced",
+                                    "count": len(reduced.items)}))
+            return cors_response(409, {
+                "error": "QUANTITY_REDUCED", "items": reduced.items,
+                "message": "Some items are available in smaller quantities than you asked for. "
+                           "Please confirm the new amounts.",
+            }, origin)
+        except cart_v2.CartContractError:
+            return cors_response(409, {"error": "CART_NOT_PAYABLE",
+                                       "message": "Please review your cart and try again."},
+                                 origin)
+        except customer_cart.CartBusy:
+            # A cart whose last Wix outcome is unknown. Never priced and never reused until it is
+            # reconciled -- the same answer `/wix-store/cart` gives, in the same vocabulary, so a
+            # locked cart does not read as two different problems on two routes.
+            logger.info(json.dumps({"event": "checkout_cart_reconciliation_required"}))
+            return cors_response(409, {
+                "error": "CART_RECONCILIATION_REQUIRED",
+                "message": "Your cart is being updated. Please try again shortly.",
+            }, origin)
+        except wix_ecom.WixEcomError:
+            return cors_response(502, {"error": "CATALOGUE_UNAVAILABLE",
+                                       "message": "The store is temporarily unavailable."}, origin)
+        except ValueError:
+            return cors_response(409, {"error": "AMOUNT_NOT_SETTLED",
+                                       "message": "We could not price this cart. Please try "
+                                                  "again."}, origin)
+    else:
+        try:
+            checkout = wix_ecom.create_checkout(line_items)
+            currency = wix_ecom.checkout_currency(checkout)
+            if currency != "INR":
+                logger.warning(json.dumps({"event": "checkout_non_inr", "currency": currency}))
+                return cors_response(409, {"error": "UNSUPPORTED_CURRENCY"}, origin)
+            amount_paise = wix_ecom.authoritative_total_paise(checkout)
+        except wix_ecom.AmountNotWhole:
+            return cors_response(409, {"error": "AMOUNT_NOT_SETTLED",
+                                       "message": "We could not price this cart. Please try "
+                                                  "again."},
+                                 origin)
+        except wix_ecom.WixEcomError:
+            return cors_response(502, {"error": "CATALOGUE_UNAVAILABLE",
+                                       "message": "The store is temporarily unavailable."}, origin)
+        # Retained only on the V1 branch. In Cart V2 the cart id IS the checkout id, so a
+        # separate `wixCheckoutId` has nothing to identify.
+        wix_checkout_id = str(checkout.get("id") or "")
+        item_summary = wix_ecom.line_item_summary(checkout)
 
     # 2. Readiness gate. A live provider readback must confirm PAYMENT_READY, or the CTA is refused
     #    with the blocking state. No local constant makes this pass.
@@ -287,11 +495,22 @@ def _create(identity: customer_auth.CustomerIdentity, body: Dict[str, Any],
     #    reference is minted and durably reserved BEFORE it is used, and never transformed after.
     attempt_id = payment_attempt.new_payment_attempt_id()
     try:
+        extra = {"customerId": identity.customer_id,
+                 "amountPaise": amount_paise, "currency": "INR",
+                 "wixCheckoutId": wix_checkout_id, "checkoutMode": CHECKOUT_MODE}
+        if snapshot is not None:
+            # The Cart V2 join keys. `wixCartId` + `cartRevision` is what reconciliation matches
+            # on, and `quoteHash` is what proves the paid amount is the one the customer
+            # reviewed -- a cart edit produces a different hash rather than mutating this one.
+            # `collectionPaise` is recorded beside the payable amount so the convenience fee and
+            # its GST stay auditable instead of being inferred from a difference.
+            extra.update(wixCartId=snapshot.cart_id, cartRevision=snapshot.cart_revision,
+                         quoteHash=snapshot.snapshot_hash,
+                         collectionPaise=snapshot.quote.collection_before_convenience_paise,
+                         quoteExpiresAt=snapshot.expires_at,
+                         policyVersion=snapshot.policy_version)
         reference_id = order_keys.allocate_payment_reference(
-            _keys_table(), payment_attempt_id=attempt_id,
-            extra={"customerId": identity.customer_id,
-                   "amountPaise": amount_paise, "currency": "INR",
-                   "wixCheckoutId": wix_checkout_id, "checkoutMode": CHECKOUT_MODE},
+            _keys_table(), payment_attempt_id=attempt_id, extra=extra,
         )
     except order_keys.OrderIdentityUnavailable:
         return cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE",
@@ -334,7 +553,7 @@ def _create(identity: customer_auth.CustomerIdentity, body: Dict[str, Any],
     sent = _send_order_details(
         phone=identity.phone, reference_id=reference_id,
         amount_paise=amount_paise, configuration_name=EXPECTED_CONFIGURATION_NAME,
-        items=wix_ecom.line_item_summary(checkout))
+        items=item_summary)
     if not sent:
         # The attempt is stored and ready; the message did not go. A soft failure the client can
         # retry, and crucially still NO order and NO second charge — the reference is reusable for a

@@ -308,6 +308,7 @@ export const settingsConfig: SettingsGroup[] = [
     hint: 'Infrastructure, architecture, diagnostics',
     items: [
       { path: '/workspace/dashboard', label: 'Dashboard Overview' },
+      { path: '/workspace/dashboard/mcp-connections', label: 'MCP Connections' },
       { path: '/workspace/dashboard/system-architecture', label: 'Control Center' },
       { path: '/workspace/dashboard/lambda-functions', label: 'Lambda Functions' },
       { path: '/workspace/dashboard/code-repo', label: 'Code Repo' },

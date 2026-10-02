@@ -360,7 +360,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 def _customer_cart(event, method):
     from lambda_utils import customer_auth
-    from lambda_utils.ecommerce.cart_v2 import CartV2
+    from lambda_utils.ecommerce.cart_v2 import CartV2, is_enabled as cart_v2_enabled
     from lambda_utils.ecommerce.customer_cart import CustomerCart, CartBusy, CartMissing
 
     if method == 'OPTIONS':
@@ -368,7 +368,12 @@ def _customer_cart(event, method):
     identity, denied = customer_auth.require_customer(event)
     if denied:
         return denied
-    if os.environ.get('WIX_CART_V2_ENABLED', '').lower() != 'true':
+    # Cart V2 is opt-in: `WIX_CART_V2_ENABLED` must be truthy, and absence means off. The
+    # decision lives in `cart_v2.is_enabled` so this route and `ecommerce/checkout` cannot
+    # disagree about whether V2 serves. Off, this route creates no cart at all, which matters
+    # because serving it performs real Create Cart and Add Line Items writes against the live
+    # site for any authenticated customer.
+    if not cart_v2_enabled():
         return _response(503, {'error': 'CART_UNAVAILABLE'})
     if method not in ('GET', 'POST'):
         return _response(405, {'error': 'METHOD_NOT_ALLOWED'})
