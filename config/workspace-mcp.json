@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "account": "775261844268",
   "region": "us-east-1",
   "repository": "wecare-digital/wecare-digital",
@@ -90,7 +90,8 @@
     "meta-ads": {
       "kind": "remote-mcp",
       "endpoint": "https://mcp.facebook.com/ads",
-      "registrationEndpoint": "https://mcp.facebook.com/.well-known/register/ads",
+      "clientId": "2238810740192680",
+      "clientMode": "existing-meta-app",
       "scopes": [
         "ads_read",
         "business_management",
