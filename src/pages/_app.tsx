@@ -572,18 +572,30 @@ const PUBLIC_PAGE_META: Record<string, {
   // not exist. They qualify through the isContentPublic chain below and own their whole <head>
   // through components/ShopProductHead.tsx, exactly as /post/[slug] does through SEO.tsx.
   '/shop': { name: 'Shop', type: 'CollectionPage', description: 'What WECARE.DIGITAL sells, with each item\'s price and what it includes.' },
-  // Zip gathers the request/delivery/pickup actions in one place. It links the real request
+  // Shipments gathers the request/delivery/pickup actions in one place. It links the real request
   // routes (orders, request-amendment, drop-docs, vault, leave-review) and renders anything with
   // no backend (pickup/visit/delivery tracking) as a clearly non-transacting item.
-  '/zip': { name: 'Zip', type: 'WebPage', description: 'Everything about your request, delivery or pickup in one place: track an order, amend a request, send documents, open your vault or leave a review.' },
-  // Extras is a home-styled landing page for the small thank-yous we send customers, and the
+  //
+  // THIS ENTRY IS WHY THE RENAME DID NOT LAND THE FIRST TIME. The key was '/zip' and the `name`
+  // was the literal string 'Zip', so even after the nav label was changed to "Shipments" the page
+  // still PUBLISHED itself as "Zip" — this `name` feeds the WebPage schema emitted on the route
+  // AND config/public-pages.json, so the retired name went out to crawlers and to every consumer
+  // of that config. Renaming the nav row alone could never fix it. On owner instruction
+  // (2026-10-02) the name is gone entirely: key, `name`, route and page file all read shipments.
+  '/shipments': { name: 'Shipments', type: 'WebPage', description: 'Everything about your request, delivery or pickup in one place: track an order, amend a request, send documents, open your vault or leave a review.' },
+  // Perks is a home-styled landing page for the small thank-yous we send customers, and the
   // repaired destination for the gift-card links that used to point at a 404. The owner removed
   // the former gift-card / offers / rewards sections, so the page is now a calm, honest landing
-  // page with no transacting control and no third-party provider name. The customer-facing label
-  // is "Extras"; the ROUTE KEY STAYS '/perks' (the URL is deliberately not renamed to /extras/),
-  // so this entry still keys on router.pathname === '/perks'. config/public-pages.json takes its
-  // `name` from here, so it is regenerated to "Extras" to stay in parity (PublicAiSurface test).
-  '/perks': { name: 'Extras', type: 'WebPage', description: 'A little extra for the people we look after. An honest, uncluttered place for the small thank-yous we send your way, and nothing here asks for payment.' },
+  // page with no transacting control and no third-party provider name.
+  //
+  // THE NAME IS "PERKS" AGAIN. An earlier instruction renamed it Perks -> Extras; the owner
+  // reversed that on 2026-10-02, because the nav rendered the row "Extras" directly beneath a
+  // group heading also reading "Extras". `name` was still 'Extras' here, which — exactly as with
+  // the Shipments entry above — fed the page's WebPage schema and config/public-pages.json, so the
+  // wrong name was published regardless of the label. The ROUTE KEY STAYS '/perks' and needs no
+  // change: it already matches the name. config/public-pages.json takes its `name` from here, so
+  // it is regenerated to "Perks" to stay in parity (PublicAiSurface test).
+  '/perks': { name: 'Perks', type: 'WebPage', description: 'A little extra for the people we look after. An honest, uncluttered place for the small thank-yous we send your way, and nothing here asks for payment.' },
 };
 
 /**

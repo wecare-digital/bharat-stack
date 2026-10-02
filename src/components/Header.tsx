@@ -199,13 +199,19 @@ const COLUMNS: NavColumn[] = [
           // SHIPMENTS SITS DIRECTLY ABOVE LEAVE REVIEW, on owner instruction: it is the single
           // place that gathers "track it, arrange it, keep it moving" for a request, delivery or
           // pickup, so it rounds out the request actions just before Leave Review (which must
-          // stay last). It keeps the historic /zip/ route - the URL, sitemap PUBLIC_EXACT,
-          // config/public-pages.json entry and PUBLIC_PAGE_META key are all unchanged; only the
-          // customer-facing label reads "Shipments". It carries `match` and lights up on its own
-          // route. It surfaces the real request routes (orders, request-amendment, drop-docs,
+          // stay last). THE ROUTE MOVED FROM /zip/ TO /shipments/ on owner instruction
+          // (2026-10-02): the page was called "Zip" and the name is gone everywhere, not just on
+          // the label. The earlier change renamed only this label and left the route, the
+          // PUBLIC_PAGE_META `name` ('Zip') and the legal copy intact, which is why the owner kept
+          // seeing "Zip" on the live site. The sitemap PUBLIC_EXACT entry,
+          // config/public-pages.json, the PUBLIC_PAGE_META key and scripts/generate-public-pages.js
+          // all moved with it. NOTE: /zip/ 404s at the origin until a CDN redirect
+          // /zip/ -> /shipments/ is added in the Amplify Console - a static export cannot emit a
+          // 301 (see the RETIRED URLS note in _app.tsx). It carries `match` and lights up on its
+          // own route. It surfaces the real request routes (orders, request-amendment, drop-docs,
           // vault, leave-review) and renders anything with no backend (pickup/visit/
           // delivery-status) as a clearly non-transacting affordance.
-          { label: 'Shipments', href: '/zip/', match: '/zip' },
+          { label: 'Shipments', href: '/shipments/', match: '/shipments' },
           { label: 'Leave Review', href: '/leave-review/', match: '/leave-review' },
           // CONTACT MOVED OUT of Selfservice into the third column (Work with us), on
           // owner instruction - the Selfservice column is now the request ACTIONS only,
@@ -238,11 +244,16 @@ const COLUMNS: NavColumn[] = [
       // column (where it sat beneath Selfservice) on owner instruction, so the third
       // column carries the "about the company" rows - Refer & Earn plus the policies -
       // and the middle column is purely the Selfservice actions.
-      // EXTRAS SITS IMMEDIATELY ABOVE LEGAL STUFF, on owner instruction (Section 4). The
-      // customer-facing label is "Extras"; the ROUTE/URL stays /perks/ (the file src/pages/perks.tsx
-      // is unchanged and the URL is deliberately not renamed to /extras/, so the live URL, the
+      // EXTRAS SITS IMMEDIATELY ABOVE LEGAL STUFF, on owner instruction (Section 4). The GROUP
+      // HEADING is the category ("Extras"); the ROW is the page's own name, "Perks".
+      // THE ROW READ "Extras" UNDER A HEADING THAT ALSO READ "Extras" — the word printed twice,
+      // one directly beneath the other, which the owner reported as looking broken (2026-10-02).
+      // An earlier instruction had renamed the page Perks -> Extras; the owner has reversed that,
+      // so the page's customer-facing name is "Perks" again and the row says "Perks".
+      // The ROUTE/URL stays /perks/ (src/pages/perks.tsx keeps its filename, so the live URL, the
       // sitemap PUBLIC_EXACT, config/public-pages.json, PUBLIC_PAGE_META and the gift-card CTAs in
-      // the WhatsApp/AI/SEO handlers that point at https://wecare.digital/perks/ all keep resolving).
+      // the WhatsApp/AI/SEO handlers that point at https://wecare.digital/perks/ all keep resolving
+      // — and the route already matches the name "Perks", so there is nothing to rename there).
       // The group once carried three ANCHOR rows into /perks (Gift Cards -> #gift-cards, Rewards ->
       // #rewards, Offers -> #offers). The owner then asked to REMOVE those gift-card / offers /
       // rewards sections from the page, so those anchors no longer exist. Rather than leave nav
@@ -255,7 +266,7 @@ const COLUMNS: NavColumn[] = [
       {
         heading: 'Extras',
         links: [
-          { label: 'Extras', href: '/perks/', match: '/perks' },
+          { label: 'Perks', href: '/perks/', match: '/perks' },
         ],
       },
       {

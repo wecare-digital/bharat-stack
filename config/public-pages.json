@@ -110,9 +110,9 @@
       "description": "Check the status of an order, delivery, request or booking."
     },
     {
-      "path": "/zip",
+      "path": "/shipments",
       "group": "start",
-      "name": "Zip",
+      "name": "Shipments",
       "description": "Everything about your request, delivery or pickup in one place: track an order, amend a request, send documents, open your vault or leave a review."
     },
     {
@@ -220,7 +220,7 @@
     {
       "path": "/perks",
       "group": "perks",
-      "name": "Extras",
+      "name": "Perks",
       "description": "A little extra for the people we look after. An honest, uncluttered place for the small thank-yous we send your way, and nothing here asks for payment."
     },
     {

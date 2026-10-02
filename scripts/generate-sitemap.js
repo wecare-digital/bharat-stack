@@ -81,7 +81,7 @@ const PUBLIC_EXACT = new Set( [
   // here without that entry would put blank pages in front of a crawler. /perks is also the
   // repaired destination for the gift-card links.
   '/perks',
-  '/zip',
+  '/shipments',
 ] );
 // '/blog/page/' is pages 2..N of the paginated blog index. It has to be a prefix rather than
 // exact entries because the count moves with the corpus - 834 posts at 24 a page is 35 pages
