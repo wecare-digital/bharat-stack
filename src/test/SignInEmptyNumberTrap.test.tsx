@@ -69,10 +69,24 @@ describe( 'the number field cannot be mistaken for a filled field', () => {
     expect( placeholder ).not.toMatch( /^[6-9]\d{9}$/ );
   } );
 
-  it( 'keeps the required constraint rather than trading it for a message', () => {
-    // The inline error below is ADDED to the native behaviour, not substituted for it.
-    // Removing `required` would also remove the "required" a screen reader announces.
-    expect( renderSignIn().required ).toBe( true );
+  it( 'announces required via ARIA, without the browser drawing its own bubble', () => {
+    /*
+     * INVERTED ON PURPOSE, AND THE SEMANTIC IS NOT TRADED AWAY.
+     *
+     * This asserted `required === true`, on the sound reasoning that removing the attribute also
+     * removes the "required" a screen reader announces from it - a real semantic bought for a
+     * message. The owner then reported the attribute's OTHER consequence as the defect: the
+     * browser's own unthemeable "Please fill out this field." bubble with an orange warning icon,
+     * photographed on the live sign-in page, against this site's standing no-red rule.
+     *
+     * aria-required="true" resolves it rather than choosing: it is the ARIA equivalent of the
+     * native attribute, so assistive technology still announces the field as required, while the
+     * browser's constraint validation - the part that draws the bubble and blocks submit - is not
+     * engaged. Both halves are kept.
+     */
+    const field = renderSignIn();
+    expect( field.required ).toBe( false );
+    expect( field.getAttribute( 'aria-required' ) ).toBe( 'true' );
   } );
 } );
 

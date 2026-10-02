@@ -456,21 +456,32 @@ export default function CustomerSignIn (): React.ReactElement {
                 disabled={ busy }
                 invalid={ !!error }
                 describedBy={ error ? 'si-hint si-error' : 'si-hint' }
+/* NO placeholder OVERRIDE. PhoneField derives it from the selected country's own
+                   length rule - "10-digit WhatsApp number" on +91, "8- or 9-digit WhatsApp
+                   number" on +971 - the owner's requested resting-state wording, derived from the
+                   same table the validation reads so it cannot contradict what the field accepts.
+                   This also closes the root cause upstream identified for the reported failure:
+                   the old hardcoded "9876543210" is a structurally valid Indian mobile number, so
+                   in placeholder grey it read as a value ALREADY IN THE FIELD - the shopper
+                   submitted, the then-present `required` refused an empty input, and the browser
+                   objected about a field that visibly contained a number. A worded hint cannot be
+                   mistaken for a value. */
                 /*
-                 * THE NATIVE REFUSAL IS MIRRORED INTO THIS PAGE'S OWN ERROR REGION.
+                 * onInvalid IS KEPT FROM UPSTREAM, THOUGH `required` IS NOW GONE.
                  *
-                 * `required` on the number segment makes the browser block submit and show
-                 * its own bubble, so startPhone never runs - which means composeE164's
-                 * empty-number branch, and the BAD_NUMBER message it throws, were
-                 * UNREACHABLE. The page had an approved message for this exact state and no
-                 * way to ever show it; all a shopper got was a transient tooltip, with
-                 * aria-invalid unset and nothing left on screen once it dismissed.
+                 * Upstream added this to mirror the browser's native refusal into this page's own
+                 * error region, because `required` blocked submit so startPhone never ran and
+                 * composeE164's empty-number branch - and the approved BAD_NUMBER message - were
+                 * UNREACHABLE. Correct diagnosis. The resolution differs only because the owner
+                 * reported the native bubble ITSELF as the defect (unthemeable, untranslatable,
+                 * and against the standing no-red rule), so `required` was removed instead.
                  *
-                 * BAD_NUMBER is not a new string and not a new decision: it is already what
-                 * composeE164 raises for an empty value, so this makes the page's existing
-                 * answer reachable rather than inventing one. `required` is KEPT - removing
-                 * it to reach onSubmit would trade a real HTML constraint (and the "required"
-                 * a screen reader announces from it) for a message, when both fit.
+                 * With no constraint the browser no longer blocks submit: startPhone runs,
+                 * composeE164 rejects the empty value, and BAD_NUMBER lands in the in-page error
+                 * region - the same destination upstream was routing to, reached without the
+                 * bubble. This handler therefore never fires today and is retained deliberately:
+                 * it costs nothing, and it is the correct wiring the moment any constraint
+                 * attribute is added back.
                  */
                 onInvalid={ () => setError( MSG.BAD_NUMBER ) }
               />

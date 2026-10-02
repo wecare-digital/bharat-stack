@@ -143,7 +143,7 @@ describe( 'the accessible name contains the visible text, at every call site', (
       // @ts-expect-error - the prop is deliberately gone from the public API.
       <PillButton label="Checkout" action="Proceed" ariaLabel="Proceed to checkout" />,
     );
-    expect( screen.getByRole( 'button', { name: 'Checkout Proceed' } ) ).toBeTruthy();
+    expect( screen.getByRole( 'button', { name: 'Proceed' } ) ).toBeTruthy();
     expect( screen.queryByRole( 'button', { name: 'Proceed to checkout' } ) ).toBeNull();
   } );
 
@@ -155,6 +155,6 @@ describe( 'the accessible name contains the visible text, at every call site', (
     );
     const control = container.querySelector( '.pill' ) as HTMLElement;
     expect( control.getAttribute( 'aria-describedby' ) ).toBe( 'si-error' );
-    expect( screen.getByRole( 'button', { name: 'Sign in Send code' } ) ).toBeTruthy();
+    expect( screen.getByRole( 'button', { name: 'Send code' } ) ).toBeTruthy();
   } );
 } );

@@ -51,13 +51,13 @@ afterEach( () => {
  */
 async function enterPhone ( value = '+919876543210' ): Promise<void> {
   fireEvent.change( screen.getByLabelText( 'WhatsApp number' ), { target: { value } } );
-  fireEvent.click( screen.getByRole( 'button', { name: 'Sign in Send code' } ) );
+  fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
 }
 
 /** Type a code and click "Confirm code". */
 async function enterCode ( value: string ): Promise<void> {
   fireEvent.change( await screen.findByLabelText( 'WhatsApp code' ), { target: { value } } );
-  fireEvent.click( screen.getByRole( 'button', { name: 'Sign in Confirm code' } ) );
+  fireEvent.click( screen.getByRole( 'button', { name: 'Confirm code' } ) );
 }
 
 describe( 'the registered happy path', () => {

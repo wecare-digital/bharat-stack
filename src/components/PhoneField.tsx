@@ -1,5 +1,5 @@
 import React from 'react';
-import { DIAL_CODES } from '../lib/dialCodes';
+import { DIAL_CODES, nationalLengthHint } from '../lib/dialCodes';
 
 /**
  * ONE FIELD, DIVIDED: a country-code segment and a number segment inside a single rounded outline.
@@ -89,16 +89,28 @@ export interface PhoneFieldProps {
   describedBy?: string;
   placeholder?: string;
   /**
-   * Fires when the browser's own constraint validation refuses the number segment -
-   * which, since `required` is the only constraint here, means it was empty at submit.
+   * The number has been verified server-side (OTP answered). Draws the lime accent and a check.
    *
-   * WHY THE CONSUMER NEEDS THIS AT ALL. `required` makes the browser block submit and
-   * show its native bubble, so the consumer's onSubmit never runs and the consumer's own
-   * error state is never set. The result is a failure announced ONLY by a transient
-   * native tooltip: no aria-invalid, no aria-describedby, nothing left on screen once the
-   * bubble dismisses. This hook lets the consumer mirror the refusal into its own error
-   * region without removing `required` - so the native affordance is kept and the
-   * programmatic association is added, rather than one being traded for the other.
+   * COLOUR IS NOT THE ONLY SIGNAL. The tick glyph and the aria-live status text carry the meaning
+   * too, so the state survives forced-colors, a colour-blind reader and a screen reader - the lime
+   * is confirmation for people who can see it, not the message itself.
+   */
+  verified?: boolean;
+  /**
+   * Fires when the browser's own constraint validation refuses the number segment.
+   *
+   * KEPT FROM THE UPSTREAM FIX, THOUGH `required` IS NOW GONE - see the note on the input below.
+   * Upstream added this hook so a consumer could mirror a native refusal into its own error
+   * region, on the reasoning that the native affordance should be kept AND the programmatic
+   * association added, rather than one traded for the other. That reasoning is sound in general;
+   * it lost here only because the owner reported the native bubble itself as the defect (it is
+   * unthemeable and contradicts the standing no-red instruction), so the trade had to go the
+   * other way.
+   *
+   * The prop stays rather than being deleted: it is the correct escape hatch if any constraint
+   * attribute is ever added back (pattern, minLength, type=email on a sibling), it keeps the
+   * existing consumer wiring compiling, and it costs nothing while unused. With no constraints on
+   * the input it simply never fires, and emptiness is caught by the consumer's submit path.
    */
   onInvalid?: ( event: React.FormEvent<HTMLInputElement> ) => void;
 }
@@ -125,9 +137,9 @@ export const NUMBER_FORMAT_HINT = '00000 00000';
 
 const PhoneField: React.FC<PhoneFieldProps> = ( {
   id, dialCode, onDialCodeChange, number, onNumberChange,
-  disabled, invalid, describedBy, placeholder, onInvalid,
+  disabled, invalid, describedBy, placeholder, verified, onInvalid,
 } ) => (
-  <div className="pf">
+  <div className={ `pf${ verified ? ' pf-verified' : '' }` }>
     {/*
       * aria-label, and the cost is stated rather than hidden: attribute text is not translated by
       * SupportWidget's walker, which rewrites text nodes only. The alternative was a visually
@@ -143,9 +155,17 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
       aria-invalid={ invalid ? 'true' : undefined }
     >
       { DIAL_CODES.map( entry => (
-        // The code is the value AND the start of the label, so the closed select shows "+91" while
-        // the open list shows which country that is. data-wc-no-translate on the code would be
-        // wrong here - the country name SHOULD translate - so only the name is free text.
+        // CODE THEN NAME. The code is the value AND the start of the label, so the closed select
+        // shows "+91" while the open list says which country that code belongs to.
+        //
+        // NO FLAG, on owner instruction (2026-10-02). An emoji flag was briefly carried here and
+        // removed. That also disposes of a rendering defect rather than only a preference: Windows
+        // ships no flag glyphs, so Chrome and Edge there rendered each regional-indicator pair as
+        // two bare letters ("IN") instead of a flag. The code and the name carry everything the
+        // flag did. Do not reintroduce emoji flags - see the note in src/lib/dialCodes.ts.
+        //
+        // data-wc-no-translate on the code would be wrong here - the country NAME should
+        // translate - so only the name is free text.
         <option key={ entry.code } value={ entry.code }>
           { entry.code } { entry.country }
         </option>
@@ -163,15 +183,79 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
        * a field that already has one beside it.
        */
       autoComplete="tel-national"
-      placeholder={ placeholder === undefined ? NUMBER_FORMAT_HINT : placeholder }
-      required
+      /*
+       * THE PLACEHOLDER NAMES THE EXPECTED LENGTH, from the selected country's own rule:
+       * "10-digit WhatsApp number" for India, "8- or 9-digit WhatsApp number" for the UAE. It is
+       * the owner's requested resting-state wording, and because it is derived from the same table
+       * the validation reads it can never contradict what the field accepts. A caller may override.
+       *
+       * THIS ALSO SATISFIES THE UPSTREAM FINDING, which was the better diagnosis of the reported
+       * bug and is worth keeping on the record. Upstream replaced the old `9876543210` with a
+       * grouped-zeros FORMAT MASK, on the reasoning that ten digits beginning with 9 is a
+       * structurally valid Indian mobile number, so in placeholder grey beside a segment reading
+       * "+91 India" it reads as a number ALREADY IN THE FIELD - the shopper submits, the `required`
+       * constraint refuses an empty input, and the browser objects about a field that visibly
+       * contains a number. That is the shape of the failure the owner photographed.
+       * A WORDED hint cannot be mistaken for a value either, so the root cause is closed the same
+       * way; the wording is kept because the owner specified it explicitly and because it states
+       * the expected LENGTH, which a mask only implies. The mask's language-neutrality is the one
+       * thing given up, and the string is translatable by the site's walker, which offsets it.
+       */
+      placeholder={ placeholder
+        ?? `${ nationalLengthHint( dialCode ) } WhatsApp number`.trim() }
+      /*
+       * `required` IS DELIBERATELY ABSENT, and removing it was a fix - this is the one place this
+       * merge deliberately overrides the upstream decision rather than combining with it.
+       *
+       * Upstream kept `required` and added the onInvalid hook above so a consumer could mirror the
+       * native refusal into its own error region, keeping the native affordance AND adding the
+       * programmatic association. Sound in the general case. It loses here because the owner
+       * reported the native bubble ITSELF as the defect: "Please fill out this field." with an
+       * orange warning icon, photographed on the live sign-in page. That bubble cannot be themed,
+       * cannot be translated by this site's text walker, and contradicts the standing no-red
+       * instruction that stripped #fee2e2/#ef4444/#7f1d1d from these very surfaces.
+       *
+       * Nothing is lost by removing it. With no constraint the browser no longer blocks submit, so
+       * the consumer's own onSubmit runs, composeE164() rejects an empty number, and the message
+       * lands in the in-page error treatment (lime state tint, role=alert) wired to this input by
+       * aria-invalid + aria-describedby - themed, translatable, announced once, and still on
+       * screen after a native bubble would have dismissed itself.
+       */
+      onInvalid={ onInvalid }
+      /*
+       * aria-required, NOT `required` - this is how upstream's concern is met rather than traded.
+       *
+       * Upstream's objection to dropping `required` was specific and fair: removing the attribute
+       * also removes the "required" a screen reader announces from it, so a message would have
+       * been bought at the cost of a real semantic. aria-required="true" restores exactly that
+       * announcement - it is the ARIA equivalent of the native attribute - WITHOUT engaging the
+       * browser's constraint validation, which is the part that renders the unthemeable orange
+       * bubble the owner reported. Assistive technology hears "required" either way; the browser
+       * no longer blocks submit or draws its own UI.
+       *
+       * So neither half is given up: the semantic comes from ARIA, and the message comes from the
+       * page's own error region via onSubmit, aria-invalid and aria-describedby.
+       */
+      aria-required="true"
       value={ number }
       onChange={ e => onNumberChange( e.target.value ) }
-      onInvalid={ onInvalid }
       disabled={ disabled }
       aria-invalid={ invalid ? 'true' : undefined }
       aria-describedby={ describedBy }
     />
+
+    {/*
+      * THE VERIFIED MARK, inside the field on the trailing edge - the owner's "small check/icon +
+      * lime accent rather than changing the whole field into a button".
+      * aria-hidden on the glyph plus a role=status sibling: the tick is decoration, the status text
+      * is what a screen reader announces, and it announces once rather than on every keystroke.
+      */}
+    { verified && (
+      <span className="pf-tick">
+        <span aria-hidden="true">✓</span>
+        <span className="pf-tick-sr" role="status">Number verified</span>
+      </span>
+    ) }
 
     <style jsx>{`
       /* THE ONE FIELD. The outline, the radius and the height live here, on the container, and the
@@ -247,6 +331,44 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
       .pf-code:focus-visible,
       .pf-num:focus-visible{
         outline:3px solid #1a3a2a;outline-offset:-3px;
+      }
+
+      /* THE LIME ACCENT, AND WHY LIME IS NOT THE RING ITSELF.
+         
+         The owner asked for #d1f470 as the focus/selected/verified accent. It cannot be the focus
+         INDICATOR: #d1f470 against this white field is 1.24:1, nowhere near the 3:1 WCAG 2.4.11
+         requires of a focus indicator, so a lime ring would be a focus state a low-vision keyboard
+         user cannot find. Measured, not assumed - #1a3a2a is 12.48:1 on white, which is why it
+         stays the ring on both segments above.
+         
+         So the lime is layered AROUND the dark ring instead: the container takes a #1a3a2a border
+         and a soft lime halo on focus-within. The accessible indicator and the brand accent are
+         then two different things doing two different jobs, and neither is weakened. A box-shadow
+         is used rather than a second outline because an element gets only one outline, and shadow
+         does not affect layout so the 52px height is untouched. */
+      .pf:focus-within{
+        border-color:#1a3a2a;
+        box-shadow:0 0 0 3px rgba(209,244,112,.55);
+      }
+
+      /* VERIFIED. The same lime accent, held permanently, plus the tick. The border goes dark green
+         because "verified" is an important state and dark green is this site's weight for that;
+         the lime says which KIND of important. */
+      .pf-verified{
+        border-color:#1a3a2a;
+        box-shadow:0 0 0 3px rgba(209,244,112,.55);
+      }
+      .pf-tick{
+        display:inline-flex;align-items:center;flex:0 0 auto;
+        padding-inline-end:14px;
+        color:#1a3a2a;font-size:17px;font-weight:700;line-height:1;
+      }
+      /* The announced half of the verified state. Positioned out of view rather than
+         display:none - a display:none node is not announced at all, which would leave the tick as
+         the only signal and make colour/glyph the whole message. */
+      .pf-tick-sr{
+        position:absolute;width:1px;height:1px;margin:-1px;padding:0;
+        overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;
       }
 
       /* Disabled is a tint on the whole field, not on one segment, because both go at once. */

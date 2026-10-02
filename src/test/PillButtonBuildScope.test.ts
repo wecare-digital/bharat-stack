@@ -105,7 +105,7 @@ describe( 'the built pill markup carries the scope hash its CSS requires', () =>
       .toEqual( [] );
   } );
 
-  run( 'scopes BOTH segments of the two-segment sign-in pill specifically', () => {
+  run( 'scopes the sign-in pill label specifically, not just the outer control', () => {
     const html = readFileSync( PAGE, 'utf8' );
     // The phone phase ships in the static HTML, so "Send code" is the observable action.
     expect( html ).toContain( 'Send code' );
@@ -113,7 +113,11 @@ describe( 'the built pill markup carries the scope hash its CSS requires', () =>
     // Narrowed to the two segment classes, so this still fails if only the OUTER control is
     // scoped - which is exactly how the defect presented: the <button> carried the hash and
     // kept its shape and dark fill, while neither segment got its background or colour.
-    for ( const segment of [ 'pill-label', 'pill-action' ] as const ) {
+    // ONE SEGMENT NOW. The owner retired the two-tone pill on 2026-10-02, so there is a single
+    // lime surface with one .pill-action label; .pill-label is no longer rendered. The guard is
+    // unchanged in substance - it still fails if only the OUTER control carries the hash, which is
+    // exactly how the original defect presented.
+    for ( const segment of [ 'pill-action' ] as const ) {
       const attrs = [ ...html.matchAll( /class="([^"]*)"/g ) ]
         .map( m => m[ 1 ] )
         .filter( value => value.split( /\s+/ ).includes( segment ) );

@@ -100,9 +100,9 @@ describe('the sign-in error states use no red validation colour', () => {
     render(<SignIn />);
     fireEvent.change(screen.getByLabelText('WhatsApp number'),
       { target: { value: '+919876543210' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
     fireEvent.change(await screen.findByLabelText('WhatsApp code'), { target: { value: '000000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in Confirm code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm code' }));
 
     const alert = await screen.findByRole('alert');
     // The rendered string is one of the approved seven, verbatim.
@@ -124,7 +124,7 @@ describe('the sign-in error states use no red validation colour', () => {
     render(<SignIn />);
     fireEvent.change(screen.getByLabelText('WhatsApp number'),
       { target: { value: '+919876543210' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
 
     const alert = await screen.findByRole('alert');
     await waitFor(() => expect(alert.textContent).toBe(signInMessages.RATE_LIMITED));
@@ -215,9 +215,9 @@ describe('a refused session exchange must not destroy a successful sign-in', () 
     render(<SignIn />);
     fireEvent.change(screen.getByLabelText('WhatsApp number'),
       { target: { value: '+919876543210' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
     fireEvent.change(await screen.findByLabelText('WhatsApp code'), { target: { value: '123456' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in Confirm code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm code' }));
   }
 
   it('signs in and shows no error when the exchange is refused (401)', async () => {
@@ -271,30 +271,35 @@ describe('a refused session exchange must not destroy a successful sign-in', () 
    * where the defect is observable, and the one layer the upstream source-level guards do not
    * cover.
    */
-  it('names the confirm button by its full visible text, label included', async () => {
+  it('names the confirm button by its visible text, which is the action alone', async () => {
     stubNetwork(401);
     render(<SignIn />);
     fireEvent.change(screen.getByLabelText('WhatsApp number'),
       { target: { value: '+919876543210' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
     await screen.findByLabelText('WhatsApp code');
 
-    const confirm = screen.getByRole('button', { name: 'Sign in Confirm code' });
+    const confirm = screen.getByRole('button', { name: 'Confirm code' });
     // No aria-label: the name is the visible text, so it cannot disagree with the screen.
     expect(confirm.hasAttribute('aria-label')).toBe(false);
-    // Both segments are visible AND exposed to AT - neither is aria-hidden any more.
-    const label = confirm.querySelector('.pill-label');
-    expect(label?.textContent).toBe('Sign in');
-    expect(label?.hasAttribute('aria-hidden')).toBe(false);
+    /*
+     * ONE SEGMENT NOW. The owner retired the two-tone pill on 2026-10-02, so the dark "Sign in"
+     * half is no longer rendered and the lime surface carries the action alone. The 2.5.3 property
+     * this case exists to protect is STRONGER as a result, not weaker: with a single visible
+     * string the accessible name and the screen text are the same string and cannot disagree, so
+     * there is no visible label left outside the name. The no-aria-label and no-aria-hidden
+     * assertions are kept exactly as upstream wrote them.
+     */
+    expect(confirm.querySelector('.pill-label')).toBeNull();
     const action = confirm.querySelector('.pill-action');
     expect(action?.textContent).toBe('Confirm code');
     expect(action?.hasAttribute('aria-hidden')).toBe(false);
   });
 
-  it('names the send button by its full visible text too', () => {
+  it('names the send button by its visible text too', () => {
     stubNetwork(401);
     render(<SignIn />);
-    const send = screen.getByRole('button', { name: 'Sign in Send code' });
+    const send = screen.getByRole('button', { name: 'Send code' });
     expect(send.hasAttribute('aria-label')).toBe(false);
     expect(send.querySelector('.pill-action')?.textContent).toBe('Send code');
   });

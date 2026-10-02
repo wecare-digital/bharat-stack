@@ -44,19 +44,28 @@ import React from 'react';
  * `src/test/PillButtonAccessibleName.test.tsx` asserts the property (name contains visible text)
  * across every call site's prop shape, rather than pinning today's five strings.
  *
+ * ONE LIME SURFACE, NOT TWO TONES — CHANGED 2026-10-02 ON OWNER INSTRUCTION.
+ * This was a two-segment pill: a dark #1a3a2a label half and a mint #5fe3b0 action half split by a
+ * 2px rule. The owner called it "old multi colour out of date" and supplied the replacement
+ * directly: a single lime pill (their reference image reads "Contribute"). The two-tone treatment
+ * is retired here and was separately rejected as a model for the phone field.
+ *
  * THE PALETTE IS THE SITE'S, AND THE CONTRAST IS MEASURED, NOT ASSUMED.
- *   - LEFT segment  #1a3a2a (the site's primary dark/indicator green, used for every focus ring,
- *     border and dark surface on the site) with #ffffff text => 12.48:1, passes AAA.
- *   - RIGHT segment #5fe3b0 (a lighter tint in the brand's green/teal direction, matching the
- *     reference image's mint) with #1a3a2a text => 7.79:1, passes AAA. The site's base green
- *     #3da35a was measured first and gives only 3.91:1 against #1a3a2a text - it FAILS the 4.5:1
- *     body-text rule - so the lighter #5fe3b0 is used for the text-bearing segment. #3da35a is
- *     kept as the pressed/hover shade of the mint, where no small text sits on it.
- *   - THE EDGE. #5fe3b0 against the white page is only 1.6:1, well under WCAG 1.4.11's 3:1 for a
- *     component boundary, so the mint cannot be the thing that separates the button from the page.
- *     The whole pill therefore carries a 2px #1a3a2a border (12.48:1 against white), which is what
+ *   - SURFACE #d1f470 with #1a3a2a text => 10.04:1, passes AAA. This is the home page's own lime:
+ *     src/pages/index.tsx uses #d1f470 eight times and #5fe3b0 zero times, and a repo-wide grep
+ *     for #5fe3b0 found it ONLY in this component and its test - an orphan colour present nowhere
+ *     else on the site, which is what made this button look foreign on its own pages.
+ *     Lime also beats the mint it replaced on contrast (10.04:1 vs 7.79:1), so nothing was traded
+ *     away to get the brand right.
+ *   - HOVER inverts to #ffffff, giving #1a3a2a text 12.48:1. The OLD hover deepened the mint to
+ *     the site's base green #3da35a while keeping #1a3a2a text: 3.91:1, which FAILS the 4.5:1
+ *     requirement. The old note excused it as "no small text relies on that shade" - incorrect,
+ *     because this label is 17px bold and WCAG's large-text exemption starts at 18.66px bold.
+ *     That defect is fixed by the inversion, which is also the house pattern (.ship-close-cta).
+ *   - THE EDGE. #d1f470 against a white page is only 1.24:1, far under WCAG 1.4.11's 3:1 for a
+ *     component boundary, so the lime cannot be the thing that separates the button from the page.
+ *     The pill therefore carries a 2px #1a3a2a border (12.48:1 against white), which is what
  *     clears 1.4.11 - exactly how the home CTA (.home-close-cta) and PhoneField draw their edge.
- *     The internal divider between the two segments is the same #1a3a2a hairline.
  *
  * THE RADIUS IS SCOPED SO THE GLOBAL 13px CANNOT FLATTEN IT. src/styles/button.css puts a global
  * 13px radius on .btn controls; this component uses its own class names (never .btn) and sets
@@ -73,9 +82,30 @@ import React from 'react';
  */
 
 export interface PillButtonProps {
-  /** The static LEFT-segment label, e.g. "Sign in". White text on the dark-green segment. */
-  label: string;
-  /** The RIGHT-segment ACTION text, e.g. "Send code". Dark-green text on the mint segment. */
+  /** Formerly the dark LEFT-segment's text, e.g. "Sign in". No longer rendered - see below. */
+  /**
+   * NO LONGER RENDERED, and kept only so the existing call sites keep compiling.
+   *
+   * This was the dark left segment's text ("Sign in", "Collect", "Pay"). The pill is now a single
+   * lime surface showing the ACTION alone - which was already the control's accessible name, so
+   * what is read aloud and what is on screen are now the same string instead of two.
+   * It is deliberately NOT rendered as visually-hidden text: this repo has explicitly rejected
+   * hidden text for naming elsewhere (see the note in PhoneField about the country select), and
+   * the surrounding page already supplies the context the label used to carry - /account/sign-in
+   * is headed "Sign in to check out", and /get is headed "Collect your files".
+   * Optional so new call sites need not pass it. There is NO name-override prop to reach for
+   * either: `ariaLabel` was removed upstream so a caller cannot reopen the 2.5.3 failure by
+   * setting a name that disagrees with the screen. If the visible action does not read as the
+   * whole action, change the ACTION TEXT - what is on screen is what is announced.
+   */
+  label?: string;
+  /** The visible ACTION text, e.g. "Send code" - the pill's only label now that it is a single
+   *  lime surface. By default this is also the control's accessible name, so it must read as the
+   *  whole action on its own; there is no override prop, by design.
+   *  THIS SATISFIES THE UPSTREAM WCAG 2.5.3 FIX (2b581d8b) BY CONSTRUCTION: that commit removed
+   *  aria-hidden from the two segments so the accessible name would match the visible two-word
+   *  text. With one segment there is one string, so visible text and accessible name are the same
+   *  by definition and there is no longer a mismatch to fix. */
   action: string;
   /** Render a <button> (default) or an <a>. */
   as?: 'button' | 'a';
@@ -135,7 +165,6 @@ const PillButton: React.FC<PillButtonProps> = ( {
           onClick={ onClick }
           aria-describedby={ describedBy }
         >
-          <span className="pill-label">{ label }</span>
           <span className="pill-action">{ action }</span>
         </a>
       ) : (
@@ -147,58 +176,63 @@ const PillButton: React.FC<PillButtonProps> = ( {
           aria-busy={ busy ? 'true' : undefined }
           aria-describedby={ describedBy }
         >
-          <span className="pill-label">{ label }</span>
           <span className="pill-action">{ action }</span>
         </button>
       ) }
 
       <style jsx>{`
-        /* THE PILL. One flex container, a 2px #1a3a2a edge (12.48:1 vs white, clears WCAG 1.4.11),
-           and a FULL pill radius set here so the global 13px in button.css cannot flatten it.
-           overflow:hidden so neither segment's background squares off the rounded ends. Height 52px
-           is the site's CTA height, matching PhoneField and .si-cta/.cart-cta. padding:0 keeps the
-           segments butted; each segment carries its own inline padding. */
+        /* THE PILL — ONE LIME SURFACE, not two tones.
+           
+           REWRITTEN ON OWNER INSTRUCTION (2026-10-02): "i see still old multi colour out of date
+           button". The control was a two-segment pill - a dark #1a3a2a label half and a mint
+           #5fe3b0 action half divided by a 2px rule. The owner supplied the replacement reference
+           directly (a single lime pill reading "Contribute") and rejected the two-tone treatment,
+           both for buttons and, separately, as a model for the phone field.
+           
+           WHY LIME AND NOT MINT, measured rather than preferred: src/pages/index.tsx (the home
+           page) uses #d1f470 eight times and #5fe3b0 zero times, and a repo-wide grep for #5fe3b0
+           returned only this component and its test - an orphan colour that appeared nowhere else
+           on the site. Contrast favours lime too: #d1f470 with #1a3a2a type computes 10.04:1
+           against mint's 7.79:1. So there was no accessibility argument for keeping mint either.
+           
+           The 2px #1a3a2a edge stays (12.48:1 vs white, clears WCAG 1.4.11 for a control
+           boundary), the full 999px radius stays so the global 13px in src/styles/button.css
+           cannot flatten it, and 52px stays as the site's CTA height, matching PhoneField and
+           .si-input. */
         .pill{
-          display:inline-flex;align-items:stretch;isolation:isolate;
+          display:inline-flex;align-items:center;justify-content:center;isolation:isolate;
           min-height:52px;box-sizing:border-box;
-          border:2px solid #1a3a2a;border-radius:999px;background:#1a3a2a;
-          padding:0;overflow:hidden;cursor:pointer;
+          border:2px solid #1a3a2a;border-radius:999px;background:#d1f470;
+          padding:0 28px;cursor:pointer;
           font-family:inherit;text-decoration:none;
-          transition:transform .2s,box-shadow .2s;
+          transition:background-color .2s,transform .2s,box-shadow .2s;
         }
         .pill-block{display:flex;width:100%}
 
-        /* LEFT segment: the dark-green half, white type. flex:0 0 auto so it is content-sized and
-           the mint half takes the rest - the action is the thing that should flex, not the label.
-           Logical start corners rounded to match the pill, end corners square against the divider,
-           so it mirrors on its own in RTL. */
-        .pill-label{
-          display:inline-flex;align-items:center;justify-content:center;
-          flex:0 0 auto;padding:0 22px;
-          background:#1a3a2a;color:#fff;font-size:17px;font-weight:600;line-height:1;
-          border-start-start-radius:999px;border-end-start-radius:999px;
-          white-space:nowrap;
-        }
-
-        /* RIGHT segment: the mint half, dark-green type (7.79:1 on #5fe3b0). The #1a3a2a divider is
-           an inline-start border, one declaration that mirrors in RTL. flex:1 1 auto with
-           min-inline-size:0 so a long action wraps/flexes rather than overflowing on mobile. */
+        /* THE ONE LABEL. The pill now shows the ACTION only - the text that already was the
+           control's accessible name - so what is read aloud and what is on screen are the same
+           string. The former label half ("Sign in", "Collect", "Pay") is no longer rendered;
+           see the note on the prop for why it is still accepted.
+           17px/700 #1a3a2a on #d1f470 = 10.04:1, comfortably past the 4.5:1 this size needs.
+           NO BACKTICKS IN THIS BLOCK: it is a styled-jsx template literal, so a backtick here
+           terminates the CSS string early. src/test/StyledJsxBackticks.test.tsx guards it. */
         .pill-action{
           display:inline-flex;align-items:center;justify-content:center;
-          flex:1 1 auto;min-inline-size:0;padding:0 24px;
-          background:#5fe3b0;color:#1a3a2a;font-size:17px;font-weight:700;line-height:1.2;
-          border-inline-start:2px solid #1a3a2a;
-          border-start-end-radius:999px;border-end-end-radius:999px;
+          min-inline-size:0;
+          color:#1a3a2a;font-size:17px;font-weight:700;line-height:1.2;
           text-align:center;
         }
 
-        /* HOVER/PRESS, the home CTA's single allowed lift and shadow. The mint deepens to the
-           site's base green #3da35a on hover - no small text relies on that shade, so its 3.91:1
-           with the dark type is not a contrast failure, it is a pressed-state tint. */
+        /* HOVER/PRESS: the house inversion - lime to white - plus the single allowed lift and
+           shadow, exactly as .ship-close-cta and the home CTA do it.
+           THE OLD HOVER WAS AN ACCESSIBILITY DEFECT AND IS GONE. It deepened the action half to
+           the site's base green #3da35a while keeping #1a3a2a type, which computes 3.91:1 and
+           FAILS the 4.5:1 requirement. The old comment excused it as "no small text relies on that
+           shade" - wrong, because the label is 17px bold and WCAG's large-text exemption only
+           begins at 18.66px bold (or 24px regular). White gives #1a3a2a type 12.48:1 instead. */
         .pill:hover:not([disabled]):not([aria-disabled='true']){
-          transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.18);
+          background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.18);
         }
-        .pill:hover:not([disabled]):not([aria-disabled='true']) .pill-action{background:#3da35a}
         .pill:active:not([disabled]):not([aria-disabled='true']){transform:translateY(0)}
 
         /* FOCUS. The site's #1a3a2a indicator at 3px, offset OUTSIDE the pill so the ring reads as
@@ -212,11 +246,10 @@ const PillButton: React.FC<PillButtonProps> = ( {
         .pill[aria-busy='true']{cursor:progress}
 
         /* NARROW VIEWPORTS. Tighten padding rather than shrink the 52px target; the action segment
-           absorbs the remaining width so neither segment overflows at 320px. */
+           absorbs the remaining width so the label does not overflow at 320px. */
         @media(max-width:360px){
-          .pill-label{padding:0 14px}
-          .pill-action{padding:0 16px}
-          .pill-label,.pill-action{font-size:16px}
+          .pill{padding:0 18px}
+          .pill-action{font-size:16px}
         }
 
         /* REDUCED MOTION: no lift, no shadow transition. */
