@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import Button from '../../../components/ui/Button';
+import MCPPlayground from '../../../components/workspace/MCPPlayground';
 import { useUserRole } from '../../../hooks/useUserRole';
 import { MCPConnection, metaAuthorizationURL, workspaceMCP } from '../../../lib/workspace-mcp';
 import styles from '../../../styles/MCPConnections.module.css';
@@ -88,7 +89,7 @@ export default function MCPConnections({ user, signOut }: { user?: any; signOut?
       </header>
       {role.loading ? <p role="status">Checking your access…</p> : !admin ?
         <p className={styles.notice}>A staff Admin account is required to manage MCP connections.</p> : <>
-        <p className={styles.notice}>Connect each account separately. After sign-in in the new tab, return here and select Verify. Dashboard connections belong to your staff session; desktop MCP authorizations are separate. Meta cloud connections require a supported MCP client registration.</p>
+        <p className={styles.notice}>Connect each account separately. After sign-in in the new tab, return here and select Verify. Dashboard connections belong to your staff session; desktop MCP authorizations are separate. A registered callback alone does not verify account access.</p>
         {error && <p className={styles.notice} role="alert">{error}</p>}
         <div className={styles.toolbar}>
           <span>{selected.length} selected</span>
@@ -119,6 +120,10 @@ export default function MCPConnections({ user, signOut }: { user?: any; signOut?
           })}
         </div>
         {!connections.length && !busy && <p>No connections loaded. Use Refresh to retry.</p>}
+        <MCPPlayground connections={connections} names={names} onVerified={(provider, status) => {
+          setConnections(old => old.map(item => item.provider === provider ? { ...item, status, lastVerifiedAt: Math.floor(Date.now() / 1000) } : item));
+          setChecks(old => ({ ...old, [provider]: statusNames[status] || status }));
+        }} />
         <section className={styles.activity} aria-label="Connection activity"><h2>Connection activity</h2>
           <div aria-live="polite">{activity.length ? <ul>{activity.map((entry, i) => <li key={`${i}-${entry}`}>{entry}</li>)}</ul> : <p>Your checks will appear here.</p>}</div>
         </section>

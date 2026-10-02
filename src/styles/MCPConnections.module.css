@@ -15,3 +15,8 @@
 .activity { margin-top: 24px; padding: 22px; border: 1px solid #dce4d7; border-radius: 18px; background: #fff; }
 .activity li { padding: 6px 0; overflow-wrap: anywhere; }
 .page :focus-visible { outline: 3px solid #1a3a2a; outline-offset: 4px; }
+.playgroundControls { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; margin: 20px 0; }
+.playgroundControls label { display: grid; gap: 8px; flex: 1; min-width: min(100%, 220px); font-weight: 600; }
+.playgroundControls select { width: 100%; padding: 12px; border: 1px solid #c5dfa4; border-radius: 13px; color: #1a3a2a; background: #fff; font: inherit; }
+.result { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 480px; overflow: auto; padding: 16px; border: 1px solid #dce4d7; border-radius: 13px; background: #f7faef; font-size: 13px; line-height: 1.6; }
+.activity summary { cursor: pointer; font-weight: 600; padding: 12px 0; }
