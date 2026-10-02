@@ -78,3 +78,23 @@ Therefore 324/324 assignment coverage must not be described as 324/324 final edi
 ## Verdict
 No source record was missed in the 324-source batch assignment.
 The remaining issues are state/metadata reconciliation and unfinished body-level editorial work, not source coverage loss.
+
+
+## Uploaded archive byte-level verification — c4t2(1).zip
+
+Verified directly against the user-uploaded archive on 2026-10-02.
+
+- archive SHA-256: `5c05bc217ee2e730d9a7b48f669c874fadee576865e2b1a490bdca94c58bb9a1`
+- ZIP entries: **2,121**
+- files: **2,120**
+- HTML files: **2,113**
+- duplicate HTML basenames: **0**
+- authoritative formal ledger rows: **1,952**
+- exact formal path + SHA-256 matches: **1,952 / 1,952**
+- formal files missing from ZIP: **0**
+- formal hash mismatches: **0**
+- support/non-article HTML files: **161**
+
+The one path-sensitive source `landmark/comasst1.html` is present exactly under that path and its SHA-256 matches the authoritative ledger. A basename-only comparison can incorrectly make it appear missing; path-aware comparison resolves it.
+
+The 478 exception-QA rows also verify **478 / 478** against the uploaded ZIP bytes. The 332 PASS_TO_RECONSTRUCTION subset therefore has complete source membership and hash integrity in this archive.
