@@ -102,6 +102,8 @@ STAGE = "prod"
 ROUTE_KEYS = (
     "POST /ecommerce/checkout",
     "POST /ecommerce/checkout/status",
+    "POST /ecommerce/prepare-checkout",
+    "POST /ecommerce/verify-callback",
 )
 
 #: Superseded statement ids, removed only once the per-route statements are in place.
@@ -132,6 +134,8 @@ COMMERCE_KEYS_TABLE = "stack-wecare-digital-WixOrderIds"
 COUPONS_TABLE = "stack-wecare-digital-CouponsTable"
 GIFT_CARDS_TABLE = "stack-wecare-digital-GiftCardsTable"
 WIX_API_KEY_SECRET = "wecare/wix/headless-api-key"
+RAZORPAY_API_SECRET = "wecare/razorpay/api"
+CONTACTS_TABLE = "stack-wecare-digital-ContactsTable"
 WIX_SITE_ID = "fcd82f0c-9572-49c7-acfb-88fb05042ece"
 SENDER_FUNCTION = "wecare-whatsapp-business-api"
 PAYMENT_WABA_ID = "2094615664435155"
@@ -393,6 +397,18 @@ def ensure_role(dry_run: bool) -> str:
                 "Resource": [f"arn:aws:secretsmanager:{REGION}:{acct}:secret:{WIX_API_KEY_SECRET}-*"],
             },
             {
+                "Sid": "ReadRazorpayApiKey",
+                "Effect": "Allow",
+                "Action": ["secretsmanager:GetSecretValue"],
+                "Resource": [f"arn:aws:secretsmanager:{REGION}:{acct}:secret:{RAZORPAY_API_SECRET}-*"],
+            },
+            {
+                "Sid": "ReadVerifiedCheckoutProfile",
+                "Effect": "Allow",
+                "Action": ["dynamodb:Query"],
+                "Resource": [f"arn:aws:dynamodb:{REGION}:{acct}:table/{CONTACTS_TABLE}/index/phone-index"],
+            },
+            {
                 "Sid": "PaymentAttemptAndCommerceKeys",
                 "Effect": "Allow",
                 # No DeleteItem: a checkout never deletes a payment attempt or a reservation — a
@@ -467,6 +483,8 @@ def expected_environment() -> dict:
         "PAYMENT_ATTEMPTS_TABLE": PAYMENT_ATTEMPTS_TABLE,
         "COMMERCE_KEYS_TABLE": COMMERCE_KEYS_TABLE,
         "WIX_API_KEY_SECRET": WIX_API_KEY_SECRET,
+        "RAZORPAY_SECRET_ID": RAZORPAY_API_SECRET,
+        "CONTACTS_TABLE": CONTACTS_TABLE,
         "WIX_SITE_ID": WIX_SITE_ID,
         "SENDER_FUNCTION": f"{SENDER_FUNCTION}:{LIVE_ALIAS}",
         "PAYMENT_WABA_ID": PAYMENT_WABA_ID,
