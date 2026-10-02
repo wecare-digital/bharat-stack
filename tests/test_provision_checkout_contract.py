@@ -75,10 +75,12 @@ def test_no_environment_value_looks_like_a_credential(provisioner):
 
 # ── routes and the alias-qualified invoke ─────────────────────────────────────
 
-def test_exactly_two_route_keys_and_no_proxy(provisioner):
+def test_exactly_four_route_keys_and_no_proxy(provisioner):
     assert provisioner.ROUTE_KEYS == (
         "POST /ecommerce/checkout",
         "POST /ecommerce/checkout/status",
+        "POST /ecommerce/prepare-checkout",
+        "POST /ecommerce/verify-callback",
     )
     for key in provisioner.ROUTE_KEYS:
         assert "{" not in key, f"{key} is a greedy/path-parameter route"
@@ -163,6 +165,12 @@ def test_the_source_arn_holds_no_wildcard_at_all(provisioner, monkeypatch):
         "POST /ecommerce/checkout/status":
             "arn:aws:execute-api:us-east-1:775261844268:zllr9lrg7j/prod/POST/ecommerce/"
             "checkout/status",
+        "POST /ecommerce/prepare-checkout":
+            "arn:aws:execute-api:us-east-1:775261844268:zllr9lrg7j/prod/POST/ecommerce/"
+            "prepare-checkout",
+        "POST /ecommerce/verify-callback":
+            "arn:aws:execute-api:us-east-1:775261844268:zllr9lrg7j/prod/POST/ecommerce/"
+            "verify-callback",
     }
     for key, arn in rendered.items():
         assert "*" not in arn, f"{key} -> {arn} still carries a wildcard"
@@ -178,7 +186,9 @@ def test_the_source_arn_holds_no_wildcard_at_all(provisioner, monkeypatch):
 def test_one_statement_id_per_route_and_they_are_distinct(provisioner):
     ids = [provisioner.route_statement_id(k) for k in provisioner.ROUTE_KEYS]
     assert ids == ["apigateway-invoke-post-ecommerce-checkout",
-                   "apigateway-invoke-post-ecommerce-checkout-status"]
+                   "apigateway-invoke-post-ecommerce-checkout-status",
+                   "apigateway-invoke-post-ecommerce-prepare-checkout",
+                   "apigateway-invoke-post-ecommerce-verify-callback"]
     assert len(set(ids)) == len(ids), "two routes would share one statement"
     # Lambda accepts [a-zA-Z0-9-_]+ only; a '/' or ' ' here is a ValidationException at runtime.
     for sid in ids:
@@ -228,6 +238,8 @@ def _policy(provisioner) -> dict:
     namespace = {
         "REGION": provisioner.REGION, "acct": "775261844268",
         "WIX_API_KEY_SECRET": provisioner.WIX_API_KEY_SECRET,
+        "RAZORPAY_API_SECRET": provisioner.RAZORPAY_API_SECRET,
+        "CONTACTS_TABLE": provisioner.CONTACTS_TABLE,
         "PAYMENT_ATTEMPTS_TABLE": provisioner.PAYMENT_ATTEMPTS_TABLE,
         "COMMERCE_KEYS_TABLE": provisioner.COMMERCE_KEYS_TABLE,
         "COUPONS_TABLE": provisioner.COUPONS_TABLE,
@@ -238,21 +250,26 @@ def _policy(provisioner) -> dict:
     return eval(body, {"__builtins__": {}}, namespace)  # noqa: S307 - our own source
 
 
-def test_the_role_grants_no_razorpay_credential_read(provisioner):
-    """Deliberate. `razorpay_orders` defaults to `wecare/razorpay/api`, but nothing in the
-    handler's import closure reaches it - the website Razorpay path ships in the ZIP and is not
-    wired in, pending the owner's architecture decision. This grant is the prerequisite for that
-    decision, not something to pre-emptively hand over."""
-    actions = json.dumps(_policy(provisioner))
-    assert "wecare/razorpay/api" not in actions
-    assert "razorpay" not in actions.lower()
+def test_the_role_reads_only_the_two_canonical_provider_secrets(provisioner):
+    """Website checkout now reaches razorpay_orders, so the API secret read is intentional.
 
-
-def test_the_role_names_only_the_wix_secret(provisioner):
+    The webhook signing secret is deliberately absent: checkout creates/verifies API payments,
+    while the webhook Lambda alone verifies webhook signatures.
+    """
     secrets = [r for s in _policy(provisioner)["Statement"]
                if "secretsmanager:GetSecretValue" in s["Action"] for r in s["Resource"]]
-    assert secrets == [
-        "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/wix/headless-api-key-*"]
+    assert sorted(secrets) == sorted([
+        "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/wix/headless-api-key-*",
+        "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/razorpay/api-*",
+    ])
+    assert "wecare/razorpay-webhook" not in json.dumps(_policy(provisioner))
+
+
+def test_the_environment_holds_secret_names_not_values(provisioner):
+    env = provisioner.expected_environment()
+    assert env["RAZORPAY_SECRET_ID"] == "wecare/razorpay/api"
+    assert env["WIX_API_KEY_SECRET"] == "wecare/wix/headless-api-key"
+    assert env["CONTACTS_TABLE"] == "stack-wecare-digital-ContactsTable"
 
 
 def test_the_role_cannot_delete_a_payment_attempt(provisioner):
@@ -290,8 +307,8 @@ def test_the_role_cannot_delete_a_payment_attempt(provisioner):
     assert actions >= {"dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"}
 
 
-def test_the_role_names_only_the_four_known_tables(provisioner):
-    """Four, since the redemption grant landed. Still an EXACT list rather than a membership check:
+def test_the_role_names_only_the_known_tables_and_contact_index(provisioner):
+    """Four writable tables plus the one read-only Contacts phone index. Still an EXACT list:
     the interesting failure is a table nobody here decided to add."""
     tables = [r for s in _policy(provisioner)["Statement"]
               for r in s["Resource"] if ":table/" in r]
@@ -300,7 +317,8 @@ def test_the_role_names_only_the_four_known_tables(provisioner):
         prefix + "PaymentAttemptsTable",
         prefix + "WixOrderIds",
         prefix + "CouponsTable",
-        prefix + "GiftCardsTable"])
+        prefix + "GiftCardsTable",
+        prefix + "ContactsTable/index/phone-index"])
     for table in tables:
         assert not table.endswith("*"), f"{table} is a wildcard over the fleet's tables"
 
