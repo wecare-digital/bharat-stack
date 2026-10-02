@@ -325,7 +325,7 @@ the duplication is the direct cause of the add/add hazard in §4.
 Three local commits, chronologically:
 
 **`57f5b505` (iteration 1 — 11 files, +1101/−52).** Purged the retired merchant account
-`acc_HDfub6wOfQybuH` and its paired retired VPA from current source: both handlers,
+`[retired Razorpay account]` and its paired retired VPA from current source: both handlers,
 `payment_readiness.py`, `docs/compatibility.md`, `.kiro/specs/whatsapp-wix-commerce/tasks.md`, the
 dashboard component, two test files, one new test, plus a 621-line `plan.md` and a 312-line evidence
 doc.
@@ -382,7 +382,7 @@ $ git log --oneline -S"wecare.digital/perks/" origin/stack -- src/pages/workspac
 e1339b60 fix: repoint active customer-facing CTAs off dead/redirecting old URLs
 ```
 
-The redaction `6e1a4178` made at line 392 (`acc_HDfub6wOfQybuH` → `[retired Razorpay account]`) is
+The redaction `6e1a4178` made at line 392 (`[retired Razorpay account]` → `[retired Razorpay account]`) is
 already upstream, which is why it is absent from the net diff.
 
 ### Net effect of the whole sequence relative to `origin/stack`
@@ -394,7 +394,7 @@ sequence is already upstream via `863c6ebd`, `27a3fb5d`, `aa4b1c99` and `800106a
 That document is worth keeping, and a merge preserves it for free. Its distinctive content, which I
 read and could not find upstream:
 
-- A per-hit justification table for the surviving `acc_HDfub6wOfQybuH` occurrences, and the explicit
+- A per-hit justification table for the surviving `[retired Razorpay account]` occurrences, and the explicit
   record of the **one declined cross-session seam** —
   `.kiro/steering/META-BETA-REQUEST-EMAIL.md:49,51` still names the retired merchant account in a
   draft email to Meta, with a named unblock (merge once the owning session commits) rather than an
@@ -609,7 +609,7 @@ Stated as unknowns rather than guessed:
 5. **Whether `origin/stack` rewriting six Class C immutable-history files is acceptable.**
    `.agents/tasks/razorpay-account-purge-20261002/review.md` raises this as unflagged: upstream
    substitutes `[retired Razorpay account]` into audit documents including a measured dedup key
-   (`acc_HDfub6wOfQybuH:payment.downtime.started:1790100905`), so an audit record of a measurement no
+   (`[retired Razorpay account]:payment.downtime.started:1790100905`), so an audit record of a measurement no
    longer contains the thing measured. I confirmed the substitutions exist upstream, but whether to
    accept them is an owner policy decision no evidence can settle, and it is outside my remit.
 6. **Whether anything changed after my final measurement.** Given three movements during one
