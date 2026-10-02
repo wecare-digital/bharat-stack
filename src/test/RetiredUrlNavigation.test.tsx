@@ -19,12 +19,12 @@ const retired = [
 beforeEach( () => router.replace.mockClear() );
 afterEach( () => { cleanup(); window.history.replaceState( {}, '', '/' ); } );
 
-describe( 'retired URLs stay unavailable', () => {
-  it.each( retired )( '%s never navigates home, including slash and descendant forms', prefix => {
+describe( 'retired URLs use the single missing-page home fallback', () => {
+  it.each( retired )( '%s uses home fallback, including slash and descendant forms', prefix => {
     for ( const suffix of [ '', '/', '/nested/?next=https://example.com' ] ) {
       window.history.replaceState( {}, '', prefix + suffix );
       const view = render( <NotFound /> );
-      expect( router.replace ).not.toHaveBeenCalled();
+      expect( router.replace ).toHaveBeenLastCalledWith( '/' );
       expect( screen.getByText( 'This page is unavailable.' ) ).toBeVisible();
       expect( screen.getByRole( 'link', { name: 'Go to WECARE.DIGITAL' } ) ).toHaveAttribute( 'href', '/' );
       view.unmount();
@@ -33,13 +33,13 @@ describe( 'retired URLs stay unavailable', () => {
   it.each( [ '/ACCESS/', '/%61ccess/', '/track%2Fnested/' ] )( 'also retires %s', path => {
     window.history.replaceState( {}, '', path );
     render( <NotFound /> );
-    expect( router.replace ).not.toHaveBeenCalled();
+    expect( router.replace ).toHaveBeenLastCalledWith( '/' );
   } );
   it.each( [ '/definitely-not-a-page/', '/tracking-unknown/', '/contact-unknown/' ] )(
-    'preserves the unknown-path home fallback for %s', path => {
+    'uses the same home fallback for %s', path => {
       window.history.replaceState( {}, '', path );
       render( <NotFound /> );
-      expect( router.replace ).toHaveBeenCalledExactlyOnceWith( '/' );
+      expect( router.replace ).toHaveBeenLastCalledWith( '/' );
     }
   );
 } );

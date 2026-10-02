@@ -1,35 +1,11 @@
-/**
- * Unknown paths retain the owner's home fallback. Retired staff and legacy URLs
- * stay on this unavailable page instead, with the CDN's HTTP 404 and no automatic
- * navigation. Current public pages and /workspace routes resolve before this page.
- */
+/** The CDN serves HTTP 404; every missing path then navigates to the canonical home. */
 import React, { useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
-export const RETIRED_PATH_PREFIXES = [
-  '/access', '/dm', '/engage', '/dashboard', '/contacts', '/commerce', '/pay',
-  '/forms', '/service', '/docs', '/seo', '/admin', '/link', '/task', '/settings',
-  '/swdhya', '/no-fault', '/legal-stuff', '/legal-stuffs', '/faq', '/my-order',
-  '/expoweek', '/ritual-store', '/swdhya-store', '/request-tracking', '/rx-slot',
-  '/bring-friends', '/home', '/open-possibility', '/product-page/partner',
-  '/selfservice', '/track',
-];
-
-const NotFoundRedirect: React.FC = () => {
+const NotFound: React.FC = () => {
   const router = useRouter();
-
-  useEffect( () => {
-    // Match whole path segments, so /contacts never blocks the public /contact page.
-    let requestedPath = window.location.pathname;
-    try { requestedPath = decodeURIComponent( requestedPath ); } catch { /* Keep the raw path. */ }
-    requestedPath = requestedPath.toLowerCase();
-    if ( RETIRED_PATH_PREFIXES.some( prefix =>
-      requestedPath === prefix || requestedPath.startsWith( `${prefix}/` )
-    ) ) return;
-    void router.replace( '/' );
-  }, [ router ] );
-
+  useEffect( () => { void router.replace( '/' ); }, [ router ] );
   return (
     <>
       <Head>
@@ -94,4 +70,4 @@ const NotFoundRedirect: React.FC = () => {
   );
 };
 
-export default NotFoundRedirect;
+export default NotFound;

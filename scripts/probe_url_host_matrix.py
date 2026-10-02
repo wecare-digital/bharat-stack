@@ -70,7 +70,7 @@ LEGACY_WORKSPACE_PREFIXES = (
     "/service", "/docs", "/seo", "/admin", "/link", "/task", "/settings",
 )
 
-# The retired direct access URL stays unavailable, like the other retired prefixes.
+# Retired direct access has no individual redirect or exported page.
 ACCESS_PREFIX = "/access"
 
 # The legacy content/SEO aliases. Owner-retired 2026-10-01; 404 is the intended answer and a
@@ -160,14 +160,14 @@ def matrix() -> list[dict]:
     rows.append(_row("legacy-workspace", f"{SITE}/admin/anything/deep", 404,
                      "a deep path under a retired prefix"))
 
-    # Retired access paths must return the missing-page document, never a redirect.
+    # Retired access paths return HTTP 404; the common browser fallback then goes home.
     for access_path in (
         '/access', '/access/', '/access/anything/deep',
         '/access/?next=https://evil.example', '/access?a=b&c=d',
         '/access/x/y?return=//evil',
     ):
         rows.append(_row('legacy-workspace', f'{SITE}{access_path}', 404,
-                         'retired direct access stays unavailable without forwarding'))
+                         'retired direct access returns 404 without an individual HTTP redirect'))
 
     # ── retired content aliases ─────────────────────────────────────────────────────
     for path in RETIRED_CONTENT:
