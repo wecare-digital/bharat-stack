@@ -76,7 +76,7 @@ sections with no home in the target. They must be assigned before starting, beca
    the redirect's *target*.
 5. **Keep the old route live** behind a redirect. Do not delete until traffic on it
    is measured at zero — the same discipline applied to `r.wecare.digital`.
-6. **A gate** that fails when a `/dm/*` route exists with no redirect, so the
+6. **A gate** that fails when a `[retired public path 2de923b8]/*` route exists with no redirect, so the
    migration cannot half-finish silently.
 
 ## Why it was not started in this session

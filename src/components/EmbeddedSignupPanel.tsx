@@ -2,7 +2,7 @@
  * EmbeddedSignupPanel — reusable WhatsApp Embedded Signup (Facebook Login for
  * Business) launcher. Used by:
  *   - public  /partners/           (prospective partners)
- *   - in-app  /dm/whatsapp/embedded-signup/  (admins connecting a WABA)
+ *   - in-app  [retired public path]/whatsapp/embedded-signup/  (admins connecting a WABA)
  *
  * Launches Meta's Embedded Signup, captures the returned waba_id/phone_number_id
  * and OAuth code, then POSTs the code to the backend for server-side exchange.

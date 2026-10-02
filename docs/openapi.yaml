@@ -41,7 +41,7 @@ components:
 
 paths:
   # ── Core ──
-  /contacts:
+  [retired public path 44011e36]:
     get:
       tags: [Core]
       summary: List contacts (paginated)
@@ -60,7 +60,7 @@ paths:
       responses:
         '200': { description: Contact created/updated }
 
-  /contacts/{contactId}:
+  [retired public path 44011e36]/{contactId}:
     get:
       tags: [Core]
       summary: Get contact by ID
@@ -214,12 +214,12 @@ paths:
       tags: [Operations]
       summary: Send a push notification (Admin only)
       responses: { '200': { description: Push accepted } }
-  /docs/sources:
+  [retired public path a2557b8d]/sources:
     get: { tags: [Operations], summary: List documentation sources (Admin only), responses: { '200': { description: Source list } } }
     post: { tags: [Operations], summary: Add a documentation source (Admin only), responses: { '200': { description: Source added } } }
-  /docs/scrape:
+  [retired public path a2557b8d]/scrape:
     post: { tags: [Operations], summary: Run documentation scraping (Admin only), responses: { '200': { description: Scrape summary } } }
-  /docs/changelog:
+  [retired public path a2557b8d]/changelog:
     get: { tags: [Operations], summary: Read documentation changes (Admin only), responses: { '200': { description: Changelog } } }
 
   /seo-tools/blog-public:

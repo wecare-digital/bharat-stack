@@ -538,10 +538,11 @@ the deploy.
 
 ---
 
-## 9. Open test items — two, both named and specified
+## 9. Open test items — two, both named and specified, both now CLOSED (§9.1)
 
-Neither is a failing test; both are tests **not yet written**, recorded here so the gap is visible
-rather than inferred from a missing name.
+Neither was a failing test; both were tests **not yet written**, recorded here so the gap was visible
+rather than inferred from a missing name. The specification below is kept as written; §9.1 records how
+each landed and the one place the specification turned out to be wrong.
 
 | Item | What is missing | Exact specification |
 |---|---|---|
@@ -551,6 +552,41 @@ rather than inferred from a missing name.
 Both belong to `tests/test_gift_cards_iam_and_table.py`, which the gift-card workstream owns. They were
 not added here because this step's scope is the three documents, and a test edit outside that scope
 would have landed in a docs-only commit.
+
+### 9.1 Both CLOSED by the integration step, 2026-10-02
+
+| Item | Landed as | Mark |
+|---|---|---|
+| Test 112's MEDIUM-2 clause | Four assertions appended to test 112 | `xfail(strict=True)` against SEAM-G14, unchanged |
+| Test 113b | `test_the_blog_contribution_path_writes_no_gift_card_attribute` | **UNMARKED**, passes today, as specified |
+
+File now reports **26 passed / 3 xfailed**, and the whole tree **6784 passed / 7 xfailed / 0 xpassed**.
+
+**The MEDIUM-2 clause is not the one-line string check §9 implied, and the difference is the whole
+point of writing it.** `_browser_options` has **two** call sites, and §5.2 lists the second
+(`_ready_from_binding`, `:300`) as **NEEDS NO CHANGE** because it reads the amount back off the
+binding. A clause asserting "every browser amount comes from the pay-now figure" would therefore
+**never be satisfiable**, and because test 112 is `xfail(strict=True)` it would have failed for that
+reason forever while reading as a correctly pending seam — a mark that can never clear, which is
+precisely the defect DECISION 8's audit exists to catch. It was written and then found by exercising
+the clause against both the current source and a patched post-seam source before committing.
+
+What landed instead:
+
+1. The clause is scoped to the function that calls `payment_attempt.build`, and asserts the
+   `_browser_options` and `build` amount expressions are **not the same expression**. Today both are
+   the single `amount_paise` local, so it fails; §8 mandates `build` keep the payable, so the only
+   way to satisfy it is the divergence SEAM-G14 is.
+2. It additionally requires the browser argument to name a pay-now figure, so the divergence cannot
+   be satisfied by passing some third unrelated expression.
+3. `_ready_from_binding` is asserted **separately** to still read its amount off the `binding` —
+   MEDIUM-2's "the correct edit is no edit", now pinned rather than merely stated, so the resume path
+   cannot acquire the split and double-apply it.
+
+Asserted over the AST rather than as source text, because the string `payNowPaise` could be satisfied
+by naming the variable without routing it to the browser. Verified as clearable: against the current
+`website_checkout.py` the clause fails on the shared-expression assertion; against the same file with
+`amount_paise=pay_now_paise` substituted at the `prepare_checkout` call site, it passes.
 
 ---
 
@@ -660,7 +696,7 @@ A re-run after the documentation step reported **5 failed**, all inside
 tests/test_url_host_routing_rules.py   5 FAILED   (the only file with any failure)
 ```
 
-They are about `/access` redirects, `www` canonicalisation and Amplify rewrite rules, asserted against
+They are about `[retired public path ef531503]` redirects, `www` canonicalisation and Amplify rewrite rules, asserted against
 `scripts/provision_legacy_redirects.py` — a URL-routing convergence that a **different session** is
 mid-way through. `HEAD` moved during this step (a commit landed between the two runs), which is the
 normal condition in this workspace.

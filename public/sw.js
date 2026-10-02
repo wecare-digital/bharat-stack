@@ -173,7 +173,7 @@ self.addEventListener( 'push', ( event ) =>
 self.addEventListener( 'notificationclick', ( event ) =>
 {
   event.notification.close();
-  // '/dashboard' until 2026-09-28. It still resolves - verified live at 301 to
+  // '[retired public path]' until 2026-09-28. It still resolves - verified live at 301 to
   // /workspace/dashboard/ - so this was a redirect hop rather than a break, but a notification
   // tap is a cold start and the hop costs a round trip before any HTML arrives. Trailing slash
   // included because next.config.js sets trailingSlash:true and its absence is a second hop.

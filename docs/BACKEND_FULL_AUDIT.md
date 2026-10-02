@@ -11,7 +11,7 @@ Covers every Lambda, table, AWS resource, and secret, with gaps + a phased plan 
 > Counts re-measured **2026-09-26** with `python scripts/aws_account_inventory.py` (0 collector errors). Do not hand-edit them — regenerate `docs/execution/aws-inventory.md` and read it there.
 
 ## 1. Lambda functions (by domain)
-**Core (5):** contacts (`/contacts`), messages-read (`/messages`), messages-delete, faq-handler (`/faq`), url-shortener (`/link`).
+**Core (5):** contacts (`[retired public path 44011e36]`), messages-read (`/messages`), messages-delete, faq-handler (`[retired public path 1965ee0f]`), url-shortener (`[retired public path 21d99b11]`).
 **Messaging (24):** inbound-whatsapp (`/webhook/whatsapp`, 512MB/120s), outbound-whatsapp (SQS+API), whatsapp-business-api (`/wa-business/*`), whatsapp-calling, whatsapp-voice, whatsapp-templates, template-management, waba-management, outbound-sms, sms-aws, sms-in-airtel, outbound-email, outbound-voice, voice-aws, voice-in-c2c/obd/cdr, voice-cdr-read, scheduled-messages (EventBridge), template-analytics, ad-attribution, push-notifications, meta-analytics, media-cleanup.
 **AI (4):** ai-generate-response (Bedrock), ai-query-kb (KB), ai-config-management, agent-action-group (Bedrock Agent).
 **Payments (4):** razorpay-webhook, payu-webhook, payments-read, invoice-engine (8 tables).

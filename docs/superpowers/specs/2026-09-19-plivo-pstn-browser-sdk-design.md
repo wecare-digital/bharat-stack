@@ -132,19 +132,19 @@ Existing `AirtelSMS`, `AirtelC2C` and provider-specific CDR data must be exposed
 
 Add `Messages > PSTN Voice` with these routes:
 
-- `/dm/pstn`: overview, Browser Softphone, incoming queue, agent availability, active/recent calls, connected-notification status, Contact 360, call notes and disposition.
-- `/dm/pstn/calls`: All, Incoming, Outgoing, Active, Failed, CDR, Hangup Causes and Notification Status.
-- `/dm/pstn/flows`: call routing, IVR, input collection, audio output, recording, audio streaming, XML preview and version history.
-- `/dm/pstn/collaboration`: conferences, multi-party calls, participants, history and permitted controls.
-- `/dm/pstn/resources`: application, number, browser endpoints, SIP resources, trunks, verified caller IDs, webhooks and drift status.
-- `/dm/pstn/recordings`: recordings, storage, retention and audit.
-- `/dm/pstn/analytics`: volume, answer rate, duration, agent metrics, quality, failures, cost estimates, notifications and health.
-- `/dm/pstn/troubleshooting`: live diagnostics, call failures, hangup causes, browser readiness, webhook/signature health, network and drift.
-- `/dm/pstn/compliance`: India, US, consent, DLT, retention, geo permissions and audit.
-- `/dm/pstn/developer`: API/XML references, Browser SDK, callbacks, SDK version, tutorials and migration guides.
-- `/dm/pstn/settings`: general, agents, Browser SDK, routing, notifications, security, webhooks, number, costs and feature flags.
+- `[retired public path 2de923b8]/pstn`: overview, Browser Softphone, incoming queue, agent availability, active/recent calls, connected-notification status, Contact 360, call notes and disposition.
+- `[retired public path 2de923b8]/pstn/calls`: All, Incoming, Outgoing, Active, Failed, CDR, Hangup Causes and Notification Status.
+- `[retired public path 2de923b8]/pstn/flows`: call routing, IVR, input collection, audio output, recording, audio streaming, XML preview and version history.
+- `[retired public path 2de923b8]/pstn/collaboration`: conferences, multi-party calls, participants, history and permitted controls.
+- `[retired public path 2de923b8]/pstn/resources`: application, number, browser endpoints, SIP resources, trunks, verified caller IDs, webhooks and drift status.
+- `[retired public path 2de923b8]/pstn/recordings`: recordings, storage, retention and audit.
+- `[retired public path 2de923b8]/pstn/analytics`: volume, answer rate, duration, agent metrics, quality, failures, cost estimates, notifications and health.
+- `[retired public path 2de923b8]/pstn/troubleshooting`: live diagnostics, call failures, hangup causes, browser readiness, webhook/signature health, network and drift.
+- `[retired public path 2de923b8]/pstn/compliance`: India, US, consent, DLT, retention, geo permissions and audit.
+- `[retired public path 2de923b8]/pstn/developer`: API/XML references, Browser SDK, callbacks, SDK version, tutorials and migration guides.
+- `[retired public path 2de923b8]/pstn/settings`: general, agents, Browser SDK, routing, notifications, security, webhooks, number, costs and feature flags.
 
-Redirect `/dm/voice` to `/dm/pstn` and `/dm/voice-in` to `/dm/pstn/calls`. Build on the existing `PageShell`, navigation configuration and UI primitives. Use real APIs with honest loading, empty, unavailable and error states; do not use fabricated production metrics.
+Redirect `[retired public path 2de923b8]/voice` to `[retired public path 2de923b8]/pstn` and `[retired public path 2de923b8]/voice-in` to `[retired public path 2de923b8]/pstn/calls`. Build on the existing `PageShell`, navigation configuration and UI primitives. Use real APIs with honest loading, empty, unavailable and error states; do not use fabricated production metrics.
 
 ## Plivo Feature Coverage
 

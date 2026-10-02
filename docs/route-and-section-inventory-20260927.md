@@ -54,7 +54,7 @@ header. So bands 2 and 3 have no mock yet — that is the work you're asking for
 | 2 | 1 | 1 | 1485 | `/contact/` |
 | 2 | 1 | 48 | 28290 | `/terms/` |
 | 2 | 1 | 25 | 13262 | `/privacy/` |
-| 2 | 1 | 2 | 1388 | `/my-order/` |
+| 2 | 1 | 2 | 1388 | `[retired public path aaee9dd4]/` |
 | 2 | 1 | 1 | 1464 | `/bharat-rx/` |
 | 2 | 1 | 1 | 1585 | `/elsewhere/` |
 | 2 | 1 | 1 | 1442 | `/expo-week/` |
@@ -73,7 +73,7 @@ Three things fall out of that table on their own:
 `/dastavez/`, `/clear-closure/`, `/ritual-guru/`, `/anew/`, `/niji-setu/` all render
 `div.rh-hero` at exactly 269px followed by one `section.pdp`, and their heights cluster in
 three values (1442 / 1585 / 1614) because only the bullet count differs. `/bharat-rx/` and
-`/my-order/` share the hero and swap the second band. That is good consistency, and it means
+`[retired public path aaee9dd4]/` share the hero and swap the second band. That is good consistency, and it means
 **a change to the `rh-hero` band is a change to ten pages**, not one — worth knowing before
 any home-page decision gets propagated.
 
@@ -193,7 +193,7 @@ hub an operator has to know to type.
 
 On every public page the header offers **Submit Request, Request Amendment, Drop Docs, Leave
 Review, Refer & Earn** and **Contact us** — all six resolve to `/contact/`. Documented as
-deliberate in `Header.tsx:55` ("an invented path like `/selfservice/submit-request` would
+deliberate in `Header.tsx:55` ("an invented path like `[retired public path b180810d]/submit-request` would
 404"), and the reasoning is sound. It still means the menu makes six distinct promises and
 keeps one, on all 871 pages.
 
@@ -206,7 +206,7 @@ keeps one, on all 871 pages.
 
 `out/workspace/engage/index.html` contains hrefs to `/`, `/anew/`, `/bharat-rx/`,
 `/clear-closure/`, `/contact/`, `/dastavez/`, `/elsewhere/`, `/expo-week/`, `/grahak-os/`,
-`/my-order/` — the full product mega-menu — and **zero `/workspace/*` hrefs**, because the
+`[retired public path aaee9dd4]/` — the full product mega-menu — and **zero `/workspace/*` hrefs**, because the
 operator shell is client-rendered behind the auth gate. An authenticated page's static
 document is therefore entirely marketing navigation.
 

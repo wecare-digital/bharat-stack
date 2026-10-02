@@ -166,7 +166,7 @@ function ProductTab ( { acct, toast, confirm }: { acct: typeof ACCOUNTS[ number 
                         </select>
                     </div>
                     <div style={ { gridColumn: '1 / -1' } }><label style={ S.label }>Image URL (public https)</label><input style={ S.input } value={ form.imageUrl } onChange={ e => set( 'imageUrl', e.target.value ) } placeholder="https://wecare.digital/get/o/stream/media/m/wecare-digital.png" /></div>
-                    <div style={ { gridColumn: '1 / -1' } }><label style={ S.label }>Product link</label><input style={ S.input } value={ form.url } onChange={ e => set( 'url', e.target.value ) } placeholder="https://wecare.digital/product-page/partner-up" /></div>
+                    <div style={ { gridColumn: '1 / -1' } }><label style={ S.label }>Product link</label><input style={ S.input } value={ form.url } onChange={ e => set( 'url', e.target.value ) } placeholder="https://wecare.digital/shop/referral-partner/" /></div>
                     <div style={ { gridColumn: '1 / -1' } }><label style={ S.label }>Description</label><input style={ S.input } value={ form.description } onChange={ e => set( 'description', e.target.value ) } placeholder="Short description" /></div>
                 </div>
                 <Button variant="primary" onClick={ handleCreate } loading={ saving }>Create product</Button>

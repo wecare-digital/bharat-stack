@@ -1040,7 +1040,7 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     if not caller_phone.startswith('+'):
         caller_phone = f'+{caller_phone}'
 
-    # Unified-timeline breadcrumb — makes the SIP call show in /dm/calls,
+    # Unified-timeline breadcrumb — makes the SIP call show in [retired public path]/calls,
     # the unified inbox (channel=voice), and Contact 360. Non-blocking.
     try:
         _bc_contact = _lookup_contact_id_for_inbox(caller_phone)
@@ -1470,7 +1470,7 @@ IVR_SMS_DLT_TEMPLATE_KEY = 'ivr-default'
 ORDER_SMS_DLT_TEMPLATE_KEY = 'wd_order'
 IVR_SMS_CONTENT = (
     "Thanks for contacting WECARE.DIGITAL!\n\n"
-    "Submit your request here: https://wecare.digital/selfservice "
+    "Submit your request here: https://wecare.digital/submit-request/ "
     "or send us a message / voice note on WhatsApp: "
     "https://wecare.digital/r/wa.\n\n"
     "We'll review it and follow up if needed."
@@ -1481,7 +1481,7 @@ IVR_SMS_CONTENT = (
 ORDER_SMS_CONTENT = (
     "Thanks for placing your order with WECARE.DIGITAL!\n\n"
     "Your order has been received. We'll review it and share updates shortly.\n\n"
-    "Need help? Submit a request here: https://wecare.digital/selfservice "
+    "Need help? Submit a request here: https://wecare.digital/submit-request/ "
     "or message / voice note us on WhatsApp: https://wecare.digital/r/wa."
 )
 
@@ -2056,7 +2056,7 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
         aws_phone_id = _get_aws_phone_id(phone_number_id)
         fallback_text = (
             "Thanks for contacting *WECARE.DIGITAL*! "
-            "Submit your request here: https://wecare.digital/selfservice "
+            "Submit your request here: https://wecare.digital/submit-request/ "
             "or send us a message / voice note on WhatsApp: https://wecare.digital/r/wa. "
             "We'll review it and follow up if needed."
         )

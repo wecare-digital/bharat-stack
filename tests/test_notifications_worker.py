@@ -381,7 +381,7 @@ class TestBodyIsNotEdited:
         delivers nothing."""
         body = worker_mod.notification_body()
         assert body.startswith("Thanks for contacting WECARE.DIGITAL!")
-        assert "https://wecare.digital/selfservice" in body
+        assert "https://wecare.digital/submit-request/" in body
         assert "https://wecare.digital/r/wa" in body
         assert body.endswith("We'll review it and follow up if needed.")
 

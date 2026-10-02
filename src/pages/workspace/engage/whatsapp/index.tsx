@@ -1,7 +1,7 @@
 /**
  * WhatsApp Inbox — Full Screen with Breadcrumbs
  * The inbox fills remaining main-content height after breadcrumbs.
- * All other WhatsApp features live at /dm/whatsapp/settings
+ * All other WhatsApp features live at [retired public path]/whatsapp/settings
  */
 
 import React from 'react';

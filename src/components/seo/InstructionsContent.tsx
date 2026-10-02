@@ -128,7 +128,7 @@ export default function InstructionsContent () {
   "@type": "BreadcrumbList",
   "itemListElement": [
     { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://wecare.digital/" },
-    { "@type": "ListItem", "position": 2, "name": "BNB Club", "item": "https://wecare.digital/bnb" }
+    { "@type": "ListItem", "position": 2, "name": "BNB Club", "item": "https://wecare.digital/elsewhere/" }
   ]
 }
 
@@ -157,7 +157,7 @@ export default function InstructionsContent () {
 }`} />
 
       {/* ═══ 3. PRODUCT JSON-LD ═══ */ }
-      <JCard n="3" title='Product (/product-page/*) — Product + Offer + BreadcrumbList + FAQPage'
+      <JCard n="3" title='Product (/shop/*) — Product + Offer + BreadcrumbList + FAQPage'
         desc="5 products. Includes price, currency (INR), availability. FAQ about the product."
         code={ `// ── 1. Product + Offer ──
 {
@@ -165,7 +165,7 @@ export default function InstructionsContent () {
   "@type": "Product",
   "name": "Partner Up — Activate 4,000+ SKUs",
   "description": "Unlock earnings across 4,000+ SKUs from BNB Club, Expo Week, Legal Champ, No-Fault, Ritual Guru, Swdhya.",
-  "url": "https://wecare.digital/product-page/partner-up",
+  "url": "https://wecare.digital/shop/referral-partner/",
   "image": "https://static.wixstatic.com/media/6b2d7a_cffca42eb2e7428fb618600456d257d9~mv2.png",
   "brand": { "@type": "Brand", "name": "WECARE.DIGITAL" },
   "offers": {
@@ -173,7 +173,7 @@ export default function InstructionsContent () {
     "price": "4599",
     "priceCurrency": "INR",
     "availability": "https://schema.org/InStock",
-    "url": "https://wecare.digital/product-page/partner-up"
+    "url": "https://wecare.digital/shop/referral-partner/"
   },
   "inLanguage": "en-IN"
 }
@@ -184,8 +184,8 @@ export default function InstructionsContent () {
   "@type": "BreadcrumbList",
   "itemListElement": [
     { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://wecare.digital/" },
-    { "@type": "ListItem", "position": 2, "name": "Store", "item": "https://wecare.digital/store" },
-    { "@type": "ListItem", "position": 3, "name": "Partner Up", "item": "https://wecare.digital/product-page/partner-up" }
+    { "@type": "ListItem", "position": 2, "name": "Store", "item": "https://wecare.digital/shop/" },
+    { "@type": "ListItem", "position": 3, "name": "Partner Up", "item": "https://wecare.digital/shop/referral-partner/" }
   ]
 }
 
@@ -216,7 +216,7 @@ export default function InstructionsContent () {
   "@type": "WebPage",
   "name": "Your Cart",
   "description": "Review items in your cart before checkout.",
-  "url": "https://wecare.digital/cart-page",
+  "url": "https://wecare.digital/cart/",
   "publisher": { "@type": "Organization", "name": "WECARE.DIGITAL" },
   "inLanguage": "en-IN"
 }

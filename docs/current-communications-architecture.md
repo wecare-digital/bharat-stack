@@ -390,7 +390,7 @@ re-derive it rather than quoting this line.
 | Claim class | How verified |
 |---|---|
 | Code paths, line numbers, dead code | read directly from the working tree at commit `41dc41c2` |
-| Meta calling settings, phone ids, SIP target | live Graph API `GET {phone_id}/settings?fields=calling` |
+| Meta calling settings, phone ids, SIP target | live Graph API `GET {phone_id}[retired public path 2c56bef4]?fields=calling` |
 | Plivo application/number/endpoint/`sip_auth_type` | live Plivo REST API |
 | Route count, `SMS_PROXY_URL` unset, alias versions | live AWS CLI |
 | Secret ids | live `ListSecrets` (31 secrets) |

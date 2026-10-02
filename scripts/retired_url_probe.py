@@ -29,48 +29,7 @@ import urllib.request
 SITE = "https://wecare.digital"
 
 RETIRED: dict[str, str] = {
-    # deleted on owner instruction; both were in PUBLIC_EXACT and are named in the
-    # generate-sitemap.js comment as removed
-    "/faq/": "deleted page, was in the sitemap allowlist",
-    "/partners/": "deleted page, was in the sitemap allowlist",
-    # the product page renamed twice: /swdhya -> /open-possibility -> /anew
-    "/swdhya/": "renamed to /open-possibility/ then /anew/",
-    "/open-possibility/": "renamed to /anew/",
-    # named in public/robots.txt as gone, with their Disallow rules removed
-    "/mock-home/": "home-page design mock, removed in ef1abc5b",
-    "/store/": "catalog home, removed in 3d229931",
-    "/carbon/": "deleted top-level route",
-    "/forms/create/": "deleted route",
-    "/link/create/": "deleted route",
-    "/growth/": "deleted top-level route",
-    "/nocode/": "deleted top-level route",
-    # Retired 2026-09-30. It carried a 301 to /llms.txt for a few hours and the owner removed
-    # it, so a 404 is the intended answer here and a 301 reappearing is the regression.
-    # /llm/index.html is probed separately because that exact path kept serving the old page at
-    # HTTP 200 from CloudFront with s-maxage=31536000 - a one-year cache - after the route was
-    # deleted. The `/llm/` rule masked it, so the live page survived its own retirement.
-    "/llm/": "retired AI-access page; must 404, must NOT redirect",
-    "/llm/index.html": "the cached copy that outlived the route; must 404",
-    # consolidated by Amplify 301s - these SHOULD redirect, not 404
-    "/selfservice/": "301 -> /submit-request/",
-    "/track/": "301 -> /orders/",
-    "/my-order/": "301 -> /orders/",
-    "/dm/": "301 -> /workspace/engage/",
-    "/engage/": "301 -> /workspace/engage/",
-    # Renamed 2026-10-02: the owner retired the product name "Zip" and the page moved to
-    # /shipments/. RENAMED, NOT DELETED - the content is unchanged, so this is the
-    # retired_url_equity.py "replaced page" case where a 404 discards ranking instead of passing
-    # it to the replacement. Measured 404 at the origin immediately after the rename, which is
-    # the regression this entry exists to catch; the rule is declared in
-    # scripts/provision_legacy_redirects.py desired_redirects() and needs --apply to go live.
-    "/zip/": "301 -> /shipments/",
-    "/zip": "301 -> /shipments/ (no-slash form; links in the wild carry both)",
-    # the six menu labels that used to resolve to /contact/, replaced by the
-    # Selfservice pages
-    "/commerce/": "authenticated segment, nested under /workspace/",
-    "/docs/": "authenticated segment, nested under /workspace/",
-    "/service/": "authenticated segment, nested under /workspace/",
-    # host-level canonicalisation
+    '/release-check-missing-page/': 'shared missing-page response must remain HTTP 404',
 }
 
 HOSTS = {

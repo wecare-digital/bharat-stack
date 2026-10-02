@@ -43,12 +43,12 @@ interface NavColumn {
 }
 
 // BOTH OF THESE USED TO BE ABSOLUTE URLS ON www.wecare.digital, AND BOTH RETURNED 404
-// ON EVERY PUBLIC PAGE. Measured: /selfservice -> 404 and /product-page/referral-partner
+// ON EVERY PUBLIC PAGE. Measured: [retired public path] -> 404 and /product-page/referral-partner
 // -> 404, on both the apex and the www host. That domain serves THIS Next.js app, which
-// has no /selfservice route and no Wix /product-page/* routes - the Wix storefront those
+// has no [retired public path] route and no Wix /product-page/* routes - the Wix storefront those
 // paths assumed is not published there. The referral-partner PRODUCT is real (it exists in
 // the Wix catalog at 999.00); only the URL was wrong.
-// They now point at routes that exist and return 200. /service/ and its three children are
+// They now point at routes that exist and return 200. [retired public path]/ and its three children are
 // real exported pages that were simply never wired into this menu.
 
 // EVERY ROW NOW HAS ITS OWN PAGE, and the placeholder that stood here is gone with the
@@ -65,7 +65,7 @@ interface NavColumn {
 // the same shape the seven product pages use, so twelve pages cannot drift apart. Contact us
 // keeps /contact/, which is its real destination, so five pages were needed rather than six.
 //
-// STILL NOT /service/*, AND THAT PART OF THE OLD NOTE STANDS. Those routes exist and return
+// STILL NOT [retired public path]/*, AND THAT PART OF THE OLD NOTE STANDS. Those routes exist and return
 // 200, and an earlier pass wired these rows to them, which was wrong: service/index.tsx
 // renders <Layout user onSignOut> and submit-request.tsx reads the requester from
 // user?.signInDetails?.loginId. None is in PUBLIC_PAGE_META, so _app.tsx wraps them in the
@@ -155,9 +155,9 @@ const COLUMNS: NavColumn[] = [
         // both a category and a link and gave a visitor two things to click for one idea.
         // Renamed from 'Selfservice' on 2026-09-27 (owner instruction: remove the word
         // everywhere it is customer-visible). It named a portal that has no page at any
-        // address - the in-repo /selfservice route went in PR #47 on 2026-09-24 and nothing
+        // address - the in-repo [retired public path] route went in PR #47 on 2026-09-24 and nothing
         // replaced it, so the label promised a destination that did not exist. The only
-        // /selfservice route left is the ADMIN flow dashboard under /workspace/forms/.
+        // [retired public path] route left is the ADMIN flow dashboard under /workspace/forms/.
         // 'Requests' described what the rows beneath it do; the owner's instruction (Section 1)
         // is the singular 'Request' as the exact customer-facing label, and never 'Get Help',
         // 'Self-Service', 'Selfservice' or 'Help Hub'. This is a label change only - no internal
@@ -171,18 +171,18 @@ const COLUMNS: NavColumn[] = [
           // route. It REPLACES the old "Request Tracking" row - the two answer the
           // same question, and offering both sends one visitor to two places for one answer.
           //
-          // RENAMED FROM "My Order" -> "Orders" AND /my-order/ -> /orders/, on owner
+          // RENAMED FROM "My Order" -> "Orders" AND [retired public path]/ -> /orders/, on owner
           // instruction, label and URL in the same change. `match` stays the slashless form
           // because it is compared against router.pathname; `href` keeps the trailing slash or
           // the static host 308s before resolving. The old path 301s here - see RETIRED in
           // scripts/provision_legacy_redirects.py.
           { label: 'Orders', href: '/orders/', match: '/orders' },
-          // FAQ removed on request. The local /faq page was already deleted; this
+          // FAQ removed on request. The local [retired public path] page was already deleted; this
           // drops the menu row too, so there is no FAQ entry point left anywhere.
           // EACH ROW NOW HAS ITS OWN PAGE. These four, plus Refer & Earn below, used to
           // resolve to /contact/ - six labels, one destination, on every page of the site.
           // They are public pages registered in PUBLIC_PAGE_META, NOT the authenticated
-          // /service/* routes: those render the dashboard Layout behind a Cognito session,
+          // [retired public path]/* routes: those render the dashboard Layout behind a Cognito session,
           // so a public row pointing there shows an anonymous visitor a login wall.
           { label: 'Submit Request', href: '/submit-request/', match: '/submit-request' },
           { label: 'Request Amendment', href: '/request-amendment/', match: '/request-amendment' },
@@ -277,7 +277,7 @@ const COLUMNS: NavColumn[] = [
         ],
       },
       // ACCOUNT / SIGN IN REMOVED from the public menu on owner instruction. That "Sign
-      // in" pointed at /access, which is the INTERNAL staff dashboard login (Cognito) -
+      // in" pointed at [retired public path], which is the INTERNAL staff dashboard login (Cognito) -
       // it does not belong in the public navigation. A fresh, customer-facing login
       // (WhatsApp OTP, SMS/email fallback) will live on the /orders page instead, so
       // there is deliberately no sign-in row here now.

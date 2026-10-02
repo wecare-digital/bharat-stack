@@ -49,4 +49,4 @@ wecare-inbound-whatsapp                live=47     sha=KrkNRO2W0C4DfD4OASucp+a/W
 # drift-free but NOT traffic-verified. Stated rather than implied.
 #
 # Unauthenticated probes on /prod after the deploy: /voice-in/c2c, /messages,
-# /invoices and /contacts all 401, so handler-level auth survived the change.
+# /invoices and [retired public path 44011e36] all 401, so handler-level auth survived the change.

@@ -32,7 +32,7 @@ const OUTPUT_FILE = path.join( OUT_DIR, 'sitemap.xml' );
 // Anything added here must be a real public route AND in the isPublic allowlist in
 // _app.tsx, or it will 200 with an empty body.
 //
-// /faq and /partners were removed: both pages were deleted on owner instruction, so
+// [retired public path] and /partners were removed: both pages were deleted on owner instruction, so
 // those entries described URLs that no longer build. /terms and /privacy carry real
 // published documents now and are indexable, so they belong here.
 const PUBLIC_EXACT = new Set( [
@@ -52,7 +52,7 @@ const PUBLIC_EXACT = new Set( [
   '/dastavez',
   '/elsewhere',
   '/expo-week',
-  // Renamed '/swdhya' -> '/open-possibility' -> '/anew'. Alphabetical, so it moved to the
+  // Renamed '[retired public path]' -> '[retired public path]' -> '/anew'. Alphabetical, so it moved to the
   // top of this group.
   '/anew',
   '/hunar',
@@ -338,7 +338,7 @@ function reportLastmod ( lastmods ) {
  * 1. AN ALLOWLIST ENTRY THAT DOES NOT EXIST IN THE EXPORT IS DROPPED SILENTLY.
  *    findHtmlFiles only emits routes it actually finds, which is the safe direction —
  *    but it means renaming or deleting a public page leaves a dead entry here and the
- *    sitemap just gets quietly shorter. '/swdhya' -> '/open-possibility' -> '/anew'
+ *    sitemap just gets quietly shorter. '[retired public path]' -> '[retired public path]' -> '/anew'
  *    already happened once. Warn, do not fail: a legitimately removed page should not
  *    block a deploy, it should be noticed.
  *

@@ -69,7 +69,7 @@
     "url": "{URL}",
     "datePublished": "{DATE_PUBLISHED}",
     "dateModified": "{DATE_MODIFIED}",
-    "author": {"@type": "Person", "name": "Swdhya Vaksetu", "url": "https://wecare.digital/swdhya"},
+    "author": {"@type": "Person", "name": "Swdhya Vaksetu", "url": "[retired public path 049c189c]"},
     "publisher": {"@type": "Organization", "name": "WECARE.DIGITAL", "logo": {"@type": "ImageObject", "url": "https://wecare.digital/get/o/stream/media/m/wecare-digital.png"}},
     "mainEntityOfPage": {"@type": "WebPage", "@id": "{URL}"},
     "inLanguage": "en-IN"

@@ -99,7 +99,7 @@ Fields: submissionId, orderId, oldStatus, newStatus, changedBy, notes, changedAt
 | POST | /orders | Create manual order |
 | POST | /orders/sync | Sync orders from Wix |
 | POST | /requests/submit | Submit a new request (via flow) |
-| GET | /track/:orderId | Track order status (via flow) |
+| GET | [retired public path 282d0fd5]/:orderId | Track order status (via flow) |
 
 ## Next Steps
 

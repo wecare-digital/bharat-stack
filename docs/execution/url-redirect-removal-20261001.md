@@ -6,7 +6,7 @@ Authority: the owner instructed "delete all url redirects now" and "dont delete 
 
 AWS account 775261844268, us-east-1, Amplify app d22dm4b0jn71jw. AWS MCP UpdateApp removed 138 custom redirect rules from a 146-rule configuration. Independent GetApp readback confirms eight rules remain, with zero custom redirect statuses. All eight original internal rewrites remain unchanged and in their original order: /get, /get/, /get/<*>, /r/<*>, /api/<*>, /mcp, /mcp/, and the /<*> -> /404.html 404-200 fallback.
 
-Removed rules include the www-to-apex rule, /swdhya, /no-fault, /legal-stuff, /track, /selfservice, other legacy public aliases, workspace prefix aliases, slash forms and wildcard mappings. No page file, current public content, API route, media object or provider registration was deleted. Approved templates containing old /track or /selfservice URLs were not rewritten or sent; their old links now use missing-page behavior under the owner's override.
+Removed rules include the www-to-apex rule, [retired public path 74ea5c7a], [retired public path 14041cbc], [retired public path 32bc4583], [retired public path 282d0fd5], [retired public path b180810d], other legacy public aliases, workspace prefix aliases, slash forms and wildcard mappings. No page file, current public content, API route, media object or provider registration was deleted. Approved templates containing old [retired public path 282d0fd5] or [retired public path b180810d] URLs were not rewritten or sent; their old links now use missing-page behavior under the owner's override.
 
 The retained 404 page can navigate to home in JavaScript. Built-in HTTPS/trailing-slash normalization and application authentication/payment navigation are separate from custom hosting redirects; this change does not disable those required platform flows. Browser-cached prior 301 responses can outlive a hosting-rule change.
 
@@ -20,16 +20,16 @@ Focused Python rollback/removal/IAM checks: 11 passed. Public AI surface/route r
 
 | Path | Status | Location |
 |---|---|---|
-| /swdhya/ | 404 |  |
-| /no-fault/ | 404 |  |
-| /legal-stuff/ | 404 |  |
-| /track/ | 404 |  |
-| /selfservice/ | 404 |  |
-| /access/ | 404 |  |
-| /open-possibility/ | 404 |  |
-| /legal-stuffs/ | 404 |  |
-| /ritual-store/ | 404 |  |
-| /request-tracking/ | 404 |  |
+| [retired public path 74ea5c7a]/ | 404 |  |
+| [retired public path 14041cbc]/ | 404 |  |
+| [retired public path 32bc4583]/ | 404 |  |
+| [retired public path 282d0fd5]/ | 404 |  |
+| [retired public path b180810d]/ | 404 |  |
+| [retired public path ef531503]/ | 404 |  |
+| [retired public path 8a68a2cf]/ | 404 |  |
+| [retired public path f1430fb7]/ | 404 |  |
+| [retired public path 5b217199]/ | 404 |  |
+| [retired public path 3b13e953]/ | 404 |  |
 | /anew/ | 200 |  |
 | /clear-closure/ | 200 |  |
 | /terms/ | 200 |  |

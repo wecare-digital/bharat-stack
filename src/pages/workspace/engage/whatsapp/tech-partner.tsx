@@ -1,5 +1,5 @@
 /**
- * Tech Partner Readiness — /dm/whatsapp/tech-partner
+ * Tech Partner Readiness — [retired public path]/whatsapp/tech-partner
  *
  * Live dashboard for the 4 Meta "Upgrade to Tech Partner" eligibility gates:
  *   1. Tech Provider Get Started (done)

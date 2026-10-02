@@ -530,10 +530,10 @@ def verify() -> int:
     # This function is the only consumer of config/public-pages.json that carries a COPY
     # rather than reading it live, so a catalogue change does not reach it until someone
     # redeploys - and nothing makes them. It happened within hours of the function being
-    # created: another session renamed /my-order to /orders, updated the catalogue, the
+    # created: another session renamed [retired public path] to /orders, updated the catalogue, the
     # allowlists and the tests, committed, and CI deployed the frontend. wecare-mcp has no
     # CI workflow, so it kept serving the old copy, and `search_pages` handed agents
-    # https://wecare.digital/my-order/ - a URL that now 404s. Nothing reported it.
+    # [retired public path]/ - a URL that now 404s. Nothing reported it.
     #
     # Caught here by comparing bytes, so a stale catalogue is a loud verify failure rather
     # than a wrong answer to an agent. scripts/check_deployed_source.py finds the same thing

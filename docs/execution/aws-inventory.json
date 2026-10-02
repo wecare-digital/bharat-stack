@@ -1906,7 +1906,7 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "DELETE /contacts",
+            "route_key": "DELETE [retired public path 44011e36]",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-contacts",
@@ -1914,7 +1914,7 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "DELETE /contacts/{contactId}",
+            "route_key": "DELETE [retired public path 44011e36]/{contactId}",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-contacts",
@@ -2330,7 +2330,7 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "GET /contacts",
+            "route_key": "GET [retired public path 44011e36]",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-contacts",
@@ -2338,7 +2338,7 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "GET /contacts/search",
+            "route_key": "GET [retired public path 44011e36]/search",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-contacts",
@@ -2418,7 +2418,7 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "GET /docs/changelog",
+            "route_key": "GET [retired public path a2557b8d]/changelog",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-docs-scraper",
@@ -2426,7 +2426,7 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "GET /docs/sources",
+            "route_key": "GET [retired public path a2557b8d]/sources",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-docs-scraper",
@@ -2434,7 +2434,7 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "GET /faq",
+            "route_key": "GET [retired public path 1965ee0f]",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-faq-handler",
@@ -3546,7 +3546,7 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "POST /contacts",
+            "route_key": "POST [retired public path 44011e36]",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-contacts",
@@ -3586,7 +3586,7 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "POST /docs/scrape",
+            "route_key": "POST [retired public path a2557b8d]/scrape",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-docs-scraper",
@@ -3594,7 +3594,7 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "POST /docs/sources",
+            "route_key": "POST [retired public path a2557b8d]/sources",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-docs-scraper",
@@ -4554,7 +4554,7 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "PUT /contacts",
+            "route_key": "PUT [retired public path 44011e36]",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-contacts",
@@ -4562,7 +4562,7 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "PUT /contacts/{contactId}",
+            "route_key": "PUT [retired public path 44011e36]/{contactId}",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-contacts",

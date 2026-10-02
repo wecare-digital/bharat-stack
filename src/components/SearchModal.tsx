@@ -28,8 +28,8 @@ interface SearchModalProps {
  * Derived from navigation.ts, NOT a second hand-written list.
  *
  * This used to be 14 hardcoded entries and it had drifted badly: 8 of the 14 were
- * WhatsApp sub-pages, and Ctrl+K could not find /dm/inbox, /dm/sms, /dm/rcs,
- * /dm/ses, /dm/settings, /access/security or any of the SEO pages - 88 real
+ * WhatsApp sub-pages, and Ctrl+K could not find [retired public path]/inbox, [retired public path]/sms, [retired public path]/rcs,
+ * [retired public path]/ses, [retired public path]/settings, [retired public path]/security or any of the SEO pages - 88 real
  * destinations exist and it knew about 14. A palette that cannot find the unified
  * inbox is worse than no palette, because the user stops trying it.
  *

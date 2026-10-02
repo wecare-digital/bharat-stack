@@ -6,7 +6,7 @@
  * custom:partner_waba_id Cognito attribute via GET /partners/me).
  *
  * Customers get no admin controls — no tenant list, no onboarding of others,
- * no disconnect. Those live on the admin-only /dm/whatsapp/connected-accounts/.
+ * no disconnect. Those live on the admin-only [retired public path]/whatsapp/connected-accounts/.
  */
 import React, { useEffect, useState } from 'react';
 import Layout from '../../../../components/Layout';

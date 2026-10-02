@@ -6,7 +6,7 @@
  * provider, view every connected tenant with live details + provisioning step
  * results, and disconnect a tenant.
  *
- * Customers never see this page — they get the limited /dm/whatsapp/my-account/.
+ * Customers never see this page — they get the limited [retired public path]/whatsapp/my-account/.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import Layout from '../../../../components/Layout';

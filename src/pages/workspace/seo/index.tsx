@@ -1,6 +1,6 @@
 /**
  * SEO Hub — Overview + links to all SEO sub-pages
- * No internal login — matches pattern of /dm, /store, /dashboard
+ * No internal login — matches pattern of [retired public path], /store, [retired public path]
  */
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';

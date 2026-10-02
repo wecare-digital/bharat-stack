@@ -9,20 +9,20 @@
  * produces no page. The parent of the namespace was the one path in it that did
  * not resolve.
  *
- * It matters more than a missing landing page usually would, because `/engage/`
- * and `/dm/` both 301 *into* `/workspace/engage/`. A user who trimmed the URL
+ * It matters more than a missing landing page usually would, because `[retired public path]/`
+ * and `[retired public path]/` both 301 *into* `/workspace/engage/`. A user who trimmed the URL
  * back to `/workspace/` — the obvious way to look for the parent — hit a dead
  * end inside a namespace whose whole point is to be the parent.
  *
  * ON THE REDIRECT ORDERING
  * ------------------------
- * The earlier `/workspace`, `/workspace/` and `/workspace/<*>` -> `/engage/*`
+ * The earlier `/workspace`, `/workspace/` and `/workspace/<*>` -> `[retired public path]/*`
  * rules are GONE, deliberately. A wildcard cannot point inside its own source
  * prefix without swallowing every route beneath it, so while those rules existed
  * they sat in front of all 14 families and bounced each one straight back out.
  * The surviving `workspace`-sourced rules are intra-namespace canonicalisations
  * only (e.g. `/workspace/engage/calls` -> `/workspace/engage/inbox/?channel=voice`),
- * and the traffic now flows inward: `/dm/<*>` and `/engage/<*>` -> `/workspace/engage/<*>`.
+ * and the traffic now flows inward: `[retired public path]/<*>` and `[retired public path]/<*>` -> `/workspace/engage/<*>`.
  * Verified live before this page was added: all 13 indexed families 200.
  *
  * `settings` is the one family with no `index.tsx` — it holds a single page — so

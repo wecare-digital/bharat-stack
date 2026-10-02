@@ -397,7 +397,7 @@ against the published/draft pair. Only the owner can mint a new credential; Wix 
 
 ```mermaid
 flowchart TD
-    A[Admin composes a page at /admin/content/pages] --> B[PAGE#slug METADATA]
+    A[Admin composes a page at [retired public path 84a04c24]/content/pages] --> B[PAGE#slug METADATA]
     A --> C[PAGE#slug SECTION#seq#sectionId]
     C --> D[Section holds a TYPE plus a Wix REFERENCE, never a copy]
     D --> E[Build or request time: GET /pages/slug]

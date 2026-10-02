@@ -276,7 +276,7 @@ at `right:96px; bottom:16px` with its width capped against `calc(100vw - 108px)`
   `const isPublic` — the line number has moved twice, so do not trust one here):
   `router.pathname === '/' || '/grahak-os' || '/vayulok' || '/contact-test'`.
   Any other route renders an empty body with HTTP 200. Add new public pages there
-  or they will look like a 404 that isn't one. `/faq` and `/partners` were removed
+  or they will look like a 404 that isn't one. `[retired public path 1965ee0f]` and `/partners` were removed
   from this list when both pages were deleted in favour of absolute links to
   `www.wecare.digital` — re-adding a local route for either is what would make
   those links look broken again.

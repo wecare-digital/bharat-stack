@@ -381,7 +381,7 @@ the weight and it becomes a failure. Worth a note in the source so it is not "ti
 
 `index.tsx` states that `20px/600` "was considered and rejected: it exists nowhere on the
 site, and inventing a rung is the thing the h2 unification was done to stop."
-`measure-fonts-detail.js` finds it: **`/my-order` `.mo-link` "Terms of Service"**, 20px/600.
+`measure-fonts-detail.js` finds it: **`[retired public path aaee9dd4]` `.mo-link` "Terms of Service"**, 20px/600.
 The reasoning stands, the factual claim does not — and it is the tenth stale comment, on top
 of the nine in L7.
 

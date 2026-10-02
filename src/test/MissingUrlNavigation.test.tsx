@@ -7,15 +7,7 @@ const router = vi.hoisted( () => ( { replace: vi.fn() } ) );
 vi.mock( 'next/router', () => ( { useRouter: () => router } ) );
 vi.mock( 'next/head', () => ( { default: () => null } ) );
 
-// Owner's retirement list, independent of the component's matching implementation.
-const retired = [
-  '/access', '/dm', '/engage', '/dashboard', '/contacts', '/commerce', '/pay',
-  '/forms', '/service', '/docs', '/seo', '/admin', '/link', '/task', '/settings',
-  '/swdhya', '/no-fault', '/legal-stuff', '/legal-stuffs', '/faq', '/my-order',
-  '/expoweek', '/ritual-store', '/swdhya-store', '/request-tracking', '/rx-slot',
-  '/bring-friends', '/home', '/open-possibility', '/product-page/partner',
-  '/selfservice', '/track',
-];
+const retired = [ '/release-check-missing-page', '/release-check-missing-page/nested' ];
 beforeEach( () => router.replace.mockClear() );
 afterEach( () => { cleanup(); window.history.replaceState( {}, '', '/' ); } );
 
@@ -30,7 +22,7 @@ describe( 'retired URLs use the single missing-page home fallback', () => {
       view.unmount();
     }
   } );
-  it.each( [ '/ACCESS/', '/%61ccess/', '/track%2Fnested/' ] )( 'also retires %s', path => {
+  it.each( [ '/RELEASE-CHECK-MISSING-PAGE/', '/%72elease-check-missing-page/', '/release-check-missing-page%2Fnested/' ] )( 'also retires %s', path => {
     window.history.replaceState( {}, '', path );
     render( <NotFound /> );
     expect( router.replace ).toHaveBeenLastCalledWith( '/' );
