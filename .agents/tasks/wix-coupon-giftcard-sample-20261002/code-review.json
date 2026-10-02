@@ -2,64 +2,26 @@
   "verdict": "CHANGES_REQUESTED",
   "findings": [
     {
-      "id": "M1",
+      "id": "M4",
       "severity": "MEDIUM",
       "blocking": true,
       "confidence": "confirmed",
-      "title": "The demo's AWS-call count is tautological, and design §4.3 asked for enforcement",
+      "title": "The demo cites a test that does not exist as the measurement of its containment-time arming",
       "file": "scripts/demo_coupon_giftcard_sample.py",
-      "detail": "main() calls _count_aws_calls() AFTER all three legs have completed. That function creates attempted = {'count': 0}, registers the before-send hooks on the two client event systems, and returns attempted['count'] in the same call, so the value is 0 by construction and no leg call could ever have been refused. Consequences: the rendered line 'AWS API calls attempted = 0' states nothing about the run, the following line 'a before-send hook would fail the run' is false for the run just printed, and the guard 'return 1 if mismatches or aws_calls else 0' has a dead second clause. The hook targets do resolve (middleware.cognito.meta.events and rate_limit.dynamodb.meta.client.meta.events both resolve to an EventAliaser, measured after main(['--json']) returned 0), so the mechanism works and is merely installed at the wrong moment. Design revision 8 §4.3 is explicit: 'A call that would leave the process fails the demo rather than being tallied afterwards', so this is a deviation, not a judgement call. findings.md and verification.md both repeat the enforcement claim, in the one artifact the retirement gate depends on.",
-      "action": "Install the before-send hooks inside _install_containment() before leg 1, hold the counter where both functions can read it, and reduce _count_aws_calls() to a read. Then correct the enforcement wording in findings.md and verification.md §10 if needed."
+      "line": 149,
+      "detail": "The `_HOOK_PATHS` comment states that both botocore clients are already in `sys.modules` before leg 1 and that this is 'Measured by `test_the_aws_refusal_hook_is_armed_before_the_first_leg`, not assumed'. That test exists nowhere: `grep -rn armed_before_the_first_leg scripts tests .agents docs` returns exactly one hit, the comment itself. The property is TRUE today - importing the demo module and nothing else, `lambda_utils.middleware` and `lambda_utils.rate_limit` are both in `sys.modules` and `_arm_aws_refusal([])` returns 2 targets - so no claim in the transcript is currently false. What is missing is the pin. `_arm_aws_refusal` swallows a missing module with `if module is None: continue`, so if either stops arriving transitively the containment-time arming silently becomes a no-op and the only remaining hook is `_leg_coupon`'s re-arm after the handler import. `_leg_wix_giftcard` and `_leg_our_giftcard` do not re-arm, so `--leg wix-giftcard` and `--leg our-giftcard` would then run with no hook at all while `_render` still prints 'the refusing before-send hook was ARMED BEFORE leg 1'. `test_an_aws_call_during_a_leg_fails_the_run_rather_than_being_counted_afterwards` cannot substitute: it emits `before-send` from inside leg 3, after `_leg_coupon` has re-armed, so it passes whether or not containment-time arming did anything. `test_each_leg_runs_on_its_own` asserts only exit 0 and `mismatchCount == 0`. This is the same defect class the first pass raised about `_committer_of` - a named symbol presented as measured evidence and absent from the tree - and it sits on the one enforcement claim M1 was about, in the artifact the retirement gate depends on.",
+      "action": "Add the cited test (assert `_arm_aws_refusal([])` returns two targets before any leg runs, or that the hook is live during a `--leg wix-giftcard` run, which never re-arms), or drop the citation and state the property as unpinned."
     },
     {
-      "id": "M2",
-      "severity": "MEDIUM",
-      "blocking": true,
-      "confidence": "confirmed",
-      "title": "urllib.request.urlopen is replaced globally and never restored",
-      "file": "scripts/demo_coupon_giftcard_sample.py",
-      "detail": "_install_containment() assigns urllib.request.urlopen = transport directly and nothing puts the original back. The demo fixture in tests/test_demo_coupon_giftcard_sample.py wraps wix_ecom._key_cache and sys.modules['boto3'] in monkeypatch.setitem (so those are restored) but never touches urlopen. Confirmed by inspection after an in-process run: urllib.request.urlopen is still a WixTransport once main() returns, with a drained queue, so any later call raises UnexpectedWixCall, which is a BaseException and escapes every except Exception in the tree. Nine other test modules reference urlopen and all sort after test_demo_* alphabetically; they pass only because each patches urlopen itself. A test that calls urlopen without its own patch would fail naming the wrong module, and a test asserting 'no network call happens' could pass because the stub refused rather than because the code abstained.",
-      "action": "Save the original in _install_containment() and restore it in main() (try/finally), or move the urlopen patch into the test fixture so monkeypatch owns the teardown."
-    },
-    {
-      "id": "M3",
-      "severity": "MEDIUM",
-      "blocking": true,
-      "confidence": "confirmed",
-      "title": "The registered botocore before-send hooks outlive the test session",
-      "file": "scripts/demo_coupon_giftcard_sample.py",
-      "detail": "The refuse handler is registered on module-level, session-lifetime clients (lambda_utils.middleware.cognito, lambda_utils.rate_limit.dynamodb) and is never unregistered; main() is invoked five times across the demo test file, so handlers accumulate. Any later test that exercises those clients for real would get an uncatchable UnexpectedAwsCall. Latent today only because test_rate_limit.py replaces lambda_utils.rate_limit.dynamodb wholesale with a MagicMock, bypassing the hooked client.",
-      "action": "Unregister the handler on the way out (botocore unregister), or register it inside a scope the caller controls, so a pytest session is not left with permanent raising hooks on shared clients."
-    },
-    {
-      "id": "L1",
+      "id": "L4",
       "severity": "LOW",
       "blocking": false,
       "confidence": "confirmed",
-      "title": "The printed idempotency key discloses the demo code, so the 'no clear bearer-value code' claim is stronger than the fact",
-      "file": "scripts/demo_coupon_giftcard_sample.py",
-      "detail": "demo_code(reference_id) is 'WDGC' + sha256(reference_id).hexdigest()[:16] upper-cased and idempotency_key(reference_id) is 'wd-gc-' + the same digest. The demo masks the code everywhere and prints the idempotency key in full, so the masked code is recoverable by stripping decoration and upper-casing. This is documented in the demo_code docstring and asserted positively by the suite (assert demo in key). Production is unaffected because card_code is HMAC-keyed and the same test asserts keyed not in key and key not in keyed. verification.md §10's grep-based conclusion 'no clear bearer-value code' is literally true of the string and not of the information.",
-      "action": "Mask the printed idempotency key, or state the reconstructability at the point where the zero-occurrence grep result is reported."
-    },
-    {
-      "id": "L2",
-      "severity": "LOW",
-      "blocking": false,
-      "confidence": "confirmed",
-      "title": "Fetch count disagrees between findings.md and the contract transcript",
-      "file": ".agents/tasks/wix-coupon-giftcard-sample-20261002/findings.md",
-      "detail": "findings.md says 'Six fetches of the live dev.wix.com markdown rendition'; docs/execution/wix-contract-verification-20261002.md tabulates five (1, 2, 2b, 3, 4) and states 'Five pages, five HTTP 200 lines', and the commit message says five curl GETs.",
-      "action": "Correct the count in findings.md to match the transcript."
-    },
-    {
-      "id": "L3",
-      "severity": "LOW",
-      "blocking": false,
-      "confidence": "confirmed",
-      "title": "credit() lost its once_key idempotency with no statement of where idempotency must live",
-      "file": "amplify/functions/shared/lambda_utils/ecommerce/gift_card_store.py",
-      "detail": "credit() is now a plain addition and has no production caller anywhere under amplify/, which is what makes the removal safe today. The docstring argues correctly that a genuine top-up must not be idempotent, but a future top-up route inherits a non-idempotent money function with no pointer to where the guard belongs. Separately, one test name still reads test_the_claim_row_is_settled_by_the_decrement_... for a path that no longer has a _decrement.",
-      "action": "Add a line to credit()'s docstring naming where a top-up caller must provide idempotency, and rename the stale test."
+      "title": "The coupon idempotency test's rationale contradicts this change's own measured contract transcript",
+      "file": "tests/test_wix_coupon_giftcard_sample.py",
+      "line": 330,
+      "detail": "`test_a_replayed_coupon_issue_converges_on_one_coupon`'s docstring justifies keeping `coupon_store` with \"Wix's `Create Coupon` has no `idempotencyKey` and no read-by-code\". Row V2b of `docs/execution/wix-contract-verification-20261002.md`, added by this same change, measures `specification.code` carrying `$eq,$ne,$hasSome,$contains,$startsWith` and concludes 'So coupons **can** be filtered by code', with the corrected framing spelled out: `coupon_store` is kept for idempotency, not for read-by-code. The test's assertions are unaffected - they rest on the conditional put, the single create on the wire and the preserved `wixCouponId`, all of which stand on the `idempotencyKey` absence alone - but the stale half of the rationale is the text the next reader will find beside the code when deciding whether `coupon_store` can be dropped.",
+      "action": "Narrow the docstring to the `idempotencyKey` absence, which is the fact that carries verdict (B), and drop or correct the 'no read-by-code' clause."
     }
   ],
   "reviewDoc": "/Users/wecaredigital/wecare-store/.worktrees/wix-coupon-giftcard-sample-20261002/.agents/tasks/wix-coupon-giftcard-sample-20261002/code-review.md"

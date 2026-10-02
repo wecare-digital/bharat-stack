@@ -84,6 +84,12 @@ AWS and zero Wix access. The Wix HTTP boundary is stubbed at `urllib.request.url
 request below is the one `wix_ecom._request` really composed — headers, `json.dumps` with no
 custom encoder, the lot.
 
+Re-run in the second review iteration and diffed line by line against what is recorded here: 100
+lines against 100, and the only differences are the **three** per-run identifiers — leg 1's
+`couponId`, leg 3's `giftCardId` (and therefore its derived code mask) and leg 3's
+`transactionId`, each a fresh ULID from `secrets`. Every amount, payload, state and claim below
+is byte-identical, so the transcript is left as produced rather than churned for three ids.
+
 Read three things in it deliberately:
 
 - the **coupon code prints in full** (`WDSAMPLE10`) because it is broadcast marketing material;

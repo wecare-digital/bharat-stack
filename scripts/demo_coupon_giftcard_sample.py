@@ -146,7 +146,9 @@ _AWS_CALLS = {"count": 0}
 #: already in `sys.modules` when this script finishes importing - `lambda_utils.ecommerce`
 #: pulls them in transitively - so both clients exist before leg 1, which is what makes arming
 #: at containment time possible rather than aspirational. Measured by
-#: `test_the_aws_refusal_hook_is_armed_before_the_first_leg`, not assumed.
+#: `test_the_aws_refusal_hook_is_armed_before_the_first_leg`, not assumed: it asserts both
+#: targets resolve on a bare import AND that the hook is live inside `--leg wix-giftcard`,
+#: which re-arms nothing, so deferring the arming out of `_install_containment` fails it.
 _HOOK_PATHS = (
     ("lambda_utils.middleware", ("cognito", "meta", "events")),
     ("lambda_utils.rate_limit", ("dynamodb", "meta", "client", "meta", "events")),

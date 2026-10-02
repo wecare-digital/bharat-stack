@@ -113,6 +113,57 @@ def test_an_aws_call_during_a_leg_fails_the_run_rather_than_being_counted_afterw
     assert '"legs"' not in captured
 
 
+def test_the_aws_refusal_hook_is_armed_before_the_first_leg(demo, monkeypatch, capsys):
+    """The MOMENT of arming, which the test above cannot see and two legs depend on entirely.
+
+    `test_an_aws_call_during_a_leg_...` emits from inside leg 3, by which point `_leg_coupon`
+    has re-armed after its handler import, so it passes whether or not `_install_containment`
+    armed anything. `_leg_wix_giftcard` and `_leg_our_giftcard` never re-arm, so for
+    `--leg wix-giftcard` the containment-time arming is the ONLY hook there will ever be - and
+    `_arm_aws_refusal` swallows a module missing from `sys.modules` with `continue`, so if
+    either path stopped arriving transitively the arming would silently become a no-op while
+    `_render` still printed "ARMED BEFORE leg 1".
+
+    Measured two ways, because each misses what the other catches:
+
+    1. Both `_HOOK_PATHS` targets RESOLVE on a bare import of the demo and nothing else, so
+       `_arm_aws_refusal` has two live event systems to register on at containment time. This
+       is the half that fails if an import stops being transitive.
+    2. The hook is LIVE inside `--leg wix-giftcard`, per path, so a neutralised
+       `_arm_aws_refusal` is caught rather than inferred. This is the half that fails if the
+       arming moves back after the legs.
+    """
+    for module_name, _path in demo._HOOK_PATHS:
+        assert module_name in sys.modules, f"{module_name} no longer arrives transitively"
+
+    # Registers on the REAL session-lifetime clients, so it is disarmed in a `finally` - a
+    # permanently-raising handler left behind hands an uncatchable BaseException to any later
+    # test that used those clients for real.
+    armed = demo._arm_aws_refusal([])
+    try:
+        assert len(armed) == len(demo._HOOK_PATHS) == 2, "an event system failed to resolve"
+    finally:
+        demo._disarm_aws_refusal(armed)
+    assert armed == []
+
+    original = demo._leg_wix_giftcard
+    for module_name, path in demo._HOOK_PATHS:
+        def leg_that_touches_aws(transport, args, _module=module_name, _path=path):
+            _event_system(_module, _path).emit("before-send", request=None)
+            return original(transport, args)  # pragma: no cover - the emit never returns
+
+        monkeypatch.setattr(demo, "_leg_wix_giftcard", leg_that_touches_aws)
+        # This leg imports no handler and re-arms nothing, so reaching the refusal at all
+        # proves the arming happened in `_install_containment`.
+        code = demo.main(["--json", "--no-colour", "--leg", "wix-giftcard"])
+        captured = capsys.readouterr().out
+
+        assert code == 1, f"{module_name} ran unhooked: {captured}"
+        assert "CONTRACT FAILURE: UnexpectedAwsCall" in captured
+        assert demo._count_aws_calls() == 1
+        assert '"legs"' not in captured
+
+
 def test_the_demo_puts_back_every_global_it_touched(demo):
     """`urlopen`, `boto3`, the key cache and BOTH event hooks, restored in a `finally`.
 

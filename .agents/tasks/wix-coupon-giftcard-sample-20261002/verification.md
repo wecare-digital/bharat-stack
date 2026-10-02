@@ -26,6 +26,50 @@ unwired, the retirement stays **not taken**, and loyalty/referral stays out of s
 this iteration changes behaviour a user could observe — the only runtime change is to a
 development-only script and to a docstring.
 
+## 0b. Second review iteration — the two findings from the `d7ef5583` pass
+
+| # | Severity | Finding | Fix | Evidence |
+|---|---|---|---|---|
+| M4 | MEDIUM (blocking) | the demo cited `test_the_aws_refusal_hook_is_armed_before_the_first_leg` as the measurement of its containment-time arming, and that test existed nowhere in the tree | the cited test is now **implemented**, under exactly that name, in `tests/test_demo_coupon_giftcard_sample.py`. It measures the property both ways the review named: both `_HOOK_PATHS` targets resolve on a bare import (so `_arm_aws_refusal([])` returns 2 at containment time), and the hook is live inside `--leg wix-giftcard`, per path — the leg that re-arms nothing | the mutation run below; `+1` on the suite total |
+| L4 | LOW | the coupon idempotency test's docstring justified `coupon_store` with "no `idempotencyKey` **and no read-by-code**", contradicting row V2b of this change's own contract transcript | the docstring now rests on the `idempotencyKey` absence alone, which is the fact carrying verdict (B), and states explicitly that read-by-code is NOT part of the rationale, citing V2b | `tests/test_wix_coupon_giftcard_sample.py::test_a_replayed_coupon_issue_converges_on_one_coupon` docstring |
+
+### M4 — the mutant, so the new test is not vacuous
+
+The review's own words were that the property is true today but unpinned, and that the existing
+`test_an_aws_call_during_a_leg_...` cannot substitute because it emits from leg 3, after
+`_leg_coupon` has re-armed. That is exactly what the mutation shows. Arming was deferred out of
+containment time, one line, leaving the re-arm inside `_leg_coupon` intact:
+
+```
+-    armed: list = _arm_aws_refusal([])
++    armed: list = []   # MUTANT - arming deferred out of containment time
+
+$ .venv/bin/python -m pytest tests/test_demo_coupon_giftcard_sample.py -q \
+      -k "armed_before_the_first_leg or during_a_leg"
+FAILED tests/test_demo_coupon_giftcard_sample.py::test_the_aws_refusal_hook_is_armed_before_the_first_leg
+  assert 0 == 1            # the wix-giftcard leg ran UNHOOKED and returned a clean transcript
+1 failed, 1 passed, 18 deselected in 0.20s
+```
+
+The `1 passed` is the point as much as the failure: the pre-existing containment test passes on
+the mutant, so before this iteration nothing in the suite could tell an armed run from an
+unarmed one for the two legs that never re-arm. The mutant was reverted and the revert confirmed
+by `git diff --stat scripts/demo_coupon_giftcard_sample.py` being empty before the comment edit.
+
+Also narrowed, since the citation is the thing under repair: the `_HOOK_PATHS` comment now says
+what the test asserts rather than only that a test exists.
+
+### L4 — one place the same stale clause survives, named rather than quietly edited
+
+`grep -n 'read-by-code' .agents/tasks/.../*.md` finds it twice more, at `plan.md:27` and
+`plan.md:631`. Those are **not** edited, deliberately: the plan is the dated artefact the build
+was run from, V2b of `docs/execution/wix-contract-verification-20261002.md` is the correction of
+record and already says the clause did not survive measurement, and rewriting a planning document
+after the fact would erase the evidence that the measurement changed the reasoning. The finding's
+concern was the text a reader finds **beside the code** when deciding whether `coupon_store` can
+be dropped, and that text is the docstring, which is fixed. Nothing in either `plan.md` line is
+load-bearing for verdict (B), which rests on V1 alone.
+
 ## 0. The baseline, measured in this worktree at `32b632e3` BEFORE any edit
 
 ```
@@ -51,7 +95,7 @@ Five pre-existing pytest failures, confirmed present both before and after:
 
 ```
 $ .venv/bin/python -m pytest -q
-5 failed, 6881 passed, 1 skipped, 7 xfailed in 59.07s
+5 failed, 6882 passed, 1 skipped, 7 xfailed in 60.40s
 
 FAILED tests/test_legacy_redirect_rollback_snapshot.py::test_owner_policy_preserves_rewrites_without_restoring_legacy_destinations
 FAILED tests/test_url_host_routing_rules.py::test_only_host_canonicalisation_is_an_explicit_redirect
@@ -61,9 +105,10 @@ FAILED tests/test_url_host_routing_rules.py::test_saved_pre_removal_configuratio
 ```
 
 **Against the baseline: exactly the 5 known failures, in exactly the 2 known files. No sixth
-failure, so this change introduced no regression.** 6,881 passed — re-run after the review fixes,
-`+3` on the 6,878 of the first pass, which is exactly the three tests added for the review
-findings.
+failure, so this change introduced no regression.** 6,882 passed — re-run after the second review
+iteration, `+1` on the 6,881 of the first fix pass, which is exactly M4's one added test (6,878
+at the original pass, `+3` for the first iteration's three, `+1` for this one). The two baseline
+files hold the same 5 failures in all three runs.
 
 ## 3. The design §7 focused set
 
@@ -75,15 +120,16 @@ $ .venv/bin/python -m pytest tests/test_wix_coupon_giftcard_sample.py \
     tests/test_gift_cards_iam_and_table.py tests/test_wix_coupons_contract.py \
     tests/test_coupon_store.py tests/test_coupon_reconciliation.py \
     tests/test_payment_vocabulary_at_decision_points.py -q
-456 passed, 7 xfailed in 2.27s
+457 passed, 7 xfailed in 2.12s
 ```
 
-Reconciled against the baseline: 315 + 7 xfailed over 8 files → 456 + 7 xfailed over 12 files.
-The 141 additional passes are this change's new tests (58 harness + **19** demo + 4 concurrency)
+Reconciled against the baseline: 315 + 7 xfailed over 8 files → 457 + 7 xfailed over 12 files.
+The 142 additional passes are this change's new tests (58 harness + **20** demo + 4 concurrency)
 plus the 3 structural tests and 1 IAM test added to existing files, and the 7 xfailed are unmoved.
-The demo file carried 16 tests at the first review; the three added for the review findings are
-the AWS-enforcement mutation test, the global-restoration test and the idempotency-key disclosure
-test.
+The demo file carried 16 tests at the first review and 19 after the first fix pass — the three
+then added were the AWS-enforcement mutation test, the global-restoration test and the
+idempotency-key disclosure test; the 20th is M4's
+`test_the_aws_refusal_hook_is_armed_before_the_first_leg`.
 
 ## 4. Build before vitest — the `out/` artifact dependency
 
@@ -106,6 +152,11 @@ $ npx vitest run
 ```
 
 Build **before** vitest, in that order, because vitest depends on the `out/` artifact.
+
+Re-run unchanged in the second review iteration — `npm run build` exit 0 (same 1,411-URL sitemap
+and 1,323-post index), then `npx vitest run` at 65 files / 812 passed / 1 skipped in 6.65s. Both
+numbers are identical because nothing in this iteration touches TypeScript; the gate is re-run
+rather than cited so the record is of this tree and not the previous one.
 
 **No `.ts`/`.tsx`/`.js`/`src/**` file is in this change's footprint** —
 `git status --short -- src '*.ts' '*.tsx' '*.js'` is empty — so this is a whole-repo gate rather
@@ -364,14 +415,28 @@ MUTANT aws count: 0 (the test asserts 1)
 Unmutated, the same leg yields exit `1`, `CONTRACT FAILURE: UnexpectedAwsCall` on stdout, a count
 of `1`, and **no transcript**, so a refused run cannot be mistaken for a clean one. Pinned by
 `test_an_aws_call_during_a_leg_fails_the_run_rather_than_being_counted_afterwards`.
+### And the MOMENT of arming is pinned too, which the test above cannot see
+That test emits from leg 3, after `_leg_coupon` has re-armed, so it passes whether or not
+`_install_containment` armed anything — measured, not argued: the §0b mutant leaves it green.
+`test_the_aws_refusal_hook_is_armed_before_the_first_leg` closes that gap from both sides. It
+asserts both `_HOOK_PATHS` modules are in `sys.modules` on a bare import and that
+`_arm_aws_refusal([])` resolves **2** targets, then drives `--leg wix-giftcard` once per path —
+the leg that imports no handler and re-arms nothing — and requires exit `1`, the named contract
+failure, a count of `1` and no transcript. It disarms in a `finally`, because the clients are
+session-lifetime and a handler left registered raises a `BaseException` in some later test.
+This matters because `_arm_aws_refusal` swallows a module missing from `sys.modules` with
+`continue`: without this test, losing either transitive import would silently reduce arming to a
+no-op for `--leg wix-giftcard` and `--leg our-giftcard` while the renderer still printed
+"ARMED BEFORE leg 1".
 
 ### Every process-global is put back
 
 `urlopen`, `sys.modules["boto3"]`, `wix_ecom._key_cache["key"]` and both event-system hooks are
 restored in `main()`'s `finally`. Asserted over **two** consecutive runs by
 `test_the_demo_puts_back_every_global_it_touched`, because the hook-accumulation defect only shows
-on a repeat: the clients are module-level and session-lifetime, and `main()` is called nine times
-across that test file.
+on a repeat: the clients are module-level and session-lifetime, and `grep -c 'demo\.main('`
+reports **11** call sites in that file — more executions than that, since one sits in a
+two-iteration loop and two are parametrised.
 
 ## 11. IAM — no provisioner was edited, and that is the finding
 

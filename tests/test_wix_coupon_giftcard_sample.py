@@ -330,10 +330,16 @@ def test_every_wix_create_failure_leaves_the_row_pending_and_answers_202(
 def test_a_replayed_coupon_issue_converges_on_one_coupon(transport, handler, monkeypatch):
     """COUPON IDEMPOTENCY, which is the whole reason `coupon_store` is kept under Option B.
 
-    Wix's `Create Coupon` has no `idempotencyKey` and no read-by-code, so a lost create response
-    would otherwise leave a live Wix coupon whose id we cannot recover. Our conditional put on
-    `COUPON#<codeUpper>` is that recovery: the replay LOSES the claim, no second Wix create is
-    issued, and the row keeps the id the first attempt recorded.
+    Wix's `Create Coupon` has no `idempotencyKey`, so a retried create is a SECOND live Wix
+    coupon rather than the first one again. Our conditional put on `COUPON#<codeUpper>` is what
+    makes the retry converge: the replay LOSES the claim, no second Wix create is issued, and the
+    row keeps the id the first attempt recorded.
+
+    Read-by-code is deliberately NOT part of this rationale. V2b of
+    `docs/execution/wix-contract-verification-20261002.md` measured `specification.code`
+    carrying `$eq`, so coupons CAN be filtered by code - which is why the missing
+    `idempotencyKey` is the single fact carrying verdict (B), and why `coupon_store` is kept for
+    idempotency rather than for recovery of an id we could not otherwise read.
     """
     store = coupons_table()
     monkeypatch.setattr(handler, "_coupons_table", lambda: store)
