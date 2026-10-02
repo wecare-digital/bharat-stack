@@ -5,7 +5,6 @@ import Head from 'next/head';
 import Link from 'next/link';
 import ShareLinks from '../../components/ShareLinks';
 import BlogContribution from '../../components/BlogContribution';
-import BlogSubscribe from '../../components/BlogSubscribe';
 import {
   SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SOCIAL_CARD_TYPE, SOCIAL_CARD_ALT, SHARE_CARD_TYPE,
 } from '../../config/share';
@@ -506,10 +505,24 @@ export default function BlogPostPage ( {
             </nav>
           ) }
 
-          {/* BLOG SUBSCRIBE - verified public signup saved into the same ContactsTable that backs
-              /workspace/contacts. It sits directly before Contribution so the end-of-reading order is
-              content -> Tags -> Subscribe -> Contribution -> Share. */}
-          <BlogSubscribe />
+          {/* SUBSCRIBE ON WHATSAPP - the in-page signup box was removed in favour of a single
+              button that opens a WhatsApp conversation. href is the short link wecare.digital/r/wa,
+              which 302-redirects to https://wa.me/message/APDM5HUWH26SG1 - the same convention
+              SupportWidget.tsx uses, so the destination stays editable without a deploy and the
+              chromecheck widget marker keeps matching. A real anchor, not a button+onClick: it
+              leaves the site, so it must be middle-clickable, long-pressable and copyable. */}
+          <a
+            className="blog-wa-subscribe"
+            href="https://wecare.digital/r/wa"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Subscribe on WhatsApp"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="20" height="20">
+              <path fill="currentColor" d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z" />
+            </svg>
+            <span>Subscribe on WhatsApp</span>
+          </a>
 
           {/* SUPPORT THIS WORK - the Section 5 voluntary-contribution block, placed AFTER Subscribe
               and BEFORE the share row so the reading order is content -> Tags -> Subscribe -> Contribution
@@ -754,6 +767,21 @@ export default function BlogPostPage ( {
           transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12);
         }
         .tags :global(a:focus-visible){outline:3px solid #1a3a2a;outline-offset:2px}
+        /* SUBSCRIBE ON WHATSAPP BUTTON. Our own surface, so it carries the full-voice lime pair
+           the design contract reserves for us - #d1f470 fill with #1a3a2a type, the same as
+           .msg.sent, .tab.active and BrandBadge - with no border, matching those. It replaces
+           the in-page signup box and sits where that box used to, directly before Contribution. */
+        .blog-wa-subscribe{
+          display:inline-flex;align-items:center;gap:10px;margin-top:44px;
+          padding:12px 20px;border-radius:999px;
+          background:#d1f470;color:#1a3a2a;font-weight:700;font-size:17px;
+          text-decoration:none;transition:transform .2s,box-shadow .2s;
+        }
+        .blog-wa-subscribe svg{flex:0 0 auto}
+        .blog-wa-subscribe:hover,.blog-wa-subscribe:focus-visible{
+          transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.18);
+        }
+        .blog-wa-subscribe:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
         /* The share row sits in the same hairline rhythm as the tags above it and the pager below
            - 24px of air under a 1px e5e7eb rule - so the tail of the page reads as three bands of
            one object rather than three unrelated blocks. The controls style themselves; see
