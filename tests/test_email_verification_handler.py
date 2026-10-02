@@ -6,7 +6,7 @@ The mechanism (hashing, throttling, sending) is tested in test_otp_challenge / t
 test_verification_email. This file tests the *handler's* obligations: the code never appears in a
 response or a log, the same shape comes back whether or not the address is known (no enumeration),
 a throttled request 429s before any send, every verify failure collapses to one opaque outcome,
-and a successful verify stamps the customer at most once.
+and a successful verify returns a short-lived server-held proof bound to the normalized email.
 """
 
 import importlib.util
@@ -168,7 +168,7 @@ def test_verify_failures_are_all_one_opaque_outcome(handler_env):
         == 'INVALID_OR_EXPIRED'
 
 
-def test_verify_stamps_the_customer_once(handler_env):
+def test_verify_returns_email_bound_proof_and_never_stamps_body_selected_customer(handler_env):
     h, fake, ses = handler_env
     from lambda_utils.identity import customer as identity
     cid = identity.new_customer_id()
@@ -177,8 +177,19 @@ def test_verify_stamps_the_customer_once(handler_env):
     code = _issue_and_capture_code(h, ses)
     resp = h.handler(_event('verify', email=EMAIL, code=code, customerId=cid), None)
     assert resp['statusCode'] == 200
+    body = json.loads(resp['body'])
+    assert body['status'] == 'VERIFIED'
+    assert body['proof']
+    assert body['expiresInSeconds'] == h.PROOF_TTL_SECONDS
+
+    # Public email verification proves the email only; it cannot mutate a browser-selected customer.
     row = fake.Table(CUSTOMERS_TABLE).get_item(Key={'customerId': cid})['Item']
-    assert row.get('emailVerifiedAt')
+    assert 'emailVerifiedAt' not in row
+
+    proof = fake.Table(OTP_TABLE).get_item(
+        Key={'grantId': h.PROOF_PREFIX + body['proof']})['Item']
+    assert proof['purpose'] == h.PROOF_PURPOSE
+    assert proof['subjectDigest'] == h._proof_digest(EMAIL)
 
 
 def test_a_used_code_cannot_be_replayed(handler_env):
