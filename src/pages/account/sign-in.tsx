@@ -63,6 +63,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 
 import PageTopBand from '../../components/PageTopBand';
 import PhoneField from '../../components/PhoneField';
+import PillButton from '../../components/PillButton';
 import { DEFAULT_DIAL_CODE } from '../../lib/dialCodes';
 import {
   requestOtp, submitOtp, normaliseMobile, getSession, restoreSession, nextSessionFrom,
@@ -464,9 +465,20 @@ export default function CustomerSignIn (): React.ReactElement {
               <p className="si-hint" id="si-hint">
                 Pick your country code, then the number WhatsApp is on.
               </p>
-              <button className="si-cta" type="submit" disabled={ busy }>
-                { busy ? 'Sending…' : 'Send code' }
-              </button>
+              {/* THE TWO-SEGMENT PILL, the home-page phone-number treatment (PillButton). The LEFT
+                  segment is the static "Sign in" label; the RIGHT segment is the ACTION, which is
+                  also the control's accessible name - so the button still answers to "Send code"
+                  (and "Sending…" while busy), the name the sign-in tests pin. Semantics are
+                  unchanged: a real type="submit" that runs startPhone, disabled while busy. */}
+              <PillButton
+                as="button"
+                type="submit"
+                label="Sign in"
+                action={ busy ? 'Sending…' : 'Send code' }
+                disabled={ busy }
+                busy={ busy }
+                describedBy={ error ? 'si-error' : undefined }
+              />
             </form>
           )}
 
@@ -503,9 +515,18 @@ export default function CustomerSignIn (): React.ReactElement {
                 <input type="checkbox" checked={ persistent } onChange={ e => setPersistent( e.target.checked ) } />
                 Keep me signed in on this device
               </label>
-              <button className="si-cta" type="submit" disabled={ busy }>
-                { busy ? 'Checking…' : 'Confirm code' }
-              </button>
+              {/* Same two-segment pill. The right segment carries "Confirm code" (and "Checking…"
+                  while busy), which is both the visible action and the accessible name the test
+                  queries. Real type="submit" running submitCode, disabled while busy. */}
+              <PillButton
+                as="button"
+                type="submit"
+                label="Sign in"
+                action={ busy ? 'Checking…' : 'Confirm code' }
+                disabled={ busy }
+                busy={ busy }
+                describedBy={ error ? 'si-error' : undefined }
+              />
             </form>
           )}
 
@@ -542,18 +563,10 @@ export default function CustomerSignIn (): React.ReactElement {
           .si-hint{
             margin:0 0 20px;font-size:16px;line-height:1.55;color:rgba(0,0,0,.54);
           }
-          /* The single LIME actionable surface on this page: 52px, #d1f470 with #1a3a2a type, a
-             2px border because 2px means hoverable, the 50px pill radius. */
-          .si-cta{
-            display:inline-flex;align-items:center;justify-content:center;min-height:52px;
-            padding:0 26px;border:2px solid #d1f470;border-radius:50px;
-            background:#d1f470;color:#1a3a2a;font-family:inherit;font-size:17px;font-weight:600;
-            cursor:pointer;
-            transition:background-color .2s,transform .2s,box-shadow .2s;
-          }
-          .si-cta:hover:not(:disabled){background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-          .si-cta:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
-          .si-cta:disabled{opacity:.6;cursor:default}
+          /* THE PRIMARY ACTION IS NOW PillButton, the home-page two-segment pill, so this page no
+             longer carries a .si-cta rule: the component owns the pill's shape, colours, focus ring
+             and reduced-motion handling. The lime single-surface treatment that used to live here
+             was replaced on owner instruction to make the login CTA the dark-green + mint pill. */
 
           /* NO RED, ON OWNER INSTRUCTION. This was #fbe9e9 on #f0c0c0 with #8a1f1f text - three
              colours the home design does not contain, on a site whose only red is the full stop in
@@ -577,10 +590,6 @@ export default function CustomerSignIn (): React.ReactElement {
           .si-back :global(a:focus-visible){outline:3px solid #1a3a2a;outline-offset:3px;border-radius:2px}
           @media(max-width:767px){
             .si-body{font-size:18px}
-          }
-          @media(prefers-reduced-motion:reduce){
-            .si-cta{transition:none}
-            .si-cta:hover:not(:disabled){transform:none;box-shadow:none}
           }
         `}</style>
       </PageTopBand>
