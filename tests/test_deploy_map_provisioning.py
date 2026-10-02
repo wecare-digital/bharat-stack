@@ -89,7 +89,7 @@ def test_exactly_one_spec_is_awaiting_provisioning(deploy_module):
     # Session infrastructure is owned by its CloudFormation template; an account
     # without that stack must provision it rather than report a code-update failure.
     assert waiting == ["wecare-customer-session", "wecare-customer-whatsapp-auth", "wecare-email-verification",
-                       "wecare-customer-registration", "wecare-blog-subscribe", "wecare-checkout",
+                       "wecare-blog-subscribe", "wecare-customer-registration", "wecare-checkout",
                        "wecare-coupons", "wecare-gift-cards", "wecare-wix-giftcard-spi"]
 
 
