@@ -73,11 +73,17 @@ const PerksPage: React.FC = () => (
           </ul>
           <p className="pk-note">
             Gift cards are not on sale online yet. When they are, this is where you will buy,
-            redeem and check the balance on one.
+            redeem and check the balance on one. How WECARE.DIGITAL gift cards work — purchase,
+            redemption, balances and restrictions — is set out in our Terms of Service at /terms/
+            (section 21.1).
           </p>
-          {/* TODO: once gift cards go live, link the published gift-card terms here. Legal copy
-              lives in src/content/legal and is out of scope for this change — do not inline
-              clauses on this page. */}
+          {/* TODO RESOLVED: the published gift-card terms now exist (Terms section 21.1, anchor
+              /terms/#s21-1). We reference them in plain text rather than as a live link, because
+              the earlier TODO said to link them "once gift cards go live" and they are still gated
+              off / not on sale — and this page is deliberately link-free so nothing here can look
+              transacting (PerksPage.test.tsx asserts zero <a>/<button>). When cards go live, turn
+              the "/terms/ (section 21.1)" reference into an <a href="/terms/#s21-1"> and update the
+              test to allow that one informational link. Legal copy stays in src/content/legal. */}
         </section>
 
         {/* OFFERS. Only real/current offers may be shown; none are wired, so the page says so
