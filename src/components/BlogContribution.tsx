@@ -157,7 +157,7 @@ const BlogContribution: React.FC<BlogContributionProps> = ( { postId, slug } ) =
   return (
     <section className="bc" aria-labelledby="bc-title" data-post-id={ postId }>
       {/* h2, never h1: the post page already owns the single h1, and htmlcheck guards H1-MANY. */}
-      <h2 className="bc-title" id="bc-title">Support this work</h2>
+      <h2 className="bc-title" id="bc-title">Contribute</h2>
       <p className="bc-copy">
         If this article was useful, you can make a small voluntary contribution to support more
         independent writing and practical guides from WECARE.DIGITAL.

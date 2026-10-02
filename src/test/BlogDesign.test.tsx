@@ -829,7 +829,7 @@ describe( 'Blog post page', () => {
     const { container } = render( <BlogPostPage post={ samplePost } /> );
 
     const block = container.querySelector( 'section.bc' )!;
-    expect( block.querySelector( 'h2' )?.textContent ).toBe( 'Support this work' );
+    expect( block.querySelector( 'h2' )?.textContent ).toBe( 'Contribute' );
     expect( block.textContent ).toContain(
       'If this article was useful, you can make a small voluntary contribution to support more '
       + 'independent writing and practical guides from WECARE.DIGITAL.'
