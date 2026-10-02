@@ -804,3 +804,12 @@ that, and states the authority exactly as it stands rather than stronger.
   mutation or code-job enablement. Corrected overly broad Meta DCR prerequisite.
   Evidence: docs/execution/workspace-mcp-playground-20261002.md. Rollback: normal
   explicit-path revert and stack redeploy; no backend deployment in this release.
+
+- 2026-10-02 A0_READ/A1_LOCAL/A2_REMOTE_CODE: owner requested Meta App Review
+  descriptions and screencast preparation before submitting. Inspected existing
+  catalog builder, CTWA ad manager, handlers and official permission guidance.
+  Created meta-app-review-pack-20261002.md with accurate current/intended-use
+  text, separate recording plans and explicit unmet evidence requirements.
+  No permission grant, allowed-usage agreement, review submission, catalog
+  deletion or ad write was performed. Screenshot records the current form,
+  not a successful end-to-end recording. Rollback: ordinary document revert.
