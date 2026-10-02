@@ -187,7 +187,7 @@ const BlogSubscribe: React.FC = () => {
           <p className="blog-subscribe-eyebrow">Blog updates</p>
           <h2 id="blog-subscribe-title">Get new posts directly</h2>
         </div>
-        <p>Verify WhatsApp and email once. Your subscription is saved in our Contacts workspace.</p>
+        <p>Verify WhatsApp and email once. We’ll use both only for WECARE.DIGITAL blog updates you subscribe to.</p>
       </div>
 
       <form onSubmit={ subscribe } noValidate>
@@ -227,7 +227,7 @@ const BlogSubscribe: React.FC = () => {
               describedBy="blog-subscribe-status"
             />
             <div className="verify-row">
-              { phoneStep === 'sent' || phoneStep === 'error' ? (
+              { phoneStep === 'sent' || phoneStep === 'error' || phoneStep === 'verifying' ? (
                 <>
                   <input
                     className="otp"
@@ -237,8 +237,11 @@ const BlogSubscribe: React.FC = () => {
                     autoComplete="one-time-code"
                     aria-label="WhatsApp verification code"
                     placeholder="Code"
+                    disabled={ phoneStep === 'verifying' }
                   />
-                  <button type="button" onClick={ verifyPhone } disabled={ phoneStep === 'verifying' }>Verify</button>
+                  <button type="button" onClick={ verifyPhone } disabled={ phoneStep === 'verifying' }>
+                    { phoneStep === 'verifying' ? 'Checking…' : 'Verify' }
+                  </button>
                 </>
               ) : phoneStep === 'verified' ? (
                 <span className="verified">✓ WhatsApp verified</span>
@@ -262,7 +265,7 @@ const BlogSubscribe: React.FC = () => {
               aria-invalid={ emailStep === 'error' ? 'true' : undefined }
             />
             <div className="verify-row">
-              { emailStep === 'sent' || emailStep === 'error' ? (
+              { emailStep === 'sent' || emailStep === 'error' || emailStep === 'verifying' ? (
                 <>
                   <input
                     className="otp"
@@ -272,8 +275,11 @@ const BlogSubscribe: React.FC = () => {
                     autoComplete="one-time-code"
                     aria-label="Email verification code"
                     placeholder="Code"
+                    disabled={ emailStep === 'verifying' }
                   />
-                  <button type="button" onClick={ verifyEmail } disabled={ emailStep === 'verifying' }>Verify</button>
+                  <button type="button" onClick={ verifyEmail } disabled={ emailStep === 'verifying' }>
+                    { emailStep === 'verifying' ? 'Checking…' : 'Verify' }
+                  </button>
                 </>
               ) : emailStep === 'verified' ? (
                 <span className="verified">✓ Email verified</span>
