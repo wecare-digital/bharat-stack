@@ -182,6 +182,11 @@ def build_intent(adapter, *, customer_id: str, cart_id: str, owned_address: Dict
         items=calculated["summary"].get("lineItems"),
         address=calculated["deliveryAddress"],
         delivery=calculated["deliveryMethod"],
+        payment={
+            "wixGiftCard": calculated.get("wixGiftCard"),
+            "wixGiftCardRedeemPaise": int(calculated.get("wixGiftCardRedeemPaise") or 0),
+            "wixPayNowPaise": int(calculated.get("wixPayNowPaise") or 0),
+        },
     )
 
 
