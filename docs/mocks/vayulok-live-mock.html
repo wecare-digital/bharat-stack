@@ -195,10 +195,21 @@ html,body{margin:0;background:#fff}
 
      ROLE 1  action          .vl-btn                  52px / 13px / 16px-500 / 2px #1a3a2a / lime
      ROLE 2  (retired)       -                        was .vl-btn-quiet, 32px / 999px / 12px-700
-     ROLE 3  text input      .vl-input, .vl-pf        52px / 10px / 1px #e5e7eb
+     ROLE 3  text input      .vl-input, .vl-search-field  52px / 10px / 1px #e5e7eb
      ROLE 4  amount chip     .vl-bc-choice-face       40px / 999px / 15px-700 / 2px #e5e7eb
      ROLE 5  map control     .vl-layer, .vl-map-btn   38px / 999px / 13px-700 / 1px
      ROLE 6  tab             .vl-tab                  40px / 999px / 15px-700 / no border
+     ROLE 7  result option   .vl-search-option        52px / no radius / 16px-600 + 13px / lime active
+
+   ROLE 7 IS NEW IN THIS PASS, added under this block's own standing
+   instruction - a seventh shape gets a seventh role. It is the only role that
+   is NOT a control in a row: it is a listbox row inside an overlay, so it
+   shares a row with nothing and has nothing to align against. Its 52px is
+   MEASURED in Chromium and is a floor rather than a fixed height (two lines of
+   text at 16px-600 over 13px with 10px padding), which keeps every row above
+   the 44px target-size bar while letting a long address wrap. It carries NO
+   radius of its own - the list clips it to its own 10px corners with
+   overflow:hidden, which is why a lime active row cannot square them off.
 
    WHY SIX HEIGHTS IS NOT ITSELF THE DEFECT. The roles are not interchangeable
    and flattening them all to 52px would destroy the hierarchy the shipped
@@ -208,7 +219,15 @@ html,body{margin:0;background:#fff}
    shares its geometry exactly. Both defects fixed in this pass were breaches
    of that rule, not of the role table.
 
-   ROLE 1 - REAL ACTION ('Load', 'Subscribe', 'Contribute').
+   ROLE 1 - REAL ACTION ('Load', 'Subscribe on WhatsApp', 'Contribute').
+   ONE RULE DEFINES THIS SHAPE and all three controls carry the class, so the
+   shape stays switchable in a single edit - that is a standing requirement on
+   this role while it is under review, not a tidiness preference. 'Subscribe on
+   WhatsApp' is an <a>, which is why the rule carries text-decoration:none: a
+   UA underlines an anchor and not a button, so without it the one navigating
+   member of the role would render differently from the two submitting ones.
+   It changes nothing for Load or Contribute, whose computed
+   text-decoration-line was already `none`.
    Geometry from src/styles/button.css:31 (.btn) + :52 (.btn-lg): 13px radius,
    52px tall, 16px/500, line-height 1. The 13px radius IS the repo's token.
    Fill from .btn-primary (button.css:78-82): #d1f470 with #1a3a2a type and a
@@ -232,7 +251,7 @@ html,body{margin:0;background:#fff}
   min-height:52px;padding:0 24px;
   border-radius:var(--r-btn);
   font:inherit;font-size:16px;font-weight:500;line-height:1;letter-spacing:-.125px;
-  white-space:nowrap;cursor:pointer;
+  white-space:nowrap;cursor:pointer;text-decoration:none;
   background:var(--lime);color:var(--green);border:2px solid var(--green);
   transition:background-color .18s var(--e-glide),border-color .18s var(--e-glide),transform .18s var(--e-glide);
 }
@@ -275,20 +294,18 @@ html,body{margin:0;background:#fff}
    page - the search field, the key field and the subscribe field - so an input
    cannot drift per block.
 
-   THE 52px / 1px #e5e7eb / 10px BOX HAS TWO FORMS, and both are this one role:
+   THE 52px / 1px #e5e7eb / 10px BOX HAS TWO USERS, and both are this one role:
 
-     .vl-input  - a plain single control, which carries the box itself.
-     .vl-pf     - the DIVIDED field (a calling-code segment and a number
-                  segment behind one outline), where the box moves onto the
-                  CONTAINER and the two segments inside carry none of their
-                  own. That is not an invention here: it is what the shipped
-                  src/components/PhoneField.tsx does, and its own comment says
-                  so - "The outline, the radius and the height live here, on
-                  the container, and the two segments inside carry none of
-                  their own". Both rules follow, in this one role's block.
+     .vl-input         - a plain single control, which carries the box itself.
+                         The key gate's paste field is the remaining user.
+     .vl-search-field  - the place search, where the box moves onto a FLEX
+                         CONTAINER holding the magnifier icon and a borderless
+                         input, so the icon sits inside the outline rather than
+                         beside it. Its rule lives with the SEARCH block
+                         further down, next to the results list it opens.
 
-   Both forms measure the same outer box, which is the point - a divided field
-   must not read as a different size of field from an undivided one. */
+   Both measure the same outer box, which is the point - a field with an icon
+   in it must not read as a different size of field from one without. */
 .vl-input{
   min-height:52px;
   border:1px solid var(--hair);border-radius:var(--r-field);
@@ -297,95 +314,24 @@ html,body{margin:0;background:#fff}
 }
 .vl-input:focus-visible{outline:3px solid var(--green);outline-offset:2px;border-color:var(--green)}
 
-/* ---- ROLE 3, DIVIDED FORM: the phone field. -----------------------------
-   A PORT OF src/components/PhoneField.tsx, which PR #196 reworked to replace a
-   country dropdown with a searchable calling code. Its structure is followed
-   rather than re-invented: one outlined container, split by a hairline, holding
-   a calling-code segment and a national-number segment.
+/* ---- ROLE 3, DIVIDED FORM: RETIRED IN THIS PASS. ------------------------
+   There is deliberately no rule here. It was `.vl-pf` plus `.vl-pf-code`,
+   `.vl-pf-num`, their two inset focus rings, the :focus-within lime layer and
+   a max-width:360px padding tweak - a port of src/components/PhoneField.tsx,
+   which PR #196 reworked to replace a country dropdown with a searchable
+   calling code: one outlined container, split by a hairline, holding a
+   calling-code segment and a national-number segment.
 
-   The container carries the ROLE 3 box (52px, 1px #e5e7eb, 10px) and
-   overflow:hidden, so neither segment's own background can square off the
-   rounded corners.
+   The rules were faithful; the field has no users left. Subscribing moved to
+   a WhatsApp deep link, so this page collects no number and has no divided
+   field to put one in. With no users, the group is DELETED rather than left
+   dormant - this stylesheet's own standing instruction, applied to itself.
 
-   TWO DECLARATIONS FROM PhoneField ARE DELIBERATELY OMITTED, each because its
-   justification does not hold in this file:
-     margin-bottom:20px   - consumer spacing. .vl-cell{gap:7px} already owns
-                            the gap between the label and the field here, and
-                            BlogSubscribe.tsx:335 cancels it the same way with
-                            `.phone-cell :global(.pf){margin-bottom:0}`.
-     scroll-margin-top    - clears the site's fixed 108px header. This mock has
-                            no fixed header, so the declaration would reserve
-                            space against nothing.
-
-   ONE VALUE IS DELIBERATELY CHANGED rather than ported: the segments are 16px
-   type, not PhoneField's 17px. 16px is this role's own size, from
-   BlogSubscribe.tsx:330, and it is what .vl-input renders for the search field
-   and the key field in this same section. Porting 17px would make the one
-   divided field on the page the only field with a different type size, which
-   is the class of inconsistency this pass is removing. Everything that defines
-   the BOX - 52px, 1px #e5e7eb, 10px, the 9px inner corners, the divider - is
-   PhoneField's, unchanged. */
-.vl-pf{
-  display:flex;align-items:stretch;min-height:52px;
-  border:1px solid var(--hair);border-radius:var(--r-field);
-  background:var(--paper);overflow:hidden;
-}
-/* THE DIVIDER is a logical inline-end border on the leading segment, not a
-   separate element: one declaration, and it mirrors itself in an RTL document
-   where the code segment moves to the right and the hairline must go with it.
-   LOGICAL CORNERS at 9px = the container's 10px minus its 1px border, so the
-   leading corners sit flush inside the container's and the trailing ones stay
-   square against the divider. PhoneField records the measured reason this is
-   not left to inherit: src/styles/button.css puts a global 13px radius on
-   controls, which was seen bleeding a 13px focus-ring corner into a 10px
-   container. */
-.vl-pf-code{
-  flex:0 0 auto;
-  border:0;border-inline-end:1px solid var(--hair);
-  padding-inline:12px;min-inline-size:78px;max-inline-size:86px;
-  background:var(--paper);color:var(--ink-base);
-  font:inherit;font-size:16px;font-weight:600;cursor:text;
-  border-start-start-radius:9px;border-end-start-radius:9px;
-  border-start-end-radius:0;border-end-end-radius:0;
-}
-/* Search input only: no native country dropdown, no flag, no country name -
-   PhoneField.tsx states this outright, and src/lib/dialCodes.ts forbids emoji
-   flags because Windows ships no flag glyphs and renders each pair as two bare
-   letters. The segment shows the explicit calling code and accepts digits with
-   or without the plus. The cancel button is suppressed because type=search
-   draws one and it is not wanted inside a divided field. */
-.vl-pf-code::-webkit-search-cancel-button{display:none}
-/* The number segment takes the rest. min-inline-size:0 because a flex item's
-   default min-width:auto lets a long value push the container wider than its
-   parent. */
-.vl-pf-num{
-  flex:1 1 auto;min-inline-size:0;
-  border:0;padding-inline:14px;
-  background:var(--paper);color:var(--ink-base);
-  font:inherit;font-size:16px;
-  border-start-start-radius:0;border-end-start-radius:0;
-  border-start-end-radius:9px;border-end-end-radius:9px;
-}
-/* INSET RINGS, ONE PER SEGMENT, and PhoneField explains why this is not a
-   single ring on the container: there are TWO focusable controls inside it, so
-   a ring around the whole box tells a keyboard user that focus is somewhere in
-   there without saying which half, which fails what WCAG 2.4.7 is for.
-   outline-offset:-3px draws each ring inside its own segment so the
-   container's outline stays whole. */
-.vl-pf-code:focus-visible,
-.vl-pf-num:focus-visible{outline:3px solid var(--green);outline-offset:-3px}
-/* The lime is layered AROUND the dark ring, never used as the ring itself:
-   PhoneField measures #d1f470 on white at 1.24:1, nowhere near the 3:1 WCAG
-   1.4.11 asks of a focus indicator, while #1a3a2a is 12.48:1. A box-shadow
-   rather than a second outline, because an element gets only one outline and
-   shadow does not affect layout, so the 52px height is untouched. */
-.vl-pf:focus-within{border-color:var(--green);box-shadow:0 0 0 3px rgba(209,244,112,.55)}
-/* NARROW VIEWPORTS: the padding tightens, the segments do not shrink and the
-   52px target height is never traded away. PhoneField's own remedy, kept. */
-@media(max-width:360px){
-  .vl-pf-code{padding-inline:8px}
-  .vl-pf-num{padding-inline:12px}
-}
+   src/components/PhoneField.tsx AND src/lib/dialCodes.ts REMAIN THE SOURCE if
+   a divided calling-code field is ever wanted again. Take it from there rather
+   than from this file's history, and give it a fresh role number; do not
+   revive this one. ROLE 3 keeps its number and its box, whose two users are
+   now .vl-input and .vl-search-field. */
 
 /* ROLE 4 - AMOUNT CHIP. src/components/BlogContribution.tsx:277
    `.bc-choice-face`, verbatim: 999px, padding 8px 16px, 2px solid #e5e7eb,
@@ -475,36 +421,42 @@ html,body{margin:0;background:#fff}
 }
 
 /* ============================================================================
-   SUBSCRIBE, WHATSAPP ONLY, AND NOW ONE STEP. The 2x2 field grid is gone
-   because there is only one field left, so .vl-sub-fields-single is a single
-   column and the action sits beside it.
+   SUBSCRIBE, WHATSAPP ONLY, AND NOW NOT A FORM AT ALL.
 
-   THE ACTION ROW HOLDS EXACTLY ONE CONTROL. It used to hold two, and that pair
-   was the reported "buttons are not matching": 'Send code' at ROLE 2's 32px /
-   999px / 12px-700 / white sat 12px from 'Subscribe' at ROLE 1's 52px / 13px /
-   16px-500 / lime. Their centres aligned and their heights differed by 20px, so
-   the row read as two unrelated controls rather than one hierarchy. 'Send code'
-   is gone with the two-step flow it belonged to, which leaves the row
-   single-role by construction - the state it can no longer drift out of.
+   THERE ARE NO RULES IN THIS BLOCK ANY MORE, and that is the fix rather than an
+   omission. The panel is one framing head (.vl-sub-head: eyebrow, heading, one
+   line of copy) and ONE ROLE 1 anchor on .vl-btn, followed by the
+   .vl-placeholder note. No field grid, no cell, no label, no action wrapper and
+   no status line - so there is no second control for the first to drift against
+   and no wrapper box to mis-size. The row is single-role BY CONSTRUCTION, which
+   is a stronger guarantee than a rule that has to stay correct.
 
-   NO min-height HERE, AND THAT IS THE SECOND HALF OF THE FIX. This rule used
-   to be declared twice, and the second copy carried
-   `min-height:91px` lifted from BlogSubscribe.tsx:348
-   `.blog-subscribe-action{min-height:91px}`. In the shipped component 91 is
-   exact and load-bearing: input 52 + gap 7 + .verify-row 32. THIS MOCK HAS NO
-   VERIFY ROW, so its .vl-cell is only 76px (label 17 + gap 7 + field 52).
-   MEASURED consequence: a 91px box holding a 52px button, centred, left 19.5px
-   of dead space above and below it, and because .vl-sub-fields uses
-   align-items:flex-end the row bottoms aligned while the BUTTON's bottom edge
-   finished 19.5px above the field's. Without the declaration the box is the
-   button, flex-end does what it says, and the two bottom edges meet.
-   The sibling row in this same file - .vl-keyrow, holding the key field and
-   'Load' - has always been written this way, which is why 'Load' never showed
-   the defect and is the reference for what this row should have been.
+   WHAT WAS DELETED HERE, in this pass and the one before it:
+     .vl-sub-fields / -single       the 2x2 then 1-col field grid
+     .vl-cell / .vl-cell-wide       the label-over-field cell
+     .vl-cell>span, .vl-cell>label  the cell's 12px/700 label rung
+     .vl-sub-action                 the wrapper around the submit
+     .vl-sub-status[.is-done]       the inline result line
+   All five had exactly one user, the inline subscribe form, and it is gone.
+
+   THE 91px HAZARD IS RECORDED HERE DELIBERATELY, because this is the note that
+   stops it coming back. `.vl-sub-action` was once declared TWICE, in two
+   separate blocks, and THE TWO COPIES SET DISJOINT PROPERTIES - so both
+   applied, neither overrode the other, and reading either rule alone said
+   nothing was wrong. The second copy carried `min-height:91px`, lifted from
+   BlogSubscribe.tsx:348 `.blog-subscribe-action{min-height:91px}`, where 91 is
+   exact and load-bearing: input 52 + gap 7 + .verify-row 32. THIS MOCK HAD NO
+   VERIFY ROW, so its cell was only 76px (label 17 + gap 7 + field 52). MEASURED
+   consequence: a 91px box holding a 52px button, centred, leaving 19.5px of
+   dead space above and below, and because the row used align-items:flex-end the
+   row bottoms aligned while the BUTTON's bottom edge finished 19.5px above the
+   field's. That was the reported "buttons are not matching".
+
+   THE LESSON, WHICH OUTLIVES THE RULE: grep for EVERY occurrence of a selector
+   before trusting what one block says it does, and measure in a browser rather
+   than reading the cascade. The same file had already lost 'Send code' (ROLE 2,
+   32px) from beside 'Subscribe' (ROLE 1, 52px) for the same class of reason.
    ========================================================================= */
-.vl-sub-fields-single{grid-template-columns:minmax(0,1fr)}
-.vl-sub-fields-single .vl-cell-wide{grid-column:auto}
-.vl-sub-action{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 
 /* The two moved sections sit inside the left column now, so they take the
    column's measure and only need vertical separation from the block above. */
@@ -531,8 +483,43 @@ html,body{margin:0;background:#fff}
 /* ============================================================================
    SEARCH - it belongs to this block, not to the host header, because it is
    what drives the map.
+
+   THE FIELD CARRIES ROLE 3's BOX (52px / 10px / 1px #e5e7eb) on the
+   .vl-search-field FLEX CONTAINER rather than on the input, so the magnifier
+   sits inside the outline. The input itself is borderless and transparent and
+   inherits the 16px rung - it must not carry a second box.
+
+   THE RESULTS LIST IS NEW IN THIS PASS. The field was inert decoration before
+   it: MEASURED in Chromium, typing into it produced ZERO MutationObserver
+   records, there were zero [role=option] and zero <datalist> elements in the
+   document, the id `vl-search` appeared nowhere in the inline script, and the
+   element count under .vl-vayulok was identical before and after. Nothing was
+   broken - nothing had been built. So this is new work, not a repair.
+
+   FOUR DECISIONS, WITH THEIR REASONS:
+
+   ABSOLUTELY POSITIONED, NOT IN FLOW. Opening the list must not shift the
+   column underneath it. .vl-app-left carries container-type:inline-size, whose
+   layout containment makes it the containing block and a stacking context, so
+   the overlay cannot escape the left column or collide with the sticky map.
+
+   NO RESTING SHADOW. This page has exactly one shadow and it is a HOVER
+   shadow (see the amount chip). A 1px --hair border on --paper is the device
+   used by .vl-map-legend and .vl-map-preview for the same job, so the list
+   matches them rather than introducing a second elevation language.
+
+   NO NEW TOKENS. 10px is --r-field, the same radius as the field it hangs
+   below. The rows are flush hairline-separated rows, like .vl-signal pairs.
+   The active fill is the same lime punctuation as a pressed .vl-layer and the
+   selected tab - #1a3a2a on #d1f470 measures 11.85:1. No new colour, no new
+   radius and no new type size enters the file.
+
+   overflow:hidden SO THE FIRST AND LAST ROW'S FILL STAYS INSIDE THE CORNERS.
+   A lime active row would otherwise square off the 10px radius it sits in.
+   Matches at SIX, which keeps the list short enough never to need a scroll
+   container nested inside an overlay.
    ========================================================================= */
-.vl-search{max-width:520px}
+.vl-search{position:relative;max-width:520px}
 .vl-search-field{
   display:flex;align-items:center;gap:10px;
   min-height:52px;padding:0 14px;
@@ -544,6 +531,25 @@ html,body{margin:0;background:#fff}
   font:inherit;font-size:16px;color:var(--ink-base);
 }
 .vl-search-input::placeholder{color:var(--ink-muted)}
+.vl-search-results{
+  position:absolute;top:calc(100% + 6px);inset-inline:0;z-index:5;
+  margin:0;padding:0;list-style:none;overflow:hidden;
+  border:1px solid var(--hair);border-radius:var(--r-field);background:var(--paper);
+}
+.vl-search-results[hidden]{display:none}
+.vl-search-option{display:block;min-height:52px;padding:10px 14px;cursor:pointer}
+.vl-search-option + .vl-search-option{border-top:1px solid var(--hair)}
+.vl-search-option[aria-selected="true"]{background:var(--lime)}
+.vl-search-option-name{
+  display:block;font-size:16px;font-weight:600;line-height:1.3;color:var(--ink-strong);
+}
+.vl-search-option-addr{
+  display:block;margin-top:2px;font-size:13px;line-height:1.4;color:var(--ink-muted);
+}
+/* The no-match line is NOT an option: no role, not selectable, not counted by
+   the keyboard model. It reports the state of this mock's sample list rather
+   than pretending to be a result. */
+.vl-search-empty{margin:0;padding:14px;font-size:13px;line-height:1.45;color:var(--ink-muted)}
 
 /* ============================================================================
    'NOW' - the figures are EDITORIAL DISPLAY TYPE set against whitespace, on
@@ -855,38 +861,22 @@ html,body{margin:0;background:#fff}
 .vl-sub-head>div{min-width:0}
 .vl-sub-title{margin:0;font-size:clamp(24px,3vw,32px);font-weight:700;line-height:1.08;letter-spacing:-.8px;color:var(--ink-head)}
 .vl-sub-head>p{margin:0;max-width:38ch;font-size:15px;line-height:1.5;color:var(--ink-second)}
-.vl-sub-fields{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
-.vl-cell{display:flex;flex-direction:column;gap:7px;min-width:170px;flex:1 1 170px}
-.vl-cell-wide{min-width:270px;flex:2 1 270px}
-/* The cell's label. BOTH `>span` AND `>label` are matched: a cell holding one
-   control wraps it in a <label> and names it with a <span>, but the phone cell
-   holds TWO controls, so it cannot be a <label> (a label points at exactly one
-   control) and its visible name is a real <label for> element instead. Same
-   rung either way - BlogSubscribe.tsx:325 matches the same pair for the same
-   reason. */
-.vl-cell>span,.vl-cell>label{font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--green)}
+/* THE PANEL'S ONE CONTROL is the .vl-btn anchor and it needs no rule of its own
+   here - that is the point of it carrying the shared ROLE 1 class. It is a
+   direct child of .vl-subscribe, after .vl-sub-head's 20px margin-bottom and
+   before .vl-placeholder's `margin:20px 0 0`, so the existing rhythm spaces it
+   on both sides and no new margin is introduced. MEASURED after the form came
+   out: head 20px above the pill, 20px below it to the placeholder rule - even,
+   and no collapsed or doubled gap. */
 
-/* THE INLINE RESULT LINE, ported from BlogSubscribe.tsx:347
-   `.blog-subscribe-status`, which is where the shipped component reports the
-   outcome of a submit. It is a role="status" region that is ALREADY IN THE
-   DOCUMENT, reserving its own 22px, so reporting a result neither mounts a new
-   node nor shifts the panel - that is what makes the flow inline rather than
-   a thing that appears over the page. The is-done weight is :348, verbatim. */
-.vl-sub-status{min-height:22px;margin:12px 0 0;font-size:14px;line-height:1.45;color:var(--ink-status)}
-.vl-sub-status.is-done{color:var(--green);font-weight:600}
-
-/* .vl-verify-row AND THE SECOND .vl-sub-action WERE DELETED HERE.
-
-   .vl-verify-row was BlogSubscribe.tsx:336, the container for step two of the
-   verify flow. It matched ZERO elements in the rendered DOM even before this
-   pass - the shell of a step this mock never built - so it was dead CSS
-   describing a flow that is now deliberately gone.
-
-   The .vl-sub-action copy carried `min-height:91px`; the single surviving rule
-   is up in the SUBSCRIBE, WHATSAPP ONLY block, which records the measurement
-   that removed it. The two copies were not in conflict - they set disjoint
-   properties and BOTH applied - which is exactly why this needed measuring in
-   a browser rather than reading off the cascade. */
+/* .vl-sub-fields, .vl-cell, .vl-cell-wide, .vl-cell>span/>label,
+   .vl-sub-status[.is-done], .vl-verify-row AND BOTH .vl-sub-action COPIES WERE
+   DELETED. Their single user, the inline subscribe form, is gone; see the
+   SUBSCRIBE, WHATSAPP ONLY block above, which keeps the full record of the
+   duplicate-declaration defect because that note is the thing that stops it
+   recurring. .vl-verify-row (BlogSubscribe.tsx:336) had already matched ZERO
+   elements before any of this - the shell of a verify step this mock never
+   built. Nothing here was left dormant. */
 
 /* ============================================================================
    CONTRIBUTE - mirrors src/components/BlogContribution.tsx.
@@ -1037,8 +1027,21 @@ html,body{margin:0;background:#fff}
                 <circle cx="9" cy="9" r="6.25" stroke="#1a3a2a" stroke-width="2"></circle>
                 <path d="M13.8 13.8 L18.5 18.5" stroke="#1a3a2a" stroke-width="2" stroke-linecap="round"></path>
               </svg>
-              <input class="vl-search-input" id="vl-search" type="text" placeholder="Search a city or place">
+              <!-- COMBOBOX, after the shipped src/components/SearchModal.tsx. No
+                   required/pattern/minlength: a constraint attribute here would raise
+                   the browser's own validation bubble, which is the defect the owner
+                   reported on the subscribe field and the reason it carried none. -->
+              <input class="vl-search-input" id="vl-search" type="text"
+                     role="combobox" aria-controls="vl-search-results" aria-expanded="false"
+                     aria-autocomplete="list" autocomplete="off" autocorrect="off"
+                     spellcheck="false" placeholder="Search a city or place">
             </div>
+            <!-- THE RESULTS LIST. Present from first paint and `hidden`, rather than
+                 mounted on demand: an element that already exists can be revealed
+                 without the script having to build the list container itself, and
+                 aria-controls above can point at a real id from the start. -->
+            <ul class="vl-search-results" id="vl-search-results" role="listbox"
+                aria-label="Matching places" hidden></ul>
           </div>
         </div>
 
@@ -1275,62 +1278,33 @@ html,body{margin:0;background:#fff}
             <p>Pick the places you want watched.</p>
           </div>
 
-          <!-- WHATSAPP ONLY, on the owner's instruction. The first-name, last-name
-               and email fields were removed: one identifier, one step.
+          <!-- SUBSCRIBING LEAVES THE PAGE NOW, on the owner's instruction, so there is
+               no form here at all. What stood here was an inline one-step form: a
+               'WhatsApp number' label, a divided calling-code field ported from
+               src/components/PhoneField.tsx, a Subscribe submit and a .vl-sub-status
+               line. All of it is deleted. The reader is handed to WhatsApp instead,
+               where the conversation itself collects the number.
 
-               ONE STEP, INLINE, AND NOTHING APPEARS OVER THE PAGE. There is no
-               'Send code' button, no OTP row and no confirmation screen: submitting
-               reports into .vl-sub-status, which is already in the document below
-               and reserves its own height. Nothing is mounted, nothing is overlaid,
-               and the panel does not move.
+               THE WHOLE PANEL IS NOW ONE CONTROL, which is what makes the row
+               single-role by construction - the state it can no longer drift out of.
+               There is deliberately NO WRAPPER around the anchor: a one-control row has
+               nothing to align against and nothing to centre inside, and a wrapper is
+               exactly how .vl-sub-action came to hold a 52px button in a 91px box. That
+               rule is gone with the element it governed.
 
-               NO CONSTRAINT ATTRIBUTES ON EITHER SEGMENT - no required, no pattern,
-               no minlength. That is not an oversight, it is the same fix
-               src/components/PhoneField.tsx already shipped: the owner reported the
-               browser's own validation bubble as the defect ("Please fill out this
-               field." with an orange warning icon), because it cannot be themed,
-               cannot be translated by the site's text walker, and contradicts the
-               standing no-red instruction. aria-required carries the semantic
-               instead, and the result is reported in the page's own status line.
-               maxlength on the CODE segment is kept - DialCodeSearch has it, and
-               maxlength blocks typing rather than raising a bubble.
+               AN <a>, NOT A <button>, because this navigates. It carries ROLE 1's
+               .vl-btn - the SAME class Contribute and Load carry, not a copy of its
+               declarations - so the three cannot drift apart; see the ROLE 1 block at
+               the top of the stylesheet, which is the single place the shape is defined.
+               target=_blank keeps the mock open behind it, and rel="noopener noreferrer"
+               is not optional with it: without noopener the opened tab gets a
+               window.opener handle back into this document.
 
-               Static mock: onsubmit returns false as the belt AND the script
-               preventDefaults as the braces, so Enter cannot navigate either way.
-               There is no fetch and no endpoint anywhere. -->
-          <form class="vl-sub-fields vl-sub-fields-single" id="vl-sub-form" onsubmit="return false">
-            <div class="vl-cell vl-cell-wide">
-              <label for="vl-sub-phone">WhatsApp number</label>
-              <!-- THE DIVIDED FIELD, after src/components/PhoneField.tsx. The "+91"
-                   here is a REAL, EDITABLE CONTROL holding a real value. It replaces
-                   the placeholder string "+91 00000 00000", which was the only "+"
-                   anywhere in this section and was painted in placeholder grey inside
-                   the number field - a fake country code that read as a value already
-                   in the field, standing in for a control that did not exist.
-                   PhoneField's own comment documents that exact failure mode for its
-                   NUMBER_FORMAT_HINT constant. -->
-              <div class="vl-pf" id="vl-pf">
-                <input class="vl-pf-code" id="vl-sub-dial" type="search" inputmode="tel"
-                       autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next"
-                       aria-label="Calling code" maxlength="4" value="+91" placeholder="+91">
-                <input class="vl-pf-num" id="vl-sub-phone" type="tel" inputmode="tel"
-                       autocomplete="tel-national" aria-required="true"
-                       aria-describedby="vl-sub-status" placeholder="10-digit WhatsApp number">
-              </div>
-            </div>
-            <div class="vl-sub-action">
-              <button class="vl-btn" id="vl-sub-btn" type="submit">Subscribe</button>
-            </div>
-          </form>
-
-          <!-- THE RESULT, INLINE. role="status" so it is announced once rather than
-               on every keystroke, and it is present from first paint with its height
-               reserved, so filling it in cannot shift the panel. The two strings it
-               can show are taken from the shipped component rather than invented:
-               BlogSubscribe.tsx renders action={done ? 'Subscribed' : 'Subscribe'},
-               and the length hint comes from nationalLengthHint() in
-               src/lib/dialCodes.ts. -->
-          <p class="vl-sub-status" id="vl-sub-status" role="status"></p>
+               ZERO NETWORK IS UNAFFECTED. The wa.me URL is a navigation TARGET in an
+               href - nothing fetches it on load, and the harness asserts the document
+               is still the only request. It is the one http(s) string in the file. -->
+          <a class="vl-btn" id="vl-sub-wa" href="https://wa.me/message/BEA3HNW3LNM3A1"
+             target="_blank" rel="noopener noreferrer">Subscribe on WhatsApp</a>
 
           <!-- NOT invented copy. The shipped BlogSubscribe component carries real
                consent and purpose-of-use microcopy here; this mock will not guess
@@ -1474,12 +1448,19 @@ html,body{margin:0;background:#fff}
 <script>
 /* ============================================================================
    MOCK INTERACTIVITY. Four things and nothing else: the tabs, the map layer
-   toggle, the runtime key gate, and the subscribe field's calling-code segment
-   plus its inline submit. No data logic, no timers, no fetch.
+   toggle, the runtime key gate, and the place search. No data logic, no
+   timers, no fetch.
 
-   THE FOURTH IS NEW IN THIS PASS and is the only one that touches a form. It
-   is a port of src/components/PhoneField.tsx and src/lib/dialCodes.ts; the
-   long comment above it records what was copied and what was deliberately not.
+   THE SUBSCRIBE FORM'S SCRIPT WAS THE FOURTH AND IS GONE - subscribing is now
+   an <a href> to WhatsApp, which needs no script. The place search took its
+   place in the count; see the retirement note further down for what was
+   removed and where its source lives.
+
+   THE PLACE SEARCH IS NEW IN THIS PASS and is the only one that renders a
+   list. It follows the shipped combobox in src/components/SearchModal.tsx; the
+   comment above it records the pattern and the sample-data decision. Its
+   dataset is a literal table in this file - there is NO geocoding call and no
+   Maps call, so searching stays inside the zero-network constraint.
 
    ZERO NETWORK IN THE NO-KEY STATE is a requirement, not a side effect:
    nothing below touches the network until a key arrives from a fragment,
@@ -1735,192 +1716,236 @@ html,body{margin:0;background:#fff}
   } )();
 
   /* ========================================================================
-     THE CALLING-CODE SEGMENT AND THE INLINE SUBSCRIBE.
+     THE CALLING-CODE SEGMENT AND THE INLINE SUBSCRIBE WERE DELETED HERE.
 
-     A PORT OF src/components/PhoneField.tsx's DialCodeSearch AND of the four
-     helpers in src/lib/dialCodes.ts. Both are the shipped, canonical pattern
-     (PhoneField was reworked by PR #196, "Replace country dropdown with
-     searchable calling code"), so the behaviour here is copied rather than
-     designed: focus selects, typing normalises and commits when the code is
-     one we offer, blur reverts an unresolved code, Enter commits and leaves.
+     What stood here was a port of src/components/PhoneField.tsx's
+     DialCodeSearch and of four helpers from src/lib/dialCodes.ts:
+     VL_DIAL_CODES (a 60-entry table), VL_DEFAULT_DIAL, vlNormaliseDial,
+     vlFindDial, vlLengthHint, vlValidLength, and a phoneField() IIFE wiring
+     focus/input/blur/keydown on the code segment plus the form's inline
+     submit. Roughly 150 lines.
 
-     NO DROPDOWN, AND THAT IS THE SHIPPED DECISION RATHER THAN A SHORTCUT.
-     PhoneField states it outright - "Search input only: no native country
-     dropdown, no flag, no country name" - and dialCodes.ts forbids emoji flags
-     because Windows ships no flag glyphs and renders each regional-indicator
-     pair as two bare letters. A native <select> or <datalist> was considered
-     and rejected for a second reason specific to this pass: both render a
-     native popup, which is the same class of unthemeable browser-chrome
-     affordance that fix 2 above exists to remove, so adding one here would
-     reintroduce by the back door the thing being taken out of the front.
-     Discoverability is carried instead by the always-visible +91, by the
-     length-hint placeholder that updates when the code changes, and by the
-     status line. If a visible list is wanted, a <datalist> is the cheapest
-     route and it is the owner's call, not this mock's.
+     It is gone because the control it drove is gone: subscribing is now a
+     WhatsApp deep link in an <a href>, which needs no script at all. Deleting
+     the handlers rather than leaving them to query missing ids is the point -
+     a guarded early return would have kept 150 lines of dead code that no
+     test could ever reach.
 
-     ZERO NETWORK: a literal table, no fetch, no timers, no storage.
+     src/components/PhoneField.tsx and src/lib/dialCodes.ts remain the source
+     of truth if a calling-code field is ever wanted here again. Do not
+     reconstruct the table from this file's history or from memory: its order
+     and its exclusions were both deliberate (+86, +98, +963, +850 absent
+     because WhatsApp cannot deliver there; +92 absent on owner instruction).
      ===================================================================== */
 
-  /* PORTED FROM src/lib/dialCodes.ts DIAL_CODES - that file is the source of
-     truth and this is a copy; if the two disagree, it is wrong.
+  /* ========================================================================
+     THE PLACE SEARCH.
 
-     ITS ORDER IS PRESERVED and is deliberately not alphabetical: India first
-     because it is the store's market, then broadly by likelihood for this
-     audience. ITS EXCLUSIONS ARE PRESERVED TOO, and they are not an accident
-     of copying - +86, +98, +963 and +850 are absent because WhatsApp cannot
-     deliver there, so an alert could never arrive; +92 is absent on owner
-     instruction of 2026-10-02. Do not "complete" this list from memory. */
-  var VL_DIAL_CODES = [
-    [ '+91', [ 10 ] ],            /* India - the store's market */
-    [ '+971', [ 8, 9 ] ], [ '+966', [ 9 ] ], [ '+974', [ 8 ] ], [ '+965', [ 8 ] ],
-    [ '+968', [ 8 ] ], [ '+973', [ 8 ] ],
-    [ '+1', [ 10 ] ], [ '+44', [ 9, 10 ] ], [ '+61', [ 9 ] ], [ '+64', [ 8, 9 ] ],
-    [ '+353', [ 9 ] ],
-    [ '+880', [ 10 ] ], [ '+94', [ 9 ] ], [ '+977', [ 10 ] ], [ '+960', [ 7 ] ],
-    [ '+975', [ 8 ] ],
-    [ '+65', [ 8 ] ], [ '+60', [ 9, 10 ] ], [ '+62', [ 9, 10, 11 ] ], [ '+63', [ 10 ] ],
-    [ '+66', [ 9 ] ], [ '+84', [ 9 ] ], [ '+81', [ 10 ] ], [ '+82', [ 9, 10 ] ],
-    [ '+852', [ 8 ] ],
-    [ '+49', [ 10, 11 ] ], [ '+33', [ 9 ] ], [ '+34', [ 9 ] ], [ '+39', [ 9, 10 ] ],
-    [ '+31', [ 9 ] ], [ '+41', [ 9 ] ], [ '+46', [ 7, 8, 9 ] ], [ '+47', [ 8 ] ],
-    [ '+45', [ 8 ] ], [ '+351', [ 9 ] ], [ '+48', [ 9 ] ], [ '+30', [ 10 ] ],
-    [ '+90', [ 10 ] ],
-    [ '+27', [ 9 ] ], [ '+234', [ 10 ] ], [ '+254', [ 9 ] ], [ '+255', [ 9 ] ],
-    [ '+256', [ 9 ] ], [ '+233', [ 9 ] ], [ '+20', [ 10 ] ], [ '+212', [ 9 ] ],
-    [ '+230', [ 7, 8 ] ],
-    [ '+55', [ 10, 11 ] ], [ '+52', [ 10 ] ], [ '+54', [ 10 ] ], [ '+56', [ 9 ] ],
-    [ '+57', [ 10 ] ], [ '+51', [ 9 ] ],
-    [ '+972', [ 9 ] ], [ '+7', [ 10 ] ], [ '+380', [ 9 ] ], [ '+998', [ 9 ] ],
-    [ '+679', [ 7 ] ]
+     WHAT WAS WRONG: nothing, in the sense of a broken handler. The field was
+     INERT DECORATION. Measured in headless Chromium - zero
+     MutationObserver records while typing, zero [role=option], zero
+     <datalist>, no `vl-search` anywhere in this script, identical element
+     count before and after, zero console errors and one request. There was no
+     results surface, no handler and no dataset: nothing to populate and
+     nothing to hide. So this is built, not repaired.
+
+     THE INTERACTION MODEL IS THE SHIPPED ONE, from
+     src/components/SearchModal.tsx:145-240: role=combobox on the input,
+     role=listbox on the container, role=option rows, aria-activedescendant
+     pointing at the active row, ArrowDown/ArrowUp CLAMPED rather than wrapping
+     (Math.min / Math.max, exactly as that file does it), Enter commits, Escape
+     closes, and mouseenter moves the active row. Copied rather than designed.
+
+     SAMPLE DATA, AND SAID SO PLAINLY. VL_PLACES is a literal table in this
+     file. There is NO geocoding call, no Places call, no Maps call and no
+     fetch of any kind - the zero-network constraint holds while searching, and
+     the .vl-keygate key gate is untouched by any of this. The place, city and
+     state names are real geography; the PIN codes are plausible and fall under
+     this page's standing disclosure that every value shown is placeholder
+     data. A real implementation would call a geocoder from a server, not from
+     a browser, for the same reason the AQI heatmap is not called here.
+
+     SELECTING A PLACE UPDATES THE NAME AND ADDRESS ONLY - the heading pair and
+     the map preview's caption. Every AQI and weather figure is left exactly
+     where it is, because this page states outright that those are static
+     placeholder values, and inventing per-city readings would contradict its
+     own disclosure.
+     ===================================================================== */
+  var VL_PLACES = [
+    [ 'Connaught Place', 'New Delhi, Delhi 110001' ],
+    [ 'Bandra West', 'Mumbai, Maharashtra 400050' ],
+    [ 'Andheri East', 'Mumbai, Maharashtra 400069' ],
+    [ 'Koramangala', 'Bengaluru, Karnataka 560034' ],
+    [ 'Whitefield', 'Bengaluru, Karnataka 560066' ],
+    [ 'T. Nagar', 'Chennai, Tamil Nadu 600017' ],
+    [ 'Salt Lake City', 'Kolkata, West Bengal 700064' ],
+    [ 'Banjara Hills', 'Hyderabad, Telangana 500034' ],
+    [ 'Shivajinagar', 'Pune, Maharashtra 411005' ],
+    [ 'Navrangpura', 'Ahmedabad, Gujarat 380009' ],
+    [ 'C-Scheme', 'Jaipur, Rajasthan 302001' ],
+    [ 'Gomti Nagar', 'Lucknow, Uttar Pradesh 226010' ],
+    [ 'Sector 17', 'Chandigarh 160017' ],
+    [ 'Panampilly Nagar', 'Kochi, Kerala 682036' ]
   ];
 
-  /* DEFAULT_DIAL_CODE, dialCodes.ts. A VISIBLE default, not an inference -
-     that file's own reasoning: a selector showing +91 from the first paint is
-     a default the reader can see and change, where guessing from the digits is
-     one they cannot. */
-  var VL_DEFAULT_DIAL = '+91';
+  ( function placeSearch () {
+    var input = document.getElementById( 'vl-search' );
+    var list = document.getElementById( 'vl-search-results' );
+    if ( !input || !list ) return;
 
-  /* normaliseDialSearch, PhoneField.tsx - strip to digits, cap at 3, re-prefix. */
-  function vlNormaliseDial ( raw ) {
-    var digits = String( raw ).replace( /\D/g, '' ).slice( 0, 3 );
-    return digits ? '+' + digits : '';
-  }
+    /* Capped at 6 so the list never needs a scroll container inside an
+       overlay - see the CSS block's note. */
+    var MAX = 6;
+    var matches = [];
+    var active = 0;
 
-  /* findDialCode, dialCodes.ts - undefined for a code we do not offer. */
-  function vlFindDial ( code ) {
-    for ( var i = 0; i < VL_DIAL_CODES.length; i += 1 ) {
-      if ( VL_DIAL_CODES[ i ][ 0 ] === code ) return VL_DIAL_CODES[ i ];
-    }
-    return null;
-  }
-
-  /* nationalLengthHint, dialCodes.ts - "10-digit", "8- or 9-digit", or ''. */
-  function vlLengthHint ( code ) {
-    var entry = vlFindDial( code );
-    if ( !entry || !entry[ 1 ].length ) return '';
-    var lengths = entry[ 1 ].slice().sort( function ( a, b ) { return a - b; } );
-    if ( lengths.length === 1 ) return lengths[ 0 ] + '-digit';
-    var last = lengths.pop();
-    return lengths.join( ', ' ) + '- or ' + last + '-digit';
-  }
-
-  /* isValidNationalLength, dialCodes.ts. LENGTH ONLY, and true when we have no
-     rule for the country - refusing a number against a bound we never
-     established would block a legitimate reader to enforce a guess. An empty
-     input is a separate, earlier check. */
-  function vlValidLength ( code, national ) {
-    var digits = String( national ).replace( /\D/g, '' ).replace( /^0+/, '' );
-    if ( !digits ) return false;
-    var entry = vlFindDial( code );
-    if ( !entry || !entry[ 1 ].length ) return true;
-    return entry[ 1 ].indexOf( digits.length ) >= 0;
-  }
-
-  ( function phoneField () {
-    var pf = document.getElementById( 'vl-pf' );
-    var dial = document.getElementById( 'vl-sub-dial' );
-    var num = document.getElementById( 'vl-sub-phone' );
-    var form = document.getElementById( 'vl-sub-form' );
-    var btn = document.getElementById( 'vl-sub-btn' );
-    var status = document.getElementById( 'vl-sub-status' );
-    if ( !pf || !dial || !num || !form || !btn || !status ) return;
-
-    /* The last code that RESOLVED. Blur reverts to this, which is what stops a
-       half-typed code being left in the field as if it were a selection. */
-    var committed = vlFindDial( dial.value ) ? dial.value : VL_DEFAULT_DIAL;
-
-    function refreshHint () {
-      var hint = vlLengthHint( committed );
-      num.placeholder = ( hint ? hint + ' ' : '' ) + 'WhatsApp number';
-    }
-
-    function markUnresolved () {
-      var unresolved = Boolean( dial.value ) && !vlFindDial( dial.value );
-      if ( unresolved ) dial.setAttribute( 'aria-invalid', 'true' );
-      else dial.removeAttribute( 'aria-invalid' );
-    }
-
-    dial.addEventListener( 'focus', function () { dial.select(); } );
-
-    dial.addEventListener( 'input', function () {
-      dial.value = vlNormaliseDial( dial.value );
-      if ( vlFindDial( dial.value ) ) {
-        committed = dial.value;
-        refreshHint();
+    function matchesFor ( query ) {
+      var q = query.toLowerCase();
+      var out = [];
+      for ( var i = 0; i < VL_PLACES.length && out.length < MAX; i += 1 ) {
+        /* Name AND address, so 'mumbai' finds Bandra West and 'bandra' does
+           too. A reader searching by city should not have to know the
+           locality's name. */
+        var hay = ( VL_PLACES[ i ][ 0 ] + ' ' + VL_PLACES[ i ][ 1 ] ).toLowerCase();
+        if ( hay.indexOf( q ) >= 0 ) out.push( VL_PLACES[ i ] );
       }
-      markUnresolved();
-    } );
+      return out;
+    }
 
-    dial.addEventListener( 'blur', function () {
-      if ( !vlFindDial( dial.value ) ) dial.value = committed;
-      markUnresolved();
-    } );
+    function close () {
+      list.hidden = true;
+      list.textContent = '';
+      input.setAttribute( 'aria-expanded', 'false' );
+      input.removeAttribute( 'aria-activedescendant' );
+      matches = [];
+      active = 0;
+    }
 
-    dial.addEventListener( 'keydown', function ( event ) {
-      if ( event.key !== 'Enter' ) return;
-      /* preventDefault BEFORE anything else: Enter in a field inside a form is
-         an implicit submit, and this segment is not the submit control. */
-      event.preventDefault();
-      if ( vlFindDial( dial.value ) ) dial.blur();
-    } );
+    function paintActive () {
+      var rows = list.querySelectorAll( '[role="option"]' );
+      for ( var i = 0; i < rows.length; i += 1 ) {
+        rows[ i ].setAttribute( 'aria-selected', i === active ? 'true' : 'false' );
+      }
+      if ( rows[ active ] ) input.setAttribute( 'aria-activedescendant', rows[ active ].id );
+      else input.removeAttribute( 'aria-activedescendant' );
+    }
 
-    /* SUBMIT, INLINE. preventDefault is the braces to the form's
-       onsubmit="return false" belt. Everything after it writes into nodes that
-       already exist - the status paragraph and the button's own label - so no
-       dialog, no overlay and no new row can appear. The reader stays exactly
-       where they were, which is the whole of fix 2. */
-    form.addEventListener( 'submit', function ( event ) {
-      event.preventDefault();
+    function render ( query ) {
+      matches = matchesFor( query );
+      active = 0;
+      /* textContent + createElement throughout, NEVER innerHTML with data -
+         the same rule the key gate holds to. */
+      list.textContent = '';
 
-      var code = vlFindDial( dial.value ) ? dial.value : committed;
-      dial.value = code;
-      committed = code;
-
-      if ( !vlValidLength( code, num.value ) ) {
-        /* The hint names the expected LENGTH and comes from the same table the
-           check reads, so it can never contradict what the field accepts. */
-        var hint = vlLengthHint( code );
-        num.setAttribute( 'aria-invalid', 'true' );
-        status.className = 'vl-sub-status';
-        status.textContent = hint
-          ? 'Enter a ' + hint + ' WhatsApp number for ' + code + '.'
-          : 'Enter a WhatsApp number for ' + code + '.';
-        num.focus();
+      if ( !matches.length ) {
+        var empty = document.createElement( 'p' );
+        empty.className = 'vl-search-empty';
+        empty.textContent = 'No matching places in this mock\u2019s sample list.';
+        list.appendChild( empty );
+        list.hidden = false;
+        input.setAttribute( 'aria-expanded', 'true' );
+        input.removeAttribute( 'aria-activedescendant' );
         return;
       }
 
-      num.removeAttribute( 'aria-invalid' );
-      /* composePhone, BlogSubscribe.tsx: dial + digits, trunk zero stripped. */
-      var e164 = code + num.value.replace( /\D/g, '' ).replace( /^0+/, '' );
-      /* 'Subscribed' is the shipped component's own done label -
-         action={ done ? 'Subscribed' : 'Subscribe' } - not invented copy. */
-      btn.textContent = 'Subscribed';
-      status.className = 'vl-sub-status is-done';
-      status.textContent = 'Subscribed ' + e164 + ' to alerts for this place.';
+      for ( var i = 0; i < matches.length; i += 1 ) {
+        var row = document.createElement( 'li' );
+        row.className = 'vl-search-option';
+        row.id = 'vl-search-option-' + i;
+        row.setAttribute( 'role', 'option' );
+        row.setAttribute( 'data-index', String( i ) );
+        var name = document.createElement( 'span' );
+        name.className = 'vl-search-option-name';
+        name.textContent = matches[ i ][ 0 ];
+        var addr = document.createElement( 'span' );
+        addr.className = 'vl-search-option-addr';
+        addr.textContent = matches[ i ][ 1 ];
+        row.appendChild( name );
+        row.appendChild( addr );
+        list.appendChild( row );
+      }
+      list.hidden = false;
+      input.setAttribute( 'aria-expanded', 'true' );
+      paintActive();
+    }
+
+    function setText ( selector, value ) {
+      var el = document.querySelector( selector );
+      if ( el ) el.textContent = value;
+    }
+
+    function commit ( index ) {
+      var chosen = matches[ index ];
+      if ( !chosen ) return;
+      input.value = chosen[ 0 ];
+      /* The heading pair and the map preview's caption. NOT the metrics. */
+      setText( '.vl-place', chosen[ 0 ] );
+      setText( '.vl-place-addr', chosen[ 1 ] );
+      setText( '.vl-map-preview .vl-card-h', chosen[ 0 ] );
+      setText( '.vl-map-preview .vl-small', chosen[ 1 ] );
+      close();
+    }
+
+    input.addEventListener( 'input', function () {
+      var query = input.value.trim();
+      if ( !query ) { close(); return; }
+      render( query );
     } );
 
-    refreshHint();
-    markUnresolved();
+    input.addEventListener( 'keydown', function ( event ) {
+      if ( event.key === 'Escape' ) {
+        /* Closes and LEAVES THE TYPED TEXT. Escape dismisses the list, it does
+           not undo what the reader wrote. */
+        if ( !list.hidden ) { event.preventDefault(); close(); }
+        return;
+      }
+      if ( event.key === 'Tab' ) { close(); return; }
+      if ( list.hidden || !matches.length ) return;
+
+      if ( event.key === 'ArrowDown' ) {
+        event.preventDefault();
+        /* CLAMPED, not wrapped - SearchModal.tsx:149 does exactly this. */
+        active = Math.min( active + 1, matches.length - 1 );
+        paintActive();
+      } else if ( event.key === 'ArrowUp' ) {
+        event.preventDefault();
+        active = Math.max( active - 1, 0 );
+        paintActive();
+      } else if ( event.key === 'Enter' ) {
+        /* preventDefault BEFORE committing: this input is no longer inside a
+           form, but Enter in a text field is an implicit submit wherever one
+           appears, and this one selects instead. */
+        event.preventDefault();
+        commit( active );
+      }
+    } );
+
+    /* mousedown, NOT click, for the preventDefault: the field would otherwise
+       blur before the click landed and focusout would close the list out from
+       under the pointer. */
+    list.addEventListener( 'mousedown', function ( event ) { event.preventDefault(); } );
+
+    list.addEventListener( 'mouseover', function ( event ) {
+      var row = event.target.closest ? event.target.closest( '[role="option"]' ) : null;
+      if ( !row ) return;
+      active = Number( row.getAttribute( 'data-index' ) );
+      paintActive();
+    } );
+
+    list.addEventListener( 'click', function ( event ) {
+      var row = event.target.closest ? event.target.closest( '[role="option"]' ) : null;
+      if ( !row ) return;
+      commit( Number( row.getAttribute( 'data-index' ) ) );
+    } );
+
+    /* focusout on the WRAPPER, not the input: focus moving from the input to a
+       row inside the same wrapper must not close the list. */
+    var wrap = input.closest( '.vl-search' );
+    if ( wrap ) {
+      wrap.addEventListener( 'focusout', function ( event ) {
+        if ( !wrap.contains( event.relatedTarget ) ) close();
+      } );
+    }
   } )();
 } )();
 </script>
