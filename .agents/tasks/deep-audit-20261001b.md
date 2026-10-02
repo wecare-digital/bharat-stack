@@ -54,7 +54,7 @@ session's and were left exactly as found).
 
 6. **The live-vs-manifest Razorpay MID/UPI disagreement is unchanged.** Live
    `wecare-whatsapp-business-api` still carries `RAZORPAY_MID=[retired Razorpay account]` and
-   `RAZORPAY_UPI_ID=wecaredigital83.rzp@icici`; the manifest still holds the other pair. Still
+   `RAZORPAY_UPI_ID=[retired UPI VPA]`; the manifest still holds the other pair. Still
    blocked on the owner's provider readback (prior audit item 20-D). **HIGH.**
 
 7. **Of the four "already fixed" payment-path items, three are still fixed and one is being
@@ -288,7 +288,7 @@ holding four credentials is a secret nobody will remember to retire.
 
 ```
 RAZORPAY_MID      [retired Razorpay account]
-RAZORPAY_UPI_ID   wecaredigital83.rzp@icici
+RAZORPAY_UPI_ID   [retired UPI VPA]
 PAYMENT_WABA_ID   2094615664435155
 LastModified      2026-09-30T11:02:22.000+0000
 ```

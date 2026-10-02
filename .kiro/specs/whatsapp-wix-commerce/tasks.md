@@ -39,7 +39,7 @@ work. `payment_readiness.py` still refuses if a live readback disagrees.
   `payment_readiness.py` corrected; the manifest env is **not yet pushed live** — it rides with the
   credential-load step.
 - **UPI VPA** is `wecaredigitalbh511413.rzp@rxairtel` (the `constants.ts` fallback was right).
-  Live env `wecaredigital83.rzp@icici` was stale and is corrected in the manifest.
+  Live env `[retired UPI VPA]` was stale and is corrected in the manifest.
 
 **Still owner-pending, so no live payment yet:** the Razorpay live key + secret and the Wix admin
 token must be (re)loaded into Secrets Manager via the owner-run helpers
