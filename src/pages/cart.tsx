@@ -467,6 +467,7 @@ export default function Cart (): React.ReactElement {
   const [ showProfile, setShowProfile ] = useState<boolean>( false );
   const [ checkoutAccessToken, setCheckoutAccessToken ] = useState<string>( '' );
   const [ profile, setProfile ] = useState<CheckoutProfileValue | null>( null );
+  const [ paymentBlocked, setPaymentBlocked ] = useState<boolean>( false );
 
   useEffect( () => {
     setItems( readCart() );
@@ -508,6 +509,7 @@ export default function Cart (): React.ReactElement {
       return;
     }
 
+    setPaymentBlocked( false );
     const lineItems = toLineItems();
     if ( lineItems.length === 0 )
     {
@@ -653,6 +655,7 @@ export default function Cart (): React.ReactElement {
 
       if ( status === 'CHECKOUT_REJECTED' )
       {
+        setPaymentBlocked( true );
         setNotice( { kind: 'error', message: NOT_PREPARED } );
         return;
       }
@@ -686,6 +689,7 @@ export default function Cart (): React.ReactElement {
       // the cart is still the shopper's.
       if ( status === 'PAYMENT_INITIATION_DISABLED' )
       {
+        setPaymentBlocked( true );
         setNotice( { kind: 'quiet', message: NOT_PREPARED } );
         return;
       }
@@ -694,6 +698,7 @@ export default function Cart (): React.ReactElement {
       // evidence holds and the same sentence is the honest one.
       if ( status === 'PAYMENT_UNAVAILABLE' )
       {
+        setPaymentBlocked( true );
         setNotice( { kind: 'quiet', message: NOT_PREPARED } );
         return;
       }
@@ -708,6 +713,7 @@ export default function Cart (): React.ReactElement {
       // The message did not go out. The attempt exists and nothing was charged, so a retry is safe.
       if ( status === 'SEND_FAILED' )
       {
+        setPaymentBlocked( true );
         setNotice( {
           kind: 'quiet',
           message: 'We could not open the payment. No charge was made - please try again.',
@@ -722,6 +728,7 @@ export default function Cart (): React.ReactElement {
         || status === 'CATALOGUE_UNAVAILABLE'
       )
       {
+        setPaymentBlocked( true );
         setNotice( { kind: 'error', message: NOT_PREPARED } );
         return;
       }
@@ -856,8 +863,10 @@ export default function Cart (): React.ReactElement {
                 <PillButton
                   as="button"
                   type="button"
-                  label={ profile ? 'Secure checkout' : 'Checkout' }
-                  action={ busy ? 'Preparing…' : ( profile ? 'Pay securely' : 'Proceed' ) }
+                  label={ profile && !paymentBlocked ? 'Secure checkout' : 'Checkout' }
+                  action={ busy
+                    ? 'Preparing…'
+                    : ( profile ? ( paymentBlocked ? 'Try again' : 'Pay securely' ) : 'Proceed' ) }
                   onClick={ proceed }
                   disabled={ busy }
                   busy={ busy }
