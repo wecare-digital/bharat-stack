@@ -135,9 +135,12 @@ def env(monkeypatch):
     monkeypatch.setenv("EXPECTED_PROVIDER_MID", "acc_TESTMID")
     monkeypatch.setenv("PAYMENT_WABA_ID", "2094615664435155")
     monkeypatch.setenv("APP_ENV", "development")
-    # No gate key set at all: Cart V2 is the DEFAULT, and that is what is under test.
+    # Cart V2 is OPT-IN, so this file has to turn it on explicitly. That is the point rather than
+    # test scaffolding: no deployed function carries the key, so V2 does not serve anywhere until
+    # an operator sets it, and a test that passed with no key set would be measuring the wrong
+    # default. `test_with_no_gate_key_set_the_handler_stays_on_checkout_v1` holds the other side.
+    monkeypatch.setenv("WIX_CART_V2_ENABLED", "true")
     monkeypatch.delenv("WIX_CART_V2_DISABLED", raising=False)
-    monkeypatch.delenv("WIX_CART_V2_ENABLED", raising=False)
 
     spec = importlib.util.spec_from_file_location("checkout_cart_v2_under_test", HANDLER)
     h = importlib.util.module_from_spec(spec)
@@ -174,14 +177,14 @@ def _create_event(**over):
     }
 
 
-# ── the default path is Cart V2 ──────────────────────────────────────────────────
+# ── with the opt-in set, the path is Cart V2 ─────────────────────────────────────
 
-def test_with_no_gate_key_set_the_handler_prices_through_cart_v2(env):
+def test_with_the_gate_opted_in_the_handler_prices_through_cart_v2(env):
     h, _fake, _lam, wix, _mp = env
     response = h.handler(_create_event(), None)
     assert response["statusCode"] == 200
     assert all("/ecom/v1/checkouts" not in path for path in wix.paths()), \
-        "the default path must not touch Checkout V1"
+        "the V2 path must not touch Checkout V1"
     assert any(path.startswith("/ecom/v2/carts") for path in wix.paths())
 
 
@@ -239,29 +242,34 @@ def test_money_in_the_response_is_an_integer_number_of_paise(env):
 
 # ── no address means no price, and no invented address ───────────────────────────
 
-def test_without_an_owned_address_the_handler_refuses_instead_of_pricing(env):
+def test_without_an_owned_address_the_handler_refuses_before_touching_wix(env):
     """The loader seam returns nothing, as it does in production until the profile read is wired.
 
     The response is a recoverable 409 naming what the customer must do, not a 500 and not a total
-    computed from a placeholder.
+    computed from a placeholder. The stronger assertion is the second one: **no Wix call is made at
+    all**. An earlier revision created the cart first and read the address afterwards, so every
+    attempt left a real, never-completed cart on the live site with nothing to clean it up. A
+    request that cannot be priced has to be refused before it can leave anything behind.
     """
-    h, fake, _lam, _wix, monkeypatch = env
+    h, fake, _lam, wix, monkeypatch = env
     monkeypatch.setattr(h, "LOAD_OWNED_ADDRESS", None)
     response = h.handler(_create_event(), None)
 
     assert response["statusCode"] == 409
     assert json.loads(response["body"])["error"] == "DELIVERY_DETAILS_REQUIRED"
+    assert wix.calls == [], "no Wix call may precede the address check"
     # Nothing was reserved and no attempt exists: a refused price creates no intent.
     assert fake.all_rows(ATTEMPTS_TABLE) == []
 
 
 def test_an_empty_profile_address_is_not_coerced_into_a_default(env):
-    h, fake, _lam, _wix, monkeypatch = env
+    h, fake, _lam, wix, monkeypatch = env
     for empty in ({}, None, ""):
         monkeypatch.setattr(h, "LOAD_OWNED_ADDRESS", lambda cid, value=empty: value)
         response = h.handler(_create_event(), None)
         assert response["statusCode"] == 409
         assert json.loads(response["body"])["error"] == "DELIVERY_DETAILS_REQUIRED"
+    assert wix.calls == []
     assert fake.all_rows(ATTEMPTS_TABLE) == []
 
 
@@ -299,25 +307,86 @@ def test_the_browser_cannot_supply_an_address_or_an_amount(env):
     assert int(rows[0]["collectionPaise"]) == COLLECTION_PAISE
 
 
-# ── the gate still switches back to V1 ──────────────────────────────────────────
+# ── the gate: absence keeps V1, and the kill switch beats a deployed opt-in ──────
 
-def test_disabling_the_gate_returns_to_the_checkout_v1_authority(env):
-    """The zero-commit rollback, proven rather than documented.
-
-    V1 is retained and reachable by one environment variable, which is why the gate was inverted
-    instead of deleted.
-    """
-    h, _fake, _lam, wix, monkeypatch = env
-    monkeypatch.setenv("WIX_CART_V2_DISABLED", "true")
+def _stub_v1(h, monkeypatch):
     monkeypatch.setattr(h.wix_ecom, "create_checkout", lambda items, **k: {
         "id": "wix-checkout-1", "currency": "INR",
         "priceSummary": {"total": {"amount": "599.00"}},
         "lineItems": [{"productName": {"original": "Viveka"}, "quantity": 1}]})
 
+
+def test_with_no_gate_key_set_the_handler_stays_on_checkout_v1(env):
+    """Absence is off. This is the configuration of every deployed function.
+
+    V2 must not become the live price authority because a deploy happened; it becomes the price
+    authority because an operator set `WIX_CART_V2_ENABLED`. So with the key removed the handler
+    answers from the retained V1 authority and makes no Cart V2 call at all.
+    """
+    h, _fake, _lam, wix, monkeypatch = env
+    monkeypatch.delenv("WIX_CART_V2_ENABLED", raising=False)
+    _stub_v1(h, monkeypatch)
+
     body = json.loads(h.handler(_create_event(), None)["body"])
     # The raw Wix total, as the retained V1 contract specifies.
     assert body["amountPaise"] == 59900
     assert not any(path.startswith("/ecom/v2/carts") for path in wix.paths())
+
+
+def test_the_disable_key_overrides_a_deployed_opt_in(env):
+    """The rollback lever: one environment variable, without having to find and unset the opt-in."""
+    h, _fake, _lam, wix, monkeypatch = env
+    monkeypatch.setenv("WIX_CART_V2_DISABLED", "true")
+    _stub_v1(h, monkeypatch)
+
+    body = json.loads(h.handler(_create_event(), None)["body"])
+    assert body["amountPaise"] == 59900
+    assert not any(path.startswith("/ecom/v2/carts") for path in wix.paths())
+
+
+# ── one purchase, one cart: resolve before generate ──────────────────────────────
+
+def test_a_repeated_checkout_reuses_the_saved_cart_instead_of_minting_another(env):
+    """The cart is persisted and identity-keyed, so a retry must land on the one that exists.
+
+    `customer_cart` already owns cart identity and its lock protocol. An earlier revision called
+    Create Cart unconditionally on every checkout attempt, which gave one purchase two cart
+    lifecycles -- the persisted one the `/wix-store/cart` route maintains and a throwaway one per
+    attempt -- and turned a single abandoned cart into unbounded accumulation on the live site.
+    """
+    h, _fake, _lam, wix, _mp = env
+    assert h.handler(_create_event(), None)["statusCode"] == 200
+    creates = [path for method, path in wix.calls
+               if method == "POST" and path == "/ecom/v2/carts"]
+    assert len(creates) == 1
+
+    assert h.handler(_create_event(), None)["statusCode"] == 200
+    creates = [path for method, path in wix.calls
+               if method == "POST" and path == "/ecom/v2/carts"]
+    assert len(creates) == 1, "the second attempt created a second cart"
+
+
+def test_a_saved_cart_holding_something_else_is_refused_rather_than_priced(env):
+    """Reuse is correct; silently pricing a different basket is not.
+
+    The saved cart belongs to the `/wix-store/cart` route, so it can legitimately diverge from what
+    this request asked to price -- a second tab, another device, an edit after the page loaded.
+    Charging for a basket the customer is not looking at is the failure worth refusing.
+    """
+    h, fake, _lam, _wix, _mp = env
+    assert h.handler(_create_event(), None)["statusCode"] == 200
+    before = len([r for r in fake.all_rows(KEYS_TABLE) if str(r["orderId"]).startswith("PAYREF#")])
+
+    other = copy.deepcopy(_create_event())
+    body = json.loads(other["body"])
+    body["lineItems"][0]["quantity"] = 2
+    other["body"] = json.dumps(body)
+    response = h.handler(other, None)
+
+    assert response["statusCode"] == 409
+    assert json.loads(response["body"])["error"] == "CART_NOT_PAYABLE"
+    after = [r for r in fake.all_rows(KEYS_TABLE) if str(r["orderId"]).startswith("PAYREF#")]
+    assert len(after) == before, "a mismatched basket must reserve nothing"
 
 
 # ── nothing here can create or place an order ───────────────────────────────────

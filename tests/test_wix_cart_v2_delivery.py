@@ -374,32 +374,32 @@ def test_no_placeholder_address_can_ever_produce_a_price():
 
 # ── the gate ─────────────────────────────────────────────────────────────────────
 
-def test_cart_v2_is_on_by_default():
-    """Inverted from an opt-in on 2026-10-01. Absence of configuration means V2 serves."""
-    assert is_enabled({}) is True
+def test_cart_v2_is_off_when_nothing_is_configured():
+    """The property an earlier revision lost by inverting this gate into an opt-out.
+
+    Neither key is set on any function in the fleet, so if absence meant "on" then V2 would switch
+    itself on at the next routine deploy: the live price authority changing with no environment
+    change and nobody's decision. Absence must be off.
+    """
+    assert is_enabled({}) is False
+    assert is_enabled({"SOMETHING_ELSE": "1"}) is False
 
 
 @pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on", " true "])
-def test_the_disable_key_turns_it_off(value):
-    """Keeps a zero-commit rollback: one env var and a redeploy, no code change."""
-    assert is_enabled({"WIX_CART_V2_DISABLED": value}) is False
+def test_the_opt_in_key_turns_it_on(value):
+    assert is_enabled({"WIX_CART_V2_ENABLED": value}) is True
 
 
-@pytest.mark.parametrize("value", ["false", "0", "no", "off", ""])
-def test_the_legacy_opt_in_key_still_disables_when_explicitly_falsy(value):
-    """A deployed `WIX_CART_V2_ENABLED=false` is a decision, and inverting the default must not
-    quietly overrule it."""
+@pytest.mark.parametrize("value", ["false", "0", "no", "off", "", "maybe"])
+def test_a_non_truthy_opt_in_value_leaves_it_off(value):
     assert is_enabled({"WIX_CART_V2_ENABLED": value}) is False
 
 
-def test_the_legacy_key_set_true_leaves_it_on():
-    assert is_enabled({"WIX_CART_V2_ENABLED": "true"}) is True
-
-
-def test_the_absence_of_the_legacy_key_is_not_a_disable():
-    """Every function in the fleet currently lacks it, so treating absence as off would make the
-    inversion a no-op."""
-    assert is_enabled({"SOMETHING_ELSE": "1"}) is True
+@pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on", " true "])
+def test_the_disable_key_overrides_a_deployed_opt_in(value):
+    """The rollback lever stays one environment variable, even where the opt-in is deployed."""
+    assert is_enabled({"WIX_CART_V2_ENABLED": "true",
+                       "WIX_CART_V2_DISABLED": value}) is False
 
 
 def test_money_helpers_reject_float_on_the_delivery_path():

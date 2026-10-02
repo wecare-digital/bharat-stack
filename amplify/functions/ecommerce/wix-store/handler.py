@@ -368,9 +368,11 @@ def _customer_cart(event, method):
     identity, denied = customer_auth.require_customer(event)
     if denied:
         return denied
-    # Cart V2 is the default price authority since 2026-10-01. `cart_v2.is_enabled` owns the
-    # decision so this route and `ecommerce/checkout` cannot disagree about whether V2 serves,
-    # and so the operator-facing kill switch is one documented key rather than two spellings.
+    # Cart V2 is opt-in: `WIX_CART_V2_ENABLED` must be truthy, and absence means off. The
+    # decision lives in `cart_v2.is_enabled` so this route and `ecommerce/checkout` cannot
+    # disagree about whether V2 serves. Off, this route creates no cart at all, which matters
+    # because serving it performs real Create Cart and Add Line Items writes against the live
+    # site for any authenticated customer.
     if not cart_v2_enabled():
         return _response(503, {'error': 'CART_UNAVAILABLE'})
     if method not in ('GET', 'POST'):

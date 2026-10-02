@@ -340,16 +340,21 @@ absorbs whatever else is staged. Do not push. Do not deploy.
       is unchanged.
 
 - [ ] **3. BLOCKED on item 1 + the §3 product decision — make Cart V2 the default.**
-      **Mechanism chosen: invert the gate, do not remove it.** Replace the
-      `WIX_CART_V2_ENABLED == 'true'` opt-in with a `WIX_CART_V2_DISABLED` opt-out so V2 is
-      on unless something explicitly turns it off, and keep reading the old key as a
-      recognised disable value for one release so a stale env cannot silently flip
-      behaviour. Reasons, both concrete: (a) it gives a **zero-commit rollback** — the owner
-      sets one env var and redeploys, no code change, no review cycle — *and* the
-      one-commit rollback below; (b) removing the gate outright would leave no way to
-      re-disable a live Wix cart-write surface without a code change, and
-      `/wix-store/cart` performs real Create Cart / Add Line Items writes against the live
-      site for any authenticated customer.
+      **Mechanism REVISED after review, 2026-10-02: keep the opt-in. Do not invert the gate.**
+      This item originally specified replacing the `WIX_CART_V2_ENABLED == 'true'` opt-in with
+      a `WIX_CART_V2_DISABLED` opt-out. That was implemented and then reverted, and the
+      measurement is the reason: **neither key is set on any function in the fleet**, so
+      "default on" did not mean an operator had chosen V2 — it meant V2 would switch itself on
+      at the next routine `deploy_all_lambdas.py` run, changing the live price authority with no
+      environment change and nobody's decision. A flag whose safety depends on nobody having
+      deployed yet is not a flag. It also contradicted two standing instructions: the migration
+      brief required everything to stay behind `WIX_CART_V2_ENABLED`, and the standing
+      authorization permits only flag changes that **tighten**.
+      The rollback argument that motivated the inversion is preserved without it:
+      `WIX_CART_V2_DISABLED` is retained as an override **on top of** the opt-in, so with the
+      opt-in deployed the kill switch is still one environment variable and a redeploy, never a
+      code change. `cart_v2.is_enabled()` remains the single shared decision so the cart route
+      and the checkout handler cannot disagree.
       **Precondition, non-negotiable:** item 1 merged, item 2's V2 branch green, and a
       Calculate Cart that returns **zero ERROR violations** for this site's catalogue —
       i.e. §3 closed. Do not satisfy that precondition by relaxing
@@ -357,9 +362,9 @@ absorbs whatever else is staged. Do not push. Do not deploy.
       Files: `amplify/functions/ecommerce/wix-store/handler.py`,
       `amplify/functions/ecommerce/checkout/handler.py`, `config/lambda-env-manifest.json`,
       `tests/test_cart_v2.py`
-      Verify: `./.venv/bin/python -m pytest tests/ -q` — full suite green, with new tests
-      for (a) default-on with no env set, (b) explicit disable still returning
-      `503 CART_UNAVAILABLE`, (c) the legacy key's disable value honoured.
+      Verify: `./.venv/bin/python -m pytest tests/ -q` — full suite green, with tests for
+      (a) both keys absent returning `503 CART_UNAVAILABLE` **and making no Wix call**,
+      (b) the opt-in turning it on, (c) the disable key overriding a deployed opt-in.
 
 - [ ] **4. Prove the V2 path by behaviour, not by call-shape strings.**
       The existing suite's strongest V2 assertion compares a list of `(method, path)`
@@ -536,7 +541,7 @@ Rollback, in increasing cost:
 
 | Level | Action | Cost |
 |---|---|---|
-| 0 | Set the disable env var on `wecare-wix-store` / `wecare-checkout` and redeploy | **no code change, no commit** — this is why item 3 inverts the gate instead of removing it |
+| 0 | Unset `WIX_CART_V2_ENABLED`, or set `WIX_CART_V2_DISABLED=true` to override it, on `wecare-wix-store` / `wecare-checkout` and redeploy | **no code change, no commit** — this is why item 3 keeps a gate rather than removing it, and why the disable key is retained on top of the opt-in |
 | 1 | Move the `live` alias back to the recorded prior version (**v31** / **v2** — capture the then-current numbers before deploying, these are dated) | one CLI call per function, no commit |
 | 2 | Revert the item 3 commit, restoring V1 as the default while leaving the V2 code in place | one commit |
 | 3 | Revert items 6 and 7, restoring the Checkout V1 surface | two commits — which is precisely why 6 and 7 come **after** 3 and not before |
@@ -579,7 +584,7 @@ not repository changes.
 | Which sites migrate in one pass | ✅ COMPLETE — §4 items 1, 2, 4, 8, 9 |
 | Which sites cannot, with the blocker | ✅ COMPLETE — §4 items 3, 5, 6, 7, blocked by §3 |
 | V1 stays intact until V2 is proven | ✅ PLANNED — item 2 keeps V1 default; deletion is item 6, after items 2–4 |
-| Default-path mechanism chosen and justified | ✅ DECIDED — invert the gate to an opt-out (§4 item 3) |
+| Default-path mechanism chosen and justified | ✅ DECIDED — keep the `WIX_CART_V2_ENABLED` opt-in, with `WIX_CART_V2_DISABLED` as an override on top (§4 item 3, revised after review) |
 | One-commit rollback documented | ✅ COMPLETE — §7, plus a zero-commit level |
 | Deploy recorded as the owner's step | ✅ COMPLETE — §7 |
 | Meta version sources reconciled | ✅ PLANNED — §5, following the audit's seven items |
@@ -773,8 +778,8 @@ enter Wix payment collection, which is exactly why it is not on this adapter.
 | Item | Status |
 |---|---|
 | 1. Extend `cart_v2.py` with delivery methods | ✅ COMPLETE — plus `estimate`, `refresh`, coupons |
-| 2. V2 price authority reachable from `ecommerce/checkout` | ✅ COMPLETE — and it is now the default |
-| 3. Make Cart V2 the default | ✅ COMPLETE — gate inverted to `WIX_CART_V2_DISABLED` opt-out |
+| 2. V2 price authority reachable from `ecommerce/checkout` | ✅ COMPLETE — reachable, and selected by the opt-in |
+| 3. Make Cart V2 the default | ⛔ **NOT DONE, AND DELIBERATELY SO** — the gate inversion that briefly did this was reverted after review; see "Review correction" below |
 | 4. Prove the V2 path behaviourally | ✅ COMPLETE — 4 new fixtures, ~150 new assertions |
 | 5. Mark Cart As Completed in the write-back allowlist | ✅ COMPLETE — own side-effect guard, all flags still off |
 | 6. Retire the Checkout V1 surface | ⛔ **DELIBERATELY NOT DONE** — see below |
@@ -793,31 +798,50 @@ removes a field from a deployed Amplify data model, which is not inert.
 **Unblock for 6 and 7:** one live Calculate Cart with a real address confirming the six shapes, then
 delete in a follow-up commit. The V2 path writes `wixCheckoutId` as `""`, so nothing new depends on it.
 
-### Measured
+### Review correction, 2026-10-02
+
+A review of commits `9bf0b1f2` and `8f2cc092` requested four changes. All four are made, and three
+of them undo or bound something this document had recorded as finished.
+
+| Finding | What changed |
+|---|---|
+| **WIX-V2-001** gate inverted to default-on | **Reverted.** `cart_v2.is_enabled()` is an opt-in again: `WIX_CART_V2_ENABLED` must be truthy and absence is off. `WIX_CART_V2_DISABLED` is kept as an override *on top of* the opt-in, so the zero-commit rollback survives. Neither key is set on any function, so with the inversion in place V2 would have become the live price authority at the next routine deploy — no environment change, nobody's decision. Item 3 above is revised with the reasoning |
+| **WIX-V2-002** a live Wix write happened before the address check that always fails | **Reordered.** `_v2_snapshot` resolves the owned address *first* and raises `DeliveryDetailsRequired` before constructing the adapter, so an unpriceable request leaves nothing behind. Previously a cart was created, then the address was read, then the request was refused — one real, never-completed cart abandoned on the live site per attempt, with nothing to clean it up. `test_without_an_owned_address_the_handler_refuses_before_touching_wix` asserts `wix.calls == []`, measuring the absent call rather than the status code |
+| **WIX-V2-003** no cart reuse, no resolve-before-generate | **Resolved through `customer_cart`.** New `CustomerCart.resolve()` (read-only) and `CustomerCart.ensure()` (returns `(cart_id, created)`) put cart identity back where it already lived; `ensure` creates through `execute`, so the lock protocol, the duplicate-request fingerprint and the persistence stay in one place. A repeated checkout now reuses the same Wix cart instead of minting one per attempt. A reused cart whose contents do not match the request is **refused** (`CART_NOT_PAYABLE`), not priced: the cart belongs to the `/wix-store/cart` route and can legitimately diverge, and charging for a basket the customer is not looking at is worse than asking them to review it. Quantities compare on `requestedQuantity`, so an out-of-stock reduction still reports as `QUANTITY_REDUCED` rather than "your cart changed". A locked cart answers `409 CART_RECONCILIATION_REQUIRED`, the same vocabulary the cart route uses |
+| **WIX-V2-004** superseded rationale left beside its replacement | **Rewritten.** `WIX_ECOM_CART` carries one account of its `configured` value, which is `'V1'` again because V1 is what serves. `drift` moves `must-be-latest` → `lag-allowed-with-reason` with an `upgradeBlockedReason` and `lagExpiresOn: '2026-12-31'`, so the lag is reported as a `[WARN]` rather than either failing the gate or being passed off as current. `config/vendor-versions.json` regenerated with `node scripts/check-versions.ts --write` |
+| **WIX-V2-005** self-reported counts | Re-measured below. Still this session's own numbers; CI is the independent check |
+
+### Measured, 2026-10-02 (after the review corrections)
 
 | Check | Result |
 |---|---|
-| `./.venv/bin/python -m pytest tests/ -q` | **6169 passed, 1 skipped** — baseline before this work **5964 passed, 1 skipped** |
-| New tests | `test_wix_cart_v2_delivery.py` (66), `test_wix_cart_v2_coupons_and_stock.py` (45), `test_purchase_intent_producer.py` (23), `test_checkout_cart_v2_authority.py` (18), `test_meta_graph_base_is_validated.py` (27), `test_meta_version_sources.py` (12) — 191 total |
-| `npm run typecheck` | exit 0 |
-| `node scripts/check-versions.ts` | exit 0; `[ ok ] Wix eCommerce Orders / Transactions / Fulfillments  configured V1  latest V1` and `[ ok ] Wix eCommerce Cart / Checkout  configured V2  latest V2`. The old single `WIX_ECOM` row reported `[ ok ]` only because both its columns said V1, which is the conflation the split undid |
-| Pre-existing failures from other sessions | **none** |
+| `./.venv/bin/python -m pytest tests/ -q` | **6187 passed, 1 skipped, 52.57s** — 0 failed, 0 errors |
+| `npm run typecheck` | **exit 0** |
+| `node scripts/check-versions.ts` | **exit 0**, `RESULT: no error findings`. `[ ok ] Wix eCommerce Orders / Transactions / Fulfillments  configured V1  latest V1`; `[WARN] Wix eCommerce Cart / Checkout  configured V1  latest V2` with the justification and `[justification expires 2026-12-31]` |
+| Pre-existing failures from other sessions | **none** — the suite is fully green, so nothing to attribute |
+
+Earlier in this workstream the suite measured 6169 passed / 1 skipped; the +18 is the gate tests
+rewritten around opt-in semantics, two handler-level cart-reuse tests, and five direct
+`CustomerCart.resolve` / `.ensure` tests. Counts taken from the final run on this tree, not
+transcribed from an earlier one — that transcription error is what commit `8f2cc092` existed to
+fix, and finding WIX-V2-005 is right that only CI makes these independent.
 
 ### Still open
 
 | Item | Owner action | Date |
 |---|---|---|
 | Six V2 request shapes unverified live | one authorized Calculate Cart with a real address | before deploy |
-| `LOAD_OWNED_ADDRESS` is `None` | grant the customers table and wire the profile read | before the V2 path can price |
+| `LOAD_OWNED_ADDRESS` is `None`, so the V2 path cannot price | **owner decision first**: where the delivery address comes from. This function's environment carries only `PAYMENT_ATTEMPTS_TABLE` and `COMMERCE_KEYS_TABLE`, so wiring it needs a customer-profile source, an IAM grant and an env key. Not inventable here — §3 names it as a product decision nobody has made | before the V2 path can price |
 | No address/method selection UI | `src/lib/cart.ts` — not an owned path | before customer use |
-| `WIX_CART_V2_DISABLED` not set either way | leave unset for V2 default; set `true` to roll back | at deploy |
+| `WIX_CART_V2_ENABLED` absent on every function | setting it is the deliberate operator action that makes V2 serve. Nothing in this commit sets it, and doing so is a standing refusal for the agent | owner only, at deploy |
 | Deploy: `wecare-wix-store`, `wecare-checkout` | `update-function-code`, publish, move `live` alias | owner only |
 | Items 6 and 7 | delete after the live shape confirmation | follow-up commit |
 | `add-payment` literal REST path | re-verify before any write-back flag | unchanged |
 
-**Result: ⚠️ COMPLETE WITH IMPROVEMENTS.** Cart V2 is the default price authority, the producer chain
-is connected, and the 14 current-API call sites are untouched. Live verification and the profile read
-remain.
+**Result: ⚠️ PARTIAL.** The Cart V2 path is implemented, behaviourally tested and connected to the
+producer chain, and the 14 current-API call sites are untouched. It is **not** the default and must
+not become one by accident: the opt-in is absent on every function, and V1 continues to serve. Live
+verification, the owner decision on the address source, and the deploy all remain.
 
 ---
 

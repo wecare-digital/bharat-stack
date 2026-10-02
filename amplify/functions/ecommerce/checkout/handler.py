@@ -89,7 +89,8 @@ from typing import Any, Dict, Optional
 import boto3
 
 from lambda_utils import customer_auth, payment_readiness
-from lambda_utils.ecommerce import cart_v2, order_keys, payment_attempt, purchase_intent
+from lambda_utils.ecommerce import (
+    cart_v2, customer_cart, order_keys, payment_attempt, purchase_intent)
 from lambda_utils import wix_ecom
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, extract_origin, options_response
@@ -291,6 +292,39 @@ def _v2_catalog_items(line_items: list) -> list:
             for line in wix_ecom.normalized_catalog_items(line_items)]
 
 
+def _require_same_basket(cart: Dict[str, Any], requested: list) -> None:
+    """Refuse when the customer's saved cart is not the basket this request asked to price.
+
+    Reusing the saved cart is what keeps one purchase to one cart, but the cart is maintained by
+    the `/wix-store/cart` route, so it can legitimately hold something else by the time checkout
+    is pressed -- a second tab, another device, an edit made after this page loaded. Pricing it
+    anyway would charge for a basket the customer is not looking at, which is worse than asking
+    them to review it.
+
+    Quantities are compared on `requestedQuantity`, never `confirmedQuantity`: Wix reduces the
+    confirmed figure to available stock, and reporting that reduction is `CartQuantityReduced`'s
+    job. Reading it here would turn an out-of-stock item into "your cart changed".
+    """
+    asked: Dict[tuple, int] = {}
+    for item in requested:
+        key = (str(item["productId"]).lower(), str(item["variantId"]).lower())
+        asked[key] = asked.get(key, 0) + int(item["quantity"])
+    saved: Dict[tuple, int] = {}
+    for line in cart.get("lineItems") or []:
+        reference = (line.get("source") or {}).get("catalogReference") or {}
+        quantities = line.get("quantityInfo") or {}
+        key = (str(reference.get("catalogItemId") or "").lower(),
+               str((reference.get("options") or {}).get("variantId") or "").lower())
+        quantity = quantities.get("requestedQuantity")
+        if quantity is None:
+            quantity = quantities.get("confirmedQuantity")
+        saved[key] = saved.get(key, 0) + int(quantity or 0)
+    if saved != asked:
+        logger.info(json.dumps({"event": "checkout_cart_basket_mismatch",
+                                "savedLines": len(saved), "requestedLines": len(asked)}))
+        raise cart_v2.CartContractError("the saved cart is not the basket that was requested")
+
+
 def _v2_snapshot(identity: customer_auth.CustomerIdentity, line_items: list):
     """The Cart V2 price authority. Returns `(snapshot, price_free_items)`.
 
@@ -301,21 +335,36 @@ def _v2_snapshot(identity: customer_auth.CustomerIdentity, line_items: list):
     address. This handler adds nothing to that figure; `compute_quote` adds only our convenience
     fee and the GST on that fee, and `total_payable_paise` is what a customer pays.
 
+    ORDERING IS LOAD-BEARING, NOT STYLE. The owned address is resolved BEFORE any call that can
+    write to Wix. A cart created and then refused is a real cart abandoned on the live site, one
+    per attempt, and nothing deletes it; an earlier revision created the cart first and then
+    discovered there was no address, so every attempt leaked one. A request that cannot be priced
+    must be refused before it leaves anything behind.
+
+    The cart itself is resolved before it is generated. `customer_cart` already owns identity-keyed
+    cart persistence and its lock protocol, so this asks it for the customer's existing cart and
+    lets it create one only when there is none -- a retried checkout then reuses the same Wix cart
+    instead of minting another.
+
     Raises `purchase_intent.DeliveryDetailsRequired` when no owned address is on file or the cart
     has no delivery method, which is a recoverable step in the purchase flow rather than an
     error.
     """
-    adapter = cart_v2.CartV2(_wix_request)
-    cart = adapter.create(_v2_catalog_items(line_items))
-
     loader = LOAD_OWNED_ADDRESS
     owned = loader(identity.customer_id) if callable(loader) else None
     if not owned:
         raise purchase_intent.DeliveryDetailsRequired("no owned delivery address on file")
 
-    prepared = purchase_intent.prepare_delivery(adapter, cart["id"], owned)
+    adapter = cart_v2.CartV2(_wix_request)
+    requested = _v2_catalog_items(line_items)
+    cart_id, created = customer_cart.CustomerCart(_keys_table(), adapter).ensure(
+        identity, requested)
+    if not created:
+        _require_same_basket(adapter.get(cart_id), requested)
+
+    prepared = purchase_intent.prepare_delivery(adapter, cart_id, owned)
     snapshot = purchase_intent.build_intent(
-        adapter, customer_id=identity.customer_id, cart_id=cart["id"],
+        adapter, customer_id=identity.customer_id, cart_id=cart_id,
         owned_address=owned, now=int(time.time()), site=wix_ecom.WIX_SITE_ID)
     # Names and quantities only, for the payment request and the receipt. Line money never
     # travels with the item list: the authoritative amount is the one computed once, above, and
@@ -346,10 +395,10 @@ def _create(identity: customer_auth.CustomerIdentity, body: Dict[str, Any],
     # 1. Authoritative total, from Wix. The browser sent catalogue references and quantities;
     #    Wix computes the price. A non-INR or non-whole-paise total fails closed.
     #
-    #    Cart V2 is the default (`cart_v2.is_enabled`); Checkout V1 is the opt-out path and is
-    #    retained only until the V2 delivery round trip is confirmed live. Both are the SAME
-    #    checkout mode -- website Razorpay Standard Checkout -- differing only in which Wix API
-    #    prices the cart. Neither routes a customer to a Wix-hosted checkout surface.
+    #    Checkout V1 is what serves: Cart V2 is opt-in behind `WIX_CART_V2_ENABLED`
+    #    (`cart_v2.is_enabled`), which is absent on every function, so absence keeps V1. Both are
+    #    the SAME checkout mode -- website Razorpay Standard Checkout -- differing only in which
+    #    Wix API prices the cart. Neither routes a customer to a Wix-hosted checkout surface.
     wix_checkout_id = ""
     snapshot = None
     if cart_v2.is_enabled():
@@ -394,6 +443,15 @@ def _create(identity: customer_auth.CustomerIdentity, body: Dict[str, Any],
             return cors_response(409, {"error": "CART_NOT_PAYABLE",
                                        "message": "Please review your cart and try again."},
                                  origin)
+        except customer_cart.CartBusy:
+            # A cart whose last Wix outcome is unknown. Never priced and never reused until it is
+            # reconciled -- the same answer `/wix-store/cart` gives, in the same vocabulary, so a
+            # locked cart does not read as two different problems on two routes.
+            logger.info(json.dumps({"event": "checkout_cart_reconciliation_required"}))
+            return cors_response(409, {
+                "error": "CART_RECONCILIATION_REQUIRED",
+                "message": "Your cart is being updated. Please try again shortly.",
+            }, origin)
         except wix_ecom.WixEcomError:
             return cors_response(502, {"error": "CATALOGUE_UNAVAILABLE",
                                        "message": "The store is temporarily unavailable."}, origin)

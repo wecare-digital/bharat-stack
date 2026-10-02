@@ -194,18 +194,20 @@ export const WIX_ECOM_ORDERS: VendorVersion = {
  * Checkout V1 into one Cart entity, and **those two APIs are removed on 2027-02-01**; a
  * V1 checkout id is a V2 cart id, so ids carry across.
  *
- * `configured: 'V1'` because V1 is still what *serves*: `ecommerce/checkout/handler.py`
- * resolves its authoritative total through `wix_ecom.create_checkout`
- * (`POST /ecom/v1/checkouts`). The Cart V2 adapter exists, is extended, and is reachable
- * from the checkout handler, but it is behind `WIX_CART_V2_ENABLED` — absent on every
- * function — so it is not the default and claiming `V2` here would be false.
+ * `configured: 'V1'` because V1 is what *serves*: `ecommerce/checkout/handler.py` resolves its
+ * authoritative total through `wix_ecom.create_checkout` (`POST /ecom/v1/checkouts`) whenever
+ * Cart V2 is not switched on. The Cart V2 path is complete — adapter, delivery methods, and the
+ * `ecommerce/purchase_intent` quote producer — and `ecommerce/checkout` prices through
+ * `cart_v2.CartV2.calculate` when it runs. It is **opt-in** behind `WIX_CART_V2_ENABLED`, and
+ * that key is absent on every function in the fleet, so claiming `V2` here would be false.
  *
- * `configured: 'V2'` as of 2026-10-01: Cart V2 is the DEFAULT price authority in code.
- * `ecommerce/checkout` resolves its total through `cart_v2.CartV2.calculate` and
- * `ecommerce/purchase_intent`, and the gate was inverted from an opt-in (`WIX_CART_V2_ENABLED`)
- * to an opt-out (`WIX_CART_V2_DISABLED`). Checkout V1 is retained and reachable by one
- * environment variable, which is a zero-commit rollback and the reason the gate was inverted
- * rather than deleted.
+ * A revision on 2026-10-01 briefly inverted the gate into a `WIX_CART_V2_DISABLED` opt-out and
+ * recorded `configured: 'V2'`. Both are reverted, and the reason is worth keeping: with neither
+ * key set anywhere, "default on" did not mean anyone had chosen V2 — it meant the live price
+ * authority would change at the next routine deploy, with no environment change. `configured`
+ * means what this system uses, and a value that depends on nobody having deployed yet is not
+ * that. `WIX_CART_V2_DISABLED` survives as an override on top of the opt-in, so the rollback
+ * lever is still one environment variable.
  *
  * What the §3 delivery blocker turned out to be: Cart V2 replaces V1's silent adjustments with
  * explicit violations, so a real Calculate Cart against this site answers an address-less cart
@@ -217,21 +219,34 @@ export const WIX_ECOM_ORDERS: VendorVersion = {
  * delivery address is the place of supply, so a fake one yields the wrong CGST/SGST-versus-IGST
  * split on an invoice carrying seller GSTIN 19AAFFW7196L1Z8.
  *
- * NO `upgradeBlockedReason`, deliberately. Two gaps remain and NEITHER is version lag, so
- * recording them here would re-create exactly the conflation splitting this row undid:
+ * `drift: 'lag-allowed-with-reason'` rather than `must-be-latest`, with an expiry. The lag is
+ * real and it is one operator action wide, so it must be reported rather than passed off as
+ * current — but failing the gate on it would say the code has not been migrated, which is no
+ * longer true. `lagExpiresOn` is well inside the 2027-02-01 removal of Cart and Checkout V1, so
+ * the justification cannot quietly outlive the thing it is waiting on.
+ *
+ * The two open items are NOT version lag, and are tracked in
+ * `docs/execution/wix-cart-v2-migration-20261001.md` §10 rather than averaged into this row:
  *   - six V2 request shapes (set/remove-delivery-method, refresh, estimate, add/remove-coupon)
  *     are convention-derived and unverified against a live call — a deploy gate;
  *   - `checkout/handler.py`'s `LOAD_OWNED_ADDRESS` seam is unwired, so the V2 path answers
- *     `DELIVERY_DETAILS_REQUIRED` — a feature gate.
- * Both are tracked in `docs/execution/wix-cart-v2-migration-20261001.md` §10.
+ *     `DELIVERY_DETAILS_REQUIRED` until the customer-profile address read is wired — a feature
+ *     gate, and an owner decision on where that address comes from.
  */
 export const WIX_ECOM_CART: VendorVersion = {
   name: 'Wix eCommerce Cart / Checkout',
-  configured: 'V2',
+  configured: 'V1',
   verifiedLatest: 'V2',
   verifiedOn: '2026-10-01',
   evidence: 'DOC',
-  drift: 'must-be-latest',
+  drift: 'lag-allowed-with-reason',
+  upgradeBlockedReason:
+    'Cart V2 is implemented and tested but opt-in behind WIX_CART_V2_ENABLED, which is absent on ' +
+    'every function. Switching it on is an operator action: it changes the live price authority ' +
+    'and needs one authorized live Calculate Cart to confirm six convention-derived request ' +
+    'shapes, plus the LOAD_OWNED_ADDRESS profile read. See ' +
+    'docs/execution/wix-cart-v2-migration-20261001.md.',
+  lagExpiresOn: '2026-12-31',
   rederive:
     'https://dev.wix.com/docs/api-reference/business-solutions/e-commerce/purchase-flow/cart-v2/migration-guide',
 } as const;

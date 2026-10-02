@@ -110,7 +110,7 @@ prompt's "must be upgradeable without rewriting business logic" requirement is c
 | eCommerce Orders | **V1 is LATEST** for this family — read/search/patch (`/ecom/v1/orders/*`), 7 call sites | `DOC` + `REPO` | ✅ implemented, **not** deprecated |
 | Order Transactions | **V1 is LATEST** — read (`/ecom/v1/transactions/orders/{id}`), 2 sites; plus 3 `/ecom/v1/payments/.../add-payment` sites in `wix_writeback` | `DOC` + `REPO` | ⚠️ write-back gated off; **no** payment recording live |
 | Order Fulfillments | **V1 is LATEST** — read (`/ecom/v1/fulfillments/orders/{id}`), 2 sites | `DOC` + `REPO` | ✅ implemented |
-| Cart / Checkout | **PRESENT, and this row previously said "absent", which was false.** Checkout V1 at `lambda_utils/wix_ecom.py:153` (`POST /ecom/v1/checkouts`) and `:211` (`GET /ecom/v1/checkouts/{id}`). Cart **V2** at `lambda_utils/ecommerce/cart_v2.py` (`/ecom/v2/carts/*`) | `REPO` grep, re-run 2026-10-01 | ⚠️ **V2 is the default price authority**; V1 retained as the opt-out path |
+| Cart / Checkout | **PRESENT, and this row previously said "absent", which was false.** Checkout V1 at `lambda_utils/wix_ecom.py:153` (`POST /ecom/v1/checkouts`) and `:211` (`GET /ecom/v1/checkouts/{id}`). Cart **V2** at `lambda_utils/ecommerce/cart_v2.py` (`/ecom/v2/carts/*`) | `REPO` grep, re-run 2026-10-01 | ⚠️ V2 implemented and tested, **opt-in** behind `WIX_CART_V2_ENABLED` (absent on every function, so absence keeps V1); Checkout V1 is what serves |
 | Invoices v4 / Receipts v1 | **absent**; invoicing is homegrown (`payments/invoice-engine` + 5 tables + per-FY sequence) | `REPO` | ❌ decision required, see `design.md` |
 | Site capability probe | not possible this session | `BLOCKED` no usable Wix credential exists — see §4 | ⛔ |
 

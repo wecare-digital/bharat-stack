@@ -6,7 +6,7 @@
   "metaAuthTemplateLanguage": "en",
   "wixCatalogVersion": "V3",
   "wixEcomOrdersVersion": "V1",
-  "wixEcomCartVersion": "V2",
+  "wixEcomCartVersion": "V1",
   "lambdaPythonRuntime": "python3.12",
   "rejectedRuntimes": [
     "nodejs26.x",

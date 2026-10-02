@@ -69,11 +69,12 @@ REQUIRED_ADDRESS_FIELDS = ("country", "subdivision", "city", "postalCode")
 #: Truthy spellings accepted for either gate key, matching the rest of the fleet.
 _TRUTHY = ("1", "true", "yes", "on")
 
-#: The opt-OUT key. Cart V2 is the default; this turns it off.
-DISABLE_KEY = "WIX_CART_V2_DISABLED"
+#: The opt-IN key. Cart V2 serves only when this is truthy. Absent means off.
+ENABLE_KEY = "WIX_CART_V2_ENABLED"
 
-#: The superseded opt-IN key, still honoured as an explicit disable for one release.
-LEGACY_ENABLE_KEY = "WIX_CART_V2_ENABLED"
+#: A kill switch layered ON TOP of the opt-in, never instead of it. Set it to turn V2 off
+#: without having to find and unset `WIX_CART_V2_ENABLED` on every function that carries it.
+DISABLE_KEY = "WIX_CART_V2_DISABLED"
 
 
 class CartContractError(ValueError):
@@ -128,29 +129,29 @@ class CartQuantityReduced(CartContractError):
 
 
 def is_enabled(env=None):
-    """Whether the Cart V2 path serves. Default **on**; `WIX_CART_V2_DISABLED` turns it off.
+    """Whether the Cart V2 path serves. **Opt-in**: absent means off.
 
-    Inverted from an opt-in on 2026-10-01, when Cart V2 became the default price authority.
-    The gate is inverted rather than deleted for one specific reason: it keeps a **zero-commit
-    rollback**. `/wix-store/cart` performs real Create Cart and Add Line Items writes against
-    the live site for any authenticated customer, and with no gate the only way to stop that
-    would be a code change and a review cycle. One environment variable and a redeploy is the
-    cheaper lever, and the one an operator can pull under pressure.
+    ABSENCE MUST MEAN OFF, AND THAT IS THE WHOLE RULE HERE. An earlier revision inverted this
+    into a `WIX_CART_V2_DISABLED` opt-out so that V2 became the default. Measured against the
+    fleet, neither key is set on any function, so "default on" did not mean an operator had
+    chosen V2 -- it meant V2 would switch itself on at the next routine deploy, with no
+    environment change and nobody's decision. Turning on a path that performs live Create Cart
+    and Add Line Items writes, and that is the price authority for a payable amount, is an
+    operator action. A flag whose safety depends on nobody having deployed yet is not a flag.
 
-    `WIX_CART_V2_ENABLED` is still read, and an explicitly falsy value still disables. A
-    deployed environment carrying `WIX_CART_V2_ENABLED=false` means somebody decided to turn
-    this off; inverting the default must not quietly overrule that decision. The key's mere
-    absence is not a disable -- absence is how every function in the fleet is configured today,
-    and treating it as "off" would make the inversion a no-op.
+    `WIX_CART_V2_DISABLED` is kept as an override *on top of* the opt-in, not as a replacement
+    for it: with the key set, V2 stays off even where `WIX_CART_V2_ENABLED=true` is already
+    deployed, so the rollback lever is still one environment variable rather than a code change.
+    Both keys absent is the configuration of every function today, and it answers `False`.
+
+    One function, shared by the customer cart route and the checkout handler, so the two cannot
+    disagree about whether V2 serves.
     """
     import os
     environ = os.environ if env is None else env
     if str(environ.get(DISABLE_KEY, "")).strip().lower() in _TRUTHY:
         return False
-    legacy = environ.get(LEGACY_ENABLE_KEY)
-    if legacy is not None and str(legacy).strip().lower() not in _TRUTHY:
-        return False
-    return True
+    return str(environ.get(ENABLE_KEY, "")).strip().lower() in _TRUTHY
 
 
 def delivery_address(address):
