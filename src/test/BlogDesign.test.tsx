@@ -789,17 +789,18 @@ describe( 'Blog post page', () => {
   } );
 
   /**
-   * SUBSCRIBE AND CONTRIBUTION SIT BETWEEN TAGS AND SHARE, in that order.
+   * THE WHATSAPP SUBSCRIBE BUTTON AND CONTRIBUTION SIT BETWEEN TAGS AND SHARE, in that order.
    *
-   * The verified subscriber form was added above the existing contribution block, so the end of
-   * the article is content -> Tags -> Subscribe -> Contribution -> Share. Document position is
-   * asserted rather than mere presence so either block moving silently fails this test.
+   * The in-page subscriber form was removed in favour of a single button that opens a WhatsApp
+   * conversation (a.blog-wa-subscribe, href wa.me/message/BEA3HNW3LNM3A1). It sits where the box used to,
+   * so the end of the article is content -> Tags -> WhatsApp subscribe -> Contribution -> Share.
+   * Document position is asserted rather than mere presence so either block moving silently fails.
    */
-  it( 'renders Subscribe above Contribution, between Tags and Share', () => {
+  it( 'renders the WhatsApp subscribe button above Contribution, between Tags and Share', () => {
     const { container } = render( <BlogPostPage post={ samplePost } /> );
 
     const tags = container.querySelector( 'nav.tags' );
-    const subscribe = container.querySelector( 'section.blog-subscribe' );
+    const subscribe = container.querySelector( 'a.blog-wa-subscribe' );
     const contribution = container.querySelector( 'section.bc' );
     const share = container.querySelector( '.post-share' );
 
@@ -807,6 +808,12 @@ describe( 'Blog post page', () => {
     expect( subscribe ).not.toBeNull();
     expect( contribution ).not.toBeNull();
     expect( share ).not.toBeNull();
+
+    // The in-page signup box is gone; nothing renders section.blog-subscribe any more.
+    expect( container.querySelector( 'section.blog-subscribe' ) ).toBeNull();
+
+    // The button points directly at the WhatsApp subscribe deep link.
+    expect( subscribe!.getAttribute( 'href' ) ).toBe( 'https://wa.me/message/BEA3HNW3LNM3A1' );
 
     expect( tags!.compareDocumentPosition( subscribe! ) & Node.DOCUMENT_POSITION_FOLLOWING )
       .toBeTruthy();
