@@ -100,9 +100,9 @@ describe('the sign-in error states use no red validation colour', () => {
     render(<SignIn />);
     fireEvent.change(screen.getByLabelText('WhatsApp number'),
       { target: { value: '+919876543210' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in Send code' }));
     fireEvent.change(await screen.findByLabelText('WhatsApp code'), { target: { value: '000000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in Confirm code' }));
 
     const alert = await screen.findByRole('alert');
     // The rendered string is one of the approved seven, verbatim.
@@ -124,7 +124,7 @@ describe('the sign-in error states use no red validation colour', () => {
     render(<SignIn />);
     fireEvent.change(screen.getByLabelText('WhatsApp number'),
       { target: { value: '+919876543210' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in Send code' }));
 
     const alert = await screen.findByRole('alert');
     await waitFor(() => expect(alert.textContent).toBe(signInMessages.RATE_LIMITED));
@@ -215,9 +215,9 @@ describe('a refused session exchange must not destroy a successful sign-in', () 
     render(<SignIn />);
     fireEvent.change(screen.getByLabelText('WhatsApp number'),
       { target: { value: '+919876543210' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in Send code' }));
     fireEvent.change(await screen.findByLabelText('WhatsApp code'), { target: { value: '123456' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in Confirm code' }));
   }
 
   it('signs in and shows no error when the exchange is refused (401)', async () => {
@@ -258,42 +258,44 @@ describe('a refused session exchange must not destroy a successful sign-in', () 
    * into both branches; this page is unchanged by that commit and still passes `label="Sign in"`,
    * so the pill correctly renders TWO STYLED SEGMENTS rather than one run-together string.
    *
-   * What is asserted here is therefore the property that must hold either way: the control
-   * answers to the ACTION ALONE, and the decorative label is never concatenated into the
-   * accessible name. That is what keeps every pinned role query working.
+   * SEPARATELY, the accessible name was ALSO wrong, and that is a different defect from the
+   * scoping. The control used to announce the action alone ("Confirm code") with both visible
+   * segments aria-hidden, which is a WCAG 2.5.3 Label in Name failure - a speech-input user
+   * saying "click Sign in" hit nothing. The name is now the full visible text,
+   * "Sign in Confirm code", and there is no aria-label. That is what these two cases pin at the
+   * page level; src/test/PillButtonAccessibleName.test.tsx asserts the underlying property across
+   * every call site.
    *
    * jsdom cannot see the scoping itself (vitest does not run the styled-jsx transform), which is
    * why src/test/PillButtonBuildScope.test.ts asserts it against the BUILT html - the only layer
    * where the defect is observable, and the one layer the upstream source-level guards do not
    * cover.
    */
-  it('names the confirm button by its action alone, never the concatenation', async () => {
+  it('names the confirm button by its full visible text, label included', async () => {
     stubNetwork(401);
     render(<SignIn />);
     fireEvent.change(screen.getByLabelText('WhatsApp number'),
       { target: { value: '+919876543210' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in Send code' }));
     await screen.findByLabelText('WhatsApp code');
 
-    const confirm = screen.getByRole('button', { name: 'Confirm code' });
-    // The accessible name is the action, NOT "Sign in Confirm code".
-    expect(confirm.getAttribute('aria-label')).toBe('Confirm code');
-    expect(screen.queryByRole('button', { name: /Sign in\s*Confirm code/ })).toBeNull();
-    // The decorative label is hidden from the accessibility tree, so it cannot be announced.
+    const confirm = screen.getByRole('button', { name: 'Sign in Confirm code' });
+    // No aria-label: the name is the visible text, so it cannot disagree with the screen.
+    expect(confirm.hasAttribute('aria-label')).toBe(false);
+    // Both segments are visible AND exposed to AT - neither is aria-hidden any more.
     const label = confirm.querySelector('.pill-label');
     expect(label?.textContent).toBe('Sign in');
-    expect(label?.getAttribute('aria-hidden')).toBe('true');
+    expect(label?.hasAttribute('aria-hidden')).toBe(false);
     const action = confirm.querySelector('.pill-action');
     expect(action?.textContent).toBe('Confirm code');
-    expect(action?.getAttribute('aria-hidden')).toBe('true');
+    expect(action?.hasAttribute('aria-hidden')).toBe(false);
   });
 
-  it('names the send button by its action alone too', () => {
+  it('names the send button by its full visible text too', () => {
     stubNetwork(401);
     render(<SignIn />);
-    const send = screen.getByRole('button', { name: 'Send code' });
-    expect(send.getAttribute('aria-label')).toBe('Send code');
-    expect(screen.queryByRole('button', { name: /Sign in\s*Send code/ })).toBeNull();
+    const send = screen.getByRole('button', { name: 'Sign in Send code' });
+    expect(send.hasAttribute('aria-label')).toBe(false);
     expect(send.querySelector('.pill-action')?.textContent).toBe('Send code');
   });
 });
