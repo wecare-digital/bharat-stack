@@ -72,6 +72,7 @@ let navigatedTo: string;
 
 beforeEach( () => {
   window.localStorage.clear();
+  window.sessionStorage.clear();
   navigatedTo = '';
   Object.defineProperty( window, 'location', {
     configurable: true,
@@ -277,6 +278,89 @@ describe( 'the cart page proceed flow', () => {
     expect( cart.readCart() ).toHaveLength( 1 );
     expect( screen.queryByRole( 'button', { name: /pay/i } ) ).toBeNull();
     expect( container.textContent || '' ).not.toMatch( /pay now|pay \u20b9|make payment/i );
+  } );
+
+  it( 'opens Razorpay with server options and verifies the returned callback before navigation', async () => {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
+      accessToken: 'fixture-session', expiresAt: Date.now() + 3_600_000,
+    } );
+
+    let receivedOptions: any = null;
+    const open = vi.fn();
+    class FakeRazorpay {
+      constructor ( options: any ) { receivedOptions = options; }
+      open = open;
+      on = vi.fn();
+    }
+    Object.defineProperty( window, 'Razorpay', {
+      configurable: true,
+      writable: true,
+      value: FakeRazorpay,
+    } );
+
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce( {
+        ok: true,
+        status: 200,
+        json: async () => ( {
+          status: 'CHECKOUT_OPTIONS_READY',
+          paymentAttemptId: 'att-web-1',
+          options: {
+            keyId: 'fixture-publishable-id',
+            orderId: 'order-fixture-1',
+            amountPaise: 121481,
+            currency: 'INR',
+            prefill: {
+              name: 'Asha Sen',
+              email: 'asha@example.com',
+              contact: '+919330994400',
+            },
+          },
+        } ),
+      } )
+      .mockResolvedValueOnce( {
+        ok: true,
+        status: 200,
+        json: async () => ( {
+          status: 'VERIFIED_PAID',
+          paymentAttemptId: 'att-web-1',
+        } ),
+      } );
+    vi.stubGlobal( 'fetch', fetchMock );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    await proceedPastProfile();
+
+    await waitFor( () => expect( open ).toHaveBeenCalledTimes( 1 ) );
+    expect( receivedOptions.order_id ).toBe( 'order-fixture-1' );
+    expect( receivedOptions.amount ).toBe( 121481 );
+    expect( receivedOptions.currency ).toBe( 'INR' );
+    expect( receivedOptions.prefill.email ).toBe( 'asha@example.com' );
+    expect( receivedOptions ).not.toHaveProperty( 'key_secret' );
+
+    const prepareBody = JSON.parse( fetchMock.mock.calls[ 0 ][ 1 ].body );
+    expect( prepareBody.action ).toBe( 'prepare' );
+    expect( prepareBody ).not.toHaveProperty( 'amountPaise' );
+    expect( prepareBody ).not.toHaveProperty( 'currency' );
+    expect( typeof prepareBody.requestKey ).toBe( 'string' );
+
+    await receivedOptions.handler( {
+      razorpay_payment_id: 'payment-fixture-1',
+      razorpay_order_id: 'order-fixture-1',
+      razorpay_signature: 'signature-fixture',
+    } );
+
+    await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
+    const verifyBody = JSON.parse( fetchMock.mock.calls[ 1 ][ 1 ].body );
+    expect( verifyBody ).toEqual( {
+      action: 'verify',
+      razorpay_payment_id: 'payment-fixture-1',
+      razorpay_order_id: 'order-fixture-1',
+      razorpay_signature: 'signature-fixture',
+    } );
+    expect( navigatedTo ).toBe( '/checkout/status/?a=att-web-1' );
+    expect( cart.readCart() ).toHaveLength( 1 );
   } );
 
   it( 'routes PAYMENT_REQUEST_SENT to the hosted status screen', async () => {
