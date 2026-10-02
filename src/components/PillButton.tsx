@@ -14,16 +14,35 @@ import React from 'react';
  * focus and link navigation are all the platform's, untouched. The two visible segments are
  * decoration layered on top of one actionable element.
  *
- * WHY THE ACCESSIBLE NAME IS SET EXPLICITLY. The visible pill reads as two words ("Sign in" +
- * "Send code"), but the accessible name of a <button> is the concatenation of its text, which
- * would announce "Sign in Send code" and - more importantly - would change the name the sign-in
- * tests pin ("Send code" / "Confirm code"). So the actionable element carries an explicit
- * `aria-label` equal to the ACTION text alone (the right segment), and the two visible segments
- * are marked aria-hidden. Assistive technology hears the single honest action; sighted users see
- * the two-tone pill. This is the same decision PhoneField makes when it labels the country select
- * rather than letting the segment text speak for it. When the visible action text is shorter than
- * the honest name (the cart shows "Proceed" but must announce "Proceed to checkout"), `ariaLabel`
- * sets the name independently of the visible text.
+ * THE ACCESSIBLE NAME IS THE VISIBLE TEXT. WCAG 2.5.3 LABEL IN NAME, AND WHY THE OLD
+ * `aria-label` HAD TO GO.
+ *
+ * This component used to carry an explicit `aria-label` equal to the ACTION text alone, with both
+ * visible segments marked `aria-hidden`, so a pill reading "Sign in | Confirm code" announced only
+ * "Confirm code". That is a direct failure of WCAG 2.5.3 Label in Name (Level A): the accessible
+ * name must CONTAIN the visible label text. Hiding a control's own visible label from the
+ * accessibility tree is the anti-pattern that creates the mismatch, not a fix for it.
+ *
+ * THE PEOPLE THIS BROKE ARE SPEECH-INPUT USERS. Someone driving the page by voice says "click Sign
+ * in" at a button whose name is "Confirm code" and nothing happens. There is no visual symptom, so
+ * no amount of styling fixes it, and the owner's two-tone design is not the problem.
+ *
+ * SO: neither segment is aria-hidden, and there is NO `aria-label`. The accessible name is the
+ * platform's own concatenation of the visible text - "Sign in Confirm code", "Checkout Proceed",
+ * "Collect Send code" - which contains the visible label text by construction and therefore
+ * cannot drift out of compliance. Nothing changes visually; this is an accessibility-tree change
+ * only.
+ *
+ * THERE IS DELIBERATELY NO `ariaLabel` PROP ANY MORE. It existed so the cart could show "Proceed"
+ * while announcing "Proceed to checkout", and that override is exactly how 2.5.3 gets broken - the
+ * name it set did not contain the visible text. Removing the prop rather than merely not using it
+ * makes the guarantee STRUCTURAL: there is no longer any way to give this control a name that
+ * disagrees with what is on screen. If a pill ever needs more context than its visible text, the
+ * name must still CONTAIN that text - extend the visible action, or use `describedBy`, which adds
+ * description without replacing the name.
+ *
+ * `src/test/PillButtonAccessibleName.test.tsx` asserts the property (name contains visible text)
+ * across every call site's prop shape, rather than pinning today's five strings.
  *
  * THE PALETTE IS THE SITE'S, AND THE CONTRAST IS MEASURED, NOT ASSUMED.
  *   - LEFT segment  #1a3a2a (the site's primary dark/indicator green, used for every focus ring,
@@ -56,14 +75,8 @@ import React from 'react';
 export interface PillButtonProps {
   /** The static LEFT-segment label, e.g. "Sign in". White text on the dark-green segment. */
   label: string;
-  /** The RIGHT-segment ACTION text, e.g. "Send code". Dark-green text on the mint segment. By
-   *  default this is also the control's accessible name, so it must read as the whole action on
-   *  its own - unless `ariaLabel` overrides the name (see below). */
+  /** The RIGHT-segment ACTION text, e.g. "Send code". Dark-green text on the mint segment. */
   action: string;
-  /** Overrides the accessible name when the visible action text alone would not read as the whole
-   *  action - e.g. a cart pill that shows "Proceed" but must announce "Proceed to checkout" so the
-   *  pinned role query still finds it. Defaults to `action`. */
-  ariaLabel?: string;
   /** Render a <button> (default) or an <a>. */
   as?: 'button' | 'a';
   /** For as="button": the native type. Defaults to 'button' so it never submits by accident. */
@@ -82,11 +95,10 @@ export interface PillButtonProps {
 }
 
 const PillButton: React.FC<PillButtonProps> = ( {
-  label, action, ariaLabel, as = 'button', type = 'button', href,
+  label, action, as = 'button', type = 'button', href,
   onClick, disabled, busy, block, describedBy,
 } ) => {
   const className = `pill${ block ? ' pill-block' : '' }`;
-  const name = ariaLabel ?? action;
 
   /*
    * THE TWO SEGMENTS ARE WRITTEN OUT TWICE, INLINE, AND THAT DUPLICATION IS DELIBERATE.
@@ -108,8 +120,11 @@ const PillButton: React.FC<PillButtonProps> = ( {
    * row fell through to a global". Same trap, same component family. Do not re-hoist these spans,
    * and do not extract them into a helper or a child component: either reintroduces the bug.
    *
-   * The visible segments are decoration; the accessible name is the action alone. aria-hidden on
-   * the segments stops the double-announce, and aria-label carries the honest single name.
+   * NEITHER SEGMENT IS aria-hidden, AND THERE IS NO aria-label. Both carried `aria-hidden="true"`
+   * and the control carried an `aria-label` of the action alone, which hid the pill's own visible
+   * label from its accessible name - a WCAG 2.5.3 Label in Name failure. The name is now the
+   * platform's concatenation of the visible text, so it contains the visible label by
+   * construction. See the docblock. This changes nothing visually.
    */
   return (
     <>
@@ -118,11 +133,10 @@ const PillButton: React.FC<PillButtonProps> = ( {
           className={ className }
           href={ href }
           onClick={ onClick }
-          aria-label={ name }
           aria-describedby={ describedBy }
         >
-          <span className="pill-label" aria-hidden="true">{ label }</span>
-          <span className="pill-action" aria-hidden="true">{ action }</span>
+          <span className="pill-label">{ label }</span>
+          <span className="pill-action">{ action }</span>
         </a>
       ) : (
         <button
@@ -130,12 +144,11 @@ const PillButton: React.FC<PillButtonProps> = ( {
           type={ type }
           onClick={ onClick }
           disabled={ disabled }
-          aria-label={ name }
           aria-busy={ busy ? 'true' : undefined }
           aria-describedby={ describedBy }
         >
-          <span className="pill-label" aria-hidden="true">{ label }</span>
-          <span className="pill-action" aria-hidden="true">{ action }</span>
+          <span className="pill-label">{ label }</span>
+          <span className="pill-action">{ action }</span>
         </button>
       ) }
 

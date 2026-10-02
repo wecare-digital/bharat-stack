@@ -22,8 +22,26 @@ from lambda_utils import customer_auth as ca  # noqa: E402
 from lambda_utils import otp_throttle as ot  # noqa: E402
 
 TABLE = 'stack-wecare-digital-DownloadGrantsTable'
-CUSTOMER_ID = 'CUS_01J0000000000000000000000'
 NOW = 1_700_000_000
+
+#: The real attribute set of the one user in pool `us-east-1_46ULYuukt`, measured 2026-10-02 with
+#: `ListUsers` (attribute NAMES only, no values read). This is the fixture default on purpose.
+#:
+#: Note what is NOT here: `custom:customer_id`. The pool's schema holds exactly one custom
+#: attribute, `custom:partner_waba_id`, so no user can ever carry a customer id. The previous
+#: fixture handed one back anyway, which is why every test in this file passed while production
+#: answered 401 to 100% of customers. A fixture that cannot occur is not a test of anything.
+REAL_POOL_ATTRIBUTES = [
+    {'Name': 'phone_number', 'Value': '+919330994400'},
+    {'Name': 'phone_number_verified', 'Value': 'true'},
+    {'Name': 'name', 'Value': 'QA Customer'},
+    {'Name': 'custom:partner_waba_id', 'Value': '1234567890'},
+    {'Name': 'sub', 'Value': 'sub-1234'},
+]
+
+#: The customer id a proven session yields: the Cognito `sub`. See
+#: `customer_auth.customer_id_from_attributes` for why this is the single authority.
+CUSTOMER_ID = 'sub-1234'
 
 
 def _token(issuer: str) -> str:
@@ -40,11 +58,8 @@ STAFF_TOKEN = _token('https://cognito-idp.us-east-1.amazonaws.com/us-east-1_cSx0
 
 class FakeCognito:
     def __init__(self, *, attributes=None, fail=False):
-        self._attributes = attributes if attributes is not None else [
-            {'Name': 'custom:customer_id', 'Value': CUSTOMER_ID},
-            {'Name': 'phone_number', 'Value': '+919330994400'},
-            {'Name': 'sub', 'Value': 'sub-1234'},
-        ]
+        self._attributes = (attributes if attributes is not None
+                            else [dict(a) for a in REAL_POOL_ATTRIBUTES])
         self._fail = fail
 
     def get_user(self, AccessToken=None):
@@ -101,12 +116,74 @@ def test_a_missing_token_is_refused(cognito):
 
 
 def test_a_session_without_a_customer_id_is_refused(monkeypatch):
-    """The pool is phone-keyed, so a Cognito user can exist before a customer record does.
-    That is half-provisioned, not authorised — every downstream key is built from customerId."""
+    """A token carrying no `sub` has no owner key, so it authorises nothing.
+
+    Unreachable for a token Cognito issued - `sub` is assigned at user creation - but the guard
+    fails closed rather than filing rows under ''.
+    """
     monkeypatch.setattr(ca, '_client', lambda: FakeCognito(attributes=[
         {'Name': 'phone_number', 'Value': '+919330994400'}]))
     with pytest.raises(ca.CustomerNotAuthenticated):
         ca.authenticate(_event())
+
+
+# ── the outage of 2026-10-02: the attribute the pool does not have ────────────
+#
+# These three are the tests that would have caught it. The fixture above hands back a
+# `custom:customer_id`, which NO user in pool us-east-1_46ULYuukt can ever carry, so every case
+# written against that fixture passed while production answered 401 for 100% of customers.
+
+def test_the_real_pool_attribute_set_authenticates(monkeypatch):
+    """THE REGRESSION TEST FOR THE OUTAGE.
+
+    A token carrying exactly what the live pool returns must authenticate. Before the fix this
+    raised `CustomerNotAuthenticated`, which is what put "Try again shortly." on the owner's
+    screen after a CORRECT WhatsApp code, and what left CustomerSessionsTable at 0 items.
+    """
+    monkeypatch.setattr(ca, '_client',
+                        lambda: FakeCognito(attributes=REAL_POOL_ATTRIBUTES))
+    identity = ca.authenticate(_event())
+    # Identity is the Cognito `sub`: immutable, pool-scoped, and not writable by the app client.
+    assert identity.customer_id == 'sub-1234'
+    assert identity.subject == 'sub-1234'
+    assert identity.owns('sub-1234')
+    assert identity.phone == '+919330994400'
+
+
+def test_no_code_path_requires_the_custom_customer_id_attribute(monkeypatch):
+    """`custom:customer_id` is not in the pool schema, so nothing may depend on it.
+
+    Asserted as a property rather than a spelling: the SAME attribute set, with the absent
+    attribute explicitly added, must yield the SAME identity. If a fallback were ever
+    reintroduced this fails, because the attribute would start winning and silently re-key the
+    customer away from the id their rows are filed under.
+    """
+    monkeypatch.setattr(ca, '_client',
+                        lambda: FakeCognito(attributes=REAL_POOL_ATTRIBUTES))
+    without = ca.authenticate(_event()).customer_id
+
+    monkeypatch.setattr(ca, '_client', lambda: FakeCognito(attributes=[
+        *REAL_POOL_ATTRIBUTES,
+        {'Name': 'custom:customer_id', 'Value': 'CUS_01JSHOULDNOTBEHONOURED00'},
+    ]))
+    assert ca.authenticate(_event()).customer_id == without == 'sub-1234'
+
+
+def test_a_token_with_no_sub_still_raises(monkeypatch):
+    """The remaining genuinely-impossible case keeps failing closed."""
+    monkeypatch.setattr(ca, '_client', lambda: FakeCognito(attributes=[
+        a for a in REAL_POOL_ATTRIBUTES if a['Name'] != 'sub']))
+    with pytest.raises(ca.CustomerNotAuthenticated):
+        ca.authenticate(_event())
+
+
+def test_the_derivation_is_a_single_documented_authority():
+    """The helper is the one place the rule lives, so a caller cannot invent a second one."""
+    assert ca.customer_id_from_attributes({'sub': 'sub-1234'}) == 'sub-1234'
+    assert ca.customer_id_from_attributes({}) == ''
+    # Not a fallback: an attribute that cannot exist does not get a say.
+    assert ca.customer_id_from_attributes(
+        {'sub': 'sub-1234', 'custom:customer_id': 'CUS_X'}) == 'sub-1234'
 
 
 @pytest.mark.parametrize('header', ['authorization', 'Authorization', 'AUTHORIZATION'])

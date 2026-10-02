@@ -211,9 +211,11 @@ def complete(*,
 
     `resolve_customer(e164)` returns an existing customer record or None.
     `create_customer(e164)` creates one with a `CUS_<ULID>` identity and a verified phone.
-    `provision_login(e164, customer_id)` administratively creates or updates the Cognito user and
-    stamps `custom:customer_id` on it — the attribute `customer_auth` requires, without which a
-    session is refused as half-provisioned.
+    `provision_login(e164, customer_id)` administratively creates or updates the Cognito user so
+    the phone-keyed login exists and is CONFIRMED. It stamps NO customer id on the user:
+    `customer_auth` derives session identity from the Cognito `sub` instead, because
+    `custom:customer_id` is not in the customer pool's schema and so could never be set. The
+    `customer_id` argument is part of this contract but is no longer written to Cognito.
 
     All three are injected. This module performs no AWS call, which is what makes the ordering
     below testable at all.
@@ -262,8 +264,8 @@ def complete(*,
             raise ValueError("customer record carries no customerId")
 
         # Runs for an existing customer too, not just a new one. It is idempotent, and it repairs
-        # the half-provisioned case the session check refuses: a Cognito user that exists without
-        # `custom:customer_id` can never sign in, and that state is invisible until someone tries.
+        # the case the sign-in flow cannot: a customer record with no CONFIRMED Cognito user
+        # behind it can never sign in, and that state is invisible until someone tries.
         provision_login(e164, customer_id)
     except Exception as error:  # noqa: BLE001
         logger.error('{"event":"registration_provision_failed","error":"%s"}',

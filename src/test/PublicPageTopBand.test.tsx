@@ -332,7 +332,7 @@ describe( 'no red anywhere on these pages, on owner instruction', () => {
 
     render( <SignIn /> );
     fireEvent.change( screen.getByLabelText( 'WhatsApp number' ), { target: { value: '1' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Sign in Send code' } ) );
 
     // An alert, not a colour. A reader who cannot see the tint still gets the interruption.
     const alert = await screen.findByRole( 'alert' );
@@ -420,7 +420,7 @@ describe( 'the country code is a segment of the one divided field, on owner inst
    * rather than merely unused - see the note in sign-in.tsx's MSG.
    */
   const sendCode = (): void => {
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Sign in Send code' } ) );
   };
   const typeNumber = ( value: string ): void => {
     fireEvent.change( screen.getByLabelText( 'WhatsApp number' ), { target: { value } } );

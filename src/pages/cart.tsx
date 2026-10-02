@@ -636,17 +636,22 @@ export default function Cart (): React.ReactElement {
 
               {/* THE SAME TWO-SEGMENT PILL as the sign-in CTA (PillButton), because this button is
                   the customer login gate: an anonymous shopper who clicks it is sent to
-                  /account/sign-in. Never a "pay now" claim. The visible pill reads "Checkout |
-                  Proceed", but the ACCESSIBLE NAME stays "Proceed to checkout" (ariaLabel) so the
-                  pinned role query and screen-reader announcement are unchanged. Real
-                  type="button" running proceed(), disabled while busy. */}
+                  /account/sign-in. Never a "pay now" claim. The visible pill reads
+                  "Checkout | Proceed" and its accessible name is now that same visible text,
+                  "Checkout Proceed".
+
+                  IT USED TO PASS ariaLabel="Proceed to checkout", which read better but was a
+                  WCAG 2.5.3 Label in Name failure: the name did not contain the visible text, so
+                  a speech-input user saying "click Checkout" or "click Proceed" hit nothing. The
+                  prop no longer exists - see PillButton's docblock. Visible text is unchanged;
+                  only the accessible name moved. Real type="button" running proceed(), disabled
+                  while busy. */}
               <div className="cart-pill">
                 <PillButton
                   as="button"
                   type="button"
                   label="Checkout"
                   action={ busy ? 'Preparing…' : 'Proceed' }
-                  ariaLabel="Proceed to checkout"
                   onClick={ proceed }
                   disabled={ busy }
                   busy={ busy }
