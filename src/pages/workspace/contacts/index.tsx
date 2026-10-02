@@ -35,7 +35,8 @@ const SortHeader = ({ label, sKey, sortKey, sortDir, onSort, style }: { label: s
 
 const PAGE_SIZE = 25;
 const TAG_OPTIONS = ['VIP', 'Lead', 'Customer', 'Prospect', 'Partner', 'Vendor'] as const;
-const TAG_COLORS: Record<string, string> = { VIP: '#0f2a1d', Lead: '#0f2a1d', Customer: '#1a3a2a', Prospect: '#1a3a2a', Partner: '#34d399', Vendor: '#d1d5db' };
+const TAG_COLORS: Record<string, string> = { VIP: '#0f2a1d', Lead: '#0f2a1d', Customer: '#1a3a2a', Prospect: '#1a3a2a', Partner: '#34d399', Vendor: '#d1d5db', 'blog-subscriber': '#1a3a2a' };
+const tagLabel = ( tag: string ) => tag.toLowerCase() === 'blog-subscriber' ? 'Blog Subscriber' : tag;
 
 /*
  * Country codes for phone number parsing - NOW SHARED, not a literal.
@@ -1118,8 +1119,10 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                           <td style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6' }} onClick={e => e.stopPropagation()}>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                               {(contactTags[c.contactId] || []).map(tag => (
-                                <span key={tag} style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tag}</span>
+                                <span key={tag} style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tagLabel(tag)}</span>
                               ))}
+                              {c.phoneVerifiedAt && <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#1a3a2a', background: '#d1f470', whiteSpace: 'nowrap' }}>✓ WhatsApp verified</span>}
+                              {c.emailVerifiedAt && <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#1a3a2a', background: '#d1f470', whiteSpace: 'nowrap' }}>✓ Email verified</span>}
                               <div style={{ position: 'relative' }}>
                                 <button 
                                   onClick={(e) => {
@@ -1224,11 +1227,13 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                         <button onClick={() => handleDelete(c.contactId, c.name)} title="Delete" style={{ padding: 8, background: 'none', border: 'none', cursor: 'pointer' }}><DeleteIcon size={20} /></button>
                       </div>
                     </div>
-                    {(contactTags[c.contactId] || []).length > 0 && (
-                      <div className="contact-card-tags">
+                    {((contactTags[c.contactId] || []).length > 0 || c.phoneVerifiedAt || c.emailVerifiedAt) && (
+                      <div className="contact-card-tags" aria-label="Contact badges">
                         {(contactTags[c.contactId] || []).map(tag => (
-                          <span key={tag} style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tag}</span>
+                          <span key={tag} style={{ flex: '0 0 auto', padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280', whiteSpace: 'nowrap' }}>{tagLabel(tag)}</span>
                         ))}
+                        {c.phoneVerifiedAt && <span style={{ flex: '0 0 auto', padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#1a3a2a', background: '#d1f470', whiteSpace: 'nowrap' }}>✓ WhatsApp verified</span>}
+                        {c.emailVerifiedAt && <span style={{ flex: '0 0 auto', padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#1a3a2a', background: '#d1f470', whiteSpace: 'nowrap' }}>✓ Email verified</span>}
                       </div>
                     )}
                     <div className="contact-card-meta">
@@ -1277,11 +1282,22 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                   <p style={{ fontSize: 11, color: '#9ca3af', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tags</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {(contactTags[detailContact.contactId] || []).map(tag => (
-                      <span key={tag} style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tag}</span>
+                      <span key={tag} style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#fff', background: TAG_COLORS[tag] || '#6b7280' }}>{tagLabel(tag)}</span>
                     ))}
                     {(contactTags[detailContact.contactId] || []).length === 0 && <span style={{ fontSize: 12, color: '#9ca3af' }}>No tags</span>}
                   </div>
                 </div>
+                {/* Verification status — server timestamps, not browser claims. */}
+                {(detailContact.phoneVerifiedAt || detailContact.emailVerifiedAt || detailContact.blogSubscribedAt) && (
+                  <div style={{ marginBottom: 12 }}>
+                    <p style={{ fontSize: 11, color: '#9ca3af', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Verification</p>
+                    <div style={{ display: 'flex', gap: 6, overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 4 }}>
+                      {detailContact.phoneVerifiedAt && <span style={{ flex: '0 0 auto', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#1a3a2a', background: '#d1f470', whiteSpace: 'nowrap' }}>✓ WhatsApp verified</span>}
+                      {detailContact.emailVerifiedAt && <span style={{ flex: '0 0 auto', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#1a3a2a', background: '#d1f470', whiteSpace: 'nowrap' }}>✓ Email verified</span>}
+                      {detailContact.blogSubscribedAt && <span style={{ flex: '0 0 auto', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: '#fff', background: '#1a3a2a', whiteSpace: 'nowrap' }}>Blog Subscriber</span>}
+                    </div>
+                  </div>
+                )}
                 {/* Opt-in status */}
                 <div style={{ marginBottom: 12 }}>
                   <p style={{ fontSize: 11, color: '#9ca3af', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Opt-in Status</p>
