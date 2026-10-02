@@ -836,8 +836,7 @@ describe( 'Blog post page', () => {
     const block = container.querySelector( 'section.bc' )!;
     expect( block.querySelector( 'h2' )?.textContent ).toBe( 'Contribute' );
     expect( block.textContent ).toContain(
-      'If this article was useful, you can make a small voluntary contribution to support more '
-      + 'independent writing and practical guides from WECARE.DIGITAL.'
+      'If you found this useful, you\u2019re welcome to make a small voluntary contribution.'
     );
     // Still exactly one h1 on the whole page - the title - and the contribution added none.
     expect( container.querySelectorAll( 'h1' ) ).toHaveLength( 1 );
