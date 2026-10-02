@@ -62,12 +62,16 @@ SIDE_EFFECT_PREFIX = "SIDEEFFECT#"
 # ── the side effects the reconciliation pipeline performs, each guarded once ─────
 WIX_ORDER = "wix_order"
 WIX_PAYMENT = "wix_payment"
+#: Cart V2 Mark Cart As Completed, closing the cart an externally-created order came from.
+#: Its own effect rather than folded into `WIX_ORDER` because it is a separate remote call with
+#: its own ambiguous-outcome case: a timeout here must not be read as "the order was not created".
+WIX_CART_COMPLETED = "wix_cart_completed"
 RECEIPT = "receipt"
 CONFIRMATION = "confirmation"
 
 #: The closed set. A caller passing anything else is a bug, not a new side effect — adding one
 #: is a deliberate edit here, so a typo can never silently create an unguarded effect.
-KNOWN_EFFECTS = frozenset({WIX_ORDER, WIX_PAYMENT, RECEIPT, CONFIRMATION})
+KNOWN_EFFECTS = frozenset({WIX_ORDER, WIX_PAYMENT, WIX_CART_COMPLETED, RECEIPT, CONFIRMATION})
 
 # ── marker states ────────────────────────────────────────────────────────────
 PENDING = "pending"

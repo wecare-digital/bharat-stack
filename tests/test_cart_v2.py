@@ -23,12 +23,38 @@ def live():
     return json.loads(FIXTURE.read_text())
 
 
-def ready():
-    # Explicitly synthetic success fixture; live demo lacked delivery details.
+def synthetic_payable():
+    """A HAND-FORCED payable cart. Not evidence that this site can be paid for.
+
+    It takes the real live response and wipes `violations` and `demo`. That makes it fine for what
+    the tests below use it for — exercising the contract's arithmetic, binding and refusal logic on
+    an otherwise realistic shape — and useless as proof of a working checkout, because the two
+    fields it erases are exactly the ones the live site sets.
+
+    The honest payable fixture is `fixtures/wix_cart_v2_delivery_complete.json`, which clears the
+    violations the way the provider does: by supplying a real delivery address and method, with the
+    delivery charge that follows. `tests/test_wix_cart_v2_delivery.py` drives that one.
+
+    Renamed from `ready` on purpose. Under the old name it read like a fixture describing a cart
+    that was good to go, and every "payable total" assertion in this file rested on it, which
+    overstated what the suite had established.
+    """
     result = live()
     result['cart']['demo'] = False
     result['summary']['violations'] = []
     return result
+
+
+def test_the_synthetic_fixture_differs_from_the_live_one_only_by_the_blocking_fields():
+    """Pins what `synthetic_payable` actually fakes, so the overstatement cannot creep back.
+
+    If someone later forces another field to make a test pass, this fails and names it.
+    """
+    forced, actual = synthetic_payable(), live()
+    assert actual['summary']['violations'], 'the live fixture must keep its real violations'
+    forced['summary']['violations'] = actual['summary']['violations']
+    forced['cart']['demo'] = actual['cart']['demo']
+    assert forced == actual
 
 
 def item():
@@ -39,7 +65,7 @@ def item():
 class Wix:
     def __init__(self, response=None):
         self.calls = []
-        self.response = ready() if response is None else response
+        self.response = synthetic_payable() if response is None else response
         self.fail = False
 
     def __call__(self, path, method='GET', body=None):
@@ -123,6 +149,65 @@ def cart_store():
 def create(store, identity):
     command = {'action': 'create', 'requestId': str(uuid4()), 'items': [item()]}
     return command, store.execute(identity, command)
+
+
+def test_resolve_finds_nothing_before_a_cart_exists(cart_store):
+    store, _table, wix, identity = cart_store
+    assert store.resolve(identity) is None
+    assert not wix.calls, 'resolving must not call Wix'
+
+
+def test_ensure_creates_once_and_then_resolves_the_same_cart(cart_store):
+    """Resolve before generate. One purchase, one cart, however many attempts.
+
+    Without this, a checkout attempt called Create Cart unconditionally, so a retry minted a second
+    cart and abandoned the first on the live site with nothing to delete it.
+    """
+    store, _table, wix, identity = cart_store
+    cart_id, created = store.ensure(identity, [item()])
+    assert created is True
+    assert cart_id == Wix().response['cart']['id']
+    creates = [call for call in wix.calls if call[0] == 'POST' and call[1] == '/ecom/v2/carts']
+    assert len(creates) == 1
+
+    again, created_again = store.ensure(identity, [item()])
+    assert (again, created_again) == (cart_id, False)
+    creates = [call for call in wix.calls if call[0] == 'POST' and call[1] == '/ecom/v2/carts']
+    assert len(creates) == 1, 'the second ensure created a second cart'
+
+
+def test_resolve_refuses_a_cart_whose_last_wix_outcome_is_unknown(cart_store):
+    """A locked row means a Wix call may or may not have landed.
+
+    Reusing the cart id behind it would price or pay against a cart whose contents are not known, so
+    this raises instead of answering, exactly as `execute` does.
+    """
+    store, table, _wix, identity = cart_store
+    store.ensure(identity, [item()])
+    row = table.rows[_cart_key(identity)]
+    table.put_item(Item={**row, 'busy': 'lock-1'})
+    with pytest.raises(CartBusy):
+        store.resolve(identity)
+
+
+def test_resolve_treats_an_expired_cart_as_absent(cart_store):
+    store, table, _wix, identity = cart_store
+    store.ensure(identity, [item()])
+    row = table.rows[_cart_key(identity)]
+    table.put_item(Item={**row, 'expiresAt': store.now - 1})
+    assert store.resolve(identity) is None
+
+
+def test_resolve_will_not_hand_one_customers_cart_to_another(cart_store):
+    store, _table, _wix, identity = cart_store
+    store.ensure(identity, [item()])
+    impostor = CustomerIdentity(customer_id='customer-b', phone=identity.phone, subject='subject-b')
+    with pytest.raises(CustomerNotAuthorized):
+        store.resolve(impostor)
+
+
+def _cart_key(identity):
+    return 'CUSTOMERCART#' + identity.phone
 
 
 def test_phone_cart_replay_and_no_browser_wix_id(cart_store):
@@ -269,11 +354,31 @@ def test_cart_route_rejects_missing_customer_session_before_any_wix_call(handler
     assert response['statusCode'] == 401
 
 
-def test_authenticated_cart_route_stays_disabled_until_deployment_verification(handler_module, monkeypatch):
+def test_an_authenticated_cart_request_is_refused_while_the_gate_is_unset(handler_module, monkeypatch):
+    """Cart V2 is opt-in, and absence is off — asserted through the route, not just `is_enabled`.
+
+    `/wix-store/cart` performs real Create Cart and Add Line Items writes against the live site for
+    any authenticated customer. With no gate key set, which is how every function in the fleet is
+    configured, not one of those writes may happen. The `_wix_request` stub fails the test if it is
+    ever called, so this measures the absence of the call rather than the status code alone.
+    """
     from lambda_utils import customer_auth
     identity = CustomerIdentity(customer_id='a', phone='+919330994400', subject='a')
     monkeypatch.setattr(customer_auth, 'require_customer', lambda _: (identity, None))
     monkeypatch.delenv('WIX_CART_V2_ENABLED', raising=False)
+    monkeypatch.delenv('WIX_CART_V2_DISABLED', raising=False)
+    monkeypatch.setattr(handler_module, '_wix_request', lambda *a, **k: pytest.fail('gated call'))
+    response = handler_module.handler({'httpMethod': 'GET', 'path': '/wix-store/cart', 'headers': {}}, None)
+    assert response['statusCode'] == 503
+
+
+def test_the_disable_key_overrides_a_deployed_opt_in_on_the_route(handler_module, monkeypatch):
+    """The rollback lever: one environment variable, even where the opt-in is already deployed."""
+    from lambda_utils import customer_auth
+    identity = CustomerIdentity(customer_id='a', phone='+919330994400', subject='a')
+    monkeypatch.setattr(customer_auth, 'require_customer', lambda _: (identity, None))
+    monkeypatch.setenv('WIX_CART_V2_ENABLED', 'true')
+    monkeypatch.setenv('WIX_CART_V2_DISABLED', 'true')
     monkeypatch.setattr(handler_module, '_wix_request', lambda *a, **k: pytest.fail('disabled call'))
     response = handler_module.handler({'httpMethod': 'GET', 'path': '/wix-store/cart', 'headers': {}}, None)
     assert response['statusCode'] == 503
@@ -302,7 +407,7 @@ def test_replayed_quote_is_rejected_after_cart_changes(cart_store):
 
 
 def test_demo_never_becomes_payable_even_with_no_reported_violations():
-    response = ready()
+    response = synthetic_payable()
     response['cart']['demo'] = True
     with pytest.raises(CartContractError):
         CartV2(Wix(response)).calculate(response['cart']['id'])

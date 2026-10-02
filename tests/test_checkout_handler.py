@@ -115,6 +115,13 @@ def env(monkeypatch):
     monkeypatch.setattr(h, 'INITIATION_ENABLED', False)
     monkeypatch.setattr(h.wix_ecom, 'create_checkout', lambda items, **k: _fake_checkout())
     monkeypatch.setattr(h.customer_auth, 'authenticate', lambda event: _Identity(CUSTOMER))
+    # Every test in THIS file exercises the Checkout V1 price authority, which is what serves:
+    # Cart V2 is opt-in behind `WIX_CART_V2_ENABLED` and the key is absent on every function.
+    # Both keys are cleared rather than one being set, so this file reproduces the deployed
+    # configuration instead of pinning a gate. The Cart V2 branch of the same handler is covered
+    # by `tests/test_checkout_cart_v2_authority.py`.
+    monkeypatch.delenv('WIX_CART_V2_ENABLED', raising=False)
+    monkeypatch.delenv('WIX_CART_V2_DISABLED', raising=False)
     return h, fake, lam, monkeypatch
 
 

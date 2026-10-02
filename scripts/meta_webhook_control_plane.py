@@ -52,10 +52,15 @@ import urllib.request
 
 import boto3
 
+import meta_graph_version
+
 REGION = "us-east-1"
 SECRET_ID = os.environ.get("META_TOKEN_SECRET", "wecare/meta-system-user-token")
 APP_ID = os.environ.get("META_APP_ID", "2238810740192680")
-GRAPH = "https://graph.facebook.com/v23.0"
+# Was a hard-coded `https://graph.facebook.com/v23.0` — two major versions behind the fleet and
+# invisible to `lambda_utils.meta_version`'s validation. Resolved centrally now; see
+# `scripts/meta_graph_version.py` for why a script cannot just import the Lambda module.
+GRAPH = meta_graph_version.graph_base()
 OBJECT = "whatsapp_business_account"
 TIMEOUT = 30
 

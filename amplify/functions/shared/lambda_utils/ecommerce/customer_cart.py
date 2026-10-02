@@ -53,6 +53,47 @@ class CustomerCart:
         self.table, self.adapter = table, adapter
         self.now = int(time.time()) if now is None else now
 
+    def resolve(self, identity):
+        """The live Wix cart id persisted for this identity, or None. Reads only, writes nothing.
+
+        Exists so a caller that needs a cart can find the one that already exists instead of
+        minting a second. Raises CartBusy on a locked row for the same reason execute does: a
+        lock means a Wix outcome is uncertain, and reusing the cart id behind it could price or
+        pay against a cart whose contents are not known.
+        """
+        row = self.table.get_item(Key={"orderId": _key(identity)},
+                                  ConsistentRead=True).get("Item")
+        if not row:
+            return None
+        authorize_resource(identity, row)
+        if row.get("busy"):
+            raise CartBusy("cart operation requires reconciliation")
+        if int(row.get("expiresAt", 0)) <= self.now:
+            return None
+        cart_id = row.get("wixCartId")
+        return identifier(cart_id) if cart_id else None
+
+    def ensure(self, identity, items, request_id=None):
+        """Resolve this customer's cart, creating one only when none exists.
+
+        Returns (cart_id, created). Resolve before generate. One purchase has one cart: the
+        browser cart route and any checkout attempt for the same identity must land on the same
+        Wix cart, or a retried checkout mints a fresh cart per attempt and abandons the previous
+        one on the live site, with nothing to clean it up. Creation goes through execute rather
+        than straight to the adapter, so the lock protocol, the duplicate-request fingerprint and
+        the persistence all stay in one place.
+        """
+        cart_id = self.resolve(identity)
+        if cart_id is not None:
+            return cart_id, False
+        self.execute(identity, {"action": "create",
+                                "requestId": request_id or str(uuid4()),
+                                "items": [dict(item) for item in items]})
+        cart_id = self.resolve(identity)
+        if cart_id is None:
+            raise CartMissing("cart was created but no cart id was persisted")
+        return cart_id, True
+
     def execute(self, identity, command):
         """Identity comes from customer_auth or a verified WhatsApp webhook adapter.
 
