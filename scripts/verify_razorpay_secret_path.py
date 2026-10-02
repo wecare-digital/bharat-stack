@@ -13,7 +13,7 @@ import boto3
 
 sm = boto3.client("secretsmanager", region_name="us-east-1")
 
-NEW_ORDER = ("wecare/razorpay/api", "wecare/razorpay-webhook")
+API_ONLY = ("wecare/razorpay/api",)
 OLD_ONLY = "wecare/razorpay-webhook"
 
 
@@ -46,8 +46,8 @@ def creds(secret_ids):
 
 
 def main() -> int:
-    src, k, s = creds(NEW_ORDER)
-    print("NEW code path")
+    src, k, s = creds(API_ONLY)
+    print("CANONICAL API code path")
     print(f"  resolved from      : {src}")
     # Not `prefix={k[:4]}`, which is what this printed until 2026-09-29 while the
     # docstring above claimed it reported only populated-ness and length. Four
