@@ -117,30 +117,35 @@ describe( 'Header', () => {
     expect( requestsCol?.textContent ).not.toContain( 'Legal Stuff' );
   } );
 
-  it( 'adds a Zip row to the Request group, right after Orders', () => {
+  it( 'adds a Shipments row to the Request group, immediately above Leave Review', () => {
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
 
-    // Zip is a real public page under the Request group (Section 3), so it is a working link
-    // to /zip/ carrying the trailing slash the static host needs.
-    expect( screen.getByRole( 'link', { name: 'Zip' } ) ).toHaveAttribute( 'href', '/zip/' );
+    // Shipments is a real public page under the Request group (Section 3). The visible label is
+    // "Shipments" but the ROUTE stays /zip/, carrying the trailing slash the static host needs —
+    // the URL, sitemap and config entries are deliberately unchanged.
+    expect( screen.getByRole( 'link', { name: 'Shipments' } ) ).toHaveAttribute( 'href', '/zip/' );
 
     // It lives in the Request group, not somewhere else.
     const request = screen.getByText( 'Request' ).closest( '.nav-group' );
-    expect( request?.textContent ).toContain( 'Zip' );
+    expect( request?.textContent ).toContain( 'Shipments' );
 
-    // Order: Orders then Zip then Submit Request, per the owner's suggested order.
+    // Order: Shipments sits immediately BEFORE Leave Review, and Leave Review stays the last item
+    // of the group (the new order is Orders, Submit Request, Request Amendment, Drop Docs, Vault,
+    // Shipments, Leave Review).
     const labels = Array.from( request?.querySelectorAll( '.nav-item' ) || [] )
       .map( node => node.textContent );
-    expect( labels.indexOf( 'Zip' ) ).toBe( labels.indexOf( 'Orders' ) + 1 );
-    expect( labels.indexOf( 'Submit Request' ) ).toBe( labels.indexOf( 'Zip' ) + 1 );
+    expect( labels.indexOf( 'Shipments' ) ).toBe( labels.indexOf( 'Leave Review' ) - 1 );
+    expect( labels.indexOf( 'Leave Review' ) ).toBe( labels.length - 1 );
+    // Orders remains the first row in the group.
+    expect( labels.indexOf( 'Orders' ) ).toBe( 0 );
   } );
 
-  it( 'marks Zip active on its public route', () => {
+  it( 'marks Shipments active on its public /zip route', () => {
     routerState.pathname = '/zip';
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
-    expect( screen.getByRole( 'link', { name: 'Zip' } ) ).toHaveAttribute( 'aria-current', 'page' );
+    expect( screen.getByRole( 'link', { name: 'Shipments' } ) ).toHaveAttribute( 'aria-current', 'page' );
     routerState.pathname = '/';
   } );
 
