@@ -1,72 +1,434 @@
-"""Hosting reconciliation preserves API rewrites and a real missing-page response."""
+"""The Amplify `customRules` array: its SHAPE, and the RATIFICATION of every redirect in it.
+
+WHY THIS FILE EXISTS, AND WHY IT NO LONGER PINS A COUNT.
+
+`scripts/provision_legacy_redirects.py` is the config-as-code source of every explicit
+redirect on the public site. A redirect that shadows `/api/<*>` is a payment outage - that
+prefix is where `POST /api/razorpay-webhook` is delivered - so the array genuinely needs a
+gate. What it does not need is a gate that pins how MANY redirects there are.
+
+That pin broke twice in two days, in both directions:
+
+  * `c7afae00` (2026-10-01) landed a 540-line version of this file whose assertions were
+    written around exactly one sanctioned redirect. `da78ef68` then deleted 420 of those
+    lines while purging retired customer-link sources, leaving a 2.8 KB stub - a REMOVAL
+    took the guard out.
+  * `bb1cf39b` (2026-10-02) declared `/zip -> /shipments/` and `/zip/ -> /shipments/` for the
+    owner's product rename, taking `desired_redirects()` from one rule to three. Five tests
+    across this file and `test_legacy_redirect_rollback_snapshot.py` went red - an ADDITION
+    broke the guard, and the production change was correct.
+
+A guard that reddens on every legitimate product change trains people to ignore it, and then
+to delete it. `tests/test_meta_version.py` states the principle this file now follows: "a
+count in a document goes stale, a grep does not". So the redirect set is held HERE, as data,
+with the instruction that sanctioned each entry recorded beside it. Adding or retiring a
+redirect is one dict entry in `RATIFIED_REDIRECTS`. Everything else asserts a PROPERTY that
+survives the set changing size: the host rule is first, no redirect can shadow a passthrough
+in either direction, no rule targets the staff tree, the catch-all is last and unique.
+
+THE RETIRED SET IS DERIVED, NOT TYPED, AND THAT IS NOT A STYLE CHOICE. The public path this
+array used to forward to the home page was purged on 2026-10-02 by owner instruction, and the
+purge rewrote it to a redaction marker inside the committed pre-change evidence itself
+(`docs/execution/snapshots/retired-url-rules-before-20261002.json`). A hand-typed negative
+assertion naming the old spelling would therefore match nothing in the fixture it reads: it
+would pass while proving nothing, which is the same defect class as an assertion placed after
+a set-equality that already failed. `_retired_sources()` computes the set from the fixture and
+every caller asserts it is NON-EMPTY before using it, so vacuity is a test failure rather than
+a silent pass. It also keeps working when the next removal lands, without re-typing anything
+the owner has ordered removed.
+
+No AWS call is made anywhere in this file: `apply()` takes its client as an argument and the
+client here is a stub that records the write.
+"""
+
+from __future__ import annotations
+
 import importlib.util
 import json
-from pathlib import Path
+import pathlib
+import sys
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-SNAPSHOTS = ROOT / 'docs/execution/snapshots'
-WWW = {'source': 'https://www.wecare.digital', 'target': 'https://wecare.digital', 'status': '301'}
-FALLBACK = {'source': '/<*>', 'target': '/404.html', 'status': '404-200'}
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SNAPSHOTS = ROOT / "docs/execution/snapshots"
 
-@pytest.fixture
+# Measured live state, both of them. NEITHER is an expected output and neither may be edited
+# to make a test pass: `amplify-custom-rules-after-url-host-cleanup-20261001.json` is what the
+# app served on 2026-10-01, and `--apply` has not run since the /zip rules were declared
+# (bb1cf39b: "NOT APPLIED - THIS IS SOURCE ONLY"). Reconciling the 12-rule pre-change array now
+# yields 11 rules, not the 9 in the `after` file. Rewriting that file to 11 would fabricate
+# evidence for a write that has not happened, so the reconciliation test below computes its
+# expectation from the provisioner instead.
+PRE_CHANGE = SNAPSHOTS / "retired-url-rules-before-20261002.json"
+POST_REMOVAL = SNAPSHOTS / "amplify-custom-rules-after-url-host-cleanup-20261001.json"
+
+WWW_CANONICAL = {
+    "source": "https://www.wecare.digital",
+    "target": "https://wecare.digital",
+    "status": "301",
+}
+CATCH_ALL = {"source": "/<*>", "target": "/404.html", "status": "404-200"}
+
+# Runtime rewrites. A redirect that matches one of these swallows it: /api/<*> carries every
+# provider webhook, /get/<*> the CDN, /r/<*> the short-link service, /mcp the tool catalogue.
+PASSTHROUGH_PREFIXES = ("/api", "/get", "/r/", "/mcp")
+
+# Mirrors `provision_legacy_redirects.REDIRECT_STATUSES` for the two tests that read a
+# committed snapshot with no provisioner in scope. `test_the_redirect_status_set_matches_the
+# _provisioner` stops the copy drifting from the original.
+REDIRECT_STATUSES = frozenset({"301", "302", "307", "308", "404"})
+
+
+# ───────────────────────────── the ratified redirect set, as data ─────────────────────────────
+#
+# Keyed on the whole (source, target, status) triple, so a silently RETARGETED or DOWNGRADED
+# redirect is caught as well as a new source - `/zip -> /elsewhere/` and `/zip -> /shipments/`
+# at 302 are both unratified. Insertion order is the expected array order, so one structure
+# serves the membership check and the ordering check.
+#
+# The value is the instruction that sanctioned the entry. It is asserted non-trivial by
+# `test_every_ratified_redirect_records_why_it_is_sanctioned`, matching the in-repo precedent
+# `UNDECLARED_ALLOWED` in `scripts/check_data_model_drift.py` and the test that pins it,
+# `test_both_new_tables_are_allowed_in_the_drift_gate_with_a_reason`: a gate that can be
+# satisfied with an empty string is a gate somebody switches off.
+
+RATIFIED_REDIRECTS: dict[tuple[str, str, str], str] = {
+    ("https://www.wecare.digital", "https://wecare.digital", "301"):
+        "Host canonicalisation, restored 2026-10-01T08:59:52Z. Source and target are bare "
+        "origins with no path, which is what makes Amplify carry the request path across - "
+        "measured, www /shop/ -> apex /shop/, not apex home. Evidence: "
+        "docs/execution/url-host-matrix-20261001.md.",
+    ("/zip", "/shipments/", "301"):
+        "RENAMED, not retired. bb1cf39b: the owner retired the product name Zip on 2026-10-02 "
+        "and the page moved to /shipments/ with content unchanged. retired_url_equity.py: a 404 "
+        "is correct for a page deleted because it was wrong and WRONG for a page that was "
+        "replaced, because it discards link equity. Measured before: /zip 301 -> /zip/ -> 404, "
+        "a redirect chain ending in a dead end.",
+    ("/zip/", "/shipments/", "301"):
+        "The canonical form under next.config trailingSlash. Both forms are declared because "
+        "an Amplify source pattern is matched as given, not normalised, and links in the wild "
+        "carry both - declaring one leaves the other 404ing. Target keeps its trailing slash "
+        "because /shipments would itself redirect before resolving. 301 not 302: only a "
+        "permanent redirect consolidates ranking.",
+}
+
+RATIFIED_RULES = [
+    dict(zip(("source", "target", "status"), key)) for key in RATIFIED_REDIRECTS
+]
+
+
+def _rule_key(rule: dict) -> tuple[str, str, str]:
+    return (str(rule.get("source", "")), str(rule.get("target", "")), str(rule.get("status", "")))
+
+
+def _is_redirect(rule: dict) -> bool:
+    return str(rule.get("status", "")) in REDIRECT_STATUSES
+
+
+def _is_passthrough(rule: dict) -> bool:
+    return str(rule.get("source", "")).startswith(PASSTHROUGH_PREFIXES)
+
+
+def _retired_sources(rules: list[dict]) -> set[str]:
+    """Redirect sources present in `rules` that the ratified set does not sanction.
+
+    Derived rather than typed - see the module docstring. Every caller must assert the result
+    is non-empty before asserting absence, or the negative check proves nothing.
+    """
+    ratified = {source for source, _target, _status in RATIFIED_REDIRECTS}
+    return {str(r.get("source", "")) for r in rules if _is_redirect(r)} - ratified
+
+
+@pytest.fixture(scope="module")
 def redirects():
-    spec = importlib.util.spec_from_file_location('hosting_redirects', ROOT / 'scripts/provision_legacy_redirects.py')
+    path = ROOT / "scripts" / "provision_legacy_redirects.py"
+    spec = importlib.util.spec_from_file_location("_hosting_redirects", path)
+    assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
+    sys.modules["_hosting_redirects"] = module
     spec.loader.exec_module(module)
     return module
 
+
 @pytest.fixture
-def rules():
-    return json.loads((SNAPSHOTS / 'amplify-custom-rules-after-url-host-cleanup-20261001.json').read_text())
-
-class Client:
-    def __init__(self): self.written = None
-    def update_app(self, **kwargs): self.written = kwargs['customRules']
+def before() -> list[dict]:
+    """The 12-rule array measured live before the retired forwarding was removed."""
+    return json.loads(PRE_CHANGE.read_text())
 
 
-def test_only_host_canonicalisation_is_an_explicit_redirect(redirects):
-    assert redirects.desired_redirects() == [WWW]
+@pytest.fixture
+def after() -> list[dict]:
+    """The 9-rule array measured live on 2026-10-01. Evidence, not expected output."""
+    return json.loads(POST_REMOVAL.read_text())
 
 
-def test_converged_configuration_is_not_rewritten(redirects, rules, tmp_path, monkeypatch):
-    monkeypatch.setattr(redirects, 'ROOT', tmp_path)
-    client = Client()
-    assert redirects.apply(client, rules) == 0
-    assert client.written is None
+class _CapturingAmplify:
+    """Records the write. `written` stays None when `apply()` short-circuits, which is the
+    signal that a fixture was already converged and the assertions after it measured nothing."""
+
+    def __init__(self) -> None:
+        self.written: list[dict] | None = None
+
+    def update_app(self, appId: str, customRules: list[dict]):  # noqa: N803 - boto3 casing
+        self.written = customRules
+        return {"app": {"appId": appId}}
 
 
-def test_unknown_redirect_removed_without_touching_proxy_rules(redirects, rules, tmp_path, monkeypatch):
-    monkeypatch.setattr(redirects, 'ROOT', tmp_path)
-    client = Client()
-    existing = [{'source': '/retired-fixture', 'target': '/', 'status': '302'}] + rules
+# ─────────────────────── ratification: the set, and the reason for each entry ───────────────────────
+
+def test_every_emitted_redirect_is_ratified_and_every_ratified_redirect_is_emitted(redirects):
+    """Both directions. An allowlist is not a one-way sink.
+
+    The two by-name loops sit BEFORE the set equality deliberately. The equality catches the
+    same drift, but with a message a reader has to decode; and an assertion placed after it
+    could never run. Round 1 of this file shipped its negative checks after an equality, where
+    they were unreachable.
+    """
+    emitted = redirects.desired_redirects()
+
+    # Stated as a requirement rather than a skip gate. Round 1 carried a helper that skipped
+    # the file when the provisioner had not yet restored the host rule; it has, so that skip
+    # could never fire again, and a skip that cannot fire is dead code hiding a real check.
+    assert WWW_CANONICAL in emitted, (
+        "the host canonicalisation rule is not emitted - without it every www URL is a "
+        "duplicate-content copy of the apex"
+    )
+
+    unratified = [r for r in emitted if _rule_key(r) not in RATIFIED_REDIRECTS]
+    assert not unratified, (
+        "the provisioner emits redirects that nothing in this repo sanctions: "
+        + ", ".join(f"{r['status']} {r['source']} -> {r['target']}" for r in unratified)
+        + ". If these are intended, add one entry to RATIFIED_REDIRECTS recording the "
+        "instruction that sanctioned each - the key is the whole (source, target, status) "
+        "triple, so a retarget or a status downgrade needs ratifying too."
+    )
+
+    missing = [r for r in RATIFIED_RULES if r not in emitted]
+    assert not missing, (
+        "redirects are ratified but no longer emitted: "
+        + ", ".join(f"{r['status']} {r['source']} -> {r['target']}" for r in missing)
+        + ". A sanctioned redirect disappearing is drift in the other direction - inbound "
+        "links to it start 404ing. Remove its RATIFIED_REDIRECTS entry if that was intended."
+    )
+
+    assert emitted == RATIFIED_RULES, "emitted redirects differ from the ratified set in ORDER"
+
+
+def test_every_ratified_redirect_records_why_it_is_sanctioned():
+    """An entry cannot be waved through with "" or "ok".
+
+    Mirrors `test_both_new_tables_are_allowed_in_the_drift_gate_with_a_reason`. The whole value
+    of moving the redirect set into data is that the instruction travels with it; an entry whose
+    reason is a token is an exemption nobody can audit.
+    """
+    for key, reason in RATIFIED_REDIRECTS.items():
+        assert reason.strip(), f"{key} is ratified with no recorded reason"
+        assert len(reason.strip()) >= 40, (
+            f"{key} is ratified with a token, not an instruction: {reason!r}. Record what "
+            f"sanctioned it - who asked, when, and the evidence."
+        )
+
+
+def test_the_redirect_status_set_matches_the_provisioner(redirects):
+    """The local copy exists only for the snapshot-reading tests; it must not drift."""
+    assert REDIRECT_STATUSES == redirects.REDIRECT_STATUSES
+
+
+# ─────────────────────────── reconciliation: what apply() actually writes ───────────────────────────
+
+def test_the_pre_change_array_reconciles_to_the_ratified_set_with_every_passthrough_preserved(
+    redirects, before, tmp_path, monkeypatch,
+):
+    """The real guarantee: a pre-change live array reconciles to the ratified set.
+
+    REPLACES `test_saved_pre_removal_configuration_reconciles_to_post_removal_snapshot`, which
+    asserted one committed snapshot reproduced another byte for byte. That is not a property of
+    the provisioner, it is a property of two files, and it broke the moment a legitimate
+    redirect was added (F4: reconciling the 12-rule pre-change array now yields 11 rules, and
+    the committed `after` file holds 9). The `after` snapshot is deliberately NOT read here.
+    """
+    retired = _retired_sources(before)
+    assert retired, (
+        "the fixture holds no retired redirect, so removal is unproven - this test would pass "
+        "on a provisioner that removes nothing"
+    )
+
+    monkeypatch.setattr(redirects, "ROOT", tmp_path)
+    client = _CapturingAmplify()
+    assert redirects.apply(client, [dict(r) for r in before]) == 0
+    assert client.written is not None, (
+        "apply() short-circuited - the write path was not exercised, so nothing below is "
+        "measuring the reconciliation. Drive this from a PRE-change array, not a converged one."
+    )
+
+    written_sources = {str(r.get("source", "")) for r in client.written}
+    for source in sorted(retired):
+        assert source not in written_sources, (
+            f"apply() preserved retired forwarding for {source!r} - a path the owner ordered "
+            f"removed is still redirecting"
+        )
+
+    expected = RATIFIED_RULES + [dict(r) for r in before if not redirects.is_ours(r)]
+    assert client.written == expected
+    assert client.written[0] == WWW_CANONICAL, "the host rule must lead the array"
+    assert client.written[-1] == CATCH_ALL, "the 404-200 fallback must be last"
+
+
+def test_applying_the_policy_twice_writes_once(redirects, before, tmp_path, monkeypatch):
+    """Idempotence, asserted from whatever the ratified set currently is.
+
+    REPLACES `test_converged_configuration_is_not_rewritten`, which fed the committed `after`
+    snapshot and expected no write. That snapshot is no longer converged, so the test failed for
+    a reason that had nothing to do with idempotence. Feeding `apply()`'s own output back to it
+    needs no snapshot and keeps working as the ratified set changes.
+    """
+    monkeypatch.setattr(redirects, "ROOT", tmp_path)
+
+    first = _CapturingAmplify()
+    assert redirects.apply(first, [dict(r) for r in before]) == 0
+    assert first.written is not None, "the first apply() must write, or there is nothing to re-apply"
+
+    second = _CapturingAmplify()
+    assert redirects.apply(second, [dict(r) for r in first.written]) == 0
+    assert second.written is None, (
+        "re-applying a converged array wrote again - every run would then churn the live app "
+        "and emit a rollback snapshot for a no-op"
+    )
+
+
+def test_an_unratified_redirect_is_dropped_and_no_passthrough_is_disturbed(
+    redirects, before, tmp_path, monkeypatch,
+):
+    """RENAMED from `test_unknown_redirect_removed_without_touching_proxy_rules`, whose body
+    compared the write to the committed `after` snapshot and so failed on an unrelated addition.
+    The passthrough guarantee is now derived through the provisioner's own classifier."""
+    monkeypatch.setattr(redirects, "ROOT", tmp_path)
+    client = _CapturingAmplify()
+    existing = [{"source": "/unratified-fixture", "target": "/", "status": "302"}] + [
+        dict(r) for r in before
+    ]
+
     assert redirects.apply(client, existing) == 0
-    assert client.written == rules
+    assert client.written is not None, "apply() short-circuited; the removal was not exercised"
+
+    assert "/unratified-fixture" not in {str(r.get("source", "")) for r in client.written}, (
+        "an unratified redirect survived reconciliation"
+    )
+    assert [r for r in client.written if not redirects.is_ours(r)] == [
+        r for r in before if not redirects.is_ours(r)
+    ], "a runtime rewrite was reordered or dropped while removing a redirect"
 
 
-def test_missing_page_rule_stays_last(rules):
-    assert rules[-1] == FALLBACK
-    assert sum(rule['source'] == '/<*>' for rule in rules) == 1
+# ─────────────────────────── structural invariants of the array ───────────────────────────
+
+def test_no_ratified_redirect_can_shadow_a_passthrough_or_target_the_staff_tree(
+    redirects, before, tmp_path, monkeypatch,
+):
+    """Asserted on the array `apply()` WRITES, in both overlap directions.
+
+    REPLACES `test_no_path_redirects_shadow_api_or_staff_pages`, which asserted no rule in the
+    committed `after` snapshot is a path redirect. `/zip` IS a sanctioned path redirect; that
+    test passed only because the snapshot predates it and `--apply` has not run. It would have
+    failed the moment anyone applied the policy and refreshed the snapshot - the premise was
+    wrong, not the measurement.
+
+    NON-OVERLAP, NOT ORDERING. The live array had the retired 302s at indexes 1-3 ahead of all
+    seven passthroughs (`docs/execution/url-host-matrix-20261001.md:122`), so "passthroughs come
+    first" was never the true guarantee. A redirect that cannot MATCH an /api, /get, /r or /mcp
+    request cannot shadow it wherever it sits, which is the stronger property anyway.
+
+    Ratification buys no exemption here: this runs on what apply() writes, so a redirect has to
+    pass both this and `RATIFIED_REDIRECTS` to reach production.
+    """
+    monkeypatch.setattr(redirects, "ROOT", tmp_path)
+    client = _CapturingAmplify()
+    assert redirects.apply(client, [dict(r) for r in before]) == 0
+    assert client.written is not None, "apply() short-circuited; the live shape was not built"
+
+    passthrough_sources = {
+        str(r.get("source", "")) for r in client.written if _is_passthrough(r)
+    }
+    assert passthrough_sources, "the rebuilt array must still contain the runtime rewrites"
+
+    for rule in client.written:
+        target = str(rule.get("target", ""))
+        assert not target.startswith("/workspace"), (
+            f"{rule.get('source')} targets the staff workspace: {target}. A customer URL may "
+            f"never resolve into /workspace/**"
+        )
+
+        source = str(rule.get("source", ""))
+        if not _is_redirect(rule) or not source.startswith("/"):
+            continue  # the host rule's source is an origin, not a path; it cannot match one
+        if source == CATCH_ALL["source"]:
+            continue  # the catch-all is a 404-family status, evaluated after file lookup
+
+        assert not source.startswith(PASSTHROUGH_PREFIXES), (
+            f"redirect {source} overlaps a passthrough prefix - provider webhooks are "
+            f"delivered through /api/<*> and a shadowing rule is a payment outage"
+        )
+        # The reverse direction. `/ap<*>` does not START WITH a passthrough prefix, but
+        # /api/<*> falls under it. An empty stem would match the whole site, so it is rejected
+        # outright rather than silently passing the loop below.
+        stem = source.removesuffix("<*>").rstrip("/")
+        assert stem, f"a redirect source that reduces to the whole site cannot be sanctioned: {source}"
+        for passthrough in passthrough_sources:
+            assert not passthrough.startswith(stem), (
+                f"redirect {source} is a prefix of passthrough {passthrough} - it would "
+                f"shadow it regardless of array order"
+            )
 
 
-def test_both_mcp_forms_proxy_to_one_backend(rules):
-    mcp = [rule for rule in rules if rule['source'] in ('/mcp', '/mcp/')]
+def test_the_catch_all_is_last_and_unique_in_the_snapshot_and_in_the_write(
+    redirects, before, after, tmp_path, monkeypatch,
+):
+    """RENAMED from `test_missing_page_rule_stays_last`, and now asserted on both arrays.
+
+    A second /<*> rule, or one that is not last, means the missing-page document stops being
+    reachable - and that rule is also what `apply()` refuses to run without.
+    """
+    assert after[-1] == CATCH_ALL, f"snapshot: last rule must be the fallback, found {after[-1]}"
+    assert [r for r in after if r.get("source") == "/<*>"] == [CATCH_ALL], (
+        "snapshot: there must be exactly one /<*> rule"
+    )
+
+    monkeypatch.setattr(redirects, "ROOT", tmp_path)
+    client = _CapturingAmplify()
+    assert redirects.apply(client, [dict(r) for r in before]) == 0
+    assert client.written is not None, "apply() short-circuited; the write was not inspected"
+    assert client.written[-1] == CATCH_ALL
+    assert [r for r in client.written if r.get("source") == "/<*>"] == [CATCH_ALL]
+
+
+def test_the_host_rule_is_first_and_carries_no_path(after):
+    """Source and target are bare origins, which is what preserves the request path.
+
+    Measured after applying: `https://www.wecare.digital/shop/` -> 301 ->
+    `https://wecare.digital/shop/`. Had the source carried a path, www would have collapsed
+    every URL onto the apex home page - worse than the duplicate-content state the rule was
+    restored to fix.
+    """
+    assert after[0] == WWW_CANONICAL, f"first rule must be the host canonicalisation, found {after[0]}"
+    for field in ("source", "target"):
+        value = WWW_CANONICAL[field]
+        assert value.startswith("https://"), value
+        assert value.count("/") == 2, f"{field} must be a bare origin with no path: {value}"
+
+
+def test_the_two_committed_snapshots_differ_only_in_redirect_rules(before, after):
+    """The removal touched redirects and nothing else.
+
+    Generalises round 1's `test_the_only_difference_is_the_host_canonicalisation_rule`, which
+    named the one rule that moved and so had to be rewritten every time another one did. The
+    property is what matters: whatever the redirect set does, the runtime rewrites and the
+    fallback come through unchanged and in the same order.
+    """
+    assert [r for r in before if not _is_redirect(r)] == [r for r in after if not _is_redirect(r)]
+
+
+def test_both_mcp_forms_proxy_to_one_backend(after):
+    mcp = [rule for rule in after if rule["source"] in ("/mcp", "/mcp/")]
     assert len(mcp) == 2
-    assert len({rule['target'] for rule in mcp}) == 1
-    assert all(rule['status'] == '200' for rule in mcp)
-
-
-def test_no_path_redirects_shadow_api_or_staff_pages(rules):
-    assert not [rule for rule in rules if rule['source'].startswith('/') and rule['status'] in ('301','302','307','308')]
-    assert rules[0] == WWW
-
-
-def test_saved_pre_removal_configuration_reconciles_to_post_removal_snapshot(redirects, rules, tmp_path, monkeypatch):
-    # Preserve the concurrent routing fix's stronger before-to-after assertion.
-    before = json.loads((SNAPSHOTS / 'retired-url-rules-before-20261002.json').read_text())
-    monkeypatch.setattr(redirects, 'ROOT', tmp_path)
-    client = Client()
-    assert redirects.apply(client, before) == 0
-    assert client.written == rules
-    assert [r for r in client.written if r['status'] == '200'] == [r for r in before if r['status'] == '200']
+    assert len({rule["target"] for rule in mcp}) == 1
+    assert all(rule["status"] == "200" for rule in mcp)

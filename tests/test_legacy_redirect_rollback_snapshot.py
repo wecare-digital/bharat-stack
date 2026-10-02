@@ -136,7 +136,22 @@ def test_the_historical_snapshot_is_not_advertised_as_a_rollback_target(redirect
 
 
 def test_owner_policy_preserves_rewrites_without_restoring_legacy_destinations(redirects, tmp_path, monkeypatch):
-    """Legacy redirects disappear; only canonical www and home access remain."""
+    """Legacy redirects disappear and no legacy destination comes back.
+
+    2026-10-02: `assert approved == [removals[0]]` was deleted from this body. It pinned the
+    approved set to exactly ONE rule, and the owner adds and retires redirects as ordinary
+    product work - `bb1cf39b` declared `/zip -> /shipments/` for a product rename and this
+    assertion went red on a correct production change. That is the second time in two days a
+    count pin in this area broke on a legitimate edit (the first was a removal deleting the
+    guard outright), so the count is gone and the PROPERTY it was standing in for is asserted
+    instead: every retired source stays retired, and no `/workspace` destination returns.
+
+    The exact ratified redirect set is owned by `tests/test_url_host_routing_rules.py`
+    (`RATIFIED_REDIRECTS`), cross-referenced rather than duplicated - two copies of the same
+    expectation in two files is precisely the drift this change exists to end. The retired set
+    below is derived from this test's OWN fixture data, so it needs no import and no sys.path
+    edit under `--import-mode=importlib`.
+    """
     monkeypatch.setattr(redirects, "ROOT", tmp_path)
     rewrites = [
         {"source": "/api/<*>", "target": "https://api.example/prod/<*>", "status": "200"},
@@ -153,9 +168,26 @@ def test_owner_policy_preserves_rewrites_without_restoring_legacy_destinations(r
     client = _FakeAmplify()
     assert redirects.apply(client, removals + rewrites) == 0
     approved = redirects.desired_redirects()
+    assert client.written, "update_app was never called, so no removal was exercised"
+
+    # Derived from this test's own fixtures, not typed: whatever `removals` offers that the
+    # policy does not approve is what must have been dropped.
+    approved_sources = {r["source"] for r in approved}
+    retired = {r["source"] for r in removals} - approved_sources
+    assert retired, (
+        "every fixture redirect is approved, so this test proves no removal - add a legacy "
+        "rule to `removals` or it is asserting against an empty set"
+    )
+
+    written_sources = {r["source"] for r in client.written}
+    for source in sorted(retired):
+        assert source not in approved_sources, f"legacy redirect {source!r} is back in the policy"
+        assert source not in written_sources, f"legacy redirect {source!r} was written to the app"
+
+    # BEFORE the equality below, deliberately. The equality catches the same drift with a
+    # message a reader has to decode, and an assertion placed after a failed equality never runs.
     assert client.written == approved + rewrites
     assert approved[0] == removals[0]
-    assert approved == [removals[0]]
     assert not any(r['source'].startswith('/obsolete-login-fixture') for r in approved)
     assert all("/workspace" not in r["target"] for r in approved)
     client.written = None
