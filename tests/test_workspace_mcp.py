@@ -188,6 +188,8 @@ def test_ads_verification_discovers_tools_without_claiming_account_access(module
     monkeypatch.setattr(module, 'token', lambda *a: 'fixture-access')
     calls = []
     def remote(url, payload, headers):
+        if payload is None:
+            return {'data': [{'permission': name, 'status': 'granted'} for name in ('ads_read', 'ads_mcp_management')]}, None
         calls.append((payload['method'], dict(headers)))
         if payload['method'] == 'initialize': return {'result': {'protocolVersion': '2025-06-18'}}, 'fixture-session'
         if payload['method'] == 'notifications/initialized': return {}, None
@@ -205,11 +207,26 @@ def test_ads_verification_discovers_tools_without_claiming_account_access(module
 def test_ads_empty_or_failed_tool_discovery_is_not_authenticated(module, memory, monkeypatch):
     monkeypatch.setattr(module, 'token', lambda *a: 'fixture-access')
     def remote(url, payload, headers):
+        if payload is None:
+            return {'data': [{'permission': name, 'status': 'granted'} for name in ('ads_read', 'ads_mcp_management')]}, None
         if payload['method'] == 'initialize': return {'result': {'protocolVersion': '2025-11-25'}}, None
         return {'error': {'code': -32000}}, None
     monkeypatch.setattr(module, 'http', remote)
     with pytest.raises(module.Refusal, match='discovery failed'):
         module.run_tool('owner', 'connection_verify', {'provider': 'meta-ads'})
+
+
+def test_ads_missing_grant_is_reported_before_mcp_connection(module, memory, monkeypatch):
+    monkeypatch.setattr(module, 'token', lambda *a: 'fixture-access')
+    calls = []
+    def remote(url, payload, headers):
+        calls.append(url)
+        return {'data': [{'permission': 'ads_read', 'status': 'granted'},
+            {'permission': 'ads_mcp_management', 'status': 'declined'}]}, None
+    monkeypatch.setattr(module, 'http', remote)
+    with pytest.raises(module.Refusal, match='did not grant required Ads MCP permissions: ads_mcp_management'):
+        module.run_tool('owner', 'connection_verify', {'provider': 'meta-ads'})
+    assert calls == ['https://graph.facebook.com/v26.0/me/permissions']
 
 
 def test_registered_meta_client_is_reused_without_business_app_id(module, memory, monkeypatch):

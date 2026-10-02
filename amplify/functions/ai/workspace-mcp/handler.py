@@ -530,6 +530,14 @@ def run_tool(owner, name, args):
         provider_config(provider)
         if provider == 'meta-ads':
             headers = {'Authorization': 'Bearer ' + token(owner, provider)}
+            permissions, _ = http('https://graph.facebook.com/v26.0/me/permissions', None, headers)
+            entries = permissions.get('data')
+            if not isinstance(entries, list):
+                raise Refusal('Meta Ads permission read could not be verified')
+            granted = {entry.get('permission') for entry in entries if isinstance(entry, dict) and entry.get('status') == 'granted'}
+            missing = [name for name in ('ads_read', 'ads_mcp_management') if name not in granted]
+            if missing:
+                raise Refusal('Meta did not grant required Ads MCP permissions: ' + ', '.join(missing))
             initialized, session = http(config['endpoint'], {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize',
                 'params': {'protocolVersion': '2025-11-25', 'capabilities': {},
                     'clientInfo': {'name': 'wecare-workspace', 'version': '1.2.0'}}}, headers)

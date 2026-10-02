@@ -122,8 +122,10 @@ automated ad spend are not enabled in this workspace MCP release.
 Do not submit this as an already-completed workflow. At the initial review check,
 the deployed cloud adapter's dynamic client registration was refused. A later
 version 3 update added the supported existing-app PKCE path and successfully
-generated an AWS-backed authorization URL; owner consent and authenticated
-Meta tool discovery have not yet been confirmed. Its broader permission
+generated an AWS-backed authorization URL. Owner consent subsequently saved
+an authorization, but MCP discovery and a direct granted-permissions read were
+refused. Live version 4 adds the fixed permission check; no authenticated
+Meta tool discovery is claimed. Its broader permission
 cannot honestly be described as intrinsically read-only. Meta's App Review
 reference requires both an MCP read and an MCP write demonstration; the
 current read-only router cannot yet supply that complete evidence.

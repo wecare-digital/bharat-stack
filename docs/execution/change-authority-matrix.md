@@ -825,3 +825,13 @@ that, and states the authority exactly as it stands rather than stronger.
   request. Consent remains owner action. No new secret or IAM grant, provider
   token value read, ad tool execution or code-job enablement. Evidence:
   workspace-mcp-meta-ads-oauth-20261002.md. Rollback retained version 2.
+
+- 2026-10-02 A0_READ/A1_LOCAL/A2_REMOTE_CODE/A3_PRODUCTION: after owner Ads
+  consent, verification refused. Add fixed Graph granted-permissions check
+  before authenticated Ads MCP discovery. 64 focused Python passed; deploy
+  reviewed only Function/Version/Alias, ReplaceAndRetain, live version 4 exact
+  SHA/Active/Successful verified. Rollback retained version 3. Direct permission
+  read still refused, so no granted-scope or authenticated-connection claim.
+  Fresh Social/WhatsApp native reads passed; both AWS cloud client starts remain
+  provider-refused. Preserved app require_app_secret=true; no new secret/IAM
+  grant, provider secret read, security weakening or provider write.

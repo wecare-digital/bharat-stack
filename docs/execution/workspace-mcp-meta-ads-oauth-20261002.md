@@ -41,3 +41,33 @@ Fresh native Codex Meta Social app-list succeeded for WECARE.DIGITAL with admin
 role. This is a desktop connection, not evidence of a Social cloud grant.
 Code jobs remain false; no ad spending, publishing, WhatsApp send, payment or
 provider credential rotation took place.
+
+## After owner completed consent
+
+Owner received authorized_unverified for meta-ads. Cloud connection_verify
+returned Provider authorization required; the registry retained
+authorized_unverified with no lastVerifiedAt. Authorization storage is not an
+authenticated MCP connection. Fresh native app privileges report ads_read and
+ads_mcp_management not live, REJECTED, access_level none; business_management is
+live/advanced. No rejection reason was returned.
+
+Added a fixed runtime GET https://graph.facebook.com/v26.0/me/permissions
+before Ads discovery. It checks the actual granted ads_read and
+ads_mcp_management permissions and refuses missing scopes without attempting
+MCP or returning credentials. Focused Python: 64 passed. Deploy change set
+workspace-mcp-ads-grants-20261002 changed only Function/Version/Alias, with
+ReplaceAndRetain. Stack UPDATE_COMPLETE, live version 4 Active/Successful,
+exact SHA256 2ddce72bbafbeaab1118ce221d1d98cc7d6fc7209a75326ac9d9c542011fc36e.
+Rollback is retained version 3. The actual permission read was itself refused,
+so the saved token's granted scopes remain unconfirmed. Native Meta security
+read reports require_app_secret=true; this was preserved and is a possible
+additional authentication requirement, not a proven rejection cause. No app
+secret value was read, new secret/IAM access added, or security setting weakened.
+
+On owner request, retried Social and WhatsApp cloud verification and authorization.
+Social needs consent; WhatsApp's prior business-app grant is not an accepted MCP
+connection. Both cloud registration starts are still refused. Fresh native
+Social app-list succeeded for 2238810740192680 with admin/read/manage. Fresh
+native WhatsApp business-list succeeded and returned Wecare.Digital
+382642103987922 verified, with the checked prerequisites passing. These native
+grants were not copied into AWS. No connected/verified cloud status is claimed.
