@@ -37,7 +37,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "amplify/functions/shared"))
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
-from coupon_fake_dynamo import FakeTable  # noqa: E402
+from coupon_fake_dynamo import FakeClientError, FakeTable  # noqa: E402
 from lambda_utils.ecommerce import gift_card_store as gc  # noqa: E402
 
 MODULE = ROOT / "amplify/functions/shared/lambda_utils/ecommerce/gift_card_store.py"
@@ -274,23 +274,33 @@ def test_the_balance_cannot_go_negative_under_concurrency():
 
 
 def test_the_balance_floor_is_a_condition_expression_not_a_read_then_write():
-    """The guard is inside the `UpdateItem`, and no `get_item` precedes it on the happy path."""
+    """The guard is inside the TRANSACTION's card item, and no `get_item` precedes it.
+
+    Three assertions move with the money, not two. The floor is now found inside the
+    `transact_write_items` card item; the read-ordering assertion is re-indexed onto the
+    transaction, because the surviving `update_item` is the best-effort `balanceAfterPaise`
+    follow-up and indexing on it would assert the wrong thing about the wrong write; and `:neg`
+    is compared in its ATTRIBUTEVALUE form, `{"N": "-40000"}`, because that is what goes on the
+    wire. That third assertion checks the marshalling - the `^-?[0-9]+$` rule owns the money
+    property.
+    """
     store = table()
     issue(store, value_paise=50000)
     gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1", amount_paise=40000,
               clock=clock())
 
-    decrements = [kwargs for name, kwargs in store.calls
-                  if name == "update_item"
-                  and "ADD balancePaise" in kwargs["UpdateExpression"]]
-    assert len(decrements) == 1
-    condition = decrements[0]["ConditionExpression"]
-    assert "balancePaise >= :amount" in condition
-    assert decrements[0]["ExpressionAttributeValues"][":neg"] == -40000
+    transactions = [kwargs for name, kwargs in store.calls if name == "transact_write_items"]
+    assert len(transactions) == 1
+    card_items = [item["Update"] for item in transactions[0]["TransactItems"]
+                  if "ADD balancePaise" in str(item["Update"]["UpdateExpression"])]
+    assert len(card_items) == 1
+    assert "balancePaise >= :amount" in card_items[0]["ConditionExpression"]
+    assert card_items[0]["ExpressionAttributeValues"][":neg"] == {"N": "-40000"}
 
     operations = store.operations()
-    assert "get_item" not in operations[:operations.index("update_item")], (
-        "a read precedes the decrement, which makes it a read-modify-write")
+    transaction_index = operations.index("transact_write_items")
+    assert "get_item" not in operations[:transaction_index], (
+        "a read precedes the balance move, which makes it a read-modify-write")
     assert operations[0] == "put_item", "the claim must be written before the balance moves"
 
 
@@ -322,13 +332,20 @@ def test_a_second_redeem_for_the_same_payment_attempt_does_not_move_the_balance(
               clock=clock())
     before = store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"]
 
+    # Shape-checked on the FIRST redemption, before the log is cleared - the helper refuses an
+    # empty recording, which is what stops it passing vacuously over the replay below.
+    seen = assert_transaction_items_are_exact_key_updates(store)
+    assert seen >= 1
+    assert _committers(store) == {"redeem"}
+
     store.calls.clear()
     gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1", amount_paise=40000,
               clock=clock())
 
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == before
-    assert not [kwargs for name, kwargs in store.calls
-                if name == "update_item" and "ADD balancePaise" in kwargs["UpdateExpression"]]
+    # In EITHER representation. Checking only `update_item` would stop checking anything the
+    # moment the money moved into a transaction.
+    assert not [call for call in store.calls if _is_balance_move(call)]
 
 
 def test_two_different_payment_attempts_each_deduct_once():
@@ -358,10 +375,10 @@ def test_the_claim_is_written_before_the_balance_moves():
     claim_index = next(index for index, (name, kwargs) in enumerate(store.calls)
                        if name == "put_item"
                        and str(kwargs["Item"][gc.KEY_ATTRIBUTE]).startswith(gc.PREFIX_CLAIM))
-    decrement_index = next(index for index, (name, kwargs) in enumerate(store.calls)
-                           if name == "update_item"
-                           and "ADD balancePaise" in kwargs["UpdateExpression"])
-    assert claim_index < decrement_index
+    # The balance move is the TRANSACTION now, so the ordering is asserted against it.
+    move_index = next(index for index, (name, _kwargs) in enumerate(store.calls)
+                      if name == "transact_write_items")
+    assert claim_index < move_index
     claim_call = store.calls[claim_index][1]
     assert claim_call["ConditionExpression"] == f"attribute_not_exists({gc.KEY_ATTRIBUTE})"
 
@@ -391,33 +408,11 @@ def test_the_claim_row_is_settled_by_the_decrement_so_a_short_balance_is_recover
     assert store.rows[gc.PREFIX_CLAIM + digest_of() + "#attempt-1"]["settled"] is True
 
 
-class _MarkerWriteFails(FakeTable):
-    """Fails only the write that FLIPS A MARKER, N times, and nothing else.
-
-    The window `_CreditThrottles` cannot reach. That fake aims its fault at the balance move, so
-    it exercises the state where the money has NOT moved - recoverable by definition. This one
-    aims strictly AFTER the money has moved, at `settled` on the claim row or `credited` on the
-    voided transaction, which is where a recovery decided from a read replays the move and pays
-    twice.
-
-    Aimed by expression fragment rather than by call index, for the same reason: `_mark_settled`
-    is the only write containing `SET settled = :true` and `_mark_credited` the only one
-    containing `SET credited = :true` - the void LATCH writes `credited = :false` and so is not
-    matched - which keeps the aim valid if either path gains a read or a write.
-    """
-
-    def __init__(self, *args, fragment: str = "", failures: int = 0, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.fragment = fragment
-        self.failures = failures
-
-    def update_item(self, **kwargs):
-        if self.failures and self.fragment in str(kwargs.get("UpdateExpression") or ""):
-            self.failures -= 1
-            # A throttle, surfaced as `GiftCardStoreUnavailable` - not a conditional failure, so
-            # it can never be mistaken for a lost race.
-            raise RuntimeError("ProvisionedThroughputExceededException")
-        return super().update_item(**kwargs)
+#: The two attribute-name prefixes the applied-move markers USED to carry. Kept as literals
+#: rather than as module constants precisely because the constants are gone: the assertion below
+#: is now "no such attribute is ever written", and reading the prefix off the module would make
+#: the test unwritable the moment the constant was deleted.
+RETIRED_MARKER_PREFIXES = ("appliedClaim#", "appliedVoid#")
 
 
 def _markers_on(store: FakeTable, prefix: str) -> list:
@@ -425,63 +420,135 @@ def _markers_on(store: FakeTable, prefix: str) -> list:
                   if key.startswith(prefix))
 
 
-def test_a_redemption_whose_settle_write_failed_debits_the_balance_exactly_once():
-    """REV-4. The claim row's `settled` is on a DIFFERENT item from the balance, so it can only be
-    written after the money has moved - and failing only that write left the claim unsettled with
-    the card already debited. `settled: False` therefore covered two states, 'the decrement never
-    ran' and 'the decrement ran and this write was throttled', and the retry branch treated them
-    identically and deducted again. `balancePaise >= :amount` stops an OVERDRAW, not a second
-    deduction while funds remain.
+def assert_transaction_items_are_exact_key_updates(store: FakeTable) -> int:
+    """Every recorded transaction is `Update` items on fully specified keys. Returns the count.
 
-    So the decrement carries `appliedClaim#<attempt>` in its own expression. The retry is still
-    free to re-drive - that is what keeps an insufficient balance recoverable - but the re-drive
-    now loses a condition instead of debiting 20000 twice for one `paymentAttemptId`.
+    Reads `calls`, NOT `applied`, deliberately: a CANCELLED attempt is still a request that went
+    to the database in some shape, and it is exactly the attempt a shape regression would hide
+    in. An empty recording is refused FIRST, because a helper that passes vacuously is worse
+    than no helper - it reports a guarantee it never checked.
+
+    Asserting each item's key set is exactly `{"Update"}` is what forbids a later `Put`,
+    `Delete` or `ConditionCheck` arriving in this transaction without a design change.
     """
-    store = _MarkerWriteFails(key_attr=gc.KEY_ATTRIBUTE,
-                              indexes={gc.STATUS_INDEX: (gc.STATUS_ATTRIBUTE, "createdAt")},
-                              fragment="SET settled = :true", failures=1)
-    issue(store, value_paise=50000)
-    with pytest.raises(gc.GiftCardStoreUnavailable):
-        gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1", amount_paise=20000,
-                  clock=clock())
+    transactions = [kwargs for name, kwargs in store.calls if name == "transact_write_items"]
+    assert transactions, (
+        "no transaction was recorded, so this helper would pass vacuously; the caller must "
+        "drive a path that opens one")
+    for kwargs in transactions:
+        items = kwargs["TransactItems"]
+        assert items, "a transaction with no items is not a transaction"
+        for item in items:
+            assert set(item) == {"Update"}, (
+                f"only `Update` items belong in this transaction, got {sorted(item)}; a `Put`, "
+                f"`Delete` or `ConditionCheck` here is a design change, not a refactor")
+            update = item["Update"]
+            assert update.get("TableName"), "every transaction item names its table"
+            assert update.get("Key"), "every transaction item is an exact-key operation"
+            assert "IndexName" not in update, "a transaction never addresses an index"
+    return len(transactions)
 
-    # The window itself: money down, claim unsettled, and the marker is the only thing that says
-    # which of the two states this is.
+
+def _is_balance_move(call: tuple) -> bool:
+    """True for a balance move in EITHER representation.
+
+    `ADD balancePaise` is a plain string in both the single-item `UpdateExpression` and inside a
+    transaction item's, and `_marshal` never touches the expression text - so one predicate
+    reads both logs. Matching only `update_item` would silently stop matching anything the
+    moment the money moved into a transaction, which is the failure mode this exists to avoid.
+    """
+    name, kwargs = call
+    if name == "update_item":
+        return "ADD balancePaise" in str(kwargs.get("UpdateExpression") or "")
+    if name == "transact_write_items":
+        return any("ADD balancePaise" in str((item.get("Update") or {}).get("UpdateExpression")
+                                             or "")
+                   for item in kwargs.get("TransactItems") or [])
+    return False
+
+
+def _committer_of(kwargs: dict) -> str:
+    """Which committer assembled this recorded transaction: `"redeem"` or `"void"`.
+
+    Defined here because the design names it and the tree had no such symbol. The two are
+    distinguishable without counting calls: `_commit_redemption` is `ADD balancePaise :neg` and
+    `_commit_void` is `ADD balancePaise :amount`.
+
+    RAISES rather than returning a sentinel for a transaction that moves no balance. A sentinel
+    would be silently absorbed into a set comparison, so a third kind of transaction appearing
+    on this path would pass unnoticed - which is the opposite of what a committer-set assertion
+    is for.
+    """
+    expressions = [str((item.get("Update") or {}).get("UpdateExpression") or "")
+                   for item in kwargs.get("TransactItems") or []]
+    if any("ADD balancePaise :neg" in expression for expression in expressions):
+        return "redeem"
+    if any("ADD balancePaise :amount" in expression for expression in expressions):
+        return "void"
+    raise AssertionError(
+        f"this transaction moves no balance, so no committer owns it: {expressions}")
+
+
+def _committers(store: FakeTable) -> set:
+    return {_committer_of(kwargs) for name, kwargs in store.calls
+            if name == "transact_write_items"}
+
+
+def test_the_settle_and_the_balance_move_are_one_commit():
+    """Replaces `test_a_redemption_whose_settle_write_failed_debits_the_balance_exactly_once`.
+
+    That test asserted a RECOVERY from a state this change makes unreachable: the money down and
+    the claim unsettled, which existed because `settled` lived on a second item and could only be
+    written after the balance had moved. The replacement therefore asserts the STRONGER property
+    rather than nothing - **there is no interleaving in which the balance has moved and the claim
+    is unsettled**, because the two are one `TransactWriteItems`.
+
+    Retiring a test is the step most likely to be mistaken for making a build green, so the
+    measurement is explicit: one transaction carries both the `ADD balancePaise` and the
+    `SET settled = :true`, and no `update_item` carries either.
+    """
+    store = table()
+    issue(store, value_paise=50000)
+    gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1", amount_paise=20000,
+              clock=clock())
+
     claim_key = gc.PREFIX_CLAIM + digest_of() + "#attempt-1"
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 30000
-    assert store.rows[claim_key]["settled"] is False
-    assert _markers_on(store, gc.APPLIED_CLAIM_PREFIX) == [
-        gc.APPLIED_CLAIM_PREFIX + "attempt-1"]
-
-    recovered = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
-                          amount_paise=20000, clock=clock())
-    assert recovered["committed"] is True
-    assert recovered["remainingBalancePaise"] == 30000
-    # 30000, not 10000. One deduction for one payment attempt.
-    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 30000
     assert store.rows[claim_key]["settled"] is True
-    # And a third call is the ordinary settled replay.
-    replay = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
-                       amount_paise=20000, clock=clock())
-    assert replay["committed"] is False
-    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 30000
+
+    transactions = [kwargs for name, kwargs in store.calls if name == "transact_write_items"]
+    seen = assert_transaction_items_are_exact_key_updates(store)
+    assert seen >= 1
+    assert _committers(store) == {"redeem"}
+    expressions = [str(item["Update"]["UpdateExpression"]) for item in
+                   transactions[0]["TransactItems"]]
+    assert any("ADD balancePaise :neg" in text for text in expressions)
+    assert any("SET settled = :true" in text for text in expressions), (
+        "the settle must commit WITH the money, not after it")
+    # And neither half survives as a separate single-item write.
+    assert not [kwargs for name, kwargs in store.calls
+                if name == "update_item"
+                and "SET settled = :true" in str(kwargs.get("UpdateExpression") or "")]
+    assert not [kwargs for name, kwargs in store.calls
+                if name == "update_item"
+                and "ADD balancePaise" in str(kwargs.get("UpdateExpression") or "")]
 
 
 def test_a_stalled_redemption_still_debits_once_when_another_purchase_lands_between():
-    """Why the marker is keyed on the ATTEMPT and not on `activeClaimAttemptId`.
+    """Why the guard is keyed on the CLAIM ROW and not on `activeClaimAttemptId`.
 
-    `activeClaimAttemptId = :me` is already written by the decrement, so `activeClaimAttemptId <>
-    :me` looks like a cheap guard. It is not: the next attempt's decrement overwrites it, so a
-    retry arriving after a second purchase finds its own id gone and deducts again. Narrower
+    `activeClaimAttemptId = :me` is written by the balance move, so `activeClaimAttemptId <>
+    :me` looks like a cheap guard. It is not: the next attempt's move overwrites it, so a retry
+    arriving after a second purchase would find its own id gone and deduct again. Narrower
     window, same loss.
+
+    Driven post-fix by a SETTLED claim plus an intervening different purchase, which is the route
+    to that state now that the money and the settle commit together.
     """
-    store = _MarkerWriteFails(key_attr=gc.KEY_ATTRIBUTE,
-                              indexes={gc.STATUS_INDEX: (gc.STATUS_ATTRIBUTE, "createdAt")},
-                              fragment="SET settled = :true", failures=1)
+    store = table()
     issue(store, value_paise=50000)
-    with pytest.raises(gc.GiftCardStoreUnavailable):
-        gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1", amount_paise=20000,
-                  clock=clock())
+    gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1", amount_paise=20000,
+              clock=clock())
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 30000
 
     # A genuinely different purchase, which SHOULD deduct, and which moves activeClaimAttemptId.
@@ -490,19 +557,21 @@ def test_a_stalled_redemption_still_debits_once_when_another_purchase_lands_betw
     assert store.rows[gc.PREFIX_CARD + digest_of()][gc.CLAIM_ATTEMPT_ATTRIBUTE] == "attempt-2"
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 25000
 
-    recovered = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
-                          amount_paise=20000, clock=clock())
-    assert recovered["committed"] is True
+    # attempt-1 arriving late, after its own id has been overwritten. It must NOT deduct again.
+    replay = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
+                       amount_paise=20000, clock=clock())
+    assert replay["committed"] is False
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 25000
 
 
 def test_an_applied_move_marker_does_not_outlive_the_move_it_guards():
-    """The marker is a LOCK, not a record - the `GCTXN#` row is the record.
+    """The stronger fact: NO applied-move marker is ever written at all.
 
-    Once the claim reads `settled` the replay short-circuits before the money move, so nothing
-    consults the marker again. Leaving one behind per redemption would grow the card row by one
-    attribute for the life of the card, toward DynamoDB's 400 KB item cap, and a card row that
-    cannot be written is a liability that cannot be paid.
+    These markers existed to make the money its own idempotency record on one item, because the
+    flag that recorded a move lived on a different item. With the move and the flag in one
+    transaction there is nothing for a marker to guard - so the card row's size is bounded BY
+    CONSTRUCTION rather than by a best-effort cleanup step, which is a stronger guarantee than
+    the one this test used to make and is why the name is kept.
     """
     store = table()
     issue(store, value_paise=100000)
@@ -510,16 +579,25 @@ def test_an_applied_move_marker_does_not_outlive_the_move_it_guards():
         gc.redeem(store, code_hash=digest_of(), attempt_id=f"attempt-{number}",
                   amount_paise=1000, clock=clock())
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 95000
-    assert _markers_on(store, gc.APPLIED_CLAIM_PREFIX) == []
 
     redeemed = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-void",
                          amount_paise=1000, clock=clock())
     gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 95000
-    assert _markers_on(store, gc.APPLIED_VOID_PREFIX) == []
 
-    # A dropped marker is safe because the flag it hands over to is already written: the replay
-    # never reaches the money move again.
+    for prefix in RETIRED_MARKER_PREFIXES:
+        assert _markers_on(store, prefix) == [], (
+            f"{prefix} is written nowhere now; the balance move and the flag that records it "
+            f"are one transaction")
+    # Nor on any other row, and nor transiently in any recorded write.
+    for row in store.rows.values():
+        for attribute in row:
+            assert not str(attribute).startswith(RETIRED_MARKER_PREFIXES)
+    for name, kwargs in store.calls:
+        for prefix in RETIRED_MARKER_PREFIXES:
+            assert prefix not in str(kwargs)
+
+    # A replay never reaches the money move: `settled` short-circuits it at the pre-read.
     for number in range(1, 6):
         replay = gc.redeem(store, code_hash=digest_of(), attempt_id=f"attempt-{number}",
                            amount_paise=1000, clock=clock())
@@ -628,32 +706,6 @@ def test_a_second_void_is_already_voided():
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
 
 
-class _CreditThrottles(FakeTable):
-    """A `FakeTable` that throttles the first N balance CREDITS and nothing else.
-
-    `arm_failure` cannot express this: it fires on the next call of an operation, and in `void`
-    the next `update_item` is the `voidedBy` LATCH, not the credit. The window this test exists
-    for is the one strictly BETWEEN them, so the fault has to be aimed at the credit itself.
-
-    Aimed by expression rather than by call index: `credit` is `ADD balancePaise :amount` and
-    `_decrement` is `ADD balancePaise :neg`, so the two balance moves are distinguishable without
-    counting calls - which means this keeps working if either path gains a read.
-    """
-
-    def __init__(self, *args, credit_failures: int = 0, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.credit_failures = credit_failures
-
-    def update_item(self, **kwargs):
-        if self.credit_failures and "ADD balancePaise :amount" in str(
-                kwargs.get("UpdateExpression") or ""):
-            self.credit_failures -= 1
-            # A throttle, which `credit` surfaces as `GiftCardStoreUnavailable` - not a
-            # conditional failure, so it cannot be mistaken for a lost race.
-            raise RuntimeError("ProvisionedThroughputExceededException")
-        return super().update_item(**kwargs)
-
-
 def test_a_void_whose_credit_failed_is_completed_by_a_retry_not_refused():
     """Not in the design's list, and it closes the void path's counterpart of the claim window.
 
@@ -668,19 +720,25 @@ def test_a_void_whose_credit_failed_is_completed_by_a_retry_not_refused():
     different recovery mechanisms in one liability ledger is how the next person gets one of them
     wrong.
 
-    What this asserts is that the marker CLEARS, not merely that it is written: the credit is
-    throttled strictly between the latch and the balance move, the retry completes it, and the
-    balance lands correct EXACTLY ONCE - idempotent on replay, as `redeem` is.
+    What this asserts is that the void COMPLETES, not merely that it is latched: the credit
+    transaction fails strictly between the latch and the balance move, the retry completes it,
+    and the balance lands correct EXACTLY ONCE - idempotent on replay, as `redeem` is.
+
+    The fault is aimed at the TRANSACTION now, because that is where the credit lives. A bare
+    throughput `FakeClientError` is NOT a cancellation, so `_is_transaction_cancellation` is
+    `False`, `_transact_with_retry` re-raises without looping, and the test's own second
+    `void()` call IS the retry. Every answer below is identical to the pre-fix one - that is
+    the check that this rewrite preserved the property rather than replacing it.
     """
-    store = _CreditThrottles(key_attr=gc.KEY_ATTRIBUTE,
-                             indexes={gc.STATUS_INDEX: (gc.STATUS_ATTRIBUTE, "createdAt")},
-                             credit_failures=1)
+    store = table()
     issue(store, value_paise=50000)
     redeemed = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
                          amount_paise=40000, clock=clock())
     original_key = gc.PREFIX_TRANSACTION + digest_of() + "#" + redeemed["transactionId"]
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 10000
 
+    store.arm_failure("transact_write_items",
+                      FakeClientError("ProvisionedThroughputExceededException"))
     with pytest.raises(gc.GiftCardStoreUnavailable):
         gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
 
@@ -708,16 +766,27 @@ def test_a_void_whose_credit_failed_is_completed_by_a_retry_not_refused():
         gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
 
+    seen = assert_transaction_items_are_exact_key_updates(store)
+    assert seen >= 2
+    assert _committers(store) == {"redeem", "void"}
+
 
 def test_a_void_credit_that_fails_twice_still_returns_the_balance_exactly_once():
-    """Recovery that works once is not recovery. The marker is not consumed by an attempt."""
-    store = _CreditThrottles(key_attr=gc.KEY_ATTRIBUTE,
-                             indexes={gc.STATUS_INDEX: (gc.STATUS_ATTRIBUTE, "createdAt")},
-                             credit_failures=2)
+    """Recovery that works once is not recovery. The latch is not consumed by an attempt.
+
+    `times=2` is what makes the narrative literally true. A one-shot `arm_failure` cannot
+    express "armed twice": `_fail_if_armed` consumed the arm with `pop`, so two arms before the
+    two calls produced ONE failure and the second `pytest.raises` then failed against CORRECT
+    code. The counter keeps the arming visible at the arming site instead of hiding a re-arm in
+    the middle of the loop below.
+    """
+    store = table()
     issue(store, value_paise=50000)
     redeemed = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
                          amount_paise=40000, clock=clock())
 
+    store.arm_failure("transact_write_items",
+                      FakeClientError("ProvisionedThroughputExceededException"), times=2)
     for _ in range(2):
         with pytest.raises(gc.GiftCardStoreUnavailable):
             gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
@@ -727,77 +796,78 @@ def test_a_void_credit_that_fails_twice_still_returns_the_balance_exactly_once()
     assert completed["remainingBalancePaise"] == 50000
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
 
+    seen = assert_transaction_items_are_exact_key_updates(store)
+    assert seen >= 2
+    assert _committers(store) == {"redeem", "void"}
 
-def test_a_void_whose_credited_write_failed_returns_the_balance_exactly_once():
-    """REV-3, and the counterpart of the redeem window one section above.
 
-    `credited` is on the TRANSACTION row, so the credit and the flag were two writes to two items
-    and the flag could only follow the money. Failing ONLY `SET credited = :true` - strictly after
-    the balance moved, which `_CreditThrottles` cannot reach because it aims at the balance move
-    itself - left `credited: False` with the money already back. The retry branch reads that as
-    "the credit never ran" and re-drove it: a card issued at 50000 and redeemed 40000 ended at
-    90000 paise. The prior bug was a stranded customer balance an operator could see; this one was
-    a silent business-side loss wearing the shape of a successful void.
+def test_the_credit_and_the_credited_flag_are_one_commit():
+    """Replaces `test_a_void_whose_credited_write_failed_returns_the_balance_exactly_once`.
 
-    Closed by putting the credit's marker on the CARD row in the credit's own expression, so the
-    replay loses a condition rather than adding 40000 a second time.
+    That test asserted a RECOVERY from a state this change makes unreachable: the money back and
+    `credited` still `False`, which existed because the flag lived on the transaction row and
+    could only follow the credit. Pre-fix, the retry branch read that state as "the credit never
+    ran" and re-drove it - a card issued at 50000 and redeemed 40000 ended at 90000 paise, a
+    silent business-side loss wearing the shape of a successful void.
+
+    The replacement asserts the stronger property - the credit and the flag are ONE
+    `TransactWriteItems`, so no interleaving leaves them disagreeing - and it ADDITIONALLY
+    asserts that a second `void()` of the same transaction credits nothing. That second half is
+    the property rehoused from the plain-credit test below, which lost its `once_key` half when
+    `credit()` lost the parameter.
     """
-    store = _MarkerWriteFails(key_attr=gc.KEY_ATTRIBUTE,
-                              indexes={gc.STATUS_INDEX: (gc.STATUS_ATTRIBUTE, "createdAt")},
-                              fragment="SET credited = :true", failures=1)
+    store = table()
     issue(store, value_paise=50000)
     redeemed = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
                          amount_paise=40000, clock=clock())
     original_key = gc.PREFIX_TRANSACTION + digest_of() + "#" + redeemed["transactionId"]
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 10000
 
-    with pytest.raises(gc.GiftCardStoreUnavailable):
-        gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
-
-    # The window: the money is back, the flag never flipped, and the marker is what distinguishes
-    # this from a credit that never ran.
-    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
-    assert store.rows[original_key]["credited"] is False
-    latched = store.rows[original_key]["voidedBy"]
-    assert _markers_on(store, gc.APPLIED_VOID_PREFIX) == [gc.APPLIED_VOID_PREFIX + latched]
-
     completed = gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
-    assert completed["transactionId"] == latched
-    # 50000, not 90000.
     assert completed["remainingBalancePaise"] == 50000
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
     assert store.rows[original_key]["credited"] is True
-    # One void transaction, not two.
+
+    void_transactions = [kwargs for name, kwargs in store.calls
+                         if name == "transact_write_items" and _committer_of(kwargs) == "void"]
+    assert len(void_transactions) == 1
+    expressions = [str(item["Update"]["UpdateExpression"])
+                   for item in void_transactions[0]["TransactItems"]]
+    assert any("ADD balancePaise :amount" in text for text in expressions)
+    assert any("SET credited = :true" in text for text in expressions), (
+        "the flag must commit WITH the credit, not after it")
+    assert not [kwargs for name, kwargs in store.calls
+                if name == "update_item"
+                and "SET credited = :true" in str(kwargs.get("UpdateExpression") or "")]
+
+    # The same logical credit replayed moves the balance ONCE. 50000, not 90000.
+    with pytest.raises(gc.AlreadyVoided):
+        gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
+    # And one void transaction, not two.
+    latched = store.rows[original_key]["voidedBy"]
     assert [key for key in store.rows
             if key.startswith(gc.PREFIX_TRANSACTION) and store.rows[key].get(
                 "kind") == gc.KIND_VOID] == [gc.PREFIX_TRANSACTION + digest_of() + "#" + latched]
 
-    # And the door re-closes once the flag has landed.
-    with pytest.raises(gc.AlreadyVoided):
-        gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
-    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
+    seen = assert_transaction_items_are_exact_key_updates(store)
+    assert seen >= 2
+    assert _committers(store) == {"redeem", "void"}
 
 
 def test_a_plain_credit_is_not_made_idempotent_because_two_top_ups_are_two_events():
-    """The marker is opt-in, and the asymmetry is deliberate rather than an oversight.
+    """A credit is a PLAIN ADDITION, and that asymmetry is deliberate rather than an oversight.
 
-    `void` passes `once_key` because a retry is the SAME event arriving again. A top-up has no
-    such key: two credits of the same size are two different events, and de-duplicating them
-    would silently swallow the second one.
+    Two credits of the same size are two different events, and de-duplicating them would
+    silently swallow the second one. The void path's idempotency does not live here - it lives
+    in `_commit_void`'s `credited = :false` condition, committed with the money, which is what
+    `test_the_credit_and_the_credited_flag_are_one_commit` asserts.
     """
     store = table()
     issue(store, value_paise=1000)
     gc.credit(store, code_hash=digest_of(), amount_paise=500, clock=clock())
     gc.credit(store, code_hash=digest_of(), amount_paise=500, clock=clock())
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 2000
-    assert _markers_on(store, gc.APPLIED_VOID_PREFIX) == []
-
-    # With a key, the same credit twice moves the balance once.
-    assert gc.credit(store, code_hash=digest_of(), amount_paise=500, once_key="void-abc",
-                     clock=clock()) == 2500
-    assert gc.credit(store, code_hash=digest_of(), amount_paise=500, once_key="void-abc",
-                     clock=clock()) == 2500
-    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 2500
 
 
 def test_a_void_latched_before_the_credited_flag_existed_is_never_re_credited():
@@ -1131,6 +1201,94 @@ def test_every_dynamodb_access_is_an_exact_key_operation_or_the_status_index_que
     store = table()
     with pytest.raises(AssertionError):
         store.scan()
+
+
+def test_the_transaction_has_exactly_one_call_site_and_two_callers():
+    """Presence and location only, and the location is the point.
+
+    Three facts over one shared `FunctionDef`-owner walk:
+      1. exactly ONE `transact_write_items` call exists in the module;
+      2. its owning function is `_transact_with_retry`, so the bounded retry, the jitter and the
+         injected sleeper exist once rather than per committer;
+      3. `_transact_with_retry` is called from exactly `_commit_redemption` and `_commit_void`.
+
+    Fact 3 needs its own predicate, because the gate above finds only ATTRIBUTE calls and
+    `_transact_with_retry(...)` is a bare name. And nothing here `ast.unparse`s the transaction
+    call looking for `TableName`/`Key`: the items are assembled in separate assignments, so that
+    assertion would fail against correct code - the shape is measured at runtime by
+    `assert_transaction_items_are_exact_key_updates` instead.
+    """
+    transaction_calls = [node for node in ast.walk(TREE)
+                         if isinstance(node, ast.Call)
+                         and isinstance(node.func, ast.Attribute)
+                         and node.func.attr == "transact_write_items"]
+    assert len(transaction_calls) == 1, (
+        "one call site, so the retry policy cannot diverge between the two committers")
+
+    wrapper_calls = [node for node in ast.walk(TREE)
+                     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                     and node.func.id == "_transact_with_retry"]
+    assert wrapper_calls, "the wrapper must actually be called"
+
+    def owner_of(target):
+        return next(node.name for node in ast.walk(TREE)
+                    if isinstance(node, ast.FunctionDef)
+                    and any(call is target for call in ast.walk(node)))
+
+    assert owner_of(transaction_calls[0]) == "_transact_with_retry"
+    assert {owner_of(call) for call in wrapper_calls} == {"_commit_redemption", "_commit_void"}
+
+
+def test_marshal_is_byte_identical_to_boto3s_type_serializer():
+    """The hand-written marshaller is PINNED, not asserted.
+
+    `gift_card_store.py` may not import `boto3` at all - the gate above walks every
+    `ast.Import`/`ast.ImportFrom`, so moving the import into a function body would not help
+    either - so the AttributeValue shape is hand-written there and the equivalence is measured
+    HERE, in `tests/`, where botocore is already a dependency. That keeps the module's
+    import-free guarantee and still catches a divergence from boto3 in the one place that can
+    see both.
+
+    `_marshal` additionally refuses a `float` and a `Decimal` and a `bool`-as-amount, which is
+    strictly stricter than `TypeSerializer` on this path rather than different.
+    """
+    from boto3.dynamodb.types import TypeSerializer
+
+    serialise = TypeSerializer().serialize
+    values = [0, 1, -1, 150000, -150000, gc.MAX_VALUE_PAISE, -gc.MAX_VALUE_PAISE,
+              NOW, True, False,
+              gc.PREFIX_CARD + digest_of(), gc.PREFIX_CLAIM + digest_of() + "#attempt-1",
+              gc.STATUS_ACTIVE, "attempt-1"]
+    for value in values:
+        assert gc._marshal(value) == serialise(value), value
+
+    # Measured, and the reason the exact-type check is not decoration.
+    with pytest.raises(TypeError):
+        serialise(1.5)
+    for refused in (1.5, Decimal("150000"), None, [], {}):
+        with pytest.raises(gc.GiftCardValidationError) as refusal:
+            gc._marshal(refused)
+        assert refusal.value.code == "UNMARSHALABLE_VALUE"
+
+
+def test_no_branch_reads_the_post_commit_balance_observation():
+    """`balanceAfterPaise` is an OBSERVATION, so it must never become an input to a decision.
+
+    `TransactWriteItems` returns no `ALL_NEW`, so the figure is a separate read that may already
+    include a later interleaved move. Every site that touches it is a WRITE; this asserts that
+    structurally so a future `if row["balanceAfterPaise"] ...` cannot appear quietly.
+    """
+    observations = ("balanceAfterPaise", "voidBalanceAfterPaise")
+    for node in ast.walk(TREE):
+        # A subscript read, `row["balanceAfterPaise"]` or `.get("balanceAfterPaise")`.
+        if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant):
+            assert node.slice.value not in observations, (
+                f"line {node.lineno}: the post-commit balance is read, not written")
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "get" and node.args
+                and isinstance(node.args[0], ast.Constant)):
+            assert node.args[0].value not in observations, (
+                f"line {node.lineno}: the post-commit balance is read, not written")
 
 
 def test_the_status_index_is_sparse_so_only_cards_enter_it():
