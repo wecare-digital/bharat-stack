@@ -79,10 +79,17 @@ CONTRIBUTION_MODE = "BLOG_CONTRIBUTION_RAZORPAY_STANDARD"
 CONTRIBUTION_CURRENCY = "INR"
 
 #: SERVER-AUTHORITATIVE preset amounts, in integer paise, mirroring src/config/contribution.ts
-#: (CONTRIBUTION_PRESETS_PAISE = [4900, 9900, 19900] = ₹49 / ₹99 / ₹199). Defined HERE so the
+#: (CONTRIBUTION_PRESETS_PAISE = [20000, 40000, 60000] = ₹200 / ₹400 / ₹600). Defined HERE so the
 #: browser cannot widen them: the browser value is only a request, and the server validates against
 #: THIS set + the bounds below. A tuple, so it cannot be mutated at runtime.
-CONTRIBUTION_PRESETS_PAISE: Tuple[int, ...] = (4900, 9900, 19900)
+#:
+#: CHANGED FROM (4900, 9900, 19900) = ₹49/₹99/₹199 on owner instruction (2026-10-02). THE TWO LISTS
+#: MUST MOVE TOGETHER: this tuple and src/config/contribution.ts are deliberately separate
+#: declarations so the browser cannot widen the trusted set, which means changing one alone leaves
+#: the server and the UI disagreeing about what a "preset" is.
+#: tests/test_blog_contribution.py::test_server_presets_mirror_the_frontend_contract is the guard
+#: that fails if they drift.
+CONTRIBUTION_PRESETS_PAISE: Tuple[int, ...] = (20000, 40000, 60000)
 
 #: SERVER-AUTHORITATIVE custom-amount bounds, in integer paise, mirroring the client hint bounds
 #: (CONTRIBUTION_MIN_PAISE = 1000 = ₹10, CONTRIBUTION_MAX_PAISE = 10_000_000 = ₹1,00,000). These are
