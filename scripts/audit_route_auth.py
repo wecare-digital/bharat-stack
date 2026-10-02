@@ -163,6 +163,7 @@ EXPECTED_PUBLIC_ROUTES = {
     "GET /r/{code}": "public short-link redirect; anonymous by definition",
     # The endpoint whose job is to validate a token cannot require a valid token.
     "POST /auth/validate": "token validation endpoint; authenticating it would be circular",
+    "POST /blog/subscribe": "public subscription front door; caller has no session yet and must prove phone plus email OTP before any contact write",
     # Provider webhooks authenticate by signature over the raw body, which cannot
     # be expressed as an API Gateway authorizer. Verified in the handler.
     "GET /webhook/sinch-rcs": "Sinch health probe; POST carries the HMAC",

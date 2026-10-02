@@ -371,8 +371,13 @@ export interface Contact {
   id: string;
   contactId: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   phone: string;
   email?: string;
+  phoneVerifiedAt?: string;
+  emailVerifiedAt?: string;
+  blogSubscribedAt?: string;
   // WhatsApp BSUID (Business-Scoped User ID) — unique per WABA portfolio
   bsuid?: string;
   // Parent BSUID (linked account)
@@ -485,8 +490,13 @@ function normalizeContact ( item: any ): Contact {
     id: item.id || item.contactId || '',
     contactId: item.contactId || item.id || '',
     name: item.name || '',
+    firstName: item.firstName || '',
+    lastName: item.lastName || '',
     phone: item.phone || '',
     email: item.email || '',
+    phoneVerifiedAt: normalizeTimestamp( item.phoneVerifiedAt ),
+    emailVerifiedAt: normalizeTimestamp( item.emailVerifiedAt ),
+    blogSubscribedAt: normalizeTimestamp( item.blogSubscribedAt ),
     bsuid: item.bsuid || '',
     username: item.username || '',
     contactBookName: item.contactBookName || '',
