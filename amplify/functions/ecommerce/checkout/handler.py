@@ -476,14 +476,14 @@ def _website_verify(identity: customer_auth.CustomerIdentity, body: Dict[str, An
             _attempts_table().update_item(
                 Key={"paymentAttemptId": result.payment_attempt_id},
                 UpdateExpression=(
-                    "SET #s=:s, attemptRank=:r, paidAt=if_not_exists(paidAt,:paid), "
+                    "SET #s=:s, attemptRank=:rank, paidAt=if_not_exists(paidAt,:paid), "
                     "updatedAt=:u, providerPaymentId=:pid, providerOrderId=:oid"
                 ),
                 ConditionExpression=payment_attempt.condition_expression(),
                 ExpressionAttributeNames={"#s": "status"},
                 ExpressionAttributeValues={
                     ":s": advanced["status"],
-                    ":r": advanced[payment_attempt.RANK_ATTRIBUTE],
+                    ":rank": advanced[payment_attempt.RANK_ATTRIBUTE],
                     ":paid": advanced["paidAt"],
                     ":u": advanced["updatedAt"],
                     ":pid": result.payment_id,

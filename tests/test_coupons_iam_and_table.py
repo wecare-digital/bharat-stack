@@ -104,6 +104,8 @@ def _checkout_policy() -> dict:
         "COUPONS_TABLE": getattr(checkout, "COUPONS_TABLE", "stack-wecare-digital-CouponsTable"),
         "GIFT_CARDS_TABLE": getattr(checkout, "GIFT_CARDS_TABLE",
                                     "stack-wecare-digital-GiftCardsTable"),
+        "CONTACTS_TABLE": getattr(checkout, "CONTACTS_TABLE",
+                                  "stack-wecare-digital-ContactsTable"),
     }
     try:
         return eval(body, {"__builtins__": {}}, namespace)  # noqa: S307 - our own source

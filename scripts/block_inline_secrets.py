@@ -34,7 +34,7 @@ assignments. It does NOT try to catch every high-entropy string.
 
 Reference, not a value: pass secrets by reference instead.
     aws secretsmanager ... is gated; prefer
-    {{resolve:secretsmanager:wecare/razorpay-webhook:SecretString:key_id}}
+    {{resolve:secretsmanager:wecare/razorpay/api:SecretString:key_id}}
     or read them inside the Lambda at runtime, never on a command line.
 """
 
@@ -120,7 +120,7 @@ def main() -> int:
         "when approved with 'Always allow' - that is how four live keys leaked "
         "on 2026-09-19.\n"
         "Pass the secret by reference instead: read it inside the function from "
-        "Secrets Manager by NAME (e.g. SecretId='wecare/razorpay-webhook'), or "
+        "Secrets Manager by NAME (e.g. SecretId='wecare/razorpay/api'), or "
         "use {{resolve:secretsmanager:<name>:SecretString:<json-key>}}. "
         "Never put the value on a command line.",
         file=sys.stderr,

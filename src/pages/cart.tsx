@@ -70,6 +70,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 
 import PageTopBand from '../components/PageTopBand';
 import PillButton from '../components/PillButton';
+import CheckoutProfile from '../components/CheckoutProfile';
+import type { CheckoutProfileValue } from '../components/CheckoutProfile';
 import { getSession, restoreSession } from '../lib/customerAuth';
 import {
   readCart, setQuantity, removeItem, toLineItems,
@@ -77,7 +79,10 @@ import {
 import type { CartItem } from '../lib/cart';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
-const CHECKOUT_URL = `${API_BASE}/ecommerce/checkout`;
+const PREPARE_CHECKOUT_URL = `${API_BASE}/ecommerce/prepare-checkout`;
+const VERIFY_CHECKOUT_URL = `${API_BASE}/ecommerce/verify-callback`;
+const RAZORPAY_SDK = 'https://checkout.razorpay.com/v1/checkout.js';
+const CHECKOUT_REQUEST_KEY = 'wc_checkout_request_key';
 /**
  * SECTION 2 REDEMPTION ENDPOINT. The coupon/gift-card apply/remove requests go here; the SERVER
  * decides every amount (an authoritative Wix/backend discount, an authoritative gift-card balance),
@@ -119,6 +124,64 @@ type Notice =
   | { kind: 'none' }
   | { kind: 'quiet'; message: string }
   | { kind: 'error'; message: string };
+
+type RazorpaySuccess = {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  order_id: string;
+  name: string;
+  description: string;
+  prefill?: Record<string, string>;
+  handler: ( result: RazorpaySuccess ) => void | Promise<void>;
+  modal?: { ondismiss?: () => void };
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new ( options: RazorpayOptions ) => {
+      open: () => void;
+      on: ( event: string, callback: ( payload: unknown ) => void ) => void;
+    };
+  }
+}
+
+function getCheckoutRequestKey (): string {
+  if ( typeof window === 'undefined' ) return '';
+  const existing = window.sessionStorage.getItem( CHECKOUT_REQUEST_KEY );
+  if ( existing ) return existing;
+  const generated = typeof window.crypto?.randomUUID === 'function'
+    ? window.crypto.randomUUID()
+    : `checkout-${ Date.now() }-${ Math.random().toString( 36 ).slice( 2 ) }`;
+  window.sessionStorage.setItem( CHECKOUT_REQUEST_KEY, generated );
+  return generated;
+}
+
+function loadRazorpaySdk (): Promise<boolean> {
+  if ( typeof window === 'undefined' ) return Promise.resolve( false );
+  if ( window.Razorpay ) return Promise.resolve( true );
+  const existing = document.querySelector<HTMLScriptElement>( `script[src="${ RAZORPAY_SDK }"]` );
+  if ( existing ) {
+    return new Promise( resolve => {
+      existing.addEventListener( 'load', () => resolve( Boolean( window.Razorpay ) ), { once: true } );
+      existing.addEventListener( 'error', () => resolve( false ), { once: true } );
+    } );
+  }
+  return new Promise( resolve => {
+    const script = document.createElement( 'script' );
+    script.src = RAZORPAY_SDK;
+    script.async = true;
+    script.onload = () => resolve( Boolean( window.Razorpay ) );
+    script.onerror = () => resolve( false );
+    document.head.appendChild( script );
+  } );
+}
 
 /**
  * THE SERVER-AUTHORITATIVE REDEMPTION RESPONSE, projected to the browser-safe fields only. Every
@@ -400,6 +463,10 @@ export default function Cart (): React.ReactElement {
   const [ ready, setReady ] = useState<boolean>( false );
   const [ busy, setBusy ] = useState<boolean>( false );
   const [ notice, setNotice ] = useState<Notice>( { kind: 'none' } );
+  const [ showProfile, setShowProfile ] = useState<boolean>( false );
+  const [ checkoutAccessToken, setCheckoutAccessToken ] = useState<string>( '' );
+  const [ profile, setProfile ] = useState<CheckoutProfileValue | null>( null );
+  const [ paymentBlocked, setPaymentBlocked ] = useState<boolean>( false );
 
   useEffect( () => {
     setItems( readCart() );
@@ -430,6 +497,18 @@ export default function Cart (): React.ReactElement {
       return;
     }
 
+    if ( !profile )
+    {
+      setCheckoutAccessToken( session.accessToken );
+      setShowProfile( true );
+      setNotice( {
+        kind: 'quiet',
+        message: 'Confirm your name and verify your email before secure payment.',
+      } );
+      return;
+    }
+
+    setPaymentBlocked( false );
     const lineItems = toLineItems();
     if ( lineItems.length === 0 )
     {
@@ -440,14 +519,17 @@ export default function Cart (): React.ReactElement {
     setBusy( true );
     try
     {
-      const response = await fetch( CHECKOUT_URL, {
+      const response = await fetch( PREPARE_CHECKOUT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.accessToken}`,
         },
-        // refs + quantities ONLY. No price, amount or currency leaves the browser.
-        body: JSON.stringify( { action: 'create', lineItems } ),
+        body: JSON.stringify( {
+          action: 'prepare',
+          lineItems,
+          requestKey: getCheckoutRequestKey(),
+        } ),
       } );
 
       if ( response.status === 401 )
@@ -462,8 +544,120 @@ export default function Cart (): React.ReactElement {
         error?: string;
         paymentAttemptId?: string;
         message?: string;
+        options?: {
+          keyId?: string;
+          orderId?: string;
+          amountPaise?: number;
+          currency?: string;
+          prefill?: Record<string, string>;
+          paymentAttemptId?: string;
+        };
       };
       const status = String( data.status || data.error || '' ).toUpperCase();
+
+      if ( status === 'PROFILE_REQUIRED' )
+      {
+        setCheckoutAccessToken( session.accessToken );
+        setProfile( null );
+        setShowProfile( true );
+        setNotice( { kind: 'quiet', message: 'Verify and save your checkout details again.' } );
+        return;
+      }
+
+      if ( status === 'CHECKOUT_OPTIONS_READY' && data.options )
+      {
+        const options = data.options;
+        if (
+          !options.keyId || !options.orderId || typeof options.amountPaise !== 'number'
+          || !options.currency || !data.paymentAttemptId
+        )
+        {
+          setNotice( { kind: 'error', message: 'We could not confirm checkout. Check your orders before trying again.' } );
+          return;
+        }
+
+        const sdkReady = await loadRazorpaySdk();
+        if ( !sdkReady || !window.Razorpay )
+        {
+          setNotice( { kind: 'error', message: 'Secure payment could not open. Your cart is unchanged.' } );
+          return;
+        }
+
+        const attemptId = String( data.paymentAttemptId );
+        const razorpay = new window.Razorpay( {
+          key: options.keyId,
+          amount: options.amountPaise,
+          currency: options.currency,
+          order_id: options.orderId,
+          name: 'WECARE.DIGITAL',
+          description: 'Order payment',
+          prefill: options.prefill,
+          handler: async ( result: RazorpaySuccess ) => {
+            try {
+              const verified = await fetch( VERIFY_CHECKOUT_URL, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${ session.accessToken }`,
+                },
+                body: JSON.stringify( {
+                  action: 'verify',
+                  razorpay_payment_id: result.razorpay_payment_id,
+                  razorpay_order_id: result.razorpay_order_id,
+                  razorpay_signature: result.razorpay_signature,
+                } ),
+              } );
+              const verdict = await verified.json().catch( () => ( {} ) ) as {
+                status?: string;
+                paymentAttemptId?: string;
+              };
+              if ( verified.ok && String( verdict.status || '' ).toUpperCase() === 'VERIFIED_PAID' )
+              {
+                const paidAttempt = encodeURIComponent( String( verdict.paymentAttemptId || attemptId ) );
+                window.location.assign( `/checkout/status/?a=${ paidAttempt }` );
+                return;
+              }
+              setNotice( {
+                kind: 'error',
+                message: 'Payment returned, but we are still verifying it. Check your orders before retrying.',
+              } );
+            } catch {
+              setNotice( {
+                kind: 'error',
+                message: 'Payment returned, but we could not confirm it yet. Check your orders before retrying.',
+              } );
+            }
+          },
+          modal: {
+            ondismiss: () => setNotice( {
+              kind: 'quiet',
+              message: 'Payment window closed. Your cart is unchanged.',
+            } ),
+          },
+        } );
+        razorpay.on( 'payment.failed', () => {
+          setNotice( {
+            kind: 'error',
+            message: 'Payment was not completed. Check your orders before trying again.',
+          } );
+        } );
+        razorpay.open();
+        return;
+      }
+
+      if ( status === 'CHECKOUT_AMBIGUOUS' && data.paymentAttemptId )
+      {
+        const a = encodeURIComponent( String( data.paymentAttemptId ) );
+        window.location.assign( `/checkout/status/?a=${ a }` );
+        return;
+      }
+
+      if ( status === 'CHECKOUT_REJECTED' )
+      {
+        setPaymentBlocked( true );
+        setNotice( { kind: 'error', message: NOT_PREPARED } );
+        return;
+      }
 
       // PAYMENT_REQUEST_SENT hands off to the hosted status screen, which owns the honest copy for
       // an attempt that is genuinely in flight. NO claim about a charge is made here in either
@@ -494,6 +688,7 @@ export default function Cart (): React.ReactElement {
       // the cart is still the shopper's.
       if ( status === 'PAYMENT_INITIATION_DISABLED' )
       {
+        setPaymentBlocked( true );
         setNotice( { kind: 'quiet', message: NOT_PREPARED } );
         return;
       }
@@ -502,6 +697,7 @@ export default function Cart (): React.ReactElement {
       // evidence holds and the same sentence is the honest one.
       if ( status === 'PAYMENT_UNAVAILABLE' )
       {
+        setPaymentBlocked( true );
         setNotice( { kind: 'quiet', message: NOT_PREPARED } );
         return;
       }
@@ -516,6 +712,7 @@ export default function Cart (): React.ReactElement {
       // The message did not go out. The attempt exists and nothing was charged, so a retry is safe.
       if ( status === 'SEND_FAILED' )
       {
+        setPaymentBlocked( true );
         setNotice( {
           kind: 'quiet',
           message: 'We could not open the payment. No charge was made - please try again.',
@@ -530,6 +727,7 @@ export default function Cart (): React.ReactElement {
         || status === 'CATALOGUE_UNAVAILABLE'
       )
       {
+        setPaymentBlocked( true );
         setNotice( { kind: 'error', message: NOT_PREPARED } );
         return;
       }
@@ -552,7 +750,7 @@ export default function Cart (): React.ReactElement {
     {
       setBusy( false );
     }
-  }, [] );
+  }, [ profile ] );
 
   const isEmpty = ready && items.length === 0;
 
@@ -619,6 +817,20 @@ export default function Cart (): React.ReactElement {
                   gate off this shows an honest unavailable state and cannot transact. */}
               <RedemptionPanel />
 
+              { showProfile && checkoutAccessToken && (
+                <CheckoutProfile
+                  accessToken={ checkoutAccessToken }
+                  onReady={ next => {
+                    setProfile( next );
+                    setShowProfile( false );
+                    setNotice( {
+                      kind: 'quiet',
+                      message: 'Checkout details verified. Continue to secure payment.',
+                    } );
+                  } }
+                />
+              ) }
+
               {/* Catalogue prices are for display; the server approves the payable total. */}
               <p className="cart-note">
                 The store confirms your final total, including taxes and fees, before payment.
@@ -650,8 +862,10 @@ export default function Cart (): React.ReactElement {
                 <PillButton
                   as="button"
                   type="button"
-                  label="Checkout"
-                  action={ busy ? 'Preparing…' : 'Proceed' }
+                  label={ profile && !paymentBlocked ? 'Secure checkout' : 'Checkout' }
+                  action={ busy
+                    ? 'Preparing…'
+                    : ( profile ? ( paymentBlocked ? 'Try again' : 'Pay securely' ) : 'Proceed' ) }
                   onClick={ proceed }
                   disabled={ busy }
                   busy={ busy }
