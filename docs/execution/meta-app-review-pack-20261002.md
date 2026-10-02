@@ -4,6 +4,25 @@ App: WECARE.DIGITAL, 2238810740192680. Prepared 2026-10-02 from current source,
 native Meta MCP documentation, and the existing app's review screens.
 This is a preparation pack, not a completed submission or successful test report.
 
+## Live Meta MCP review check
+
+devtools_app_review(action=requirements) returned can_submit=false: "Cannot
+submit to App Review while a previous submission is in review." Privacy policy
+and business-verification prerequisites pass. Meta currently marks use-case,
+screencast and data-use checkup incomplete for all three requested permissions;
+API precheck incomplete for ads_management and ads_mcp_management; dependent
+permission pages_read_engagement incomplete for ads_management. Marketing API
+Access Tier's use-case and data-use checkup are complete, but its API precheck
+is incomplete. These are direct live review findings, not guesses from source.
+The separate status read reports an UNSUBMITTED draft (2422724488467970),
+is_pending=false, and a previously approved submission. History identifies that
+approval as manage_app_solution only (2422629578477461); it is not approval of
+catalog_management, ads_management or ads_mcp_management. The browser is editing
+another draft, 2422724491801303. Consequently the generic requirements blocker
+and status response are inconsistent/draft-scoped and do not establish that a
+review is actually still pending. Check the exact current submission in Meta's
+UI before submitting. The permission evidence gaps remain independently clear.
+
 ## Readiness before you paste and submit
 
 The cloud callback https://wecare.digital/api/workspace/mcp/oauth/callback is
