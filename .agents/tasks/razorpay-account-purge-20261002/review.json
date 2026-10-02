@@ -19,7 +19,7 @@
       "blocking": false,
       "severity": "HIGH",
       "confidence": "confirmed",
-      "detail": ".kiro/steering/META-BETA-REQUEST-EMAIL.md:49,51 still names acc_HDfub6wOfQybuH as the Razorpay merchant for two payment configurations inside a draft email to Meta, so it is the value an owner would transcribe into a live beta request. Declining to edit it is correct: the file is modified-unstaged by another session (+18 lines, an editor's note at lines 6-23 about MCC 4722 vs live 7392 and PayU retirement), and committing the working-tree version would sweep that work under this commit's message. Verified that origin/stack replaces both ids at 49/51, that the dirty hunk does not overlap, and that git grep -c acc_HDfub6wOfQybuH origin/stack returns nothing.",
+      "detail": ".kiro/steering/META-BETA-REQUEST-EMAIL.md:49,51 still names [retired Razorpay account] as the Razorpay merchant for two payment configurations inside a draft email to Meta, so it is the value an owner would transcribe into a live beta request. Declining to edit it is correct: the file is modified-unstaged by another session (+18 lines, an editor's note at lines 6-23 about MCC 4722 vs live 7392 and PayU retirement), and committing the working-tree version would sweep that work under this commit's message. Verified that origin/stack replaces both ids at 49/51, that the dirty hunk does not overlap, and that git grep -c [retired Razorpay account] origin/stack returns nothing.",
       "action": "Merge origin/stack once the owning session commits META-BETA-REQUEST-EMAIL.md. No edit from this session."
     },
     {
@@ -28,7 +28,7 @@
       "blocking": false,
       "severity": "MEDIUM",
       "confidence": "confirmed",
-      "detail": "The prescribed merge imports placeholder substitutions into docs/execution/phase-04d-payment-audit.md, checkout-consolidation-findings-20261001.md, change-authority-matrix.md, .agents/tasks/deep-audit-20261001b.md, phase-a-plan.md and section68-current-state-audit-20261001.md (6 files, +69/-22). One replaces the literal measured dedup key acc_HDfub6wOfQybuH:payment.downtime.started:1790100905, and another replaces a value under a column headed 'Live value', so audit records no longer contain what was measured. This repo states the opposing principle in the seam file itself: 'rewriting a sent email would falsify the record'. Not a defect in 6e1a4178, which left Class C untouched.",
+      "detail": "The prescribed merge imports placeholder substitutions into docs/execution/phase-04d-payment-audit.md, checkout-consolidation-findings-20261001.md, change-authority-matrix.md, .agents/tasks/deep-audit-20261001b.md, phase-a-plan.md and section68-current-state-audit-20261001.md (6 files, +69/-22). One replaces the literal measured dedup key [retired Razorpay account]:payment.downtime.started:1790100905, and another replaces a value under a column headed 'Live value', so audit records no longer contain what was measured. This repo states the opposing principle in the seam file itself: 'rewriting a sent email would falsify the record'. Not a defect in 6e1a4178, which left Class C untouched.",
       "action": "Decide explicitly whether audit-trail rewriting is accepted before merging, rather than inheriting it silently."
     },
     {
@@ -82,7 +82,7 @@
       "blocking": false,
       "severity": "INFORMATIONAL",
       "confidence": "confirmed",
-      "detail": "The doc records 7 files for acc_HDfub6wOfQybuH and 5 for wecaredigital83.rzp@icici; measured tracked counts are 8 and 6, because the handoff doc itself quotes both identifiers.",
+      "detail": "The doc records 7 files for [retired Razorpay account] and 5 for [retired UPI VPA]; measured tracked counts are 8 and 6, because the handoff doc itself quotes both identifiers.",
       "action": "Harmless, but a reviewer re-measuring will see a mismatch."
     },
     {
