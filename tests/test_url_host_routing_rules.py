@@ -60,3 +60,13 @@ def test_both_mcp_forms_proxy_to_one_backend(rules):
 def test_no_path_redirects_shadow_api_or_staff_pages(rules):
     assert not [rule for rule in rules if rule['source'].startswith('/') and rule['status'] in ('301','302','307','308')]
     assert rules[0] == WWW
+
+
+def test_saved_pre_removal_configuration_reconciles_to_post_removal_snapshot(redirects, rules, tmp_path, monkeypatch):
+    # Preserve the concurrent routing fix's stronger before-to-after assertion.
+    before = json.loads((SNAPSHOTS / 'retired-url-rules-before-20261002.json').read_text())
+    monkeypatch.setattr(redirects, 'ROOT', tmp_path)
+    client = Client()
+    assert redirects.apply(client, before) == 0
+    assert client.written == rules
+    assert [r for r in client.written if r['status'] == '200'] == [r for r in before if r['status'] == '200']

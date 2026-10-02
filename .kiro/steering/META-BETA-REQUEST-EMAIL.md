@@ -4,6 +4,24 @@ inclusion: manual
 
 # Emails to Meta: Enable Beta Features on Both WABAs
 
+> **Editor's note, 2026-09-30 — this is a historical record of emails as sent; the
+> email text below is NOT edited.** Two values in it are now stale against the live
+> Meta payment configurations, and are kept only because rewriting a sent email would
+> falsify the record:
+>
+> - **MCC.** The email states `4722 (Travel Agencies and Tour Operators)`. The live
+>   configs on both WABAs report **`7392` (Management, consulting and public relations
+>   services)**, verified against Graph `/{waba}/payment_configurations` on 2026-08-23.
+>   The authoritative live value lives in `src/config/constants.ts` (`PAYMENT_DETAILS.mcc`).
+> - **PayU.** The email requests TPV for PayU. PayU is **retired** — it is no longer a
+>   payment gateway on either WABA and its secret is permanently gone. Razorpay is the
+>   only gateway. See `.kiro/steering/whatsapp-payments-india-reference.md`.
+>
+> Open compliance question, unchanged: MCC `7392` describes consulting while purpose
+> code `03` is Travel. That mismatch is flagged in `docs/protected-resource-register.md`
+> and `bw-crm.md` as needing Meta/Razorpay/business confirmation — it is not something
+> to silently "fix" in config.
+
 ---
 
 ## EMAIL 1 — MAIN REQUEST (Send This First)
