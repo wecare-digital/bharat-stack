@@ -38,7 +38,7 @@ from lambda_utils import payment_status as ps  # noqa: E402
 #: The real live payload, copied from a RazorpayWebhookLogTable row on 2026-09-23.
 LIVE_DOWNTIME = {
     "event": "payment.downtime.started",
-    "account_id": "acc_HDfub6wOfQybuH",
+    "account_id": "acc_RETIRED_FIXTURE",
     "created_at": 1790068149,
     "payload": {
         "payment.downtime": {
@@ -58,7 +58,7 @@ LIVE_DOWNTIME = {
 
 LIVE_PAYMENT = {
     "event": "payment.captured",
-    "account_id": "acc_HDfub6wOfQybuH",
+    "account_id": "acc_RETIRED_FIXTURE",
     "created_at": 1790068200,
     "payload": {
         "payment": {

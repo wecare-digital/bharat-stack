@@ -484,19 +484,19 @@ Distinguish two cases and handle them differently: a **live-state statement** (`
 | `docs/protected-resource-register.md:89`, `docs/whatsapp-experience-structure.md:378` | historical registers |
 | `integrations/wix-velo-payment/KIRO-IMPLEMENTATION-PROMPT.md:552`, `DEPLOYMENT-STATUS.md:21` | removed with the tree |
 
-### S5 — "`acc_HDfub6wOfQybuH` is current" (the runtime value)
+### S5 — "`[retired Razorpay account]` is current" (the runtime value)
 
 | file:line | Class |
 |---|---|
 | **live Lambda env** `wecare-whatsapp-business-api.RAZORPAY_MID` | **CURRENT LIVE CONFIG**, and the repo classifies it STALE |
 | `docs/compatibility.md:80` | "strong — this is the account that talks to us" — **the reversed weighting; the main stale-prose site** |
 | `docs/execution/phase-04d-payment-audit.md:46` | dated evidence: the `account_id` in real webhook payloads → label, do not edit |
-| `tests/test_payment_status.py:41` | webhook fixture `"account_id": "acc_HDfub6wOfQybuH"` → **KEEP**, it is a fixture of a real payload |
+| `tests/test_payment_status.py:41` | webhook fixture `"account_id": "[retired Razorpay account]"` → **KEEP**, it is a fixture of a real payload |
 | `tests/test_payment_readiness.py:79-84` | pinned as the **mismatch** fixture asserting `RAZORPAY_MID_MISMATCH` → KEEP |
 | `.kiro/steering/META-BETA-REQUEST-EMAIL.md:49,51` | **another session's modified file.** Do NOT edit in this phase |
 | `src/pages/workspace/dashboard/system-architecture.tsx:395` | already records the pair as retired — KEEP |
 
-**Owner-blocked, and the boundary is exact.** Runtime evidence shows `acc_HDfub6wOfQybuH`;
+**Owner-blocked, and the boundary is exact.** Runtime evidence shows `[retired Razorpay account]`;
 the owner readout says `acc_TTFSyolquKEZEy`. Record both with their evidence and dates.
 **Do not assert that Meta's `provider_mid` and Razorpay's webhook `account_id` are the same
 field** without a provider readback — they may legitimately differ, and

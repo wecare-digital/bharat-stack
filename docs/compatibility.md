@@ -77,8 +77,8 @@ They are not symmetric, though, and the asymmetry is the useful part:
 
 | Value | Evidence | Weight |
 |---|---|---|
-| `acc_HDfub6wOfQybuH` | live env `RAZORPAY_MID` on `wecare-whatsapp-business-api`; `config/lambda-env-manifest.json:466`; **the `account_id` carried by real Razorpay webhook payloads** (`docs/execution/phase-04d-payment-audit.md:46`, `tests/test_payment_status.py` fixtures) | strong — this is the account that talks to us |
-| `acc_TTFSyolquKEZEy` | prose and comments only: this file, `bw-crm.md`, `protected-resource-register.md`, `whatsapp-experience-structure.md`, `outbound-whatsapp:373,380`, `whatsapp-business-api:3150` | weak — no live artefact |
+| Retired account | Previously present in Lambda environment and historical webhook events. Removed from current source identifiers on 2026-10-02. | Retired; do not use for new payments |
+| `acc_TTFSyolquKEZEy` | Owner-confirmed merchant decision, documented in `lambda_utils/payment_readiness.py` and pinned in the deployment manifest. | Authoritative merchant ID; API-key ownership still requires verification |
 
 They are also different *fields*: one is the Razorpay merchant account, the other was only ever
 claimed as the Meta configuration's `provider_mid`. `lambda_utils/payment_readiness.py` refuses

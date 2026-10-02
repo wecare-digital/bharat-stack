@@ -558,9 +558,9 @@ def _razorpay_creds():
     the other secret, so one credential keeps one home rather than being copied
     into two places.
 
-    Falls back to the old location so a partially-migrated environment still works.
+    API credentials have one canonical location; webhook signing is separate.
     """
-    for secret_id in ('wecare/razorpay/api', 'wecare/razorpay-webhook'):
+    for secret_id in ('wecare/razorpay/api',):
         try:
             raw = _secrets.get_secret_value(SecretId=secret_id).get('SecretString', '') or '{}'
             d = json.loads(raw)

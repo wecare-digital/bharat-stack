@@ -43,7 +43,7 @@ The key was `account_id:event_type:created_at`, upgraded to `{entity_id}:{event_
 different key, so every one of them used the coarse form.
 
 Razorpay emits one downtime per bank, and banks fail together, so `created_at` is not a
-discriminator. One key — `acc_HDfub6wOfQybuH:payment.downtime.started:1790100905` — was
+discriminator. One key — `[retired Razorpay account]:payment.downtime.started:1790100905` — was
 delivered 6 times with two distinct body sizes while our endpoint returned 200 each time.
 Different body means different event, so those were distinct downtimes collapsed into one.
 

@@ -3162,7 +3162,7 @@ _PAYMENT_WABA_ID = os.environ.get('PAYMENT_WABA_ID', '')
 #
 # There are deliberately NO hardcoded MID / VPA fallbacks any more. The previous ones were
 # `acc_TTFSyolquKEZEy` and `wecaredigitalbh511413.rzp@rxairtel`, and both disagreed with the
-# live Lambda environment (`acc_HDfub6wOfQybuH`, `wecaredigital83.rzp@icici`) - a different
+# live Lambda environment (`[retired Razorpay account]`, `wecaredigital83.rzp@icici`) - a different
 # account and a different PSP handle. A wrong merchant id is worse than an absent one: absent
 # yields CONFIGURATION_UNVERIFIED and blocks, whereas wrong could match a configuration
 # pointing at an account nobody here reconciles against. Empty is the fail-closed value.

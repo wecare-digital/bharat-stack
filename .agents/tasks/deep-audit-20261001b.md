@@ -53,7 +53,7 @@ session's and were left exactly as found).
    tables are still at COUNT 0.
 
 6. **The live-vs-manifest Razorpay MID/UPI disagreement is unchanged.** Live
-   `wecare-whatsapp-business-api` still carries `RAZORPAY_MID=acc_HDfub6wOfQybuH` and
+   `wecare-whatsapp-business-api` still carries `RAZORPAY_MID=[retired Razorpay account]` and
    `RAZORPAY_UPI_ID=wecaredigital83.rzp@icici`; the manifest still holds the other pair. Still
    blocked on the owner's provider readback (prior audit item 20-D). **HIGH.**
 
@@ -287,7 +287,7 @@ holding four credentials is a secret nobody will remember to retire.
 `GetFunctionConfiguration wecare-whatsapp-business-api`, non-secret env keys only:
 
 ```
-RAZORPAY_MID      acc_HDfub6wOfQybuH
+RAZORPAY_MID      [retired Razorpay account]
 RAZORPAY_UPI_ID   wecaredigital83.rzp@icici
 PAYMENT_WABA_ID   2094615664435155
 LastModified      2026-09-30T11:02:22.000+0000

@@ -34,7 +34,7 @@ work. `payment_readiness.py` still refuses if a live readback disagrees.
 **Both readiness conflicts are RESOLVED, and the resolution reversed the repo's earlier guess:**
 
 - **Razorpay MID** is `acc_TTFSyolquKEZEy` (the value Meta reports as the config's `provider_mid`).
-  The repo had assumed `acc_HDfub6wOfQybuH` — that was the stale env value and the webhook
+  The repo had assumed `[retired Razorpay account]` — that was the stale env value and the webhook
   `account_id`, not what the configuration points at. `config/lambda-env-manifest.json` and
   `payment_readiness.py` corrected; the manifest env is **not yet pushed live** — it rides with the
   credential-load step.

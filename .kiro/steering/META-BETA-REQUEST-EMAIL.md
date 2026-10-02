@@ -28,9 +28,9 @@ We are WECARE.DIGITAL, an active WhatsApp Payments merchant processing live paym
 
 | Config Name | WABA | Gateway | Merchant ID |
 |---|---|---|---|
-| WECARE-RAZOR-PAY | 2094615664435155 | Razorpay | acc_HDfub6wOfQybuH |
+| WECARE-RAZOR-PAY | 2094615664435155 | Razorpay | [retired Razorpay account] |
 | WECARE-PAYU | 2094615664435155 | PayU | 8629516 |
-| Razorpay_ManishAgarwal | 2513394156072604 | Razorpay | acc_HDfub6wOfQybuH |
+| Razorpay_ManishAgarwal | 2513394156072604 | Razorpay | [retired Razorpay account] |
 | PayU_ManishAgarwal | 2513394156072604 | PayU | 8629516 |
 
 ### Features Requested (Enable on BOTH WABAs)

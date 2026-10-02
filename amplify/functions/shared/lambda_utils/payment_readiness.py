@@ -20,7 +20,7 @@ answer is derived from a live readback, and the absence of a readback is itself 
 The MID question — RESOLVED 2026-09-30 by the owner, and the resolution reversed the guess
 ------------------------------------------------------------------------------------------
 Two Razorpay merchant ids appeared in the repo. Earlier prose here reasoned that
-`acc_HDfub6wOfQybuH` was authoritative because it was in live env and carried by Razorpay
+`[retired Razorpay account]` was authoritative because it was in live env and carried by Razorpay
 webhook payloads, and dismissed `acc_TTFSyolquKEZEy` as "prose and code comments only, no live
 artefact". **That reasoning was wrong, and the owner confirmed it against the live Meta dashboard.**
 
@@ -28,7 +28,7 @@ artefact". **That reasoning was wrong, and the owner confirmed it against the li
                          payment configurations (`WECAREDIGITAL` on WABA 2094615664435155, and the
                          same on WABA 2513394156072604). This is the `provider_mid` Meta will
                          report, so it is what `expected_provider_mid` must equal.
-  `acc_HDfub6wOfQybuH`   STALE. It was the `RAZORPAY_MID` env value and appears as `account_id` in
+  `[retired Razorpay account]`   STALE. It was the `RAZORPAY_MID` env value and appears as `account_id` in
                          older webhook fixtures, but it is NOT what Meta's configuration points at.
                          `config/lambda-env-manifest.json` was corrected to `acc_TTFSyolquKEZEy`.
 
