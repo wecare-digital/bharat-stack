@@ -55,7 +55,7 @@ describe( 'BlogContribution presets', () => {
   it( 'uses an h2 heading and the mandated primary copy, never an h1', () => {
     const { container } = renderBlock();
     expect( container.querySelector( 'h1' ) ).toBeNull();
-    expect( container.querySelector( 'h2' )?.textContent ).toBe( 'Support this work' );
+    expect( container.querySelector( 'h2' )?.textContent ).toBe( 'Contribute' );
     expect( container.textContent ).toContain(
       'If this article was useful, you can make a small voluntary contribution to support more '
       + 'independent writing and practical guides from WECARE.DIGITAL.'

@@ -1,31 +1,66 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 
 import ZipPage from '../pages/zip';
 
 /**
  * /zip — the request/delivery/pickup hub (Section 3).
  *
- * WHAT THIS GUARDS. The owner's heading and lead must be present, the real request routes must
- * resolve to the real existing pages, and the capabilities with NO backend (visit/pickup/delivery
- * tracking) must be clearly non-transacting: no href, not a button, and carrying aria-disabled so
- * nothing reads as a working booking control.
+ * WHAT THIS GUARDS. Zip now matches the HOME PAGE: it renders the shared RotatingHero (the
+ * reusable version of the home page's animated headline pill) and a scroll-reveal closing band
+ * that uses the same opt-in .is-armed mechanism. These assertions therefore pin:
+ *   - the page owns exactly one <h1> and one <main>, both provided by the hero (not a second of
+ *     either, which htmlcheck's H1-MANY / MANY-MAIN guard against);
+ *   - the "Zip" identity and the owner's lead are present;
+ *   - the hero reuses RotatingHero rather than copying its markup, so the animation family cannot
+ *     drift;
+ *   - the real request routes still resolve to the real existing pages;
+ *   - the capabilities with NO backend (visit / pickup / delivery tracking) are still clearly
+ *     non-transacting: no href, not a button, carrying aria-disabled;
+ *   - reduced-motion handling is still present (the hero's and the closing band's), so the
+ *     animation can be turned off.
  *
  * next/head is a no-op in jsdom, so PageMeta renders nothing observable here; the assertions are
- * on the page body the shared band wraps.
+ * on the page body the hero wraps.
  */
 describe( 'Zip page', () => {
-  it( 'renders the owner heading and lead through the shared band', () => {
+  it( 'owns a single h1 and a single main through the shared hero', () => {
     const { container } = render( <ZipPage /> );
-    // One h1 from PageTopBand, carrying the mandated word.
-    const h1s = container.querySelectorAll( 'h1' );
-    expect( h1s ).toHaveLength( 1 );
-    expect( h1s[ 0 ].textContent ).toBe( 'Zip' );
+    // RotatingHero provides exactly one <h1> and one <main>; the page must not add its own of
+    // either (htmlcheck guards H1-MANY and MANY-MAIN).
+    expect( container.querySelectorAll( 'h1' ) ).toHaveLength( 1 );
+    expect( container.querySelectorAll( 'main' ) ).toHaveLength( 1 );
+  } );
+
+  it( 'carries the Zip identity and the owner lead on the animated hero', () => {
+    const { container } = render( <ZipPage /> );
+    // The hero frame line, which with the rotating nouns forms the single h1.
+    const h1 = container.querySelector( 'h1' );
+    expect( h1?.textContent ).toContain( 'Everything about your' );
+    // The "Zip" identity sits in the brand badge above the headline.
+    expect( screen.getByText( 'Zip' ) ).toBeInTheDocument();
     // The mandated lead.
     expect( screen.getByText( 'Track it. Arrange it. Keep it moving.' ) ).toBeInTheDocument();
-    // The shared band provides exactly one main landmark; the page does not add its own.
-    expect( container.querySelectorAll( 'main' ) ).toHaveLength( 1 );
+    // The rotation describes Zip's own subject, not the home page's marketing audiences. The
+    // screen-reader copy lists the words once; the animated copies are aria-hidden.
+    const words = Array.from( container.querySelectorAll( '.rh-cyc-word' ) ).map( w => w.textContent );
+    expect( words ).toEqual( [ 'order', 'request', 'delivery', 'pickup' ] );
+  } );
+
+  it( 'reuses the home-page hero component rather than importing chrome or copying markup', () => {
+    const fs = require( 'node:fs' );
+    const path = require( 'node:path' );
+    const src = fs.readFileSync( path.join( process.cwd(), 'src/pages/zip.tsx' ), 'utf8' );
+    // The animated hero is the shared RotatingHero — the same component /shop/, /blog/ and the
+    // product pages reuse — so the "animate as one family" guarantee holds.
+    expect( src ).toContain( "from '../components/RotatingHero'" );
+    expect( src ).toContain( "from '../components/PageMeta'" );
+    // Chrome is mounted centrally in _app.tsx; a page must never import it.
+    expect( src ).not.toMatch( /components\/(Header|Footer|SupportWidget|Layout)'/ );
+    // Reduced-motion handling must survive on the page's own scroll-reveal band.
+    expect( src ).toContain( 'prefers-reduced-motion: reduce' );
+    expect( src ).toContain( 'prefers-reduced-motion:reduce' );
   } );
 
   it( 'links the real request actions to the pages that answer them', () => {
@@ -59,8 +94,8 @@ describe( 'Zip page', () => {
       expect( screen.getByText( label ) ).toBeInTheDocument();
     }
 
-    // The coming-soon affordances carry no href and are marked aria-disabled; there are no
-    // buttons on the page at all (the only interactive elements are the real-route anchors).
+    // The coming-soon affordances carry no href and are marked aria-disabled; they are neither
+    // links nor buttons, so nothing reads as a working booking control.
     const soon = container.querySelectorAll( '.zip-soon[aria-disabled="true"]' );
     expect( soon.length ).toBe( 5 );
     soon.forEach( node => {
@@ -68,6 +103,7 @@ describe( 'Zip page', () => {
       expect( node.tagName ).not.toBe( 'A' );
       expect( node.tagName ).not.toBe( 'BUTTON' );
     } );
+    // The only button-or-span inert controls are these five; no <button> is rendered anywhere.
     expect( container.querySelectorAll( 'button' ) ).toHaveLength( 0 );
   } );
 
@@ -78,17 +114,5 @@ describe( 'Zip page', () => {
     expect( text ).not.toContain( 'add to cart' );
     expect( text ).not.toContain( 'pay now' );
     expect( text ).not.toContain( '₹' );
-  } );
-} );
-
-describe( 'Zip page is registered as a public route', () => {
-  it( 'reuses PageMeta/PageTopBand rather than importing chrome', () => {
-    const fs = require( 'node:fs' );
-    const path = require( 'node:path' );
-    const src = fs.readFileSync( path.join( process.cwd(), 'src/pages/zip.tsx' ), 'utf8' );
-    expect( src ).toContain( "from '../components/PageTopBand'" );
-    expect( src ).toContain( "from '../components/PageMeta'" );
-    // Chrome is mounted centrally in _app.tsx; a page must never import it.
-    expect( src ).not.toMatch( /components\/(Header|Footer|SupportWidget|Layout)'/ );
   } );
 } );

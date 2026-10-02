@@ -148,18 +148,25 @@ describe( 'Header', () => {
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
 
-    // The group heading exists and is not a link (it is a plain label).
-    expect( screen.getByText( 'Perks' ) ).toBeInTheDocument();
-    expect( screen.queryByRole( 'link', { name: 'Perks' } ) ).toBeNull();
+    // The Perks group was collapsed from three ANCHOR rows (Gift Cards -> /perks/#gift-cards,
+    // Rewards -> /perks/#rewards, Offers -> /perks/#offers) to a single link to the /perks/ page,
+    // because the owner removed those gift-card / offers / rewards sections and their anchors from
+    // the page. Nothing in the menu may still point at a removed anchor.
+    const perksLink = screen.getByRole( 'link', { name: 'Perks' } );
+    expect( perksLink ).toHaveAttribute( 'href', '/perks/' );
 
-    // Its three rows: Gift Cards (the repaired gift-card destination), Rewards and Offers.
-    expect( screen.getByRole( 'link', { name: 'Gift Cards' } ) ).toHaveAttribute( 'href', '/perks/#gift-cards' );
-    expect( screen.getByRole( 'link', { name: 'Rewards' } ) ).toHaveAttribute( 'href', '/perks/#rewards' );
-    expect( screen.getByRole( 'link', { name: 'Offers' } ) ).toHaveAttribute( 'href', '/perks/#offers' );
+    // The old anchor rows and their dead targets are gone.
+    expect( screen.queryByRole( 'link', { name: 'Gift Cards' } ) ).toBeNull();
+    expect( screen.queryByRole( 'link', { name: 'Rewards' } ) ).toBeNull();
+    expect( screen.queryByRole( 'link', { name: 'Offers' } ) ).toBeNull();
+    const menuHtml = document.body.innerHTML;
+    expect( menuHtml ).not.toContain( '/perks/#gift-cards' );
+    expect( menuHtml ).not.toContain( '/perks/#rewards' );
+    expect( menuHtml ).not.toContain( '/perks/#offers' );
 
     // Perks sits in the SAME column as Legal Stuff, and immediately above it: the Perks group
     // node precedes the Legal Stuff group node among that column's groups.
-    const perksCol = screen.getByText( 'Perks' ).closest( '.nav-col' );
+    const perksCol = perksLink.closest( '.nav-col' );
     expect( perksCol?.textContent ).toContain( 'Legal Stuff' );
     const groups = Array.from( perksCol?.querySelectorAll( '.nav-group' ) || [] );
     const perksIndex = groups.findIndex( g => g.textContent?.startsWith( 'Perks' ) );

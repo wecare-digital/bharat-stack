@@ -1,5 +1,5 @@
 /**
- * BLOG CONTRIBUTION AMOUNTS, IN ONE PLACE - the Section 5 "Support this work" presets and the
+ * BLOG CONTRIBUTION AMOUNTS, IN ONE PLACE - the Section 5 "Contribute" presets and the
  * bounds a custom amount is checked against, with a single definition so no amount is re-typed.
  *
  * WHY THIS FILE EXISTS

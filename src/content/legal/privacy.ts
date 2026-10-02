@@ -39,11 +39,13 @@
 import type { LegalSection } from './types';
 
 /**
- * Bumped from 2026-09-23 when section 23.1 was added. Same rule, and the same caveat, as
- * TERMS_UPDATED: this is an engineering revision marker, not a line the reader sees - nothing
- * outside src/content/legal/ reads it.
+ * Bumped from 2026-09-23 when section 23.1 was added, and again on 2026-10-01 when sections 3.2,
+ * 5 and 15 were extended to cover voluntary blog contributions and gift-card/redemption data for
+ * the customer-experience upgrade. Same rule, and the same caveat, as TERMS_UPDATED: this is an
+ * engineering revision marker, not a line the reader sees - nothing outside src/content/legal/
+ * reads it.
  */
-export const PRIVACY_UPDATED = '2026-09-30';
+export const PRIVACY_UPDATED = '2026-10-01';
 
 export const PRIVACY_INTRO: string[] = [
   'This policy explains what personal data WECARE.DIGITAL collects, why we collect it, who we share it with, how long we keep it, and what you can ask us to do about it.',
@@ -88,6 +90,8 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       'When you buy, book or request something we handle the order or booking details, what was requested, billing and delivery information, the amount, payment status, any refund or cancellation, invoices, gift card or account credit, and your transaction history.',
       'Payments are processed by independent banks and payment gateways. Depending on the method, we receive a transaction reference, a status, and limited payment details from the processor.',
       'Where a payment provider collects your card or bank credentials directly, those credentials are held under that provider\'s privacy and security practices, not ours.',
+      'Where you make a voluntary contribution to our published work, we hold the records that identify and settle it: a contribution identifier, the blog post identifier or slug it relates to, the amount in paise and the currency, the payment attempt identifier, the payment provider\'s order and payment identifiers, whether the payment was verified and captured, the timestamps, and any refund or reversal state. The payment itself is processed by our payment provider as described in section 10.3. A contribution is voluntary and is not a priced supply in the way a product or booking is; this treatment matches section 31.2 of our Terms of Service, which also records that a contribution is not necessarily tax-deductible.',
+      'Where you buy, hold or redeem a gift card, or use a coupon or credit, we hold the gift-card code, its balance and status, the coupon or credit applied, and the redemption records that link it to a transaction. We treat gift-card and redemption records as personal and transaction data. Some of this is held in, and governed by, the commerce platform that issues and settles it, where applicable and as configured.',
     ],
   },
   {
@@ -142,7 +146,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     number: '5', heading: 'Why we use it', id: 's5',
     inShort: 'To run your account, deliver what you asked for, take payment, support you, keep the platform safe, meet legal duties, and improve the service.',
     paragraphs: [
-      'We use personal data to set up and run accounts; provide the services you request; process orders and bookings; coordinate sellers and providers; take and verify payments; deliver goods; manage appointments; handle documents and requests; personalise relevant features; message you about your transactions; provide support; run subscriptions and memberships; operate partner and referral programmes; manage promotions, credits and gift cards; verify identity, authority or eligibility; protect users and the platform; prevent fraud and abuse; detect and investigate security incidents; maintain service quality; analyse and improve what we offer; handle complaints and disputes; bring or defend legal claims; and comply with the law.',
+      'We use personal data to set up and run accounts; provide the services you request; process orders and bookings; coordinate sellers and providers; take and verify payments; process voluntary contributions to our published work; issue, hold, redeem and reconcile gift cards, coupons and credits; deliver goods; manage appointments; handle documents and requests; personalise relevant features; message you about your transactions; provide support; run subscriptions and memberships; operate partner and referral programmes; manage promotions, credits and gift cards; verify identity, authority or eligibility; protect users and the platform; prevent fraud and abuse; detect and investigate security incidents; maintain service quality; analyse and improve what we offer; handle complaints and disputes; bring or defend legal claims; and comply with the law.',
       'If we ever want to use your data for something materially unrelated to the above, we will seek a fresh lawful basis first, including your consent where that is what the law requires.',
     ],
   },
@@ -279,6 +283,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     paragraphs: [
       'We keep personal data for as long as the purpose it was collected for requires, or as long as a legal obligation requires. Different categories therefore have different retention periods.',
       'Data may be retained for an active transaction or ongoing service; account administration; financial, tax and accounting records; statutory record-keeping; transaction security; fraud prevention; a complaint or dispute; backups; legal claims; and enforcing our agreements.',
+      'Contribution records and gift-card, coupon and redemption records are transaction records of this kind. We keep them for as long as we need them for accounting, tax, refund, fraud-prevention and legal purposes, which can be after the related activity ends, and gift-card expiry or restrictions apply where applicable and as configured on the commerce platform that issues them.',
       'Some transaction, security and financial records must be kept after you close your account or ask for deletion, because the law requires it. Section 18 explains how that interacts with a deletion request.',
       'When data is no longer needed we delete, anonymise or de-identify it.',
     ],

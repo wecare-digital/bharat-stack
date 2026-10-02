@@ -576,10 +576,11 @@ const PUBLIC_PAGE_META: Record<string, {
   // routes (orders, request-amendment, drop-docs, vault, leave-review) and renders anything with
   // no backend (pickup/visit/delivery tracking) as a clearly non-transacting item.
   '/zip': { name: 'Zip', type: 'WebPage', description: 'Everything about your request, delivery or pickup in one place: track an order, amend a request, send documents, open your vault or leave a review.' },
-  // Perks is the gift-cards / rewards / offers page, and the repaired destination for the
-  // gift-card links that used to point at a 404. Gift-card, rewards and offers controls are
-  // non-transacting until a provider is wired up; no third-party provider name appears.
-  '/perks': { name: 'Perks', type: 'WebPage', description: 'Gifts, rewards and offers in one place. Choose a WECARE.DIGITAL gift card, explore offers to apply at checkout, and more reasons to come back.' },
+  // Perks is a home-styled landing page for the small thank-yous we send customers, and the
+  // repaired destination for the gift-card links that used to point at a 404. The owner removed
+  // the former gift-card / offers / rewards sections, so the page is now a calm, honest landing
+  // page with no transacting control and no third-party provider name.
+  '/perks': { name: 'Perks', type: 'WebPage', description: 'A little extra for the people we look after. An honest, uncluttered place for the small thank-yous we send your way, and nothing here asks for payment.' },
 };
 
 /**

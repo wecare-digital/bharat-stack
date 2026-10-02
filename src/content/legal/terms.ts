@@ -471,7 +471,8 @@ export const TERMS_SECTIONS: LegalSection[] = [
      * CONFIG CONSTRAINT: coupons and offers are Wix-native and validated server-side, and the live
      * configuration (which codes exist, their validity, minimum order, eligible products, usage
      * limits, stacking rules) lives in our commerce backend and cannot be asserted as fixed values
-     * from here. The /perks page honestly shows no live offers. So this clause is written in terms
+     * from here. The /perks page is now a plain landing page and no longer lists offers; any
+     * eligible coupon is applied server-side at checkout. So this clause is written in terms
      * of "as configured in our commerce backend" / "where applicable" rather than listing specific
      * values, and does not claim any particular offer is currently available.
      */
@@ -486,9 +487,9 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     /*
      * ADDED for the customer-experience upgrade (Perks / rewards). HONESTY CONSTRAINT, and the
-     * reason this clause is short: there is NO rewards backend. The /perks Rewards section is a
-     * non-transacting placeholder with no points, balances, history, earning or redemption. So
-     * this clause must NOT invent eligibility, earning, redemption or expiry mechanics for a
+     * reason this clause is short: there is NO rewards backend. There is no rewards programme and
+     * no /perks rewards section any more, and nothing offers points, balances, history, earning or
+     * redemption. So this clause must NOT invent eligibility, earning, redemption or expiry mechanics for a
      * programme that does not exist. It states the truthful position - no rewards programme is
      * currently operating - and defers any future programme to its own published terms, which is
      * exactly as much as can be said truthfully today.
@@ -615,7 +616,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   },
   {
     /*
-     * ADDED for the customer-experience upgrade (blog "Support this work"). A SUB-CLAUSE OF 31,
+     * ADDED for the customer-experience upgrade (blog "Contribute" section). A SUB-CLAUSE OF 31,
      * beside 31.1 on editorial content, because a voluntary contribution attaches to the published
      * articles rather than to a purchase - there is no cart, no Wix order and no product. It
      * cross-references 12 for payments and 14 for refunds rather than restating them.
@@ -631,7 +632,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
      */
     number: '31.2', heading: 'Voluntary contributions to our published work', id: 's31-2',
     paragraphs: [
-      'Some articles invite a voluntary contribution to support the work ("Support this work"). A contribution is a gift you choose to make. It is optional, it buys you nothing, and declining to contribute does not change your access to anything we publish or offer.',
+      'Some articles invite a voluntary contribution to support the work ("Contribute"). A contribution is a gift you choose to make. It is optional, it buys you nothing, and declining to contribute does not change your access to anything we publish or offer.',
       'A contribution is not an investment, equity, a loan, a security, a deposit, a subscription or a donation to a registered charity, and it is not necessarily tax-deductible - do not treat it as any of those. It does not make you an employee, partner, shareholder or agent of ours, and it does not give you any ownership, revenue share, control or other interest in WECARE.DIGITAL BHARATWORKS or its work.',
       'Contributing does not buy influence over what we publish. It does not entitle you to commission, edit, approve, remove or shape any article, and it creates no editorial, advisory or professional relationship. What we publish stays our own editorial decision, and section 31.1 continues to apply to that content.',
       'Where contributions are enabled, the amount is the one you choose and we confirm server-side, in Indian rupees, and it is processed by our payment provider (Razorpay) under section 12 - we do not add a fee on top of a contribution. A contribution does not create an order, a product or a shipment, and there is nothing to deliver.',

@@ -1,162 +1,298 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import PageMeta from '../components/PageMeta';
-import PageTopBand from '../components/PageTopBand';
+import RotatingHero from '../components/RotatingHero';
+import type { CycleWord } from '../components/RotatingHero';
 
 /**
- * /perks — gift cards, rewards and offers in one place.
+ * /perks — a little extra for the people we look after.
  *
  * SECTION 4 of the customer-experience brief, and the repaired destination for the several
- * systems that link customers to a gift-card URL. The owner's headline is "A little extra, made
- * for you." The page carries three sections with the owner's copy: Gift Cards, Offers and Rewards.
+ * systems that link customers to a gift-card URL. The customer-facing group label stays "Perks".
  *
- * THE GIFT-CARD AUDIT. There was no page at /gift-card (it 404'd), yet active CTAs pointed at
- * https://wecare.digital/gift-card from the WhatsApp inbound handler, the AI response handler and
- * the SEO-tools route table. Rather than add a second thin route, the real destination is the Gift
- * Cards section of THIS page, reached at /perks/#gift-cards; those active CTAs are repointed to
- * https://wecare.digital/perks/ and the SEO entry is moved to /perks. No distinct /gift-card route
- * is created, so nothing new has to be registered beyond /perks.
+ * NOW MATCHES THE HOME PAGE, by owner request — exactly as /zip was. Perks previously used
+ * components/PageTopBand (the fixed-statement band) and carried three in-page sections — Gift
+ * Cards (#gift-cards), Offers (#offers) and Rewards (#rewards) — rendered as non-transacting
+ * "coming soon" placeholders. The owner asked to make Perks share the HOME PAGE's look (its
+ * animated hero and its scroll-reveal closing band) AND to remove those gift-card / offers /
+ * rewards sections. Both are done here.
  *
- * NO THIRD-PARTY PROVIDER NAME. "Gift Up", "GiftUp" and any vendor name are absent from this page
- * on purpose — the brief forbids surfacing one in customer-facing UI.
+ * This page now reuses the SAME two mechanisms the home page animates with — the proven /zip
+ * pattern — rather than copying their markup or inventing a lookalike:
+ *   1. THE ROTATING HERO. components/RotatingHero is the reusable, self-styling version of the
+ *      home page's headline pill (identical interval, easings, white entrance shutter and dot;
+ *      tools/browser/animcheck.js asserts the family shares one computed transition set). It is
+ *      what /zip/, /shop/, /blog/ and every product page already reuse. The hero owns the page's
+ *      single <h1> and single <main>; the page must not add a second of either. The rotation
+ *      cycles words that are TRUE OF PERKS — thanks / care / extra / you — rather than the home
+ *      page's marketing audiences, so the words are the page's own and are not borrowed from zip.
+ *   2. THE SCROLL-REVEAL CLOSING BAND. The home page's closing band reveals once when it scrolls
+ *      into view: a lime rule draws itself across and the lines stagger in behind it. It is an
+ *      OPT-IN entrance — the CSS ships the final, visible state and JavaScript adds .is-armed only
+ *      once it has confirmed it can animate, so no JS, no IntersectionObserver or reduced motion
+ *      all leave the band fully readable. This page replicates that exact mechanism (closeRef +
+ *      a one-shot IntersectionObserver at threshold 0.18, armed through the node's classList, the
+ *      final state shipped as the CSS default), so the degradation and accessibility guarantees
+ *      are the same ones the home page and /zip proved.
  *
- * NON-TRANSACTING BY DESIGN. There is no gift-card, rewards or offers backend in this repository
- * (verified: no handler under amplify/functions exposes one, and cart_v2 currently rejects
- * gift-card payment entirely). So "Buy a gift card", "Redeem a gift card", "Check balance" and the
- * Rewards section are rendered as clearly non-transacting "coming soon" affordances — inert
- * elements with aria-disabled, no href and no action. No points, balances, reward history,
- * redemption eligibility or invented offers appear anywhere. Offers honestly states that there are
- * no live offers to show yet rather than inventing any.
+ * SECTIONS REMOVED, per owner instruction. The Gift Cards (#gift-cards), Offers (#offers) and
+ * Rewards (#rewards) sections and their anchors are gone. They were honest-empty, non-transacting
+ * placeholders with no backend, so removing them loses no capability. The Header "Perks" group was
+ * collapsed from three anchor rows (Gift Cards/Rewards/Offers) to a single link to /perks/ so that
+ * nothing points at a removed anchor. The active gift-card CTAs in the WhatsApp, AI and SEO-tools
+ * handlers already point at https://wecare.digital/perks/ (the page itself, not #gift-cards), so
+ * removing the anchors leaves no dead backend link. The gift-card / coupon / rewards TERMS in
+ * src/content/legal still stand (those features exist conceptually and coupons still apply at
+ * checkout); only the now-false comment claims that a "/perks Rewards section" or "/perks offers"
+ * exists were corrected for truthfulness.
  *
- * SHARED SHELL. Header, Footer and the support widget come from _app.tsx and are not imported
- * here; the top band is components/PageTopBand, the same fixed-statement band /cart/ and /zip/ use.
+ * NO THIRD-PARTY PROVIDER NAME. "Gift Up", "GiftUp" and any vendor name are absent on purpose —
+ * the brief forbids surfacing one in customer-facing UI.
+ *
+ * NON-TRANSACTING BY DESIGN. There is no gift-card, rewards or offers backend in this repository,
+ * so this page carries no buy/redeem/check-balance/apply control. It is an honest, home-styled
+ * landing page that points customers at pages that already work; it invents no points, balances,
+ * reward history or live offers.
+ *
+ * SHARED SHELL, NOT A NEW ONE. Header, Footer and the support widget are mounted once in _app.tsx,
+ * so this page must not import them. RotatingHero provides the one <main> and the one <h1>.
  *
  * ROUTING: '/perks' is registered in PUBLIC_PAGE_META (_app.tsx), PUBLIC_EXACT
  * (scripts/generate-sitemap.js) and config/public-pages.json (generated, group 'perks').
  * trailingSlash means the URL is /perks/.
  */
 
-// Gift-card actions — all non-transacting until a provider seam is bound server-side.
-const GIFT_CARD_ACTIONS = [ 'Buy a gift card', 'Redeem a gift card', 'Check balance' ];
+// The hero's rotating nouns. Chosen to be TRUE OF PERKS rather than borrowed from the home page's
+// audiences or from zip's request/delivery/pickup set: Perks is a small thank-you for the people
+// we look after, so the rotation names that — thanks / care / extra / you. Tints/dots are the four
+// per-subject pairs the shared hero family already uses verbatim; no new colour. Lengths are
+// 6 / 4 / 5 / 3 characters, inside RotatingHero's narrow-breakpoint fit.
+const PERKS_WORDS: CycleWord[] = [
+  { word: 'thanks', tint: '#dbeafe', dot: '#2563eb' },
+  { word: 'care', tint: '#ede9fe', dot: '#9849e8' },
+  { word: 'extra', tint: '#e0f7c8', dot: '#3da35a' },
+  { word: 'you', tint: '#fef3c7', dot: '#f0a818' },
+];
 
-const PerksPage: React.FC = () => (
-  <>
-    <PageMeta
-      title="Perks — WECARE.DIGITAL"
-      description="Gifts, rewards and offers in one place. Choose a WECARE.DIGITAL gift card, explore offers to apply at checkout, and more reasons to come back."
-      path="/perks/"
-    />
-    <PageTopBand
-      heading="A little extra, made for you."
-      sub="Gifts, rewards and offers in one place."
-      ariaLabel="Perks"
-    >
-      <section className="pk-in" aria-label="Perks">
-        {/* GIFT CARDS. The repaired /gift-card destination lives here; the anchor id matches the
-            header link /perks/#gift-cards and the CTAs repointed in the backend handlers. */}
-        <section className="pk-sec" id="gift-cards" aria-labelledby="pk-gift-h">
-          <h2 className="pk-h2" id="pk-gift-h">Give them something they&rsquo;ll actually use.</h2>
+const PerksPage: React.FC = () => {
+  // The scroll-reveal closing band, armed through this node — the SAME mechanism the home page and
+  // /zip use. No React state: the reveal is a visual side-effect with no bearing on what React
+  // renders, so it is driven by classList on the node itself.
+  const closeRef = useRef<HTMLElement | null>( null );
+
+  useEffect( () => {
+    const el = closeRef.current;
+    if ( !el ) return undefined;
+
+    // THE ANIMATION IS OPT-IN, NOT OPT-OUT, ported from index.tsx's closing band. The CSS ships
+    // the FINAL state — everything visible — and this effect adds .is-armed to hide the start
+    // state only once it knows it can animate. No JS, no IntersectionObserver, or reduced motion
+    // all leave the band fully readable.
+    if ( typeof IntersectionObserver === 'undefined' ) return undefined;
+    // typeof guard as well as the call: jsdom does not implement matchMedia and throws rather than
+    // returning undefined, so a page must not depend on the test setup stubbing it.
+    const reduce = typeof window.matchMedia === 'function'
+      && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
+    if ( reduce ) return undefined;
+
+    el.classList.add( 'is-armed' );
+
+    const io = new IntersectionObserver(
+      entries => {
+        if ( entries.some( e => e.isIntersecting ) ) {
+          el.classList.add( 'is-in' );
+          io.disconnect(); // One-shot: it is an entrance, not a scroll effect.
+        }
+      },
+      // 18% visible before it plays — the same threshold the home page and /zip use.
+      { threshold: 0.18 }
+    );
+    io.observe( el );
+
+    return () => io.disconnect();
+  }, [] );
+
+  return (
+    <>
+      <PageMeta
+        title="Perks — WECARE.DIGITAL"
+        description="A little extra for the people we look after. An honest, uncluttered place for the small thank-yous we send your way, and nothing here asks for payment."
+        path="/perks/"
+      />
+      {/* badgeLabel names the FEATURE above the headline — the documented product-badge use — so
+          "Perks" stays the first, prominent, translation-safe word on the page while the hero owns
+          the <h1> and the one <main> landmark. */}
+      <RotatingHero
+        badgeLabel="Perks"
+        frame="A little extra, made for"
+        words={ PERKS_WORDS }
+        sub="A small thank-you for the people we look after."
+        ariaLabel="Perks"
+      >
+        <section className="pk-in" aria-label="About Perks">
+          <h2 className="pk-h2">A little extra, made for you</h2>
           <p className="pk-p">
-            Choose a WECARE.DIGITAL gift card and let them decide what comes next.
+            Perks is where the small thank-yous live. We would rather keep this honest and quiet
+            than fill it with points balances or offers we cannot stand behind — so right now it is
+            a calm landing page, and nothing here asks for payment.
           </p>
-          {/* The buy / redeem / check-balance controls are non-transacting: no gift-card provider
-              is wired up, so showing a working-looking button would be a false promise. Each is an
-              inert chip, not a link or a button. */}
-          <ul className="pk-chips" aria-label="Gift card options (not available yet)">
-            { GIFT_CARD_ACTIONS.map( label => (
-              <li className="pk-chip-item" key={ label }>
-                <span className="pk-chip" aria-disabled="true">
-                  <span className="pk-chip-label">{ label }</span>
-                  <span className="pk-chip-tag">Coming soon</span>
-                </span>
-              </li>
-            ) ) }
-          </ul>
-          <p className="pk-note">
-            Gift cards are not on sale online yet. When they are, this is where you will buy,
-            redeem and check the balance on one. How WECARE.DIGITAL gift cards work — purchase,
-            redemption, balances and restrictions — is set out in our Terms of Service at /terms/
-            (section 21.1).
+          <p className="pk-p">
+            When there is something real to give you, this is where it will show up. Until then, the
+            pages below are the ones that already work.
           </p>
-          {/* TODO RESOLVED: the published gift-card terms now exist (Terms section 21.1, anchor
-              /terms/#s21-1). We reference them in plain text rather than as a live link, because
-              the earlier TODO said to link them "once gift cards go live" and they are still gated
-              off / not on sale — and this page is deliberately link-free so nothing here can look
-              transacting (PerksPage.test.tsx asserts zero <a>/<button>). When cards go live, turn
-              the "/terms/ (section 21.1)" reference into an <a href="/terms/#s21-1"> and update the
-              test to allow that one informational link. Legal copy stays in src/content/legal. */}
         </section>
 
-        {/* OFFERS. Only real/current offers may be shown; none are wired, so the page says so
-            plainly rather than inventing any. */}
-        <section className="pk-sec" id="offers" aria-labelledby="pk-offers-h">
-          <h2 className="pk-h2" id="pk-offers-h">Something extra</h2>
-          <p className="pk-p">
-            Explore available offers and apply eligible coupons during checkout.
-          </p>
-          <p className="pk-note">
-            There are no live offers to show right now. Current offers will appear here, and any
-            eligible coupon is applied at checkout — we will not list an offer we cannot honour.
-          </p>
-        </section>
-
-        {/* REWARDS. No rewards backend exists, so there are no points, balances, history or
-            eligibility — just an honest, non-transacting placeholder. */}
-        <section className="pk-sec" id="rewards" aria-labelledby="pk-rewards-h">
-          <h2 className="pk-h2" id="pk-rewards-h">More reasons to come back</h2>
-          <p className="pk-p">
-            A rewards programme is on the way. We would rather build it properly than show you a
-            points balance that is not real.
-          </p>
-          <p className="pk-note" aria-disabled="true">
-            <span className="pk-chip-tag pk-chip-tag-inline">Coming soon</span>
-            Rewards are not available yet — there are no points, balances or history to show.
-          </p>
+        {/* THE CLOSING BAND, replicating the home page's scroll-reveal treatment. It is a direct
+            child of RotatingHero's .rh-layout, so the 96px section gap and the page measure are
+            already applied — no margin-top. The reveal is OPT-IN: everything below ships visible as
+            the CSS default and the closeRef effect only hides the start state once it can animate. */}
+        <section className="pk-close" aria-labelledby="pk-close-title" ref={ closeRef }>
+          <div className="pk-close-panel">
+            <p className="pk-close-eyebrow">Perks</p>
+            <h2 className="pk-close-title" id="pk-close-title">A little extra, honestly done.</h2>
+            <p className="pk-close-lead">
+              We will not show you a points balance that is not real or an offer we cannot honour.
+              When there is a genuine thank-you to give, it lands here — in your language, your way.
+            </p>
+            <span className="pk-close-rule" aria-hidden="true" />
+            <ul className="pk-close-points">
+              <li>Nothing here asks for payment.</li>
+              <li>We say plainly what is not ready yet.</li>
+              <li>Any eligible coupon is applied at checkout, not here.</li>
+            </ul>
+            {/* A PLAIN <a>, and it must stay one: styled-jsx only scopes lowercase DOM tags, so a
+                next/link carrying pk-close-cta would render unstyled. Every CTA on the public pages
+                is a plain <a> for the same reason. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a className="pk-close-cta" href="/shop/">See what we offer</a>
+          </div>
         </section>
 
         <style jsx>{`
-          /* pk- prefixed to stay clear of the globally imported unscoped CSS. */
+          /* pk- prefixed: the globally imported src/styles/*.css declares unscoped rules for
+             generic names and styled-jsx does not shield a page from them. */
           .pk-in{max-width:900px}
-          .pk-sec{margin:0 0 56px}
-          .pk-sec:last-of-type{margin-bottom:0}
-          /* Section h2 is the 700 rung, heavier than the band's 600 h1 — the site's inversion. */
+          /* Section h2 is the contract's 700 rung — HEAVIER than the hero h1's 600, the site's
+             deliberate inversion. */
           .pk-h2{
             font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;
             letter-spacing:-1.2px;color:rgba(0,0,0,.95);margin:0 0 14px;
           }
-          /* The single body rung. */
+          /* The one body rung: 20px/400/1.4/-.125px at rgba(0,0,0,.898). */
           .pk-p{
             font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;
             color:rgba(0,0,0,.898);margin:0 0 18px;max-width:640px;
           }
-          /* The dim aside rung used for honesty notes — the catalogue's 1px #e5e7eb hairline,
-             12px radius, rgba(0,0,0,.54) type, so it reads as a "read this before you trust what
-             is above" aside. */
-          .pk-note{
-            margin:0;padding:16px 18px;border:1px solid #e5e7eb;border-radius:12px;
-            font-size:16px;line-height:1.55;color:rgba(0,0,0,.54);max-width:640px;
+          .pk-p:last-of-type{margin-bottom:0}
+
+          /* THE CLOSING BAND — the home page's .home-close treatment, kept pk- prefixed.
+             A tinted own-surface panel: the same 14px radius and rgba(209,244,112,.22) lime tint
+             the rest of the site uses, with a 2px #d1f470 edge — no new colour. */
+          .pk-close-panel{
+            padding:clamp(28px,4vw,56px);
+            border:2px solid #d1f470;border-radius:14px;
+            background:rgba(209,244,112,.22);
           }
-          .pk-chips{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-wrap:wrap;gap:12px}
-          .pk-chip-item{margin:0}
-          /* Non-transacting chip: dashed edge, default cursor, no hover — never looks clickable. */
-          .pk-chip{
-            display:inline-flex;align-items:center;gap:10px;cursor:default;
-            padding:12px 16px;border:1px dashed #e5e7eb;border-radius:999px;
-            background:rgba(0,0,0,.015);
+          .pk-close-eyebrow{
+            margin:0 0 14px;font-size:12px;font-weight:700;
+            letter-spacing:.08em;text-transform:uppercase;color:#1a3a2a;
           }
-          .pk-chip-label{font-size:16px;font-weight:700;color:#1a3a2a}
-          .pk-chip-tag{
-            font-size:12px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
-            color:#1a3a2a;background:rgba(209,244,112,.35);padding:2px 8px;border-radius:999px;
+          /* Section h2 on the 700 rung — heavier than the hero h1's 600, the site's inversion.
+             Same clamp as the other section headings so they read as siblings. */
+          .pk-close-title{
+            margin:0 0 16px;max-width:19ch;
+            font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;
+            letter-spacing:-1.2px;color:rgba(0,0,0,.95);
           }
-          .pk-chip-tag-inline{margin-right:10px}
+          .pk-close-lead{
+            margin:0;max-width:62ch;
+            font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;
+            color:rgba(0,0,0,.898);
+          }
+
+          /* READ THE .is-armed PATTERN BEFORE CHANGING ANY OF THIS. Every rule below ships its
+             FINAL, visible state as the default. .is-armed is added by JavaScript only when it has
+             confirmed it can animate, and that is what hides the start state; .is-in then plays the
+             reveal. The effect is therefore additive, and no JS / no IntersectionObserver /
+             reduced motion all leave this section fully readable. */
+
+          /* THE RULE DRAWS ITSELF. transform:scaleX is compositor-only, so it cannot cause layout
+             on any frame the way animating width would. transform-origin:left makes it grow from
+             the left edge. */
+          .pk-close-rule{
+            display:block;height:3px;margin:30px 0;background:#d1f470;
+            transform-origin:left center;
+            transition:transform .62s cubic-bezier(.22,.61,.36,1);
+          }
+          .pk-close.is-armed .pk-close-rule{transform:scaleX(0)}
+          .pk-close.is-armed.is-in .pk-close-rule{transform:scaleX(1)}
+
+          .pk-close-points{margin:0;padding:0;max-width:62ch;list-style:none;display:flex;flex-direction:column;gap:12px}
+          .pk-close-points li{
+            position:relative;padding-inline-start:26px;
+            font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898);
+            transition:opacity .5s ease,transform .5s ease;
+          }
+          /* A tick drawn with two borders on a rotated box: no asset, cannot 404. The three ticks
+             carry the home band's green / blue / purple, in the same top-to-bottom order, so the
+             pages read as a family. */
+          .pk-close-points li:nth-child(2)::before{border-left-color:#2563eb;border-bottom-color:#2563eb}
+          .pk-close-points li:nth-child(3)::before{border-left-color:#9849e8;border-bottom-color:#9849e8}
+          .pk-close-points li::before{
+            content:'';position:absolute;inset-inline-start:2px;top:7px;
+            width:11px;height:6px;
+            border-left:2.5px solid #3da35a;border-bottom:2.5px solid #3da35a;
+            transform:rotate(-45deg);
+          }
+          .pk-close.is-armed .pk-close-points li{opacity:0;transform:translateY(8px)}
+          .pk-close.is-armed.is-in .pk-close-points li{opacity:1;transform:none}
+          /* Staggered behind the rule, which finishes at .62s. Three 90ms steps read as one
+             settling movement rather than three separate events. */
+          .pk-close.is-armed.is-in .pk-close-points li:nth-child(1){transition-delay:.34s}
+          .pk-close.is-armed.is-in .pk-close-points li:nth-child(2){transition-delay:.43s}
+          .pk-close.is-armed.is-in .pk-close-points li:nth-child(3){transition-delay:.52s}
+
+          /* Full-strength lime with #1a3a2a type and a #1a3a2a border — the contract's own-surface
+             pairing, and the border is #1a3a2a (not the lime fill) so the control's boundary
+             clears WCAG 1.4.11's 3:1 against the pale panel. */
+          .pk-close-cta{
+            display:inline-flex;align-items:center;min-height:52px;margin-top:32px;
+            padding:0 28px;border:2px solid #1a3a2a;border-radius:50px;
+            background:#d1f470;color:#1a3a2a;font-size:17px;font-weight:600;text-decoration:none;
+            transition:opacity .5s ease,transform .5s ease,background-color .2s,box-shadow .2s;
+          }
+          /* opacity:0 (not visibility:hidden) so the control stays in the accessibility tree and
+             the tab order; pointer-events:none so a hidden control is not clickable. FOCUS REVEALS
+             IT — sequential focus scrolls the band on screen, the :focus rule makes the button
+             visible in the same moment, and the observer fires too. */
+          .pk-close.is-armed .pk-close-cta{opacity:0;transform:translateY(8px);pointer-events:none}
+          .pk-close.is-armed.is-in .pk-close-cta{opacity:1;transform:none;pointer-events:auto;transition-delay:.62s}
+          /* After .is-in on purpose: same specificity, so source order decides and focus wins.
+             transition:none because a reader who has just tabbed to a control should see it now. */
+          .pk-close.is-armed .pk-close-cta:focus{opacity:1;transform:none;pointer-events:auto;transition:none}
+          .pk-close-cta:hover{background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+          .pk-close-cta:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
+
           @media(max-width:767px){
             .pk-p{font-size:18px}
-            .pk-sec{margin-bottom:44px}
+            .pk-close-title{max-width:none}
+          }
+
+          @media(prefers-reduced-motion:reduce){
+            /* Belt and braces: the effect already never arms under reduced motion (the JS returns
+               before adding .is-armed), so these rules guard the case where the preference changes
+               after arming, when the class is already on the node. They kill the movement without
+               hiding anything. */
+            .pk-close-rule,.pk-close-points li,.pk-close-cta{transition:none}
+            .pk-close.is-armed .pk-close-rule{transform:scaleX(1)}
+            .pk-close.is-armed .pk-close-points li,
+            .pk-close.is-armed .pk-close-cta{opacity:1;transform:none}
+            .pk-close.is-armed .pk-close-cta{pointer-events:auto}
+            .pk-close-cta:hover{transform:none}
           }
         `}</style>
-      </section>
-    </PageTopBand>
-  </>
-);
+      </RotatingHero>
+    </>
+  );
+};
 
 export default PerksPage;
