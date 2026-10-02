@@ -87,15 +87,30 @@ const PillButton: React.FC<PillButtonProps> = ( {
 } ) => {
   const className = `pill${ block ? ' pill-block' : '' }`;
   const name = ariaLabel ?? action;
-  // The visible segments are decoration; the accessible name is the action alone. aria-hidden on
-  // the segments stops the double-announce, and aria-label carries the honest single name.
-  const inner = (
-    <>
-      <span className="pill-label" aria-hidden="true">{ label }</span>
-      <span className="pill-action" aria-hidden="true">{ action }</span>
-    </>
-  );
 
+  /*
+   * THE TWO SEGMENTS ARE WRITTEN OUT TWICE, INLINE, AND THAT DUPLICATION IS DELIBERATE.
+   *
+   * They used to be hoisted into one `const inner = (<>...</>)` and referenced from both branches,
+   * which is tidier to read and was SILENTLY BROKEN. styled-jsx's transform only stamps its
+   * scoping hash class onto JSX elements that appear inside the same return tree as the
+   * <style jsx> element below. JSX lifted into a variable never gets stamped, so the built markup
+   * emitted `class="pill-label"` and `class="pill-action"` with NO hash while the rules compiled
+   * to `.pill-label.jsx-<hash>{...}` - selectors that could never match. The outer <button> was
+   * stamped correctly, which is why the pill had its shape, its 2px edge and its dark fill but
+   * NEITHER segment had its own background or colour: it rendered as one dark slab with the label
+   * and the action jammed together, "Sign inSend code", with white-on-dark text falling back to
+   * near-black. Measured in the built export AND on the live site at /account/sign-in/ before this
+   * fix.
+   *
+   * THIS REPO ALREADY KNEW THIS FAILURE MODE. RotatingHero's docblock records it costing "a full
+   * debugging round on the mega menu, where a renderLink() helper left the rules behind and every
+   * row fell through to a global". Same trap, same component family. Do not re-hoist these spans,
+   * and do not extract them into a helper or a child component: either reintroduces the bug.
+   *
+   * The visible segments are decoration; the accessible name is the action alone. aria-hidden on
+   * the segments stops the double-announce, and aria-label carries the honest single name.
+   */
   return (
     <>
       { as === 'a' ? (
@@ -106,7 +121,8 @@ const PillButton: React.FC<PillButtonProps> = ( {
           aria-label={ name }
           aria-describedby={ describedBy }
         >
-          { inner }
+          <span className="pill-label" aria-hidden="true">{ label }</span>
+          <span className="pill-action" aria-hidden="true">{ action }</span>
         </a>
       ) : (
         <button
@@ -118,7 +134,8 @@ const PillButton: React.FC<PillButtonProps> = ( {
           aria-busy={ busy ? 'true' : undefined }
           aria-describedby={ describedBy }
         >
-          { inner }
+          <span className="pill-label" aria-hidden="true">{ label }</span>
+          <span className="pill-action" aria-hidden="true">{ action }</span>
         </button>
       ) }
 
