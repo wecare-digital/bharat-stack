@@ -17,6 +17,7 @@ import importlib.util
 import json
 import pathlib
 import sys
+import urllib.request
 
 import pytest
 
@@ -72,6 +73,99 @@ def test_the_demo_runs_offline_and_reports_three_legs_and_no_mismatches(demo, ca
 
     # Corroborated from OUTSIDE the demo, rather than by the demo agreeing with itself.
     assert wix_ecom._secrets is None
+
+
+def _event_system(module_name: str, path: tuple):
+    """Resolve a live botocore event system the same way the demo's `_HOOK_PATHS` does."""
+    target = sys.modules[module_name]
+    for attribute in path:
+        target = getattr(target, attribute)
+    return target
+
+
+def test_an_aws_call_during_a_leg_fails_the_run_rather_than_being_counted_afterwards(
+        demo, monkeypatch, capsys):
+    """THE mutation test for the containment, and the reason the printed `0` means anything.
+
+    The count used to be produced by a function that created the counter and registered the hook
+    in the same call, invoked after every leg had finished - so `0` was true by construction and
+    this test would have passed with the hook absent. Here a leg emits exactly the event botocore
+    emits as a request leaves the process, and the run must FAIL, which is design §4.3's wording:
+    a call that would leave the process fails the demo rather than being tallied afterwards.
+    """
+    original = demo._leg_our_giftcard
+
+    def leg_that_touches_aws(args):
+        _event_system("lambda_utils.rate_limit",
+                      ("dynamodb", "meta", "client", "meta", "events")).emit(
+                          "before-send", request=None)
+        return original(args)  # pragma: no cover - the emit above never returns
+
+    monkeypatch.setattr(demo, "_leg_our_giftcard", leg_that_touches_aws)
+    code = demo.main(["--json", "--no-colour"])
+    captured = capsys.readouterr().out
+
+    assert code == 1
+    assert "CONTRACT FAILURE: UnexpectedAwsCall" in captured
+    # And it was counted as well as refused, so the two readings agree.
+    assert demo._count_aws_calls() == 1
+    # No transcript was printed, so a failed run cannot be mistaken for a clean one.
+    assert '"legs"' not in captured
+
+
+def test_the_demo_puts_back_every_global_it_touched(demo):
+    """`urlopen`, `boto3`, the key cache and BOTH event hooks, restored in a `finally`.
+
+    `urlopen` used to be left as a drained `WixTransport`, so any later call raised
+    `UnexpectedWixCall` - a `BaseException` that escapes every `except Exception` in the tree -
+    and named the wrong module while doing it. The hooks used to be left registered on
+    session-lifetime clients, accumulating one handler per `main()` call.
+    """
+    urlopen_before = urllib.request.urlopen
+    boto3_before = sys.modules.get("boto3")
+    key_before = wix_ecom._key_cache.get("key")
+
+    assert demo.main(["--json", "--no-colour"]) == 0
+
+    assert urllib.request.urlopen is urlopen_before
+    assert sys.modules.get("boto3") is boto3_before
+    assert wix_ecom._key_cache.get("key") == key_before
+
+    # The hooks are gone: emitting the event the demo refuses now does nothing at all.
+    for module_name, path in demo._HOOK_PATHS:
+        _event_system(module_name, path).emit("before-send", request=None)
+
+    # Twice over, because the accumulation defect only showed on repeated runs.
+    assert demo.main(["--json", "--no-colour"]) == 0
+    assert urllib.request.urlopen is urlopen_before
+    for module_name, path in demo._HOOK_PATHS:
+        _event_system(module_name, path).emit("before-send", request=None)
+
+
+def test_the_transcript_carries_no_clear_idempotency_key_either(demo, capsys):
+    """The key is masked, because in THIS demo it would hand over the code.
+
+    `idempotency_key` is not bearer value and production could print it in full - it shares
+    nothing with the HMAC-keyed `card_code`. But leg 2 derives its code with the unkeyed
+    `demo_code`, and both expose the SAME sha256 digest of the same reference, so a clear key
+    yields the masked code by stripping decoration and upper-casing. Masking only the code would
+    have been true of the string and false of the information.
+    """
+    assert demo.main(["--json", "--no-colour"]) == 0
+    rendered = capsys.readouterr().out
+    key = wg.idempotency_key(reference_id=REFERENCE)
+    shared_digest = key[len("wd-gc-"):][:16]
+
+    assert key not in rendered
+    assert shared_digest and shared_digest not in rendered
+    assert shared_digest.upper() not in rendered
+    # The LENGTH is still reported, which is the fact a reviewer needs about Wix's 100 ceiling.
+    assert f'"idempotencyKeyLength": {len(key)}' in rendered
+
+    assert demo.main(["--no-colour", "--leg", "wix-giftcard"]) == 0
+    plain = capsys.readouterr().out
+    assert key not in plain
+    assert shared_digest not in plain and shared_digest.upper() not in plain
 
 
 def test_the_transcript_carries_no_clear_bearer_code_and_no_credential(demo, capsys):

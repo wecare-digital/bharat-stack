@@ -7,6 +7,25 @@ Interpreter throughout: `/Users/wecaredigital/wecare-store/.venv/bin/python` (3.
 worktree has no `.venv` of its own; the one that satisfies `conftest.py` lives in the parent
 checkout. A bare `python3` is not a valid baseline.
 
+## 0a. Review iteration — the five findings from `code-review.json`, and where each is answered
+
+Every number below was re-measured after the fixes; nothing in this document is carried over from
+the first pass without being re-run.
+
+| # | Severity | Finding | Fix | Evidence |
+|---|---|---|---|---|
+| M1 | MEDIUM | the AWS-call count was tautological — `_count_aws_calls()` created the counter and registered the hook in the same call, after every leg | hook armed in `_install_containment()` before leg 1, counter at module level, `_count_aws_calls()` reduced to a read, re-armed once after the handler import (idempotent by target identity) | §10, including the mutation run that shows the assertion fails on the pre-fix shape; `test_an_aws_call_during_a_leg_fails_the_run_rather_than_being_counted_afterwards` |
+| M2 | MEDIUM | `urllib.request.urlopen` replaced globally and never restored | `_install_containment()` returns a `restore` closure; `main()` calls it in a `finally`. `sys.modules["boto3"]` and `wix_ecom._key_cache["key"]` restored the same way, with a `_MISSING` sentinel so "was absent" and "was `None`" stay distinct | §10; `test_the_demo_puts_back_every_global_it_touched`, asserted over two consecutive runs |
+| M3 | MEDIUM | the botocore `before-send` hooks outlived the test session on module-level clients | `_disarm_aws_refusal()` unregisters every hook the run installed, from the same `finally` | §10; the same test emits `before-send` on both event systems after the run and nothing raises |
+| L1 | LOW | the printed idempotency key disclosed the demo code, so "no clear bearer-value code" was stronger than the fact | the key is masked in the summary line **and** in the rendered create body; the length is still printed; the reason is stated at the point the grep result is reported | §10's "informational, not merely literal" paragraph; `test_the_transcript_carries_no_clear_idempotency_key_either`, which measures the shared digest fragment in both casings |
+| L2 | LOW | `findings.md` said six documentation fetches; the transcript tabulates five | corrected to five, with the page numbers named | `findings.md` "What IS proven" |
+| L3 | LOW | `credit()` lost its `once_key` with no statement of where idempotency must live; one stale test name | docstring now names the required shape and home for a top-up caller's guard, and says why a pre-read check is not a substitute; test renamed to `test_the_claim_row_is_settled_in_the_same_transaction_...` with the rename's reason in its docstring | `gift_card_store.credit` docstring; `tests/test_gift_card_store.py` module docstring and the test |
+
+No LOCKED decision moved: coupons stay Option B, gift cards stay Wix-native-by-design and
+unwired, the retirement stays **not taken**, and loyalty/referral stays out of scope. Nothing in
+this iteration changes behaviour a user could observe — the only runtime change is to a
+development-only script and to a docstring.
+
 ## 0. The baseline, measured in this worktree at `32b632e3` BEFORE any edit
 
 ```
@@ -32,7 +51,7 @@ Five pre-existing pytest failures, confirmed present both before and after:
 
 ```
 $ .venv/bin/python -m pytest -q
-5 failed, 6878 passed, 1 skipped, 7 xfailed in 58.91s
+5 failed, 6881 passed, 1 skipped, 7 xfailed in 59.07s
 
 FAILED tests/test_legacy_redirect_rollback_snapshot.py::test_owner_policy_preserves_rewrites_without_restoring_legacy_destinations
 FAILED tests/test_url_host_routing_rules.py::test_only_host_canonicalisation_is_an_explicit_redirect
@@ -42,7 +61,9 @@ FAILED tests/test_url_host_routing_rules.py::test_saved_pre_removal_configuratio
 ```
 
 **Against the baseline: exactly the 5 known failures, in exactly the 2 known files. No sixth
-failure, so this change introduced no regression.** 6,878 passed.
+failure, so this change introduced no regression.** 6,881 passed — re-run after the review fixes,
+`+3` on the 6,878 of the first pass, which is exactly the three tests added for the review
+findings.
 
 ## 3. The design §7 focused set
 
@@ -54,12 +75,15 @@ $ .venv/bin/python -m pytest tests/test_wix_coupon_giftcard_sample.py \
     tests/test_gift_cards_iam_and_table.py tests/test_wix_coupons_contract.py \
     tests/test_coupon_store.py tests/test_coupon_reconciliation.py \
     tests/test_payment_vocabulary_at_decision_points.py -q
-453 passed, 7 xfailed in 2.13s
+456 passed, 7 xfailed in 2.27s
 ```
 
-Reconciled against the baseline: 315 + 7 xfailed over 8 files → 453 + 7 xfailed over 12 files.
-The 138 additional passes are this change's new tests (58 harness + 16 demo + 4 concurrency) plus
-the 3 structural tests and 1 IAM test added to existing files, and the 7 xfailed are unmoved.
+Reconciled against the baseline: 315 + 7 xfailed over 8 files → 456 + 7 xfailed over 12 files.
+The 141 additional passes are this change's new tests (58 harness + **19** demo + 4 concurrency)
+plus the 3 structural tests and 1 IAM test added to existing files, and the 7 xfailed are unmoved.
+The demo file carried 16 tests at the first review; the three added for the review findings are
+the AWS-enforcement mutation test, the global-restoration test and the idempotency-key disclosure
+test.
 
 ## 4. Build before vitest — the `out/` artifact dependency
 
@@ -78,7 +102,7 @@ $ npm run build
 $ npx vitest run
  Test Files  65 passed (65)
       Tests  812 passed | 1 skipped (813)
-   Duration  7.59s
+   Duration  6.68s
 ```
 
 Build **before** vitest, in that order, because vitest depends on the `out/` artifact.
@@ -294,20 +318,60 @@ $ .venv/bin/python scripts/demo_coupon_giftcard_sample.py --coupon-money-off-pai
 exit 2            # not a whole number of rupees
 ```
 
-The full transcript is in `findings.md`. Two credential checks on its output:
+The full transcript is in `findings.md`. The disclosure checks on its output, re-measured after the
+review. Counted **in-process** rather than through a shell pipeline, deliberately: the values being
+searched for are derived at runtime and putting any of them on a command line is what
+`secret-handling.md` forbids, so the probe computes them, captures stdout and counts, printing only
+counts.
 
 ```
-$ demo --json | grep -icE 'rzp_live_|sk-|AIza|ghp_|xoxb-|AKIA|ASIA|sk_live_|ksk_|PRIVATE KEY|PLACEHOLDER'
-0
-
-$ for mode in --json --no-colour; do demo $mode | grep -c "$(the clear 20-char demo code)"; done
-0
-0
+$ .venv/bin/python   # derive code/key/digest, run main(), count occurrences in the captured stdout
+--json       exit=0 clear_code=0 clear_key=0 shared_digest_lower=0 shared_digest_upper=0 issuer_hits=0 chars=4084
+--no-colour  exit=0 clear_code=0 clear_key=0 shared_digest_lower=0 shared_digest_upper=0 issuer_hits=0 chars=4617
 ```
 
-So no issuer-shaped material and **no clear bearer-value code** in either renderer. Masking is
-`****` + last four, applied in both directions — the summary line, the create body and the query
-filter.
+`issuer_hits` covers `rzp_live_ sk- AIza ghp_ xoxb- AKIA ASIA sk_live_ ksk_ "PRIVATE KEY"
+PLACEHOLDER`. Masking is `****` + last four, applied in both directions — the summary line, the
+create body and the query filter.
+
+**And the claim is now informational, not merely literal.** The earlier run reported
+`clear_code=0` and concluded "no clear bearer-value code", which was true of the string and false
+of the information: `demo_code` and `idempotency_key` expose the **same** sha256 digest of the same
+reference, and the key was printed in full, so the masked code was recoverable by stripping
+decoration and upper-casing. The key is now masked too, and the three columns above measure the
+shared 16-hex digest fragment directly, in both casings, at **0**. The `(70 ch)` length is still
+printed, because the length is the fact a reviewer needs about Wix's 100-character ceiling and it
+discloses nothing. Pinned by
+`test_the_transcript_carries_no_clear_idempotency_key_either`.
+
+Production is unaffected either way: `card_code` is HMAC-keyed and shares nothing with the key,
+which `test_the_keyed_code_is_not_recoverable_from_a_logged_reference_id` asserts in both
+directions.
+
+### The zero AWS calls are enforced, and the enforcement is itself measured
+
+The hook is armed in `_install_containment()` **before leg 1** and unregistered in `main()`'s
+`finally`. `_count_aws_calls()` is now a read. A mutation run proves the assertion is not vacuous —
+`_arm_aws_refusal` neutralised, one leg emitting the `before-send` event botocore emits as a
+request leaves:
+
+```
+$ .venv/bin/python   # mutant: _arm_aws_refusal = lambda armed: armed
+MUTANT exit code: 0 (the test asserts 1)
+MUTANT aws count: 0 (the test asserts 1)
+```
+
+Unmutated, the same leg yields exit `1`, `CONTRACT FAILURE: UnexpectedAwsCall` on stdout, a count
+of `1`, and **no transcript**, so a refused run cannot be mistaken for a clean one. Pinned by
+`test_an_aws_call_during_a_leg_fails_the_run_rather_than_being_counted_afterwards`.
+
+### Every process-global is put back
+
+`urlopen`, `sys.modules["boto3"]`, `wix_ecom._key_cache["key"]` and both event-system hooks are
+restored in `main()`'s `finally`. Asserted over **two** consecutive runs by
+`test_the_demo_puts_back_every_global_it_touched`, because the hook-accumulation defect only shows
+on a repeat: the clients are module-level and session-lifetime, and `main()` is called nine times
+across that test file.
 
 ## 11. IAM — no provisioner was edited, and that is the finding
 
@@ -335,7 +399,7 @@ exact-action assertion covers `AdvanceGiftCardStageOnAPaymentAttempt` on **Payme
 | no live Wix write | the only network calls in this change are **five `curl` GETs** of `dev.wix.com` documentation pages, recorded in `docs/execution/wix-contract-verification-20261002.md`. No coupon created, no gift card created, no app install, no config change |
 | no `secretsmanager get-secret-value` in any spelling | not invoked. Secrets appear only as **names** (`wecare/wix/headless-api-key`, `wecare/wix/giftcard-spi`, field `code_pepper`) |
 | integer paise / explicit INR / no floats in money | `Decimal(str())` where a DynamoDB number re-enters arithmetic; `//` and `Money` elsewhere; `currency == "INR"` compared **explicitly and first**; `float` absent by AST from both `wix_gift_cards.py` and the demo; `_marshal` refuses a `float` and a `Decimal` by exact type and is pinned byte-for-byte against `TypeSerializer` |
-| bearer-value code never logged in clear | `wix_gift_cards.py` has no `logger`, no `logging` import and no `print(` — asserted by **AST**, not text, because the paragraph explaining the rule necessarily contains the word; `create` never returns a clear code; the demo masks in both directions |
+| bearer-value code never logged in clear | `wix_gift_cards.py` has no `logger`, no `logging` import and no `print(` — asserted by **AST**, not text, because the paragraph explaining the rule necessarily contains the word; `create` never returns a clear code; the demo masks in both directions, **and masks the idempotency key as well**, because this demo's `demo_code` is the unkeyed digest of the same reference and a clear key would otherwise yield it (§10) |
 | no live sends | no messaging, no SMS, no WhatsApp, no email. `notificationInfo` is deliberately never sent precisely because it would be one |
 | stayed inside this worktree | every path absolute under the worktree; `.worktrees/direct-razorpay-20261002` untouched; `ecommerce/checkout/handler.py`, `payment_readiness.py`, `payments/razorpay-webhook/handler.py` and everything under `amplify/functions/messaging/` untouched; `amplify/functions/ecommerce/coupons/handler.py` **driven, not modified** |
 | no destructive git | staged by explicit path with `git commit --only`; no `git add .`/`-A`/`-u`, no bare `stash`, no `clean`, no force push, no history rewrite; **not** rebased onto or fast-forwarded to `stack` |
@@ -377,3 +441,19 @@ Plus the three task documents: `findings.md`, `verification.md`,
 `wix-native-decision-memo.md`.
 
 **Deleted: nothing.** The retirement gate did not clear — see `findings.md`.
+
+### The review iteration's own footprint
+
+Four files, all in the second commit on this branch:
+
+```
+scripts/demo_coupon_giftcard_sample.py          M1 M2 M3 L1 — containment armed early,
+                                                restored in a finally, key masked
+tests/test_demo_coupon_giftcard_sample.py       three added tests (16 -> 19)
+amplify/.../ecommerce/gift_card_store.py        L3 — credit() docstring only, no code change
+tests/test_gift_card_store.py                   L3 — one test renamed, module docstring
+```
+
+Plus `findings.md` (L2, the corrected fetch count, the fresh transcript and the three reading
+notes) and this file. No production code path changed: the only `amplify/` edit is a docstring,
+which `git show --stat` and a diff of the function body both confirm.

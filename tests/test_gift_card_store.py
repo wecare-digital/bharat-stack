@@ -18,9 +18,10 @@ rather than merely answered in prose:
 * `test_a_void_carrying_only_a_transaction_id_resolves_both_the_card_and_the_attempt` pins HIGH-6 /
   DECISION 9. Without `paymentAttemptId` on the pointer row, `GC_VOIDED` is a stage with no
   reachable writer and the SPI role holds an `UpdateItem` grant for a call it cannot compose.
-* `test_the_claim_row_is_settled_by_the_decrement_so_a_short_balance_is_recoverable` pins the
-  ordering that makes an `InsufficientFunds` failure replayable rather than a permanent unsettled
-  claim.
+* `test_the_claim_row_is_settled_in_the_same_transaction_so_a_short_balance_is_recoverable` pins
+  the ordering that makes an `InsufficientFunds` failure replayable rather than a permanent
+  unsettled claim. Named for the transaction rather than for a `_decrement`, which no longer
+  exists.
 """
 
 from __future__ import annotations
@@ -383,13 +384,17 @@ def test_the_claim_is_written_before_the_balance_moves():
     assert claim_call["ConditionExpression"] == f"attribute_not_exists({gc.KEY_ATTRIBUTE})"
 
 
-def test_the_claim_row_is_settled_by_the_decrement_so_a_short_balance_is_recoverable():
+def test_the_claim_row_is_settled_in_the_same_transaction_so_a_short_balance_is_recoverable():
     """Not in the design's list, and it closes a real window.
 
-    The claim is written UNSETTLED. If the decrement then fails for want of balance, a retry must
-    re-drive the decrement rather than report a redemption that never moved money - and it must
+    The claim is written UNSETTLED. If the balance move then fails for want of funds, a retry
+    must re-drive it rather than report a redemption that never moved money - and it must
     re-drive it under the SAME transaction id, so a retry cannot mint a second one. Nothing here
     deletes the claim, so the window cannot be closed by removing evidence.
+
+    Named for the TRANSACTION, not for a `_decrement`: the settle and the debit are now two
+    `Update` items in one `TransactWriteItems`, so "settled by the decrement" named a function
+    that no longer exists and an ordering that is no longer sequential.
     """
     store = table()
     issue(store, value_paise=10000)

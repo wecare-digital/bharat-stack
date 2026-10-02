@@ -1063,6 +1063,16 @@ def credit(table: Any, *, code_hash: Any, amount_paise: Any,
     size are two different events and nothing should collapse them. The void path's idempotency
     now lives where it belongs - in `_commit_void`'s `credited = :false` condition, committed in
     the same transaction as the money.
+
+    SO A CALLER MUST BRING ITS OWN IDEMPOTENCY, AND HERE IS WHERE IT GOES. There is no
+    production caller today, which is what made removing `once_key` safe; a future top-up route
+    inherits a non-idempotent money function, so state the obligation rather than leave it to be
+    rediscovered. The guard belongs in the SAME `TransactWriteItems` as the balance move, as a
+    second `Update` item on a row keyed by the top-up's own event id and conditioned on
+    `attribute_not_exists` - the shape `_commit_redemption` and `_commit_void` already use, and
+    the only shape where a replay cannot move money and then fail to record that it did. A
+    pre-read "has this already happened" check in the caller is not a substitute: two concurrent
+    replays both pass it.
     """
     digest = _hash_hex(code_hash)
     amount = value_paise(amount_paise)

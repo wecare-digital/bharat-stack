@@ -21,12 +21,12 @@ Here is the gap, stated precisely rather than as a hedge.
 
 | Claim | How |
 |---|---|
-| The four verdict-carrying contract facts hold today | Six fetches of the live `dev.wix.com` markdown rendition, recorded with URL form, HTTP status, byte size and extracted schema fragment in `docs/execution/wix-contract-verification-20261002.md`. V1, V2, V3, V4 all **confirmed**; no HALT triggered |
+| The four verdict-carrying contract facts hold today | **Five** fetches of the live `dev.wix.com` markdown rendition (pages 1, 2, 2b, 3, 4), recorded with URL form, HTTP status, byte size and extracted schema fragment in `docs/execution/wix-contract-verification-20261002.md`. V1, V2, V3, V4 all **confirmed**; no HALT triggered |
 | Our request shapes match that contract byte-for-byte | `tests/test_wix_coupon_giftcard_sample.py` Groups A and C compare the **whole** body, not a subset, against the documented dict; the two optional keys are asserted **absent rather than null** |
 | Integer paise survive the decimal-string boundary | `Money(250050).to_wix() == "2500.50"` and back with `type(...) is int`; `Money.from_wix("999.75").paise == 99975`; `Money.from_wix(10.0)` raises |
 | Resolve-before-create consumes exactly ONE create | Enforced two ways: the typed transport queue (`query(miss) → create → query(hit)`, refused at pop time on a method/URL mismatch) and a direct count of `POST`s to the create endpoint `== 1` |
 | The gift-card code is not recoverable from a logged `reference_id` | `test_the_keyed_code_is_not_recoverable_from_a_logged_reference_id`, asserted in **both** directions, plus the positive line proving the unkeyed `demo_code` **fails** that same test — which is what makes the first two capable of failing at all |
-| Nothing touched AWS | `wix_ecom._secrets is None` after every run, corroborated from outside the demo; `boto3` sabotaged in `sys.modules` to raise a `BaseException` on any attribute access; a `before-send` hook on every client that exists; **0** AWS API calls attempted |
+| Nothing touched AWS | `wix_ecom._secrets is None` after every run, corroborated from outside the demo; `boto3` sabotaged in `sys.modules` to raise a `BaseException` on any attribute access; a refusing `before-send` hook **armed before leg 1 and unregistered after**, so an attempted call raises out of the leg and the run exits `1`. **0** AWS API calls attempted. The enforcement is itself measured: with the arming neutralised, a leg that emits `before-send` yields exit `0` and count `0` — see `verification.md` §10 |
 
 ### What is NOT proven, and cannot be from here
 
@@ -89,6 +89,14 @@ Read three things in it deliberately:
 - the **coupon code prints in full** (`WDSAMPLE10`) because it is broadcast marketing material;
 - the **gift-card code never does** — `****8FA8` in the summary, in the create body and in the
   query filter, in both directions;
+- the **idempotency key is masked too** (`****311d`), and the reason is specific rather than
+  cautious. An idempotency key is not bearer value and production could print it in full, because
+  production's `card_code` is HMAC-keyed and shares nothing with it. But leg 2 derives its code
+  with the unkeyed `demo_code`, and **both expose the same sha256 digest of the same reference**,
+  so a clear key would hand over the masked code by stripping decoration and upper-casing. The
+  earlier transcript printed it in full, which made "no clear bearer-value code" true of the
+  string and false of the information. The `(70 ch)` length is still reported, because that is
+  the fact a reviewer needs about Wix's 100-character ceiling;
 - the credential appears only as the **secret name**, `wecare/wix/headless-api-key`.
 
 ```
@@ -100,7 +108,7 @@ Wix HTTP boundary: STUBBED at urllib.request.urlopen. No live Wix call.
   driver           coupons/handler._create (production composition)
   created_by       demo-operator  (event['_auth']['username'])
   our claim        COUPON#WDSAMPLE10  (conditional put, won)
-  couponId         01a0fd66-0608-7332-961a-19886d077bea
+  couponId         01a0fd7b-dbe0-71f0-9e4c-290efc432347
   discount         MONEY_OFF 12345600 paise  = INR 123,456.00
   minimum          500000 paise  = INR 5,000.00
   currency         INR  (compared explicitly)
@@ -135,8 +143,10 @@ Wix HTTP boundary: STUBBED at urllib.request.urlopen. No live Wix call.
   code             ****8FA8  = demo_code(reference_id) - DEMO-ONLY, UNKEYED
                    20 chars, Wix's maximum - same length production sends
   production uses  card_code(reference_id, pepper) - HMAC-keyed under wecare/wix/giftcard-spi:code_pepper, domain-tagged
-  idem key         wd-gc-b4a4841861208fa8a47ba149ded8cdb1d01d57660fc8a259d336a7b56c5e311d  (70 ch)
+  idem key         ****311d  (70 ch)
                    unkeyed on purpose: not bearer value, and rotation-invariant
+                   MASKED here anyway: THIS leg's demo_code is the same unkeyed digest,
+                   so a clear key would yield the masked code. card_code is HMAC-keyed.
   derived          deterministic in its inputs - no clock, no counter, no secrets
 
   -> POST https://www.wixapis.com/gift-cards/v1/gift-cards
@@ -153,7 +163,7 @@ Wix HTTP boundary: STUBBED at urllib.request.urlopen. No live Wix call.
          "source": "MANUAL",
          "code": "****8FA8"
        },
-       "idempotencyKey": "wd-gc-b4a4841861208fa8a47ba149ded8cdb1d01d57660fc8a259d336a7b56c5e311d"
+       "idempotencyKey": "****311d"
      }
   <- 200 giftCardId 1d752091-8c2e-4c3f-9f1a-7b0d5e4a2c66  codeSuffix 8FA8  balance 250050 paise  = INR 2,500.50
      resolved=False  disabled=False  expirationDate None
@@ -178,16 +188,17 @@ Wix HTTP boundary: STUBBED at urllib.request.urlopen. No live Wix call.
 
 -- LEG 3 . GIFT CARD, OURS -------------------------------------
   CURRENT: would be removed under the Wix-native decision
-  issued           giftCardId 018bcfe5-6800-7639-91d3-a5e8c8b8cdfc   code ****0SZS  (HMAC key, pepper read BY REFERENCE in production)
+  issued           giftCardId 018bcfe5-6800-740a-bcb4-c28dc61487b4   code ****BR2J  (HMAC key, pepper read BY REFERENCE in production)
     balance        250050 paise  = INR 2,500.50
   redeem           150075 paise, attempt demo-attempt-1
-    transactionId  01M3YPC1M860TP1H3A1ADTV249  (ULID, secrets-backed)
+    transactionId  01M3YQQQBR9H8FE1FW052K5BAA  (ULID, secrets-backed)
     balance after  99975 paise  = INR 999.75
   replay           same attempt -> committed=False, balance 99975 paise unchanged
   concurrent       2 threads, same attempt -> 1 debit (tests/test_gift_card_redeem_concurrency.py)
 
 no AWS:  secretsmanager client built = NO    AWS API calls attempted = 0
-         clients are constructed at handler import; a before-send hook would fail the run
+         clients are constructed at handler import; the refusing before-send hook was ARMED
+         BEFORE leg 1 and unregistered after, so an attempted call raises and fails the run
 3 legs, 0 contract mismatches
 ```
 
@@ -211,10 +222,21 @@ no AWS:  secretsmanager client built = NO    AWS API calls attempted = 0
 | `redemption is WIX (balance is readOnly)` | we could not move it if we tried — that is the authority boundary |
 | `store of ours in this leg: NONE` | leg 2 touches no table of ours |
 | leg 3 `replay ... committed=False, balance unchanged` | our own store's idempotency on `(codeHash, paymentAttemptId)` |
-| `AWS API calls attempted = 0` | enforced by a `before-send` hook raising a `BaseException`, not observed |
+| `idem key ****311d` | masked even though a key is not bearer value, because **this** leg's code is the unkeyed digest of the same reference — see the three reading notes above |
+| `AWS API calls attempted = 0` | enforced by a refusing `before-send` hook **armed before leg 1**, which raises a `BaseException` out of the leg; the count is corroboration, not the gate |
 
 Note what the transcript deliberately does **not** claim. It does not print `boto3 imported = NO`,
 because that is false once the coupon handler is imported — it pulls in `middleware` and
 `rate_limit`, each of which builds a client at import. The honest claims are the two that are
 true: **no Secrets Manager client was built**, and **no AWS call was attempted**. A false
 structural claim in the one artifact whose purpose is to be trusted is worse than no claim.
+
+And one claim that was previously stronger than the fact, now corrected in the code rather than in
+the prose. The earlier run printed `AWS API calls attempted = 0` from a function that created the
+counter and registered the hook in the **same call**, invoked after all three legs had finished, so
+the `0` was true by construction: no leg call could have been refused, and the line beneath it was
+false for the run it described. The hook is now armed inside `_install_containment()` before leg 1
+and unregistered in a `finally`, `_count_aws_calls()` is a read, and an attempted call arrives as
+an `UnexpectedAwsCall` in `main()`'s handler — which prints `CONTRACT FAILURE` and exits `1`.
+That is design §4.3's wording honoured: a call that would leave the process **fails** the demo
+rather than being tallied afterwards.

@@ -35,6 +35,15 @@ placeholder pepper would LOOK like the production path while proving nothing abo
 harness already asserts the keyed derivation properly. This demo's job is to show the request
 shape, which is identical either way, and to be explicit that its own code is not production's.
 
+ZERO AWS IS ENFORCED, AND RESTORED
+----------------------------------
+`_install_containment()` arms a refusing botocore `before-send` hook on every live client
+BEFORE the first leg, so an attempted AWS call raises an `UnexpectedAwsCall` out of the leg and
+the run fails - rather than being tallied after the fact, which is what the count used to do
+and which proved nothing. `main()` then restores `urlopen`, `sys.modules["boto3"]`,
+`wix_ecom._key_cache["key"]` and both hooks in a `finally`, so repeated in-process runs leave
+no permanently-raising handler on a session-lifetime client.
+
 NO FLOAT ANYWHERE
 -----------------
 `argparse` uses `type=int`, every conversion is `//`, `Money` or `Decimal(str(value))`, and
@@ -72,6 +81,9 @@ PLACEHOLDER_API_KEY = "wix-admin-key-PLACEHOLDER-not-a-credential"
 #: `wecare/wix/giftcard-spi:code_pepper`, is read by reference at request time, and is not read
 #: here at all.
 DEMO_PEPPER = "pepper-for-the-offline-demo-only"
+
+#: "this global was ABSENT", which is a different restore action from "it was `None`".
+_MISSING = object()
 
 NOW = 1_700_000_000
 START_MS = 1_719_390_501_000
@@ -122,36 +134,44 @@ class _ExplodesOnAttributeAccess:
         raise UnexpectedAwsCall(f"the demo touched boto3.{name}")
 
 
-def _install_containment() -> WixTransport:
-    """Seed the key cache, sabotage boto3, and replace `urlopen`. Before the first leg."""
-    wix_ecom._key_cache["key"] = PLACEHOLDER_API_KEY
-    sys.modules["boto3"] = _ExplodesOnAttributeAccess()
-    transport = WixTransport()
-    urllib.request.urlopen = transport
-    return transport
+#: The counter the refusing hook increments. MODULE level, so the hook can be armed BEFORE the
+#: first leg and the count READ after the last one. The previous shape created the counter and
+#: registered the hook in the same call, invoked after every leg had finished, so the printed
+#: `0` was true by construction and no leg call could ever have been refused. Design revision 8
+#: §4.3 is explicit: a call that would leave the process FAILS the demo rather than being
+#: tallied afterwards.
+_AWS_CALLS = {"count": 0}
+
+#: The two paths from an imported module to a live botocore event system. Both modules are
+#: already in `sys.modules` when this script finishes importing - `lambda_utils.ecommerce`
+#: pulls them in transitively - so both clients exist before leg 1, which is what makes arming
+#: at containment time possible rather than aspirational. Measured by
+#: `test_the_aws_refusal_hook_is_armed_before_the_first_leg`, not assumed.
+_HOOK_PATHS = (
+    ("lambda_utils.middleware", ("cognito", "meta", "events")),
+    ("lambda_utils.rate_limit", ("dynamodb", "meta", "client", "meta", "events")),
+)
 
 
-def _count_aws_calls() -> int:
-    """Zero AWS API calls, ENFORCED by a before-send hook rather than observed.
+def _refuse_aws_call(**_kwargs):
+    """`before-send`: count it, then raise. The raise is what makes the count enforcement.
 
-    Every boto3 client that exists in this process gets a hook that raises
-    `UnexpectedAwsCall`. Leg 1's handler imports `middleware` and `rate_limit`, each of which
-    builds a client at import, so the clients DO exist - the claim is that none of them is
-    called, and the hook is what makes that a fact rather than a hope.
-
-    `boto3 imported = NO` is deliberately NOT printed: it is false once the handler is
-    imported, and a false structural claim in the one artifact whose purpose is to be trusted
-    is worse than no claim.
+    `boto3 imported = NO` is deliberately never printed: it is false once leg 1's handler is
+    imported, and a false structural claim in the one artifact whose purpose is to be trusted is
+    worse than no claim. What IS printed is that no client was called.
     """
-    attempted = {"count": 0}
+    _AWS_CALLS["count"] += 1
+    raise UnexpectedAwsCall("the demo attempted a live AWS API call")
 
-    def refuse(**_kwargs):
-        attempted["count"] += 1
-        raise UnexpectedAwsCall("the demo attempted a live AWS API call")
 
-    for module_name, path in (("lambda_utils.middleware", ("cognito", "meta", "events")),
-                              ("lambda_utils.rate_limit",
-                               ("dynamodb", "meta", "client", "meta", "events"))):
+def _arm_aws_refusal(armed: list) -> list:
+    """Register `_refuse_aws_call` on every live botocore event system reachable today.
+
+    Idempotent by target IDENTITY, so it is safe to call again after leg 1's handler import in
+    case that import built a client which did not exist at containment time. Double-registering
+    would double-count one call, which would make the count unreadable.
+    """
+    for module_name, path in _HOOK_PATHS:
         module = sys.modules.get(module_name)
         if module is None:
             continue
@@ -159,11 +179,66 @@ def _count_aws_calls() -> int:
         try:
             for attribute in path:
                 target = getattr(target, attribute)
-            target.register("before-send", refuse)
         except (AttributeError, UnexpectedAwsCall):
             # The client was never built, or is already sabotaged. Either way, no call.
             continue
-    return attempted["count"]
+        if any(target is already for already in armed):
+            continue
+        target.register("before-send", _refuse_aws_call)
+        armed.append(target)
+    return armed
+
+
+def _disarm_aws_refusal(armed: list) -> None:
+    """Unregister every hook this run installed.
+
+    The clients are MODULE-LEVEL and session-lifetime, and `main()` is called repeatedly from
+    `tests/test_demo_coupon_giftcard_sample.py`, so leaving the handlers behind would accumulate
+    permanently-raising hooks on shared clients and hand an uncatchable `BaseException` to any
+    later test that used them for real.
+    """
+    for target in armed:
+        target.unregister("before-send", _refuse_aws_call)
+    armed.clear()
+
+
+def _count_aws_calls() -> int:
+    """A READ of the enforced counter. Registers nothing and can refuse nothing."""
+    return _AWS_CALLS["count"]
+
+
+def _install_containment() -> tuple:
+    """Seed the key cache, sabotage boto3, replace `urlopen`, ARM the refusal. Before leg 1.
+
+    Returns `(transport, armed, restore)`. `restore` puts back every process-global this touched
+    - `urlopen` above all, which nothing used to restore, so the drained `WixTransport` outlived
+    the run and any later `urlopen` raised `UnexpectedWixCall` from the wrong module.
+    """
+    previous_key = wix_ecom._key_cache.get("key", _MISSING)
+    previous_boto3 = sys.modules.get("boto3", _MISSING)
+    previous_urlopen = urllib.request.urlopen
+
+    wix_ecom._key_cache["key"] = PLACEHOLDER_API_KEY
+    sys.modules["boto3"] = _ExplodesOnAttributeAccess()
+    transport = WixTransport()
+    urllib.request.urlopen = transport
+
+    _AWS_CALLS["count"] = 0
+    armed: list = _arm_aws_refusal([])
+
+    def restore() -> None:
+        urllib.request.urlopen = previous_urlopen
+        if previous_boto3 is _MISSING:
+            sys.modules.pop("boto3", None)
+        else:
+            sys.modules["boto3"] = previous_boto3
+        if previous_key is _MISSING:
+            wix_ecom._key_cache.pop("key", None)
+        else:
+            wix_ecom._key_cache["key"] = previous_key
+        _disarm_aws_refusal(armed)
+
+    return transport, armed, restore
 
 
 # ── leg 1: the coupon, through the production handler ─────────────────────────
@@ -177,9 +252,13 @@ def _load_coupon_handler():
     return module
 
 
-def _leg_coupon(transport: WixTransport, args) -> dict:
+def _leg_coupon(transport: WixTransport, args, armed: list) -> dict:
     """`coupons/handler._create`: the production composition, not a hand-built payload."""
     handler = _load_coupon_handler()
+    # Re-arm AFTER the handler import and BEFORE `_create`. The import is the one moment in the
+    # run that could build a client the containment hooks had not yet seen; arming is idempotent
+    # by target identity, so this is free when - as today - there is nothing new to hook.
+    _arm_aws_refusal(armed)
     store = FakeTable(key_attr=cs.KEY_ATTRIBUTE,
                       indexes={cs.STATUS_INDEX: (cs.STATUS_ATTRIBUTE, "createdAt")})
     # Exactly the two stubs the harness installs. `_staff`, not `middleware.require_auth`:
@@ -306,6 +385,14 @@ def _leg_wix_giftcard(transport: WixTransport, args) -> dict:
     body = dict(create_request.body or {})
     rendered_body = json.loads(json.dumps(body))
     rendered_body["giftCard"]["code"] = _mask(rendered_body["giftCard"].get("code"))
+    # The KEY is masked too, and not out of caution. `demo_code` and `idempotency_key` expose
+    # the SAME unkeyed sha256 digest of the same reference, so a clear key yields the masked
+    # code by stripping decoration and upper-casing - the masking would have been true of the
+    # string and false of the information. Production's code is HMAC-keyed and shares nothing
+    # with its key, so there the key could be printed in full; it is masked here because THIS
+    # transcript's code is the unkeyed one. The last four of a 64-hex digest do not overlap the
+    # first 16 the code is built from, so neither mask discloses the other's input.
+    rendered_body["idempotencyKey"] = _mask(rendered_body.get("idempotencyKey"))
     queries = [request for request in transport.requests
                if request.url.endswith("/query")]
     rendered_query = json.loads(json.dumps(queries[0].body)) if queries else None
@@ -322,7 +409,7 @@ def _leg_wix_giftcard(transport: WixTransport, args) -> dict:
         "codeDerivation": "demo_code(reference_id) - DEMO-ONLY, UNKEYED",
         "productionDerivation": ("card_code(reference_id, pepper) - HMAC-keyed under "
                                  "wecare/wix/giftcard-spi:code_pepper, domain-tagged"),
-        "idempotencyKey": wg.idempotency_key(reference_id=args.reference_id),
+        "idempotencyKeyMasked": _mask(wg.idempotency_key(reference_id=args.reference_id)),
         "idempotencyKeyLength": len(wg.idempotency_key(reference_id=args.reference_id)),
         "determinism": "deterministic in its inputs - no clock, no counter, no secrets",
         "createRequest": {"method": create_request.method, "url": create_request.url,
@@ -479,10 +566,14 @@ def _render(legs: list, aws_calls: int, out: list) -> None:
             out.append(f"                   {leg['codeLength']} chars, Wix's maximum"
                        " - same length production sends")
             out.append(f"  production uses  {leg['productionDerivation']}")
-            out.append(f"  idem key         {leg['idempotencyKey']}"
+            out.append(f"  idem key         {leg['idempotencyKeyMasked']}"
                        f"  ({leg['idempotencyKeyLength']} ch)")
             out.append("                   unkeyed on purpose: not bearer value, and"
                        " rotation-invariant")
+            out.append("                   MASKED here anyway: THIS leg's demo_code is the"
+                       " same unkeyed digest,")
+            out.append("                   so a clear key would yield the masked code."
+                       " card_code is HMAC-keyed.")
             out.append(f"  derived          {leg['determinism']}")
             out.append("")
             _render_request(leg["createRequest"], out)
@@ -534,8 +625,10 @@ def _render(legs: list, aws_calls: int, out: list) -> None:
     out.append(f"no AWS:  secretsmanager client built = "
                f"{'NO' if wix_ecom._secrets is None else 'YES'}"
                f"    AWS API calls attempted = {aws_calls}")
-    out.append("         clients are constructed at handler import; a before-send hook would"
-               " fail the run")
+    out.append("         clients are constructed at handler import; the refusing before-send"
+               " hook was ARMED")
+    out.append("         BEFORE leg 1 and unregistered after, so an attempted call raises and"
+               " fails the run")
     out.append(f"{len(legs)} legs, {len(mismatches)} contract mismatches")
     for item in mismatches:
         out.append(f"  MISMATCH: {item}")
@@ -560,19 +653,25 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     _validate(args, parser)
 
-    transport = _install_containment()
+    transport, armed, restore = _install_containment()
     legs = []
     try:
         if args.leg in ("coupon", "all"):
-            legs.append(_leg_coupon(transport, args))
+            legs.append(_leg_coupon(transport, args, armed))
         if args.leg in ("wix-giftcard", "all"):
             legs.append(_leg_wix_giftcard(transport, args))
         if args.leg in ("our-giftcard", "all"):
             legs.append(_leg_our_giftcard(args))
         transport.assert_drained()
     except BaseException as error:  # noqa: BLE001 - reported as a contract failure, by TYPE
+        # An `UnexpectedAwsCall` arrives HERE, so an attempted AWS call fails the run rather
+        # than being counted after it. The counter below is then corroboration, not the gate.
         print(f"CONTRACT FAILURE: {type(error).__name__}: {error}")
         return 1
+    finally:
+        # Every process-global goes back, including `urlopen` and both event-system hooks, so a
+        # pytest session that calls `main()` five times is left exactly as it was found.
+        restore()
 
     aws_calls = _count_aws_calls()
     mismatches = [item for leg in legs for item in leg["mismatches"]]
