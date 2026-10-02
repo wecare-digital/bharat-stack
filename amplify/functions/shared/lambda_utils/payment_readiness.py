@@ -28,9 +28,11 @@ artefact". **That reasoning was wrong, and the owner confirmed it against the li
                          payment configurations (`WECAREDIGITAL` on WABA 2094615664435155, and the
                          same on WABA 2513394156072604). This is the `provider_mid` Meta will
                          report, so it is what `expected_provider_mid` must equal.
-  `[retired Razorpay account]`   STALE. It was the `RAZORPAY_MID` env value and appears as `account_id` in
-                         older webhook fixtures, but it is NOT what Meta's configuration points at.
-                         `config/lambda-env-manifest.json` was corrected to `acc_TTFSyolquKEZEy`.
+  [retired Razorpay account]
+                         RETIRED. It was the old `RAZORPAY_MID` environment value and appeared
+                         as `account_id` in older webhook fixtures. The manifest and live
+                         environment were corrected to `acc_TTFSyolquKEZEy`; the retired
+                         identifier was purged from current source by owner instruction.
 
 The lesson the module keeps: a webhook `account_id` is evidence of which account *sent* an event,
 not proof of which account the *Meta configuration* settles into. This module still compares the

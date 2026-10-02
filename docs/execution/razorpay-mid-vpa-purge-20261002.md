@@ -12,3 +12,7 @@ The first MID cleanup had corrected the merchant setting but left the retired VP
 - Focused payment and canonical-secret checks: 125 passed.
 
 Credential secrets were not deleted or rotated. This verifies non-secret account and UPI identifiers, not API-key ownership or completed payment settlement. Older Git history and retained deployment versions remain historical evidence and are not active configuration. No WhatsApp messages, OTPs, captures, refunds, or provider payment configuration writes were performed.
+
+## Branch checkpoint reconciliation
+
+The shared checkout contains forward-revert e61a49c4 for its redundant local MID commit 57f5b505. It was not reverted again or altered by this session. Remote stack already contains the complete current purge and live deployment commit 27a3fb5d, so the pasted version-59/pending-VPA checkpoint is superseded. The remaining payment_readiness.py definition-list alignment and present-tense STALE wording were corrected to RETIRED/past tense without restoring either retired identifier. This follow-up changes source documentation only; live v60 continues to use the confirmed pair.
