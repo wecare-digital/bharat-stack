@@ -296,14 +296,16 @@ def _verify_email(body: Dict[str, Any], origin: str) -> Dict[str, Any]:
 
 
 def _active_match(index: str, field: str, value: str) -> Optional[Dict[str, Any]]:
-    try:
-        response = _contacts_table().query(
-            IndexName=index,
-            KeyConditionExpression=Key(field).eq(value),
-            Limit=5,
-        )
-    except Exception:  # noqa: BLE001
-        return None
+    """Return one active match, but fail closed if the identity lookup is unavailable.
+
+    A query outage is not "no contact". Treating it that way could create a duplicate while an
+    existing row is merely unreadable. The handler-level error boundary returns 500 instead.
+    """
+    response = _contacts_table().query(
+        IndexName=index,
+        KeyConditionExpression=Key(field).eq(value),
+        Limit=5,
+    )
     for item in response.get("Items") or []:
         if item.get("deletedAt") is None:
             return item
