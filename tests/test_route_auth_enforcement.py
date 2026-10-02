@@ -220,6 +220,9 @@ class TestAuditMarkerPolicy:
         assert set(audit.EXPECTED_PUBLIC_ROUTES) == {
             "GET /r/{code}",
             "POST /auth/validate",
+            # Public email-ownership OTP door. It returns only a short-lived proof bound to the
+            # normalized email; it performs no customer/contact mutation by itself.
+            "POST /auth/email-verification",
             # Public by design, but unlike the generic /contacts API it can write only after
             # both server-side OTP proofs succeed. The paired allowlist edit is intentional.
             "POST /blog/subscribe",

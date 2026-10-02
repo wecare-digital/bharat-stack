@@ -50,9 +50,12 @@ two trust models. It is cleaner as its own small function.
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
+import secrets
 import time
+from hashlib import sha256
 from typing import Any, Dict, Optional
 
 import boto3
@@ -100,6 +103,9 @@ CUSTOMERS_TABLE = os.environ.get("CUSTOMERS_TABLE", "")
 OTP_PEPPER_SECRET_ID = os.environ.get("OTP_PEPPER_SECRET_ID", "wecare/otp/pepper")
 
 PURPOSE = "email_verification"
+PROOF_PURPOSE = "email_verification_proof"
+PROOF_PREFIX = "email-proof#"
+PROOF_TTL_SECONDS = 15 * 60
 
 _dynamodb = None
 _secrets = None
@@ -118,6 +124,24 @@ def _customers_table():
     if _dynamodb is None:
         _dynamodb = boto3.resource("dynamodb", region_name=REGION)
     return _dynamodb.Table(CUSTOMERS_TABLE)
+
+
+def _proof_digest(email: str) -> str:
+    message = ("email-proof\x1f" + email).encode("utf-8")
+    return hmac.new(_pepper().encode("utf-8"), message, sha256).hexdigest()
+
+
+def _issue_proof(email: str) -> str:
+    proof_id = secrets.token_urlsafe(24)
+    now = int(time.time())
+    _table().put_item(Item={
+        "grantId": PROOF_PREFIX + proof_id,
+        "purpose": PROOF_PURPOSE,
+        "subjectDigest": _proof_digest(email),
+        "createdAt": now,
+        "expiresAt": now + PROOF_TTL_SECONDS,
+    })
+    return proof_id
 
 
 def _ses_client():
@@ -286,9 +310,16 @@ def _verify(event: Dict[str, Any], body: Dict[str, Any], origin: str) -> Dict[st
                                  "outcome": result.outcome}))
         return _no_store(cors_response(400, {"status": result.public_outcome()}, origin))
 
-    stamped = _mark_email_verified(body.get("customerId"))
-    logger.info(json.dumps({"event": "email_verified", "stamped": stamped}))
-    return _no_store(cors_response(200, {"status": "VERIFIED"}, origin))
+    # Do not trust a body-supplied customerId on this public endpoint. Verification proves
+    # ownership of the EMAIL only. The authenticated profile endpoint consumes this opaque proof
+    # and binds it to the signed-in customer's session identity.
+    proof = _issue_proof(email)
+    logger.info(json.dumps({"event": "email_verified"}))
+    return _no_store(cors_response(200, {
+        "status": "VERIFIED",
+        "proof": proof,
+        "expiresInSeconds": PROOF_TTL_SECONDS,
+    }, origin))
 
 
 def _mark_email_verified(customer_id: Optional[Any]) -> bool:

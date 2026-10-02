@@ -190,6 +190,11 @@ SPECS: List[Spec] = [
         provisioned_by="python scripts/provision_email_verification.py",
     ),
     Spec(
+        "wecare-customer-profile",
+        "auth/customer-profile",
+        provisioned_by="python scripts/provision_customer_profile.py",
+    ),
+    Spec(
         "wecare-blog-subscribe",
         "auth/blog-subscribe",
         provisioned_by="python scripts/provision_blog_subscribe.py",

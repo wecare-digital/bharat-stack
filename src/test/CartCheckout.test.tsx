@@ -9,6 +9,23 @@ import path from 'path';
 import * as cart from '../lib/cart';
 import type { ShopProduct } from '../content/shop';
 import * as customerAuth from '../lib/customerAuth';
+
+vi.mock( '../components/CheckoutProfile', () => ( {
+  default: ( { onReady }: { onReady: ( value: Record<string, string> ) => void } ) => (
+    <button
+      type="button"
+      onClick={ () => onReady( {
+        contactId: 'contact-1',
+        name: 'Asha Sen',
+        email: 'asha@example.com',
+        phone: '+919330994400',
+      } ) }
+    >
+      Complete checkout details
+    </button>
+  ),
+} ) );
+
 import Cart from '../pages/cart';
 import CheckoutStatus, { viewFor } from '../pages/checkout/status';
 
@@ -55,6 +72,7 @@ let navigatedTo: string;
 
 beforeEach( () => {
   window.localStorage.clear();
+  window.sessionStorage.clear();
   navigatedTo = '';
   Object.defineProperty( window, 'location', {
     configurable: true,
@@ -71,6 +89,12 @@ afterEach( () => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 } );
+
+async function proceedPastProfile (): Promise<void> {
+  fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
+  fireEvent.click( await screen.findByRole( 'button', { name: 'Complete checkout details' } ) );
+  fireEvent.click( await screen.findByRole( 'button', { name: /Pay securely/ } ) );
+}
 
 describe( 'the cart store', () => {
   it( 'adds, increments the same reference, and reports a count', () => {
@@ -184,7 +208,7 @@ describe( 'the cart page proceed flow', () => {
     expect( fetchMock ).not.toHaveBeenCalled();
   } );
 
-  it( 'sends { action:create, lineItems } with a Bearer token, refs+quantities only', async () => {
+  it( 'sends { action:prepare, lineItems, requestKey } with a Bearer token and no money', async () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
       accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
     } );
@@ -199,14 +223,16 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 2 );
 
     render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
+    await proceedPastProfile();
 
     await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 1 ) );
     const [ url, init ] = fetchMock.mock.calls[ 0 ];
-    expect( String( url ) ).toContain( '/ecommerce/checkout' );
+    expect( String( url ) ).toContain( '/ecommerce/prepare-checkout' );
     expect( ( init.headers as Record<string, string> ).Authorization ).toBe( 'Bearer tok-123' );
     const body = JSON.parse( init.body as string );
-    expect( body.action ).toBe( 'create' );
+    expect( body.action ).toBe( 'prepare' );
+    expect( typeof body.requestKey ).toBe( 'string' );
+    expect( body.requestKey.length ).toBeGreaterThan( 8 );
     expect( body.lineItems ).toEqual( [ { catalogReference: { appId: '215238eb-22a5-4c36-9e7b-e7c08025e04e', catalogItemId: 'wix-abc-123' }, quantity: 2 } ] );
     // No financial figure on the wire.
     expect( init.body as string ).not.toMatch( /price|amount|currency|formattedPrice/i );
@@ -224,7 +250,7 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 1 );
 
     const { container } = render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
+    await proceedPastProfile();
 
     /*
      * TWO PINNED BEHAVIOURS CHANGED HERE, AND BOTH WERE WRONG BEFORE.
@@ -254,6 +280,89 @@ describe( 'the cart page proceed flow', () => {
     expect( container.textContent || '' ).not.toMatch( /pay now|pay \u20b9|make payment/i );
   } );
 
+  it( 'opens Razorpay with server options and verifies the returned callback before navigation', async () => {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
+      accessToken: 'fixture-session', expiresAt: Date.now() + 3_600_000,
+    } );
+
+    let receivedOptions: any = null;
+    const open = vi.fn();
+    class FakeRazorpay {
+      constructor ( options: any ) { receivedOptions = options; }
+      open = open;
+      on = vi.fn();
+    }
+    Object.defineProperty( window, 'Razorpay', {
+      configurable: true,
+      writable: true,
+      value: FakeRazorpay,
+    } );
+
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce( {
+        ok: true,
+        status: 200,
+        json: async () => ( {
+          status: 'CHECKOUT_OPTIONS_READY',
+          paymentAttemptId: 'att-web-1',
+          options: {
+            keyId: 'fixture-publishable-id',
+            orderId: 'order-fixture-1',
+            amountPaise: 121481,
+            currency: 'INR',
+            prefill: {
+              name: 'Asha Sen',
+              email: 'asha@example.com',
+              contact: '+919330994400',
+            },
+          },
+        } ),
+      } )
+      .mockResolvedValueOnce( {
+        ok: true,
+        status: 200,
+        json: async () => ( {
+          status: 'VERIFIED_PAID',
+          paymentAttemptId: 'att-web-1',
+        } ),
+      } );
+    vi.stubGlobal( 'fetch', fetchMock );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    await proceedPastProfile();
+
+    await waitFor( () => expect( open ).toHaveBeenCalledTimes( 1 ) );
+    expect( receivedOptions.order_id ).toBe( 'order-fixture-1' );
+    expect( receivedOptions.amount ).toBe( 121481 );
+    expect( receivedOptions.currency ).toBe( 'INR' );
+    expect( receivedOptions.prefill.email ).toBe( 'asha@example.com' );
+    expect( receivedOptions ).not.toHaveProperty( 'key_secret' );
+
+    const prepareBody = JSON.parse( fetchMock.mock.calls[ 0 ][ 1 ].body );
+    expect( prepareBody.action ).toBe( 'prepare' );
+    expect( prepareBody ).not.toHaveProperty( 'amountPaise' );
+    expect( prepareBody ).not.toHaveProperty( 'currency' );
+    expect( typeof prepareBody.requestKey ).toBe( 'string' );
+
+    await receivedOptions.handler( {
+      razorpay_payment_id: 'payment-fixture-1',
+      razorpay_order_id: 'order-fixture-1',
+      razorpay_signature: 'signature-fixture',
+    } );
+
+    await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
+    const verifyBody = JSON.parse( fetchMock.mock.calls[ 1 ][ 1 ].body );
+    expect( verifyBody ).toEqual( {
+      action: 'verify',
+      razorpay_payment_id: 'payment-fixture-1',
+      razorpay_order_id: 'order-fixture-1',
+      razorpay_signature: 'signature-fixture',
+    } );
+    expect( navigatedTo ).toBe( '/checkout/status/?a=att-web-1' );
+    expect( cart.readCart() ).toHaveLength( 1 );
+  } );
+
   it( 'routes PAYMENT_REQUEST_SENT to the hosted status screen', async () => {
     vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
       accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
@@ -266,7 +375,7 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
+    await proceedPastProfile();
     await waitFor( () => expect( navigatedTo ).toBe( '/checkout/status/?a=att-5' ) );
     expect( cart.readCart() ).toHaveLength( 1 );
   } );
@@ -281,7 +390,7 @@ describe( 'the cart page proceed flow', () => {
     vi.stubGlobal( 'fetch', fetchMock );
     cart.addItem( PRODUCT, 1 );
     const { container } = render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
+    await proceedPastProfile();
     expect( await screen.findByText( 'We could not confirm checkout. Check your orders before trying again.' ) ).toBeTruthy();
     expect( container.textContent ).not.toMatch( /No charge was made/i );
     expect( cart.readCart() ).toHaveLength( 1 );
@@ -303,7 +412,7 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
+    await proceedPastProfile();
 
     expect( await screen.findByText( /No charge was made/ ) ).toBeTruthy();
     // THE EXACT APPROVED SENTENCE, not merely something containing "No charge was made". A readiness
@@ -330,7 +439,7 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
+    await proceedPastProfile();
     expect( await screen.findByText( /No charge was made - please try again/ ) ).toBeTruthy();
   } );
 
@@ -344,7 +453,7 @@ describe( 'the cart page proceed flow', () => {
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
+    await proceedPastProfile();
     await waitFor( () => expect( navigatedTo ).toContain( '/account/sign-in' ) );
   } );
 
@@ -392,7 +501,7 @@ describe( 'the initiation-failure sentence is pinned to its evidence', () => {
       cart.addItem( PRODUCT, 1 );
 
       const { unmount } = render( <Cart /> );
-      fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
+      await proceedPastProfile();
       expect( await screen.findByText( SENTENCE ), JSON.stringify( refusal.body ) ).toBeTruthy();
       // Nothing was handed off, so the claim stays attached to the response that justified it.
       expect( navigatedTo ).toBe( '' );
@@ -413,7 +522,7 @@ describe( 'the initiation-failure sentence is pinned to its evidence', () => {
     cart.addItem( PRODUCT, 1 );
 
     const { container } = render( <Cart /> );
-    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
+    await proceedPastProfile();
 
     await waitFor( () => expect( navigatedTo ).toBe( '/checkout/status/?a=att-5' ) );
     expect( cart.readCart() ).toHaveLength( 1 );
