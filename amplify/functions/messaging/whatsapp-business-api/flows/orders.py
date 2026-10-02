@@ -293,6 +293,7 @@ def fetch_orders_for_flow(phone: str, email: str) -> list:
         params = {'limit': '20'}
         if email:
             params['email'] = email
+        # IAM authorizes this direct invocation; browser Origin is not authentication.
         wix_resp = lambda_client.invoke(
             FunctionName=os.environ.get('WIX_STORE_FUNCTION', 'wecare-wix-store'),
             InvocationType='RequestResponse',
@@ -300,7 +301,6 @@ def fetch_orders_for_flow(phone: str, email: str) -> list:
                 'requestContext': {'http': {'method': 'GET'}},
                 'rawPath': '/wix-store/orders',
                 'queryStringParameters': params,
-                'headers': {'origin': 'https://admin.wecare.digital'},
             })
         )
         wix_body = json.loads(json.loads(wix_resp['Payload'].read()).get('body', '{}'))

@@ -218,7 +218,6 @@ class TestAuditMarkerPolicy:
         Adding a line here is the second key. Turning it. Justify it.
         """
         assert set(audit.EXPECTED_PUBLIC_ROUTES) == {
-            "GET /{code}",
             "GET /r/{code}",
             "POST /auth/validate",
             "GET /webhook/sinch-rcs",

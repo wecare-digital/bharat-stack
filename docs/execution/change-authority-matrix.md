@@ -844,3 +844,17 @@ that, and states the authority exactly as it stands rather than stronger.
 | 2026-10-02 | Complete retired Razorpay MID/VPA purge and WhatsApp live-env deployment | Current tracked files and WhatsApp-business API live v60 | A1_LOCAL, A2_REMOTE_CODE, A3_PRODUCTION; explicit retained pair from owner | 125 focused tests; zero old identifiers in current files and exact release archive; live pair readback | No rollback performed; prior immutable versions/history retained, not active settings | Secrets unchanged; merchant-key ownership still unverified |
 
 | 2026-10-02 | Reconcile stale branch/purge checkpoint and fix retirement comment | Isolated checkout payment_readiness.py and execution record | A0_READ, A1_LOCAL, A2_REMOTE_CODE | Existing forward revert e61a49c4 confirmed; live v60 retained pair readback; focused readiness tests | Shared checkout left untouched; no second revert, no production mutation | Owner ruling keeps redactions; branch checkpoint updated |
+
+- 2026-10-02 A0_READ/A1_LOCAL/A2_REMOTE_CODE/A3_PRODUCTION: owner requested
+  resolution of live link/API audit findings. Removed retired GET /{code} root
+  short-link catch-all from zllr9lrg7j, preserving GET /r/{code}, and aligned IaC
+  and regression expectations. Patched only flows/orders.py in the existing
+  WhatsApp business API package to omit the obsolete browser Origin. Checked
+  receiving authentication contract and zero deployed WIX_SITE_URL consumers;
+  canonicalized that setting, preserving all other variables. Published version
+  61 and moved live with revision guards. Evidence: link-api-fixes-20261002.md
+  and snapshots/link-api-{before-fix,live-verification}-20261002.json. Validation:
+  92 focused tests passed on exact isolated remote-based tree; typecheck and diff
+  checks passed; both unknown API probes 404 JSON, order API 401 unauthenticated,
+  canonical short links and customer pages passed. Rollback: live version 60 and
+  recreate captured route. No DNS/cert/page, payment, OTP or message mutation.

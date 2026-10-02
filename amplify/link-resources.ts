@@ -14,15 +14,15 @@
  * recalled; that is a consequence of the retirement, not a reason to undo it.
  *
  * Short links resolve on the apex path instead: Amplify proxies `/r/<*>` to the shared
- * API, and the handler accepts both `/r/{code}` and a bare `/{code}`.
+ * API, and short links are exposed only at `/r/{code}`.
  *
  * NOT DEPLOYED - verified 2026-09-26. There is no CloudFormation stack for this
  * file, and the `stack-wecare-short-links` HTTP API it declares below does not
  * exist: the account holds exactly one HTTP API, `zllr9lrg7j`
  * ("wecare-digital-api"). The live wiring is different from what this file
- * describes - the `r.wecare.digital` custom domain is mapped straight to
+ * describes - Amplify proxies the apex short-link namespace to
  * `zllr9lrg7j` stage `prod`, and the shortener's routes (`GET /r/{code}`,
- * `GET /{code}`, `/links*`) live on that same shared API against
+ * `/links*`) live on that same shared API against
  * `stack-wecare-url-shortener:live`.
  *
  * So treat this as a description of intent, not of production. Changing a value
@@ -40,7 +40,7 @@
  * 6. IAM Policy for Lambda
  *
  * API Gateway Routes:
- * - GET  /{code}        -> url-shortener Lambda (redirect)
+ * - GET  /r/{code}      -> url-shortener Lambda (redirect)
  * - POST /links         -> url-shortener Lambda (create)
  * - GET  /links         -> url-shortener Lambda (list)
  * - GET  /links/{code}  -> url-shortener Lambda (get + analytics)
@@ -160,9 +160,9 @@ export function addLinkResources(stack: Stack) {
   );
 
   // API Routes
-  // GET /{code} — redirect (catch-all for short codes)
+  // Explicit short-link namespace keeps unknown API paths on Gateway's JSON 404.
   httpApi.addRoutes({
-    path: '/{code}',
+    path: '/r/{code}',
     methods: [apigatewayv2.HttpMethod.GET],
     integration: lambdaIntegration,
   });
