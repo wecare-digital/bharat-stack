@@ -699,7 +699,8 @@ def ensure_routes(dry_run: bool, integration_id: str) -> str:
 
 #: DynamoDB actions the checkout path could plausibly need, and the verdict we expect.
 _SIMULATED_ACTIONS = ("dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
-                      "dynamodb:DeleteItem", "dynamodb:ConditionCheckItem")
+                      "dynamodb:DeleteItem", "dynamodb:ConditionCheckItem",
+                      "dynamodb:Query")
 
 #: (action, TABLE NAME) pairs the inline policy deliberately withholds, so a `denied` verdict is
 #: the CORRECT answer rather than a problem to report.
@@ -839,10 +840,19 @@ def report_required_grants(members: dict | None) -> list:
     tables = [f"arn:aws:dynamodb:{REGION}:{acct}:table/{PAYMENT_ATTEMPTS_TABLE}",
               f"arn:aws:dynamodb:{REGION}:{acct}:table/{COMMERCE_KEYS_TABLE}",
               f"arn:aws:dynamodb:{REGION}:{acct}:table/{COUPONS_TABLE}",
-              f"arn:aws:dynamodb:{REGION}:{acct}:table/{GIFT_CARDS_TABLE}"]
-    #: ARN -> table name, so a verdict can be reported and judged against `_EXPECTED_DENY` by the
-    #: name the policy uses rather than by a rendered ARN nobody reads.
-    table_names = {arn: arn.rsplit("/", 1)[1] for arn in tables}
+              f"arn:aws:dynamodb:{REGION}:{acct}:table/{GIFT_CARDS_TABLE}",
+              f"arn:aws:dynamodb:{REGION}:{acct}:table/{CONTACTS_TABLE}/index/phone-index"]
+    core_tables = tables[:4]
+    profile_index = tables[4]
+    #: ARN -> readable resource name. The profile resource ends in `phone-index`, so retaining the
+    #: table name matters when a verifier reports a mismatch.
+    table_names = {
+        tables[0]: PAYMENT_ATTEMPTS_TABLE,
+        tables[1]: COMMERCE_KEYS_TABLE,
+        tables[2]: COUPONS_TABLE,
+        tables[3]: GIFT_CARDS_TABLE,
+        tables[4]: CONTACTS_TABLE + "/index/phone-index",
+    }
     try:
         role_arn = iam().get_role(RoleName=ROLE_NAME)["Role"]["Arn"]
     except ClientError as exc:
@@ -872,7 +882,12 @@ def report_required_grants(members: dict | None) -> list:
 
     condition_check: set = set()
     for action in _SIMULATED_ACTIONS:
-        for arn in tables:
+        # Query exists only to read the verified checkout profile from the Contacts phone index.
+        # Every other Dynamo action is evaluated only on the four commerce tables. IAM simulation
+        # returns the full action/resource cross product, but irrelevant pairs are intentionally
+        # ignored rather than treated as desired permissions.
+        resources = [profile_index] if action == "dynamodb:Query" else core_tables
+        for arn in resources:
             name = table_names[arn]
             decisions = verdicts.get((action, arn), {"not evaluated"})
             decision = "allowed" if decisions == {"allowed"} else "/".join(sorted(decisions))
@@ -883,6 +898,14 @@ def report_required_grants(members: dict | None) -> list:
                 print(f"iam {action} on {name}: {decision}")
                 continue
             note = ""
+            if action == "dynamodb:Query":
+                if decision != "allowed":
+                    note = "  <-- PROFILE INDEX QUERY MUST BE ALLOWED"
+                    problems.append(
+                        f"{action} on {name} is {decision}, but checkout cannot load the "
+                        f"server-verified CRM profile without it")
+                print(f"iam {action} on {name}: {decision}{note}")
+                continue
             if (action, name) in _EXPECTED_DENY:
                 if decision == "allowed":
                     note = "  <-- ALLOWED BUT MUST BE DENIED"
