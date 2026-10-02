@@ -324,28 +324,33 @@ export const TERMS_SECTIONS: LegalSection[] = [
   },
   {
     /*
-     * ADDED for the customer-experience upgrade (/zip). WHY A SUB-CLAUSE OF 15, not a new numbered
+     * ADDED for the customer-experience upgrade (/shipments, formerly /zip). WHY A SUB-CLAUSE OF 15, not a new numbered
      * section: numbers here are load-bearing (see types.ts) and "How to contact us" is the last
      * top-level section by owner instruction, so a new top-level section would either renumber
      * citations or push contact out of last place. Delivery and fulfilment live under 15, so the
      * tracking / rescheduling / failed-delivery detail belongs beneath it. Appointment-style pickups
      * cross-reference 16 rather than restate it.
      *
-     * HONESTY CONSTRAINT: the /zip page aggregates only capabilities that actually exist today -
+     * RENAMED, NOT REWRITTEN (2026-10-02). The page was called "Zip" and the owner retired the
+     * name, so the route is /shipments/ and this clause now names the "Shipments page". The
+     * SUBSTANCE is deliberately unchanged - no obligation added, removed, softened or strengthened,
+     * and the clause number (15.1) and id (s15-1) are untouched so existing citations still hold.
+     *
+     * HONESTY CONSTRAINT: the Shipments page aggregates only capabilities that actually exist today -
      * tracking an order or request, amending a request, sending documents, the vault and leaving a
      * review - all of which are links to existing routes. General courier PICKUP and shipment
-     * booking have NO integrated provider yet; the /zip controls for them are inert "coming soon".
+     * booking have NO integrated provider yet; the Shipments controls for them are inert "coming soon".
      * So this clause must NOT promise a general pickup or shipment-booking service. It frames those
      * as not currently offered and conditional on a future provider, and covers tracking, timing,
      * rescheduling, missed pickup and failed delivery only to the extent they apply to what exists.
      */
-    number: '15.1', heading: 'Tracking, rescheduling and the Zip page', id: 's15-1',
+    number: '15.1', heading: 'Tracking, rescheduling and the Shipments page', id: 's15-1',
     paragraphs: [
-      'Where a service supports it, you can track the status of an order, a request or a booking, ask us to amend an open request, send us documents, use your vault, and leave a review. These are the capabilities we actually offer, and we surface them together on the Zip page at /zip/.',
+      'Where a service supports it, you can track the status of an order, a request or a booking, ask us to amend an open request, send us documents, use your vault, and leave a review. These are the capabilities we actually offer, and we surface them together on the Shipments page at /shipments/.',
       'Any delivery date, dispatch window or turnaround time we show is an estimate unless we expressly say it is guaranteed, and it can be affected by stock, customisation, the destination, a third-party carrier, or circumstances beyond our reasonable control. Section 36 applies to events outside anyone\'s control.',
       'Where a delivery, dispatch or appointment can be rescheduled or cancelled, the conditions for doing so - including any cut-off, any missed-slot consequence and any charge - are the ones disclosed for that service and in section 16 for scheduled services. Please give us a complete and accurate address, contact number and any access or delivery instructions; a failed or missed delivery caused by details that are wrong, incomplete or out of date may lead to a re-delivery attempt, a charge, or a return, as disclosed for that service.',
       'If a delivery fails, is missed, is materially delayed, or arrives lost or damaged, tell us and we will handle it under the policy for that service and under the law. Where an independent carrier or fulfilment partner is involved, their handling conditions may also apply, but that does not reduce any right the law gives you against us.',
-      'We do not currently offer a general courier-pickup or shipment-booking service. Where the Zip page shows a pickup, visit or shipment option marked as not yet available, that option is not live and cannot be booked. If and when we integrate a provider for it, it will be offered on its own disclosed conditions, and until then nothing on that page is a promise that we will collect from, visit or ship for you.',
+      'We do not currently offer a general courier-pickup or shipment-booking service. Where the Shipments page shows a pickup, visit or shipment option marked as not yet available, that option is not live and cannot be booked. If and when we integrate a provider for it, it will be offered on its own disclosed conditions, and until then nothing on that page is a promise that we will collect from, visit or ship for you.',
       'Nothing in this section limits a cancellation, refund, replacement or other remedy the law requires us to provide.',
     ],
   },

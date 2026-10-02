@@ -75,10 +75,12 @@ const NOT_OFFERINGS = [
   '/submit-request', '/request-amendment', '/drop-docs', '/vault', '/leave-review',
   '/refer-and-earn',
   '/terms', '/privacy', '/contact', '/orders', '/shop',
-  // Zip is a hub that signposts the request actions, and Perks gathers gift cards, rewards and
-  // offers - neither is a thing we sell, and both render their non-backed controls as
-  // non-transacting. A Service node would describe a site we do not have.
-  '/zip', '/perks',
+  // Shipments is a hub that signposts the request actions, and Perks is a quiet landing page for
+  // the small thank-yous we send - neither is a thing we sell, and both render their non-backed
+  // controls as non-transacting. A Service node would describe a site we do not have. (The former
+  // gift-card / offers / rewards sections on Perks were removed on owner instruction, so Perks no
+  // longer "gathers" anything; and the Shipments route moved from /zip/ on 2026-10-02.)
+  '/shipments', '/perks',
 ];
 
 describe( 'per-page Service structured data', () => {

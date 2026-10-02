@@ -7,28 +7,34 @@ import type { CycleWord } from '../components/RotatingHero';
  * /perks — a little extra for the people we look after.
  *
  * SECTION 4 of the customer-experience brief, and the repaired destination for the several
- * systems that link customers to a gift-card URL. The customer-facing label is now "Extras";
- * the ROUTE/URL stays /perks/ (this file is deliberately NOT renamed to extras.tsx and the URL
- * is not changed to /extras/), so the live URL, the sitemap, config/public-pages.json,
- * PUBLIC_PAGE_META and the gift-card CTAs that point at https://wecare.digital/perks/ all keep
- * resolving. Only the customer-facing wording reads "Extras".
+ * systems that link customers to a gift-card URL. The page's customer-facing name is "Perks",
+ * matching its /perks/ route, and the brand badge carries the full house form
+ * "Perks by WECARE.DIGITAL".
  *
- * NOW MATCHES THE HOME PAGE, by owner request — exactly as /zip was. Perks previously used
+ * IT WAS BRIEFLY RENAMED "EXTRAS" AND THE OWNER REVERSED THAT (2026-10-02). The nav was rendering
+ * a row labelled "Extras" directly beneath a group heading also reading "Extras" — the same word
+ * twice, one under the other — and PUBLIC_PAGE_META still carried `name: 'Extras'`, which feeds
+ * this route's WebPage schema and config/public-pages.json, so the wrong name was being published
+ * regardless of the label. The name is "Perks" everywhere now. The group HEADING in the header
+ * stays "Extras" (it is the category); the ROW is this page's name, "Perks".
+ *
+ * MATCHES THE HOME PAGE, by owner request — exactly as /shipments/ does. Perks previously used
  * components/PageTopBand (the fixed-statement band) and carried three in-page sections — Gift
  * Cards (#gift-cards), Offers (#offers) and Rewards (#rewards) — rendered as non-transacting
  * "coming soon" placeholders. The owner asked to make Perks share the HOME PAGE's look (its
  * animated hero and its scroll-reveal closing band) AND to remove those gift-card / offers /
  * rewards sections. Both are done here.
  *
- * This page now reuses the SAME two mechanisms the home page animates with — the proven /zip
- * pattern — rather than copying their markup or inventing a lookalike:
+ * This page now reuses the SAME two mechanisms the home page animates with — the proven
+ * /shipments/ pattern — rather than copying their markup or inventing a lookalike:
  *   1. THE ROTATING HERO. components/RotatingHero is the reusable, self-styling version of the
  *      home page's headline pill (identical interval, easings, white entrance shutter and dot;
  *      tools/browser/animcheck.js asserts the family shares one computed transition set). It is
- *      what /zip/, /shop/, /blog/ and every product page already reuse. The hero owns the page's
+ *      what /shipments/, /shop/, /blog/ and every product page already reuse. The hero owns the page's
  *      single <h1> and single <main>; the page must not add a second of either. The rotation
  *      cycles words that are TRUE OF PERKS — thanks / care / extra / you — rather than the home
- *      page's marketing audiences, so the words are the page's own and are not borrowed from zip.
+ *      page's marketing audiences, so the words are the page's own and are not borrowed from
+ *      /shipments/.
  *   2. THE SCROLL-REVEAL CLOSING BAND. The home page's closing band reveals once when it scrolls
  *      into view: a lime rule draws itself across and the lines stagger in behind it. It is an
  *      OPT-IN entrance — the CSS ships the final, visible state and JavaScript adds .is-armed only
@@ -36,7 +42,7 @@ import type { CycleWord } from '../components/RotatingHero';
  *      all leave the band fully readable. This page replicates that exact mechanism (closeRef +
  *      a one-shot IntersectionObserver at threshold 0.18, armed through the node's classList, the
  *      final state shipped as the CSS default), so the degradation and accessibility guarantees
- *      are the same ones the home page and /zip proved.
+ *      are the same ones the home page and /shipments/ proved.
  *
  * SECTIONS REMOVED, per owner instruction. The Gift Cards (#gift-cards), Offers (#offers) and
  * Rewards (#rewards) sections and their anchors are gone. They were honest-empty, non-transacting
@@ -66,7 +72,7 @@ import type { CycleWord } from '../components/RotatingHero';
  */
 
 // The hero's rotating nouns. Chosen to be TRUE OF PERKS rather than borrowed from the home page's
-// audiences or from zip's request/delivery/pickup set: Perks is a small thank-you for the people
+// audiences or from the Shipments request/delivery/pickup set: Perks is a small thank-you for the people
 // we look after, so the rotation names that — thanks / care / extra / you. Tints/dots are the four
 // per-subject pairs the shared hero family already uses verbatim; no new colour. Lengths are
 // 6 / 4 / 5 / 3 characters, inside RotatingHero's narrow-breakpoint fit.
@@ -79,7 +85,7 @@ const PERKS_WORDS: CycleWord[] = [
 
 const PerksPage: React.FC = () => {
   // The scroll-reveal closing band, armed through this node — the SAME mechanism the home page and
-  // /zip use. No React state: the reveal is a visual side-effect with no bearing on what React
+  // /shipments/ use. No React state: the reveal is a visual side-effect with no bearing on what React
   // renders, so it is driven by classList on the node itself.
   const closeRef = useRef<HTMLElement | null>( null );
 
@@ -107,7 +113,7 @@ const PerksPage: React.FC = () => {
           io.disconnect(); // One-shot: it is an entrance, not a scroll effect.
         }
       },
-      // 18% visible before it plays — the same threshold the home page and /zip use.
+      // 18% visible before it plays — the same threshold the home page and /shipments/ use.
       { threshold: 0.18 }
     );
     io.observe( el );
@@ -118,24 +124,26 @@ const PerksPage: React.FC = () => {
   return (
     <>
       <PageMeta
-        title="Extras — WECARE.DIGITAL"
+        title="Perks — WECARE.DIGITAL"
         description="A little extra for the people we look after. An honest, uncluttered place for the small thank-yous we send your way, and nothing here asks for payment."
         path="/perks/"
       />
-      {/* badgeLabel names the FEATURE above the headline — the documented product-badge use — so
-          "Extras" stays the first, prominent, translation-safe word on the page while the hero owns
-          the <h1> and the one <main> landmark. The URL stays /perks/; only the label reads "Extras". */}
+      {/* badgeLabel carries the FULL "<Name> by WECARE.DIGITAL" house form, which is what the owner
+          asked for and what /submit-request/, /bharat-rx/ and /contact/ already render. It was bare
+          "Extras" before — both the wrong name AND missing the suffix, which is the omission the
+          owner reported. The badge is the first, prominent, translation-safe line on the page while
+          the hero owns the <h1> and the one <main> landmark. */}
       <RotatingHero
-        badgeLabel="Extras"
+        badgeLabel="Perks by WECARE.DIGITAL"
         frame="A little extra, made for"
         words={ PERKS_WORDS }
         sub="A small thank-you for the people we look after."
-        ariaLabel="Extras"
+        ariaLabel="Perks"
       >
-        <section className="pk-in" aria-label="About Extras">
+        <section className="pk-in" aria-label="About Perks">
           <h2 className="pk-h2">A little extra, made for you</h2>
           <p className="pk-p">
-            Extras is where the small thank-yous live. We would rather keep this honest and quiet
+            Perks is where the small thank-yous live. We would rather keep this honest and quiet
             than fill it with points balances or offers we cannot stand behind — so right now it is
             a calm landing page, and nothing here asks for payment.
           </p>
@@ -151,7 +159,7 @@ const PerksPage: React.FC = () => {
             the CSS default and the closeRef effect only hides the start state once it can animate. */}
         <section className="pk-close" aria-labelledby="pk-close-title" ref={ closeRef }>
           <div className="pk-close-panel">
-            <p className="pk-close-eyebrow">Extras</p>
+            <p className="pk-close-eyebrow">Perks</p>
             <h2 className="pk-close-title" id="pk-close-title">A little extra, honestly done.</h2>
             <p className="pk-close-lead">
               We will not show you a points balance that is not real or an offer we cannot honour.

@@ -2,17 +2,23 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-import ZipPage from '../pages/zip';
+import ShipmentsPage from '../pages/shipments';
 
 /**
- * /zip — the request/delivery/pickup hub (Section 3).
+ * /shipments — the request/delivery/pickup hub (Section 3).
  *
- * WHAT THIS GUARDS. Zip now matches the HOME PAGE: it renders the shared RotatingHero (the
+ * THE PAGE WAS CALLED "ZIP"; the name is gone on owner instruction (2026-10-02) and this file was
+ * renamed from ZipPage.test.tsx. The route is /shipments/, the badge carries the full house form
+ * "Shipments by WECARE.DIGITAL", and no user-visible "Zip" survives. The assertions below are the
+ * guard against the name creeping back, because the previous attempt renamed only the nav label
+ * and left the route, the PUBLIC_PAGE_META `name` and the legal copy still saying "Zip".
+ *
+ * WHAT THIS GUARDS. The page matches the HOME PAGE: it renders the shared RotatingHero (the
  * reusable version of the home page's animated headline pill) and a scroll-reveal closing band
  * that uses the same opt-in .is-armed mechanism. These assertions therefore pin:
  *   - the page owns exactly one <h1> and one <main>, both provided by the hero (not a second of
  *     either, which htmlcheck's H1-MANY / MANY-MAIN guard against);
- *   - the customer-facing "Shipments" label and the owner's lead are present (the route stays /zip/);
+ *   - the full "Shipments by WECARE.DIGITAL" badge and the owner's lead are present;
  *   - the hero reuses RotatingHero rather than copying its markup, so the animation family cannot
  *     drift;
  *   - the real request routes still resolve to the real existing pages;
@@ -24,9 +30,9 @@ import ZipPage from '../pages/zip';
  * next/head is a no-op in jsdom, so PageMeta renders nothing observable here; the assertions are
  * on the page body the hero wraps.
  */
-describe( 'Zip page', () => {
+describe( 'Shipments page', () => {
   it( 'owns a single h1 and a single main through the shared hero', () => {
-    const { container } = render( <ZipPage /> );
+    const { container } = render( <ShipmentsPage /> );
     // RotatingHero provides exactly one <h1> and one <main>; the page must not add its own of
     // either (htmlcheck guards H1-MANY and MANY-MAIN).
     expect( container.querySelectorAll( 'h1' ) ).toHaveLength( 1 );
@@ -34,13 +40,15 @@ describe( 'Zip page', () => {
   } );
 
   it( 'carries the Shipments identity and the owner lead on the animated hero', () => {
-    const { container } = render( <ZipPage /> );
+    const { container } = render( <ShipmentsPage /> );
     // The hero frame line, which with the rotating nouns forms the single h1.
     const h1 = container.querySelector( 'h1' );
     expect( h1?.textContent ).toContain( 'Everything about your' );
-    // The customer-facing "Shipments" label sits in the brand badge above the headline. (The
-    // route stays /zip/; only the visible wording reads "Shipments".)
-    expect( screen.getByText( 'Shipments' ) ).toBeInTheDocument();
+    // THE FULL HOUSE FORM in the brand badge above the headline. This asserts the whole string,
+    // not a substring, because a bare "Shipments" badge is exactly the bug the owner reported.
+    expect( screen.getByText( 'Shipments by WECARE.DIGITAL' ) ).toBeInTheDocument();
+    // The retired name must never come back on the page.
+    expect( container.textContent ).not.toMatch( /\bZip\b/i );
     // The mandated lead.
     expect( screen.getByText( 'Track it. Arrange it. Keep it moving.' ) ).toBeInTheDocument();
     // The rotation describes the page's own subject, not the home page's marketing audiences. The
@@ -52,7 +60,7 @@ describe( 'Zip page', () => {
   it( 'reuses the home-page hero component rather than importing chrome or copying markup', () => {
     const fs = require( 'node:fs' );
     const path = require( 'node:path' );
-    const src = fs.readFileSync( path.join( process.cwd(), 'src/pages/zip.tsx' ), 'utf8' );
+    const src = fs.readFileSync( path.join( process.cwd(), 'src/pages/shipments.tsx' ), 'utf8' );
     // The animated hero is the shared RotatingHero — the same component /shop/, /blog/ and the
     // product pages reuse — so the "animate as one family" guarantee holds.
     expect( src ).toContain( "from '../components/RotatingHero'" );
@@ -65,8 +73,8 @@ describe( 'Zip page', () => {
   } );
 
   it( 'links the real request actions to the pages that answer them', () => {
-    render( <ZipPage /> );
-    // Each of these is a real existing public route; the Zip hub must point straight at it.
+    render( <ShipmentsPage /> );
+    // Each of these is a real existing public route; the Shipments hub must point straight at it.
     const expected: [ RegExp, string ][] = [
       [ /Track an order/i, '/orders/' ],
       [ /Track a request/i, '/orders/' ],
@@ -82,7 +90,7 @@ describe( 'Zip page', () => {
   } );
 
   it( 'renders pickup / visit / delivery-tracking as non-transacting coming-soon items', () => {
-    const { container } = render( <ZipPage /> );
+    const { container } = render( <ShipmentsPage /> );
 
     // None of these has a backend in the repo, so none may be a working link or button.
     for ( const label of [
@@ -97,7 +105,7 @@ describe( 'Zip page', () => {
 
     // The coming-soon affordances carry no href and are marked aria-disabled; they are neither
     // links nor buttons, so nothing reads as a working booking control.
-    const soon = container.querySelectorAll( '.zip-soon[aria-disabled="true"]' );
+    const soon = container.querySelectorAll( '.ship-soon[aria-disabled="true"]' );
     expect( soon.length ).toBe( 5 );
     soon.forEach( node => {
       expect( node.getAttribute( 'href' ) ).toBeNull();
@@ -109,9 +117,9 @@ describe( 'Zip page', () => {
   } );
 
   it( 'surfaces no transacting control or price', () => {
-    const { container } = render( <ZipPage /> );
+    const { container } = render( <ShipmentsPage /> );
     const text = ( container.textContent || '' ).toLowerCase();
-    // No priced/transacting furniture: Zip only signposts, it never sells.
+    // No priced/transacting furniture: Shipments only signposts, it never sells.
     expect( text ).not.toContain( 'add to cart' );
     expect( text ).not.toContain( 'pay now' );
     expect( text ).not.toContain( '₹' );

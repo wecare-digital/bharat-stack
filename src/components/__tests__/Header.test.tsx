@@ -121,10 +121,14 @@ describe( 'Header', () => {
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
 
-    // Shipments is a real public page under the Request group (Section 3). The visible label is
-    // "Shipments" but the ROUTE stays /zip/, carrying the trailing slash the static host needs —
-    // the URL, sitemap and config entries are deliberately unchanged.
-    expect( screen.getByRole( 'link', { name: 'Shipments' } ) ).toHaveAttribute( 'href', '/zip/' );
+    // Shipments is a real public page under the Request group (Section 3). THE ROUTE IS
+    // /shipments/ — the page was called "Zip" and the owner retired the name on 2026-10-02, so
+    // the route moved from /zip/ along with the page file, the sitemap entry, the
+    // PUBLIC_PAGE_META key and config/public-pages.json. The trailing slash is load-bearing
+    // (trailingSlash is set, so /shipments would redirect before resolving).
+    expect( screen.getByRole( 'link', { name: 'Shipments' } ) ).toHaveAttribute( 'href', '/shipments/' );
+    // The retired route must not come back in the menu.
+    expect( document.body.innerHTML ).not.toContain( '/zip' );
 
     // It lives in the Request group, not somewhere else.
     const request = screen.getByText( 'Request' ).closest( '.nav-group' );
@@ -141,8 +145,8 @@ describe( 'Header', () => {
     expect( labels.indexOf( 'Orders' ) ).toBe( 0 );
   } );
 
-  it( 'marks Shipments active on its public /zip route', () => {
-    routerState.pathname = '/zip';
+  it( 'marks Shipments active on its public /shipments route', () => {
+    routerState.pathname = '/shipments';
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
     expect( screen.getByRole( 'link', { name: 'Shipments' } ) ).toHaveAttribute( 'aria-current', 'page' );
@@ -153,15 +157,21 @@ describe( 'Header', () => {
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
 
-    // The customer-facing label is "Extras" (renamed from "Perks"); the ROUTE stays /perks/ (the
-    // URL is deliberately unchanged). The group was collapsed from three ANCHOR rows (Gift Cards ->
-    // /perks/#gift-cards, Rewards -> /perks/#rewards, Offers -> /perks/#offers) to a single link to
-    // the /perks/ page, because the owner removed those gift-card / offers / rewards sections and
-    // their anchors from the page. Nothing in the menu may still point at a removed anchor.
-    const perksLink = screen.getByRole( 'link', { name: 'Extras' } );
+    // THE GROUP HEADING IS "Extras" (the category) AND THE ROW IS "Perks" (the page's own name).
+    // This pairing is the fix for a reported bug: the row ALSO read "Extras", so the menu printed
+    // the same word twice, one directly beneath the other. An earlier instruction had renamed the
+    // page Perks -> Extras; the owner reversed that on 2026-10-02. The ROUTE stays /perks/ — it
+    // already matches the name, so nothing to rename there.
+    //
+    // The group was collapsed from three ANCHOR rows (Gift Cards -> /perks/#gift-cards, Rewards ->
+    // /perks/#rewards, Offers -> /perks/#offers) to a single link to the /perks/ page, because the
+    // owner removed those gift-card / offers / rewards sections and their anchors from the page.
+    // Nothing in the menu may still point at a removed anchor.
+    const perksLink = screen.getByRole( 'link', { name: 'Perks' } );
     expect( perksLink ).toHaveAttribute( 'href', '/perks/' );
-    // The old label must not come back.
-    expect( screen.queryByRole( 'link', { name: 'Perks' } ) ).toBeNull();
+    // THE DUPLICATION GUARD: "Extras" is the heading only, never a link row. If a row labelled
+    // "Extras" reappears, the word is being printed twice again and this fails.
+    expect( screen.queryByRole( 'link', { name: 'Extras' } ) ).toBeNull();
 
     // The old anchor rows and their dead targets are gone.
     expect( screen.queryByRole( 'link', { name: 'Gift Cards' } ) ).toBeNull();

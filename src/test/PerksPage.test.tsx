@@ -12,7 +12,7 @@ import PerksPage from '../pages/perks';
  * WHAT THIS GUARDS, after the owner asked to (1) make /perks match the home page's look and its
  * animated/scroll-reveal treatment, and (2) remove the former gift-card / offers / rewards
  * sections and their anchors:
- *   - the hero reuses the shared RotatingHero the home page / /zip use (not a bespoke lookalike),
+ *   - the hero reuses the shared RotatingHero the home page / /shipments/ use (not a bespoke lookalike),
  *     so it owns the single <h1> and the single <main>;
  *   - the removed #gift-cards / #offers / #rewards sections and anchors are gone;
  *   - the scroll-reveal closing band ships its final visible state as the CSS default and only
@@ -33,17 +33,19 @@ describe( 'Perks page', () => {
     const h1s = container.querySelectorAll( 'h1' );
     expect( h1s ).toHaveLength( 1 );
 
-    // The hero badge carries the customer-facing label "Extras" (renamed from "Perks"); the
-    // ROUTE stays /perks/ and the file name is unchanged.
+    // THE BADGE CARRIES THE FULL "<Name> by WECARE.DIGITAL" HOUSE FORM. Two bugs the owner
+    // reported are pinned here: the badge read bare "Extras" — the wrong name AND missing the
+    // suffix. The page's name is "Perks" again (the owner reversed the Perks -> Extras rename on
+    // 2026-10-02) and the route /perks/ already matches it, so no route change was needed.
     const text = container.textContent || '';
-    expect( text ).toContain( 'Extras' );
-    // The old proper-noun page name must not remain in the customer-facing copy.
-    expect( text ).not.toContain( 'Perks' );
+    expect( text ).toContain( 'Perks by WECARE.DIGITAL' );
+    // The reverted label must not come back in the customer-facing copy.
+    expect( text ).not.toContain( 'Extras' );
   } );
 
   it( 'reuses RotatingHero (not a bespoke hero) and replicates the home scroll-reveal band', () => {
     const src = fs.readFileSync( path.join( process.cwd(), 'src/pages/perks.tsx' ), 'utf8' );
-    // The sanctioned reuse surface, as on /zip, /shop, /blog and the product pages.
+    // The sanctioned reuse surface, as on /shipments/, /shop, /blog and the product pages.
     expect( src ).toContain( "from '../components/RotatingHero'" );
     expect( src ).toContain( '<RotatingHero' );
     // The home page's one-shot scroll-reveal mechanism, armed via classList with the final state
