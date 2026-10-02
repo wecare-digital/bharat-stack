@@ -121,7 +121,7 @@ const ProductPage: React.FC<ProductPageProps> = ( { product } ) => (
              and 2px because the hairline rule is that 2px means hoverable. */
           .pdp-cta{
             display:inline-flex;align-items:center;min-height:52px;margin-top:30px;
-            padding:0 26px;border:2px solid #d1f470;border-radius:50px;
+            padding:0 26px;border:2px solid #1a3a2a;border-radius:50px;
             background:#d1f470;color:#1a3a2a;font-size:17px;font-weight:600;text-decoration:none;
             transition:background-color .2s,transform .2s,box-shadow .2s;
           }
