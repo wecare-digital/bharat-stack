@@ -296,6 +296,21 @@ html,body{margin:0;background:#fff}
 }
 
 /* ============================================================================
+   SUBSCRIBE, WHATSAPP ONLY. The 2x2 field grid is gone because there is only
+   one field left, so .vl-sub-fields-single is a single column and the two
+   controls share one row beneath it. 'Send code' keeps the quiet 999px/32px
+   shape from BlogSubscribe.tsx:338 and 'Subscribe' keeps the 13px/52px action
+   shape from button.css:31 - the size difference is the hierarchy.
+   ========================================================================= */
+.vl-sub-fields-single{grid-template-columns:minmax(0,1fr)}
+.vl-sub-fields-single .vl-cell-wide{grid-column:auto}
+.vl-sub-action{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* The two moved sections sit inside the left column now, so they take the
+   column's measure and only need vertical separation from the block above. */
+.vl-app-left > .vl-section{margin-top:56px;padding-top:40px;border-top:1px solid var(--hair)}
+
+/* ============================================================================
    THE ASYMMETRIC BAND - .home-flow's own proportion: a wide primary measure
    against a 380px supporting column.
 
@@ -989,6 +1004,91 @@ html,body{margin:0;background:#fff}
           </div>
         </div>
 
+
+        <!-- SUBSCRIBE AND CONTRIBUTE NOW LIVE INSIDE THE LEFT COLUMN, on the
+             owner's instruction: "all copy on left side, one full section".
+             They were sibling sections below the grid; moving them inside
+             .vl-app-left means the sticky map on the right now spans the
+             ENTIRE block including these two, so the whole thing reads as one
+             section rather than an app block with two strays underneath. -->
+      <section class="vl-section" aria-labelledby="vl-sub-title">
+        <div class="vl-subscribe">
+          <div class="vl-sub-head">
+            <div>
+              <p class="vl-eyebrow">VayuLok alerts</p>
+              <h2 class="vl-sub-title" id="vl-sub-title">Get air-quality alerts for your place</h2>
+            </div>
+            <p>Verify your WhatsApp number once, then pick the places you want watched.</p>
+          </div>
+
+          <!-- WHATSAPP ONLY, on the owner's instruction. The first-name, last-name
+               and email fields were removed: one identifier, one verification step.
+               Fewer fields is also why this now reads as a single row rather than a
+               2x2 grid - there is nothing left to grid.
+
+               Static mock: onsubmit returns false so Enter cannot navigate, and
+               there is no submit handler, no fetch and no endpoint anywhere. -->
+          <form class="vl-sub-fields vl-sub-fields-single" onsubmit="return false">
+            <label class="vl-cell vl-cell-wide">
+              <span>WhatsApp number</span>
+              <input class="vl-input" type="tel" inputmode="tel" autocomplete="off" placeholder="+91 00000 00000">
+            </label>
+            <div class="vl-sub-action">
+              <button class="vl-btn-quiet" type="button">Send code</button>
+              <button class="vl-btn" type="submit">Subscribe</button>
+            </div>
+          </form>
+
+          <!-- NOT invented copy. The shipped BlogSubscribe component carries real
+               consent and purpose-of-use microcopy here; this mock will not guess
+               at its wording, its frequency promise or its privacy terms. -->
+          <p class="vl-placeholder">
+            <b>PLACEHOLDER</b> — consent and purpose-of-use microcopy sits here in the real
+            component. Wording pending owner input; nothing has been written in on its behalf.
+          </p>
+        </div>
+      </section>
+      <section class="vl-section vl-contribute" aria-labelledby="vl-bc-title">
+        <h2 class="vl-bc-title" id="vl-bc-title">Contribute</h2>
+        <p class="vl-bc-copy">
+          If VayuLok is useful to you, a small voluntary contribution helps keep the monitor
+          network and the forecasts running.
+        </p>
+
+        <form onsubmit="return false">
+          <fieldset class="vl-bc-fieldset">
+            <legend class="vl-bc-legend">Choose an amount</legend>
+            <div class="vl-bc-choices" role="radiogroup" aria-label="Contribution amount">
+              <label class="vl-bc-choice">
+                <input type="radio" name="vl-amount" class="vl-bc-radio" value="99">
+                <span class="vl-bc-choice-face">&#8377;99</span>
+              </label>
+              <label class="vl-bc-choice">
+                <input type="radio" name="vl-amount" class="vl-bc-radio" value="249" checked>
+                <span class="vl-bc-choice-face">&#8377;249</span>
+              </label>
+              <label class="vl-bc-choice">
+                <input type="radio" name="vl-amount" class="vl-bc-radio" value="499">
+                <span class="vl-bc-choice-face">&#8377;499</span>
+              </label>
+              <label class="vl-bc-choice">
+                <input type="radio" name="vl-amount" class="vl-bc-radio" value="other">
+                <span class="vl-bc-choice-face">Other</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="vl-bc-submit-wrap">
+            <button class="vl-btn" type="submit">Contribute</button>
+          </div>
+        </form>
+
+        <p class="vl-placeholder">
+          <b>PLACEHOLDER</b> — the real component's amount limits, payment-provider notice and
+          receipt wording sit here. Pending owner input; this mock takes no payment and makes no
+          network call.
+        </p>
+      </section>
       </div><!-- /.vl-app-left -->
 
       <!-- ===== RIGHT COLUMN: the map, and nothing else =================== -->
@@ -1059,97 +1159,13 @@ html,body{margin:0;background:#fff}
   </section>
 
   <!-- 2. SUBSCRIBE ========================================================= -->
-  <section class="vl-wrap vl-section" aria-labelledby="vl-sub-title">
-    <div class="vl-subscribe">
-      <div class="vl-sub-head">
-        <div>
-          <p class="vl-eyebrow">VayuLok alerts</p>
-          <h2 class="vl-sub-title" id="vl-sub-title">Get air-quality alerts for your place</h2>
-        </div>
-        <p>Verify WhatsApp and email once, then pick the places you want watched.</p>
-      </div>
 
-      <!-- Static mock: onsubmit returns false so Enter cannot navigate, and
-           there is no submit handler, no fetch and no endpoint anywhere. -->
-      <form class="vl-sub-fields" onsubmit="return false">
-        <label class="vl-cell">
-          <span>First name</span>
-          <input class="vl-input" type="text" autocomplete="off" placeholder="First name">
-        </label>
-        <label class="vl-cell">
-          <span>Last name</span>
-          <input class="vl-input" type="text" autocomplete="off" placeholder="Last name">
-        </label>
-        <label class="vl-cell vl-cell-wide">
-          <span>WhatsApp</span>
-          <input class="vl-input" type="text" autocomplete="off" placeholder="+91 00000 00000">
-          <span class="vl-verify-row"><button class="vl-btn-quiet" type="button">Send code</button></span>
-        </label>
-        <label class="vl-cell vl-cell-wide">
-          <span>Email</span>
-          <input class="vl-input" type="text" autocomplete="off" placeholder="you@example.com">
-          <span class="vl-verify-row"><button class="vl-btn-quiet" type="button">Send code</button></span>
-        </label>
-        <div class="vl-sub-action">
-          <button class="vl-btn" type="submit">Subscribe</button>
-        </div>
-      </form>
-
-      <!-- NOT invented copy. The shipped BlogSubscribe component carries real
-           consent and purpose-of-use microcopy here; this mock will not guess
-           at its wording, its frequency promise or its privacy terms. -->
-      <p class="vl-placeholder">
-        <b>PLACEHOLDER</b> — consent and purpose-of-use microcopy sits here in the real
-        component. Wording pending owner input; nothing has been written in on its behalf.
-      </p>
-    </div>
-  </section>
 
   <!-- 3. CONTRIBUTE ======================================================== -->
   <!-- THE VISIBLE LABEL IS 'Contribute'. The owner corrected 'CONTRIBUTION'
        explicitly, and there is no text-transform on .vl-bc-title, so CSS
        cannot uppercase it either. -->
-  <section class="vl-wrap vl-section vl-contribute" aria-labelledby="vl-bc-title">
-    <h2 class="vl-bc-title" id="vl-bc-title">Contribute</h2>
-    <p class="vl-bc-copy">
-      If VayuLok is useful to you, a small voluntary contribution helps keep the monitor
-      network and the forecasts running.
-    </p>
 
-    <form onsubmit="return false">
-      <fieldset class="vl-bc-fieldset">
-        <legend class="vl-bc-legend">Choose an amount</legend>
-        <div class="vl-bc-choices" role="radiogroup" aria-label="Contribution amount">
-          <label class="vl-bc-choice">
-            <input type="radio" name="vl-amount" class="vl-bc-radio" value="99">
-            <span class="vl-bc-choice-face">&#8377;99</span>
-          </label>
-          <label class="vl-bc-choice">
-            <input type="radio" name="vl-amount" class="vl-bc-radio" value="249" checked>
-            <span class="vl-bc-choice-face">&#8377;249</span>
-          </label>
-          <label class="vl-bc-choice">
-            <input type="radio" name="vl-amount" class="vl-bc-radio" value="499">
-            <span class="vl-bc-choice-face">&#8377;499</span>
-          </label>
-          <label class="vl-bc-choice">
-            <input type="radio" name="vl-amount" class="vl-bc-radio" value="other">
-            <span class="vl-bc-choice-face">Other</span>
-          </label>
-        </div>
-      </fieldset>
-
-      <div class="vl-bc-submit-wrap">
-        <button class="vl-btn" type="submit">Contribute</button>
-      </div>
-    </form>
-
-    <p class="vl-placeholder">
-      <b>PLACEHOLDER</b> — the real component's amount limits, payment-provider notice and
-      receipt wording sit here. Pending owner input; this mock takes no payment and makes no
-      network call.
-    </p>
-  </section>
 
   <!-- CONTEXT, NOT THE DELIVERABLE ========================================= -->
   <div class="vl-context vl-context-foot" role="note">
