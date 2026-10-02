@@ -107,6 +107,15 @@ export interface OtpChallenge {
 export interface CustomerSession {
   accessToken: string;
   expiresAt: number;
+  /**
+   * Whether the server-owned "keep me signed in" session was established. Additive and
+   * optional: `restoreSession` and `getSession` never read it, so an absent value is the
+   * same as before this field existed.
+   *
+   * `false` means the shopper IS signed in for this tab but the device will not be
+   * remembered past the access token's hour. See `submitOtp`.
+   */
+  remembered?: boolean;
 }
 
 async function cognito<T> ( target: string, body: unknown ): Promise<T> {
@@ -200,6 +209,28 @@ export async function submitOtp (
 
   const expiresAt = Date.now() + ( result.AuthenticationResult?.ExpiresIn || 3600 ) * 1000;
   const refreshToken = result.AuthenticationResult?.RefreshToken;
+
+  /*
+   * THE TOKEN IS STORED BEFORE THE EXCHANGE, AND THE ORDER IS THE WHOLE POINT.
+   *
+   * By this line the Cognito challenge has already succeeded and `token` is a valid access
+   * token - the shopper IS authenticated. The exchange below buys PERSISTENCE ("keep me
+   * signed in on this device"), not authentication.
+   *
+   * This used to throw on a failed exchange, BEFORE storing anything, which converted a
+   * degraded remember-me into a total sign-in failure and discarded a valid token. It also
+   * produced the owner's reported outage: the thrown Error carries name 'Error', which matches
+   * none of the patterns in the sign-in page's messageForAuthError, so it fell through to the
+   * catch-all MSG.TRY_LATER and the page said "Try again shortly." after a CORRECT code.
+   * Measured in a real browser on 2026-10-02: alert "Try again shortly.", no navigation, and
+   * sessionStorage empty despite a successful RespondToAuthChallenge.
+   *
+   * So: store first, then attempt the exchange, and report a failed exchange as a degraded
+   * session rather than an exception. `restoreSession()` already treats a missing hint as
+   * "sign in again", so `remembered: false` is a state the library already models.
+   */
+  storeSession( token, expiresAt );
+
   if ( refreshToken )
   {
     const response = await fetch( SESSION_ENDPOINT, {
@@ -207,12 +238,18 @@ export async function submitOtp (
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify( { action: 'exchange', refreshToken, persistent } ),
     } );
-    if ( !response.ok ) throw new Error( 'We could not remember this sign-in. Please try again.' );
-    const hint = await response.json() as SessionHint;
+    if ( !response.ok ) return { accessToken: token, expiresAt, remembered: false };
+    // A 200 with an unreadable body is the same class of failure as a non-ok response and must
+    // not be allowed to throw either - otherwise the one path this change exists to protect
+    // still destroys a valid sign-in.
+    const hint = await response.json().catch( () => null ) as SessionHint | null;
+    if ( !hint?.csrfToken ) return { accessToken: token, expiresAt, remembered: false };
     window.localStorage.setItem( SESSION_HINT_KEY, JSON.stringify( hint ) );
+    return { accessToken: token, expiresAt, remembered: true };
   }
-  storeSession( token, expiresAt );
-  return { accessToken: token, expiresAt };
+
+  // No refresh token: nothing to exchange, so there is no device-level session to remember.
+  return { accessToken: token, expiresAt, remembered: false };
 }
 
 /** The session Cognito returns alongside a rejected code, for the next attempt. */

@@ -469,7 +469,13 @@ export default function CustomerSignIn (): React.ReactElement {
                   segment is the static "Sign in" label; the RIGHT segment is the ACTION, which is
                   also the control's accessible name - so the button still answers to "Send code"
                   (and "Sending…" while busy), the name the sign-in tests pin. Semantics are
-                  unchanged: a real type="submit" that runs startPhone, disabled while busy. */}
+                  unchanged: a real type="submit" that runs startPhone, disabled while busy.
+
+                  The run-together "Sign inSend code" the owner reported was a styled-jsx SCOPING
+                  failure, not a duplicate label: the segments were hoisted into a variable, so
+                  they shipped with no `jsx-*` hash against rules that required one and rendered
+                  completely unstyled. Fixed upstream in 2f742ec6, which also unified /get onto
+                  this same pill. See PillButton's docblock. */}
               <PillButton
                 as="button"
                 type="submit"
@@ -517,7 +523,9 @@ export default function CustomerSignIn (): React.ReactElement {
               </label>
               {/* Same two-segment pill. The right segment carries "Confirm code" (and "Checking…"
                   while busy), which is both the visible action and the accessible name the test
-                  queries. Real type="submit" running submitCode, disabled while busy. */}
+                  queries - this is the button the owner saw render as "Sign inConfirm code",
+                  which 2f742ec6 fixed by restoring the segments' styled-jsx scoping.
+                  Real type="submit" running submitCode, disabled while busy. */}
               <PillButton
                 as="button"
                 type="submit"

@@ -133,6 +133,51 @@ def _unverified_issuer(token: str) -> str:
         return ""
 
 
+def customer_id_from_attributes(attributes: Dict[str, Any]) -> str:
+    """The customer id for a proven session: the Cognito `sub`, and nothing else.
+
+    WHY THIS FUNCTION EXISTS AT ALL. It replaces a read of `custom:customer_id`, which was an
+    outage rather than a design: **that attribute does not exist in this pool's schema and never
+    has.** Measured against `us-east-1_46ULYuukt` on 2026-10-02 — the only custom attribute in
+    the schema is `custom:partner_waba_id`, and the pool's one user carries `phone_number`,
+    `phone_number_verified`, `name`, `custom:partner_waba_id` and `sub`. A Cognito attribute
+    that is not in the schema cannot be set on a user, so the old read returned '' for every
+    token ever issued, `authenticate` raised for 100% of customers, and every route behind it
+    answered 401. `stack-wecare-digital-CustomerSessionsTable` holding 0 items is the
+    corroborating measurement: the session exchange had never once succeeded.
+
+    WHY `sub`, AND NOT THE ALTERNATIVES.
+      - Adding the pool attribute is possible (`AddCustomAttributes` exists) but it is an
+        irreversible pool-schema mutation, so it is owner work, and it would still need a
+        backfill plus a stamp on every new user.
+      - `stack-wecare-digital-CustomersTable` would be the natural authority, but it **does not
+        exist** in the account and nothing in the repo creates it.
+      - `sub` is the strongest authority already inside the token: Cognito-assigned, immutable,
+        pool-scoped, present on every user, and not writable by the app client. It is already
+        the field this pair is trusted on for refresh-owner identity, which compares
+        `proven.subject != identity.subject`.
+
+    WHY A SINGLE AUTHORITY AND NOT A FALLBACK. "custom attribute if present, else `sub`" would
+    silently re-key a customer the day somebody adds and backfills the attribute, orphaning the
+    orders filed under their old id. One rule, so that cannot happen.
+
+    NOTHING TO MIGRATE, MEASURED RATHER THAN ASSUMED. On 2026-10-02 every table that could hold
+    a customer-keyed row was empty: CustomerSessionsTable 0, OrderTable 0, PaymentAttemptsTable
+    0 (it has a `customerId-index`), WixOrderIds 0, WixOrdersCache 0. So this is a clean
+    cut-over, not an identity migration.
+
+    THE SHAPE CHANGES, AND THAT IS DELIBERATE. `lambda_utils.identity.customer` defines the
+    customer identity concept as `CUS_<ULID>` and `is_customer_id` validates that shape. A
+    `sub` is a UUID and does not satisfy it. Neither production caller of `is_customer_id`
+    reads a session identity — `email-verification` validates a `customerId` taken from a
+    request body and `is_checkout_ready` validates a field of a `CustomersTable` record — so
+    nothing gates on the two agreeing today. Manufacturing a `CUS_`-shaped value from the `sub`
+    was rejected on purpose: it would pass `is_customer_id` while not being a real issued
+    identity, which is a worse failure than an honest shape mismatch.
+    """
+    return str(attributes.get("sub") or "")
+
+
 def authenticate(event: Dict[str, Any]) -> CustomerIdentity:
     """Prove a customer session from the request, or raise `CustomerNotAuthenticated`.
 
@@ -162,13 +207,15 @@ def authenticate(event: Dict[str, Any]) -> CustomerIdentity:
 
     attributes = {a.get("Name"): a.get("Value")
                   for a in (user.get("UserAttributes") or [])}
-    customer_id = str(attributes.get("custom:customer_id") or "")
+    customer_id = customer_id_from_attributes(attributes)
     phone = str(attributes.get("phone_number") or user.get("Username") or "")
 
     if not customer_id:
-        # The pool is phone-keyed, so a user can exist before a customer record does. That is a
-        # half-provisioned account rather than an impostor, and it must not read as authorised
-        # for anything — every downstream key is built from customerId.
+        # Unreachable for a token Cognito issued: `sub` is assigned at user creation and is
+        # always returned by `GetUser`. Kept as a fail-closed guard, because the alternative is
+        # authorising a session with no owner key at all — every downstream row is filed under
+        # this value. The warning name is unchanged on purpose so the existing CloudWatch
+        # evidence of the outage stays searchable.
         logger.warning('{"event":"customer_auth_no_customer_id"}')
         raise CustomerNotAuthenticated("session carries no customer id")
 
@@ -237,6 +284,7 @@ __all__ = [
     "CustomerNotAuthorized",
     "CustomerIdentity",
     "bearer_token",
+    "customer_id_from_attributes",
     "authenticate",
     "authorize_resource",
     "require_customer",
