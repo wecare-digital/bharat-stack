@@ -160,7 +160,6 @@ EXPECTED_PUBLIC_METHODS = {
 EXPECTED_PUBLIC_ROUTES = {
     # Short links are followed by customers who have no Cognito session. The
     # handler authenticates the /links management routes separately.
-    "GET /{code}": "public short-link redirect; anonymous by definition",
     "GET /r/{code}": "public short-link redirect; anonymous by definition",
     # The endpoint whose job is to validate a token cannot require a valid token.
     "POST /auth/validate": "token validation endpoint; authenticating it would be circular",

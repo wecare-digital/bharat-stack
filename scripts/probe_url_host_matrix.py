@@ -287,13 +287,11 @@ def matrix() -> list[dict]:
     # therefore /contact/ at 200, one hop, no loop.
     rows.append(_row("api", f"{SITE}/r/zzznotacode", 200, "short-link miss lands on /contact/",
                      terminal_url=f"{SITE}/contact/"))
-    # KNOWN FINDING, owned by the amplify/functions workstream, NOT a regression of this task:
-    # the HTTP API's single-segment catch-all GET /{code} answers an unknown API path with a
-    # 302 to /contact/ rather than JSON. Recorded so it is visible, asserted at its measured
-    # value so a change to it is also visible.
-    rows.append(_row("api-finding", f"{SITE}/api/definitely-no-route", 200,
-                     "unknown single-segment API path -> /contact/ (another workstream owns it)",
-                     terminal_url=f"{SITE}/contact/"))
+    # Unknown API paths must remain missing routes, regardless of segment count.
+    rows.append(_row("api", f"{SITE}/api/definitely-no-route", 404,
+                     "unknown single-segment API path stays 404"))
+    rows.append(_row("api", f"{SITE}/api/definitely/no/route", 404,
+                     "unknown multi-segment API path stays 404"))
 
     # First-level unused hosts are owned by our wildcard fallback distribution.
     # A failed DNS or TLS connection is a release failure, never a successful fallback.

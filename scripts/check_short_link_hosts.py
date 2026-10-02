@@ -6,7 +6,7 @@ Why this is a live probe and not a unit test
 Short-link resolution is not a property of the handler. It is the product of three
 independent pieces of live configuration, and the handler is only one of them:
 
-  1. `GET /r/{code}` and `GET /{code}` on HTTP API `zllr9lrg7j`
+  1. `GET /r/{code}` on HTTP API `zllr9lrg7j`
   2. the Amplify custom rule `/r/<*>` -> the API, which must sit BEFORE the
      `/<*>` -> `/index.html` SPA catch-all or it can never match
   3. the `live` alias of `stack-wecare-url-shortener` pointing at current code
