@@ -69,6 +69,7 @@ import Link from 'next/link';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import PageTopBand from '../components/PageTopBand';
+import PillButton from '../components/PillButton';
 import { getSession, restoreSession } from '../lib/customerAuth';
 import {
   readCart, setQuantity, removeItem, toLineItems,
@@ -633,10 +634,24 @@ export default function Cart (): React.ReactElement {
                 <p className="cart-status cart-status-firm" role="alert">{ notice.message }</p>
               )}
 
-              {/* The single LIME actionable surface on this page. Never a "pay now" claim. */}
-              <button className="cart-cta" type="button" onClick={ proceed } disabled={ busy }>
-                { busy ? 'Preparing…' : 'Proceed to checkout' }
-              </button>
+              {/* THE SAME TWO-SEGMENT PILL as the sign-in CTA (PillButton), because this button is
+                  the customer login gate: an anonymous shopper who clicks it is sent to
+                  /account/sign-in. Never a "pay now" claim. The visible pill reads "Checkout |
+                  Proceed", but the ACCESSIBLE NAME stays "Proceed to checkout" (ariaLabel) so the
+                  pinned role query and screen-reader announcement are unchanged. Real
+                  type="button" running proceed(), disabled while busy. */}
+              <div className="cart-pill">
+                <PillButton
+                  as="button"
+                  type="button"
+                  label="Checkout"
+                  action={ busy ? 'Preparing…' : 'Proceed' }
+                  ariaLabel="Proceed to checkout"
+                  onClick={ proceed }
+                  disabled={ busy }
+                  busy={ busy }
+                />
+              </div>
 
               <p className="cart-back"><Link href="/shop/">Keep shopping</Link></p>
             </>
@@ -729,19 +744,12 @@ export default function Cart (): React.ReactElement {
           }
           .cart-status-firm{border-inline-start-width:4px;font-weight:700}
 
-          /* The site CTA, value for value: min-height 52px, full-strength #d1f470 with #1a3a2a
-             type, a 2px border because 2px means hoverable, the 50px pill radius, and the 2px
-             lift with the one shadow this language allows. */
-          .cart-cta{
-            display:inline-flex;align-items:center;justify-content:center;min-height:52px;
-            margin-top:28px;padding:0 26px;border:2px solid #d1f470;border-radius:50px;
-            background:#d1f470;color:#1a3a2a;font-family:inherit;font-size:17px;font-weight:600;
-            cursor:pointer;
-            transition:background-color .2s,transform .2s,box-shadow .2s;
-          }
-          .cart-cta:hover:not(:disabled){background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-          .cart-cta:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
-          .cart-cta:disabled{opacity:.6;cursor:default}
+          /* THE CHECKOUT/LOGIN CTA IS NOW PillButton, the home-page two-segment pill, so this page
+             no longer carries a .cart-cta rule: the component owns the pill's shape, colours, focus
+             ring, hover lift and reduced-motion handling. It replaced the single lime surface on
+             owner instruction, to make the login gate the dark-green + mint pill. There is 28px of
+             space above it, applied by the pill's own container margin via .cart-pill below. */
+          .cart-pill{margin-top:28px}
           /* 44px, so the way back off this page is a real target too. */
           .cart-back{margin:28px 0 0;font-size:16px;line-height:1.55}
           .cart-back :global(a){
@@ -753,10 +761,7 @@ export default function Cart (): React.ReactElement {
             .cart-body{font-size:18px}
             .cart-row{gap:16px}
           }
-          @media(prefers-reduced-motion:reduce){
-            .cart-cta{transition:none}
-            .cart-cta:hover:not(:disabled){transform:none;box-shadow:none}
-          }
+          /* The CTA's reduced-motion handling moved into PillButton with the button itself. */
         `}</style>
       </PageTopBand>
     </>
