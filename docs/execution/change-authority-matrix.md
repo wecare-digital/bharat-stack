@@ -858,3 +858,5 @@ that, and states the authority exactly as it stands rather than stronger.
   checks passed; both unknown API probes 404 JSON, order API 401 unauthenticated,
   canonical short links and customer pages passed. Rollback: live version 60 and
   recreate captured route. No DNS/cert/page, payment, OTP or message mutation.
+
+| 2026-10-02 | Independently verify deployed API/origin fixes and align canonical site manifest | GET /{code} absent; explicit /r/{code} retained; WhatsApp API v61; config/lambda-env-manifest.json | A0_READ, A1_LOCAL, A2_REMOTE_CODE | JSON 404 parity; protected orders 401; customer pages 200; 67 focused tests | No extra deployment or rollback; concurrent implementation preserved | All three routing/source-origin findings resolved |
