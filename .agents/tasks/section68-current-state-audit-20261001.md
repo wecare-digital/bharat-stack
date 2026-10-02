@@ -42,7 +42,7 @@ any command that produced it.
      owner-selected model at HEAD is **Cart V2** (`cart_v2.py` / `customer_cart.py`). Two different
      price authorities.
    - Live `wecare-whatsapp-business-api` env still carries the values the repo has since classified
-     as stale: `RAZORPAY_MID=[retired Razorpay account]` and `RAZORPAY_UPI_ID=wecaredigital83.rzp@icici`.
+     as stale: `RAZORPAY_MID=[retired Razorpay account]` and `RAZORPAY_UPI_ID=[retired UPI VPA]`.
      `config/lambda-env-manifest.json` holds the corrected pair but has not been pushed live.
      A MID disagreement is exactly what `payment_readiness.RAZORPAY_MID_MISMATCH` blocks on.
 
@@ -352,7 +352,7 @@ become permissive by omission.
 
 ```
 RAZORPAY_MID      [retired Razorpay account]
-RAZORPAY_UPI_ID   wecaredigital83.rzp@icici
+RAZORPAY_UPI_ID   [retired UPI VPA]
 PAYMENT_WABA_ID   2094615664435155
 ```
 
@@ -414,7 +414,7 @@ pick a winner from a file.
 
 | Occurrence | File:line | Class |
 |---|---|---|
-| `wecaredigital83.rzp@icici` | **live Lambda env** `wecare-whatsapp-business-api.RAZORPAY_UPI_ID` | **CURRENT CONFIG (live)** — classified STALE by the repo |
+| `[retired UPI VPA]` | **live Lambda env** `wecare-whatsapp-business-api.RAZORPAY_UPI_ID` | **CURRENT CONFIG (live)** — classified STALE by the repo |
 | `wecaredigitalbh511413.rzp@rxairtel` | `config/lambda-env-manifest.json:468` | **CURRENT CONFIG (declared, not deployed)** |
 | `wecaredigitalbh511413.rzp@rxairtel` | `lambda_utils/payment_readiness.py:44-47` — "AUTHORITATIVE"; live-env value "was stale" | **current prose** |
 | both | `whatsapp-business-api/handler.py:3164-3165` | **current prose** |
@@ -578,7 +578,7 @@ this path (`PaymentsTable = 0`), so every payment-path gap is latent rather than
 | G3 | `CustomersTable` absent | **HIGH** | `ResourceNotFoundException` | Provision; key `customerId`; **TTL must stay DISABLED** (an immutable customer record) |
 | G4 | `wecare/otp/pepper` absent | **HIGH** | `ResourceNotFoundException` | Owner-created; the OTP hash-at-rest pepper. Creating a secret *value* is owner work |
 | G5 | Checkout readiness targets an unimplemented path | **HIGH** | `/wa-business/payment-config/raw` falls to the `phoneId` branch → 400 | Either add a `raw` branch to `whatsapp-business-api`, or point checkout at `/payment-config/check` and parse `gatewayChecks` |
-| G6 | Live env MID/VPA are the values the repo calls stale | **HIGH** | `[retired Razorpay account]`, `wecaredigital83.rzp@icici` | Push manifest values; then `refresh_secret_consumers.py` / republish so no warm sandbox serves the old pair. **Blocked on item 20-D** |
+| G6 | Live env MID/VPA are the values the repo calls stale | **HIGH** | `[retired Razorpay account]`, `[retired UPI VPA]` | Push manifest values; then `refresh_secret_consumers.py` / republish so no warm sandbox serves the old pair. **Blocked on item 20-D** |
 | G7 | No `OrderTable` row is created from a verified capture | **HIGH** | `reconcile_payment` produces identity only; `OrderTable = 0` | Materialize the commerce order behind `side_effect_guard`, keyed on the claim, after `ORDER_CREATED` |
 | G8 | Checkout prices from Wix V1 while the selected model is Cart V2 | **MEDIUM** | `/ecom/v1/checkouts` vs `cart_v2.py` | Migrate checkout onto a fresh server-owned V2 calculation; verify the snapshot at paid-order mapping |
 | G9 | Cart V2 off in production | **MEDIUM** (intended) | `WIX_CART_V2_ENABLED` absent → `503 CART_UNAVAILABLE` | Leave off until G8 and the activation list in the 2026-10-01 audit are closed |

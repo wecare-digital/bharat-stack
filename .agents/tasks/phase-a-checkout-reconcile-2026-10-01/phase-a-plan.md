@@ -515,7 +515,7 @@ field** without a provider readback — they may legitimately differ, and
 | `.kiro/specs/whatsapp-wix-commerce/tasks.md:25,27,39` | owner readout |
 | `bw-crm.md:213,1165`, `docs/protected-resource-register.md:90` | historical; both correctly note `rxairtel` is a payment address, **not** an Airtel messaging dependency |
 | `docs/compatibility.md:87-89` | states the conflict as unresolved |
-| live env `wecare-whatsapp-business-api.RAZORPAY_UPI_ID` | `wecaredigital83.rzp@icici` — the value actually sent |
+| live env `wecare-whatsapp-business-api.RAZORPAY_UPI_ID` | `[retired UPI VPA]` — the value actually sent |
 | `docs/prohibited-provider-retirement.md:69`, `bw-crm.md:31` | **HARD RULE: never globally replace the text `airtel`.** The VPA must stay byte-for-byte |
 | Risk, quoted from `payment_readiness.py` | *"A stale VPA does not error — it silently collects elsewhere"* |
 

@@ -590,7 +590,7 @@ module and as tests, and is wired to nothing.
 | Function | Variable | Live value | Manifest / source expectation |
 |---|---|---|---|
 | `wecare-whatsapp-business-api` | `RAZORPAY_MID` | `[retired Razorpay account]` | `acc_TTFSyolquKEZEy` — **stale on live** |
-| `wecare-whatsapp-business-api` | `RAZORPAY_UPI_ID` | `wecaredigital83.rzp@icici` | `wecaredigitalbh511413.rzp@rxairtel` — **stale on live** |
+| `wecare-whatsapp-business-api` | `RAZORPAY_UPI_ID` | `[retired UPI VPA]` | `wecaredigitalbh511413.rzp@rxairtel` — **stale on live** |
 | `wecare-wix-store` | `WIX_CART_V2_ENABLED` | **absent** | `true` required by D7 |
 | `wecare-wix-store` | `WIX_SITE_ID` | `fcd82f0c-9572-49c7-acfb-88fb05042ece` | matches R0.10 confirmed id |
 | `wecare-razorpay-webhook` | `COMMERCE_KEYS_TABLE` / `WIX_ORDER_IDS_TABLE` | both absent | falls back to the hardcoded `stack-wecare-digital-WixOrderIds`, which exists — benign |

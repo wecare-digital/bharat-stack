@@ -84,7 +84,7 @@ They are also different *fields*: one is the Razorpay merchant account, the othe
 claimed as the Meta configuration's `provider_mid`. `lambda_utils/payment_readiness.py` refuses
 to enable payments unless the two agree.
 
-The same shape applies to the UPI VPA: live env says `wecaredigital83.rzp@icici`, the code's
+The same shape applies to the UPI VPA: live env says `[retired UPI VPA]`, the code's
 documented fallback says `wecaredigitalbh511413.rzp@rxairtel` — a different handle **and** a
 different PSP suffix.
 
