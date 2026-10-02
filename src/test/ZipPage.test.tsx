@@ -12,7 +12,7 @@ import ZipPage from '../pages/zip';
  * that uses the same opt-in .is-armed mechanism. These assertions therefore pin:
  *   - the page owns exactly one <h1> and one <main>, both provided by the hero (not a second of
  *     either, which htmlcheck's H1-MANY / MANY-MAIN guard against);
- *   - the "Zip" identity and the owner's lead are present;
+ *   - the customer-facing "Shipments" label and the owner's lead are present (the route stays /zip/);
  *   - the hero reuses RotatingHero rather than copying its markup, so the animation family cannot
  *     drift;
  *   - the real request routes still resolve to the real existing pages;
@@ -33,16 +33,17 @@ describe( 'Zip page', () => {
     expect( container.querySelectorAll( 'main' ) ).toHaveLength( 1 );
   } );
 
-  it( 'carries the Zip identity and the owner lead on the animated hero', () => {
+  it( 'carries the Shipments identity and the owner lead on the animated hero', () => {
     const { container } = render( <ZipPage /> );
     // The hero frame line, which with the rotating nouns forms the single h1.
     const h1 = container.querySelector( 'h1' );
     expect( h1?.textContent ).toContain( 'Everything about your' );
-    // The "Zip" identity sits in the brand badge above the headline.
-    expect( screen.getByText( 'Zip' ) ).toBeInTheDocument();
+    // The customer-facing "Shipments" label sits in the brand badge above the headline. (The
+    // route stays /zip/; only the visible wording reads "Shipments".)
+    expect( screen.getByText( 'Shipments' ) ).toBeInTheDocument();
     // The mandated lead.
     expect( screen.getByText( 'Track it. Arrange it. Keep it moving.' ) ).toBeInTheDocument();
-    // The rotation describes Zip's own subject, not the home page's marketing audiences. The
+    // The rotation describes the page's own subject, not the home page's marketing audiences. The
     // screen-reader copy lists the words once; the animated copies are aria-hidden.
     const words = Array.from( container.querySelectorAll( '.rh-cyc-word' ) ).map( w => w.textContent );
     expect( words ).toEqual( [ 'order', 'request', 'delivery', 'pickup' ] );

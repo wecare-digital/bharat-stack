@@ -117,43 +117,51 @@ describe( 'Header', () => {
     expect( requestsCol?.textContent ).not.toContain( 'Legal Stuff' );
   } );
 
-  it( 'adds a Zip row to the Request group, right after Orders', () => {
+  it( 'adds a Shipments row to the Request group, immediately above Leave Review', () => {
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
 
-    // Zip is a real public page under the Request group (Section 3), so it is a working link
-    // to /zip/ carrying the trailing slash the static host needs.
-    expect( screen.getByRole( 'link', { name: 'Zip' } ) ).toHaveAttribute( 'href', '/zip/' );
+    // Shipments is a real public page under the Request group (Section 3). The visible label is
+    // "Shipments" but the ROUTE stays /zip/, carrying the trailing slash the static host needs —
+    // the URL, sitemap and config entries are deliberately unchanged.
+    expect( screen.getByRole( 'link', { name: 'Shipments' } ) ).toHaveAttribute( 'href', '/zip/' );
 
     // It lives in the Request group, not somewhere else.
     const request = screen.getByText( 'Request' ).closest( '.nav-group' );
-    expect( request?.textContent ).toContain( 'Zip' );
+    expect( request?.textContent ).toContain( 'Shipments' );
 
-    // Order: Orders then Zip then Submit Request, per the owner's suggested order.
+    // Order: Shipments sits immediately BEFORE Leave Review, and Leave Review stays the last item
+    // of the group (the new order is Orders, Submit Request, Request Amendment, Drop Docs, Vault,
+    // Shipments, Leave Review).
     const labels = Array.from( request?.querySelectorAll( '.nav-item' ) || [] )
       .map( node => node.textContent );
-    expect( labels.indexOf( 'Zip' ) ).toBe( labels.indexOf( 'Orders' ) + 1 );
-    expect( labels.indexOf( 'Submit Request' ) ).toBe( labels.indexOf( 'Zip' ) + 1 );
+    expect( labels.indexOf( 'Shipments' ) ).toBe( labels.indexOf( 'Leave Review' ) - 1 );
+    expect( labels.indexOf( 'Leave Review' ) ).toBe( labels.length - 1 );
+    // Orders remains the first row in the group.
+    expect( labels.indexOf( 'Orders' ) ).toBe( 0 );
   } );
 
-  it( 'marks Zip active on its public route', () => {
+  it( 'marks Shipments active on its public /zip route', () => {
     routerState.pathname = '/zip';
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
-    expect( screen.getByRole( 'link', { name: 'Zip' } ) ).toHaveAttribute( 'aria-current', 'page' );
+    expect( screen.getByRole( 'link', { name: 'Shipments' } ) ).toHaveAttribute( 'aria-current', 'page' );
     routerState.pathname = '/';
   } );
 
-  it( 'adds a Perks group immediately above Legal Stuff', () => {
+  it( 'adds an Extras group immediately above Legal Stuff', () => {
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
 
-    // The Perks group was collapsed from three ANCHOR rows (Gift Cards -> /perks/#gift-cards,
-    // Rewards -> /perks/#rewards, Offers -> /perks/#offers) to a single link to the /perks/ page,
-    // because the owner removed those gift-card / offers / rewards sections and their anchors from
-    // the page. Nothing in the menu may still point at a removed anchor.
-    const perksLink = screen.getByRole( 'link', { name: 'Perks' } );
+    // The customer-facing label is "Extras" (renamed from "Perks"); the ROUTE stays /perks/ (the
+    // URL is deliberately unchanged). The group was collapsed from three ANCHOR rows (Gift Cards ->
+    // /perks/#gift-cards, Rewards -> /perks/#rewards, Offers -> /perks/#offers) to a single link to
+    // the /perks/ page, because the owner removed those gift-card / offers / rewards sections and
+    // their anchors from the page. Nothing in the menu may still point at a removed anchor.
+    const perksLink = screen.getByRole( 'link', { name: 'Extras' } );
     expect( perksLink ).toHaveAttribute( 'href', '/perks/' );
+    // The old label must not come back.
+    expect( screen.queryByRole( 'link', { name: 'Perks' } ) ).toBeNull();
 
     // The old anchor rows and their dead targets are gone.
     expect( screen.queryByRole( 'link', { name: 'Gift Cards' } ) ).toBeNull();
@@ -164,12 +172,12 @@ describe( 'Header', () => {
     expect( menuHtml ).not.toContain( '/perks/#rewards' );
     expect( menuHtml ).not.toContain( '/perks/#offers' );
 
-    // Perks sits in the SAME column as Legal Stuff, and immediately above it: the Perks group
+    // Extras sits in the SAME column as Legal Stuff, and immediately above it: the Extras group
     // node precedes the Legal Stuff group node among that column's groups.
     const perksCol = perksLink.closest( '.nav-col' );
     expect( perksCol?.textContent ).toContain( 'Legal Stuff' );
     const groups = Array.from( perksCol?.querySelectorAll( '.nav-group' ) || [] );
-    const perksIndex = groups.findIndex( g => g.textContent?.startsWith( 'Perks' ) );
+    const perksIndex = groups.findIndex( g => g.textContent?.startsWith( 'Extras' ) );
     const legalIndex = groups.findIndex( g => g.textContent?.startsWith( 'Legal Stuff' ) );
     expect( perksIndex ).toBeGreaterThanOrEqual( 0 );
     expect( legalIndex ).toBe( perksIndex + 1 );

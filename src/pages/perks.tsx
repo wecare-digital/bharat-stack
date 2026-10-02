@@ -7,7 +7,11 @@ import type { CycleWord } from '../components/RotatingHero';
  * /perks — a little extra for the people we look after.
  *
  * SECTION 4 of the customer-experience brief, and the repaired destination for the several
- * systems that link customers to a gift-card URL. The customer-facing group label stays "Perks".
+ * systems that link customers to a gift-card URL. The customer-facing label is now "Extras";
+ * the ROUTE/URL stays /perks/ (this file is deliberately NOT renamed to extras.tsx and the URL
+ * is not changed to /extras/), so the live URL, the sitemap, config/public-pages.json,
+ * PUBLIC_PAGE_META and the gift-card CTAs that point at https://wecare.digital/perks/ all keep
+ * resolving. Only the customer-facing wording reads "Extras".
  *
  * NOW MATCHES THE HOME PAGE, by owner request — exactly as /zip was. Perks previously used
  * components/PageTopBand (the fixed-statement band) and carried three in-page sections — Gift
@@ -114,24 +118,24 @@ const PerksPage: React.FC = () => {
   return (
     <>
       <PageMeta
-        title="Perks — WECARE.DIGITAL"
+        title="Extras — WECARE.DIGITAL"
         description="A little extra for the people we look after. An honest, uncluttered place for the small thank-yous we send your way, and nothing here asks for payment."
         path="/perks/"
       />
       {/* badgeLabel names the FEATURE above the headline — the documented product-badge use — so
-          "Perks" stays the first, prominent, translation-safe word on the page while the hero owns
-          the <h1> and the one <main> landmark. */}
+          "Extras" stays the first, prominent, translation-safe word on the page while the hero owns
+          the <h1> and the one <main> landmark. The URL stays /perks/; only the label reads "Extras". */}
       <RotatingHero
-        badgeLabel="Perks"
+        badgeLabel="Extras"
         frame="A little extra, made for"
         words={ PERKS_WORDS }
         sub="A small thank-you for the people we look after."
-        ariaLabel="Perks"
+        ariaLabel="Extras"
       >
-        <section className="pk-in" aria-label="About Perks">
+        <section className="pk-in" aria-label="About Extras">
           <h2 className="pk-h2">A little extra, made for you</h2>
           <p className="pk-p">
-            Perks is where the small thank-yous live. We would rather keep this honest and quiet
+            Extras is where the small thank-yous live. We would rather keep this honest and quiet
             than fill it with points balances or offers we cannot stand behind — so right now it is
             a calm landing page, and nothing here asks for payment.
           </p>
@@ -147,7 +151,7 @@ const PerksPage: React.FC = () => {
             the CSS default and the closeRef effect only hides the start state once it can animate. */}
         <section className="pk-close" aria-labelledby="pk-close-title" ref={ closeRef }>
           <div className="pk-close-panel">
-            <p className="pk-close-eyebrow">Perks</p>
+            <p className="pk-close-eyebrow">Extras</p>
             <h2 className="pk-close-title" id="pk-close-title">A little extra, honestly done.</h2>
             <p className="pk-close-lead">
               We will not show you a points balance that is not real or an offer we cannot honour.

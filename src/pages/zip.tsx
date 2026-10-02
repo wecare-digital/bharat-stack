@@ -7,10 +7,12 @@ import type { CycleWord } from '../components/RotatingHero';
  * /zip — one place for everything about a request, delivery or pickup.
  *
  * SECTION 3 of the customer-experience brief. It sits under the "Request" group in the header
- * (Header.tsx COLUMNS), directly after Orders. The owner's identity for the page is "Zip" and the
- * lead is "Track it. Arrange it. Keep it moving."
+ * (Header.tsx COLUMNS), directly above Leave Review. The owner's customer-facing label for the
+ * page is "Shipments" and the lead is "Track it. Arrange it. Keep it moving." The ROUTE stays
+ * /zip/ (URL, sitemap PUBLIC_EXACT, PUBLIC_PAGE_META key and config/public-pages.json all
+ * unchanged) — only the visible wording that names the page reads "Shipments".
  *
- * NOW MATCHES THE HOME PAGE, by owner request. Zip previously used components/PageTopBand — the
+ * NOW MATCHES THE HOME PAGE, by owner request. The page previously used components/PageTopBand — the
  * fixed-statement band — on the reasoning that its heading was the single word "Zip" rather than a
  * rotating phrase. The owner has overridden that: Zip must share the HOME PAGE'S look, including
  * its animated hero and its scroll-reveal closing band, while keeping Zip's own content and its
@@ -142,19 +144,19 @@ const ZipPage: React.FC = () => {
   return (
     <>
       <PageMeta
-        title="Zip — WECARE.DIGITAL"
+        title="Shipments — WECARE.DIGITAL"
         description="Everything about your request, delivery or pickup in one place: track an order, amend a request, send documents, open your vault or leave a review."
         path="/zip/"
       />
       {/* badgeLabel names the FEATURE above the headline — the documented product-badge use, as on
-          every /products/ page — so "Zip" stays the first, prominent, translation-safe word on the
-          page while the hero owns the <h1> and the one <main> landmark. */}
+          every /products/ page — so "Shipments" stays the first, prominent, translation-safe word
+          on the page while the hero owns the <h1> and the one <main> landmark. */}
       <RotatingHero
-        badgeLabel="Zip"
+        badgeLabel="Shipments"
         frame="Everything about your"
         words={ ZIP_WORDS }
         sub="Track it. Arrange it. Keep it moving."
-        ariaLabel="Zip"
+        ariaLabel="Shipments"
       >
         <section className="zip-in" aria-label="What you can do from here">
           <h2 className="zip-h2">Everything about your request, delivery or pickup in one place</h2>
