@@ -37,9 +37,42 @@ def amplify():
 
 
 def desired_redirects() -> list[dict]:
-    """Only the existing www canonicalisation remains an explicit redirect."""
+    """The www canonicalisation, plus the /zip -> /shipments rename.
+
+    WHY A SECOND REDIRECT NOW EXISTS, when this module's whole posture is that retired paths
+    should 404 rather than be kept alive: because /zip was not RETIRED, it was RENAMED.
+
+    On 2026-10-02 the owner retired the product name "Zip" entirely and the page moved from
+    /zip/ to /shipments/ (src/pages/shipments.tsx, PUBLIC_PAGE_META key, sitemap PUBLIC_EXACT,
+    scripts/generate-public-pages.js, config/public-pages.json). The content did not go away and
+    it did not change - only its name and its URL did.
+
+    scripts/retired_url_equity.py states the distinction this rule turns on, and it is the
+    reason a 404 is the WRONG answer here: "A 404 is the correct answer for a page that was
+    deleted because it was wrong. It is the WRONG answer for a page that was replaced, because a
+    404 discards the link equity instead of passing it to the replacement - and equity is the one
+    thing a new export cannot regenerate on its own." /zip/ measured 404 at the origin after the
+    rename, so every inbound link to it - including any already sent in a WhatsApp message - was
+    dead and its accumulated ranking was being thrown away rather than consolidated onto
+    /shipments/.
+
+    BOTH FORMS ARE DECLARED. next.config's trailingSlash means the canonical URL was /zip/, but
+    links in the wild carry both /zip and /zip/, and an Amplify source pattern is matched as
+    given rather than normalised. Declaring only one would leave the other 404ing, which is the
+    defect this rule exists to remove. The target carries the trailing slash because
+    /shipments (no slash) would itself redirect before resolving.
+
+    301, not 302: the move is permanent, and only a permanent redirect consolidates ranking onto
+    the new URL.
+
+    NOTE FOR WHOEVER RUNS --apply: verify() compares the live rule list against this function for
+    EXACT equality, so a live app that still carries only the www rule will report FAIL until
+    --apply has run. That FAIL is the expected pre-apply state, not a fault in this list.
+    """
     return [
         {"source": "https://www.wecare.digital", "target": SITE, "status": "301"},
+        {"source": "/zip", "target": "/shipments/", "status": "301"},
+        {"source": "/zip/", "target": "/shipments/", "status": "301"},
     ]
 
 
