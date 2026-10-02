@@ -1,84 +1,32 @@
 /**
- * There is no 404 page. A mismatched URL goes to the home page.
- *
- * WHY THIS FILE STILL EXISTS IF THERE IS NO 404 PAGE. Two reasons, and neither is
- * decoration.
- *
- * First, the file is what stops Next shipping its own. With no src/pages/404.tsx the export
- * emitted Next's built-in shell - 6.8KB whose entire content is "404 This page could not be
- * found", with no header, no footer, no widget, no brand and ZERO links. A visitor who
- * mistyped a URL landed in a dead end with nothing to click. Deleting this file does not
- * remove a 404 page; it restores that one.
- *
- * Second, the CDN rule does not send a mismatched path home at all - THIS page does.
- *
- * CORRECTED IN PLACE 2026-10-01, measured against the live Amplify app (d22dm4b0jn71jw)
- * rather than read from a script. The paragraph here used to say: "Amplify's last rule is
- * `/<*>` -> `/index.html` with status 404-200, so a mistyped PATH already renders the home
- * page." Both halves were stale. The rule's TARGET changed to `/404.html` on 2026-09-28 (gap
- * SEO-404-001) precisely so that a mistyped URL receives THIS page's head - the `noindex` and
- * the canonical below - instead of the home page's. So the live behaviour is: a mistyped path
- * stays at the address the visitor typed, returns HTTP 404, and is served THIS document.
- * Nothing on the CDN renders the home page for it. Measured 2026-10-01:
- * `/definitely-not-a-page/` -> 404 carrying `"page":"/404"`.
- *
- * That makes the redirect below load-bearing rather than a long-tail safety net, and MORE so
- * since 2026-10-01: on that date the owner retired every custom redirect, taking the live rule
- * count from 146 to 8, so the ~150 legacy aliases that used to 301 to a real page now arrive
- * here instead - /swdhya/, /no-fault/, /legal-stuff/, /faq/, /my-order/ and the 15 former
- * top-level workspace prefixes among them, all measured at 404 on 2026-10-01. The one rule
- * deliberately kept is the host canonicalisation `https://www.wecare.digital` ->
- * `https://wecare.digital` at 301, which preserves the path and so never reaches this page.
- * See docs/execution/url-host-matrix-20261001.md for the measured rule array, and
- * docs/execution/url-redirect-removal-20261001.md for the removal itself.
- *
- * The cases the CDN rule genuinely cannot reach are unchanged: a direct request for /404/
- * itself, and any host or shell that resolves its own not-found document - including the
- * Capacitor WebView. This page covers those too.
- *
- * router.replace, NOT push: a redirect must not leave an entry in the history stack, or the
- * back button returns the visitor to the dead URL they were just rescued from and bounces
- * them forward again.
- *
- * WHAT RENDERS IN THE MEANTIME is a deliberate choice rather than a blank. The redirect needs
- * one tick of JavaScript, and with JavaScript unavailable it never runs at all - so the
- * markup below is the no-JS fallback, and it is a real link rather than a message about
- * being redirected. It also means the page is never empty: it is on the isPublic allowlist,
- * so it arrives with the header, the footer and the support widget already around it.
- *
- * A NOTE ON SUBDOMAINS, since the instruction covered them: a request to a subdomain that
- * does not exist never reaches this application. It fails at DNS, or at the CDN, before any
- * JavaScript or HTML of ours is involved. That first half is still true and is why this page
- * cannot help with a wrong host.
- *
- * CORRECTED IN PLACE 2026-10-01. The paragraph used to end: "Sending wrong subdomains to the
- * home page is a Route 53 / Amplify domain-management change and cannot be done from this
- * repository." The first clause was right about the layer and the second was wrong about the
- * repository, and it is now demonstrably wrong: amplify/infra/home-fallback.json and
- * scripts/home_fallback_dns.py live HERE and did exactly that job. A `*.wecare.digital` A+AAAA
- * alias in Z03939753QJGZ6ZD6BXO8 points every unused single-label name at a dedicated
- * CloudFront distribution, E1ZZ786I3YH65O, which 302s to https://wecare.digital/ and serves no
- * content of its own. Measured 2026-10-01: shop.wecare.digital and zzz-not-a-host.wecare.digital
- * both 302 to the apex with the path AND query dropped - unlike the www canonicalisation, which
- * preserves both on purpose.
- *
- * The residual limit is TLS, not DNS, and it is one label deep: a DNS wildcard matches multiple
- * labels (RFC 4592) so a.b.wecare.digital does resolve, but `*.wecare.digital` on the
- * certificate matches exactly ONE label, so that request dies at the handshake
- * (measured ssl_verify_result=1, http_code 000). Closing that needs a new SAN on a re-requested
- * certificate re-associated on both consumers of the shared cert - the Amplify app and
- * CloudFront E1SZBXLQ4XNLJ7, which is the MTA-STS policy endpoint under `mode: enforce`, where a
- * failure makes senders refuse inbound mail. No product surface needs a second-label host today.
- * See docs/execution/home-fallback-20261001.md and url-host-matrix-20261001.md §4.1.
+ * Unknown paths retain the owner's home fallback. Retired staff and legacy URLs
+ * stay on this unavailable page instead, with the CDN's HTTP 404 and no automatic
+ * navigation. Current public pages and /workspace routes resolve before this page.
  */
 import React, { useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
+export const RETIRED_PATH_PREFIXES = [
+  '/access', '/dm', '/engage', '/dashboard', '/contacts', '/commerce', '/pay',
+  '/forms', '/service', '/docs', '/seo', '/admin', '/link', '/task', '/settings',
+  '/swdhya', '/no-fault', '/legal-stuff', '/legal-stuffs', '/faq', '/my-order',
+  '/expoweek', '/ritual-store', '/swdhya-store', '/request-tracking', '/rx-slot',
+  '/bring-friends', '/home', '/open-possibility', '/product-page/partner',
+  '/selfservice', '/track',
+];
+
 const NotFoundRedirect: React.FC = () => {
   const router = useRouter();
 
   useEffect( () => {
+    // Match whole path segments, so /contacts never blocks the public /contact page.
+    let requestedPath = window.location.pathname;
+    try { requestedPath = decodeURIComponent( requestedPath ); } catch { /* Keep the raw path. */ }
+    requestedPath = requestedPath.toLowerCase();
+    if ( RETIRED_PATH_PREFIXES.some( prefix =>
+      requestedPath === prefix || requestedPath.startsWith( `${prefix}/` )
+    ) ) return;
     void router.replace( '/' );
   }, [ router ] );
 
@@ -96,7 +44,7 @@ const NotFoundRedirect: React.FC = () => {
 
       <main className="nf-shell">
         <div className="nf-in">
-          <p className="nf-sub">Taking you to the home page.</p>
+          <p className="nf-sub">This page is unavailable.</p>
           {/* A full document load, deliberately. This is the escape hatch from a route that
               does not exist, so the router's own state is the thing least worth trusting;
               and on a static export the anchor works with no JavaScript at all, which is

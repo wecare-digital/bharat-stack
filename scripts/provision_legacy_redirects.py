@@ -4,7 +4,7 @@
 Keep internal 200 rewrites and the 404-200 fallback unchanged. These serve the
 API, files, short-link service, MCP and missing-page document. The legacy filename
 is retained because the deployment workflow already invokes this entry point.
-Only www canonicalisation and the retired /access entry point may redirect.
+Only www canonicalisation may redirect; the retired /access entry must stay unavailable.
 No legacy SEO, workspace or frozen-template destination may be recreated.
 
 Usage: python scripts/provision_legacy_redirects.py [--apply | --verify]
@@ -36,36 +36,10 @@ def amplify():
     return boto3.client("amplify", region_name=REGION)
 
 
-# The /access -> home target, 2026-10-01. It carries a query parameter ON PURPOSE and the
-# parameter is the mechanism, not decoration.
-#
-# Amplify forwards the incoming query string to the target of a 301/302 by default, and that was
-# measured happening here: `/access/?next=https://evil.example` answered
-# `302 -> https://wecare.digital/?next=https://evil.example`. The handoff requires untrusted
-# path, query and fragment content to be DROPPED when a retired customer URL is sent home, so
-# forwarding an attacker-supplied parameter - even to a fixed host that ignores it - is a defect
-# against that requirement rather than a cosmetic one.
-#
-# The documented way to stop the forwarding is to give the destination its own query parameters:
-# "If the destination address for the matching rule has query parameters, query parameters aren't
-# forwarded" (Amplify Hosting user guide, "Understanding how Amplify forwards query parameters").
-# So the target below both drops whatever arrived AND says where the visitor came from, which is
-# the one parameter on the resulting URL and is ours rather than the caller's.
-#
-# `from=access` is deliberately inert: nothing reads a query parameter on the home page
-# (src/pages/index.tsx and src/pages/_app.tsx reference neither location.search, URLSearchParams
-# nor router.query), the status is 302 so no index equity moves, and the home page's own canonical
-# already points at the bare apex. If a consumer for it ever appears, it must not be trusted
-# input - it is a literal we emit, and the whole point is that nothing from the request survives.
-ACCESS_HOME_TARGET = SITE + "/?from=access"
-
-
 def desired_redirects() -> list[dict]:
-    """Explicit owner exceptions: canonical www and retired access go to home."""
+    """Only the existing www canonicalisation remains an explicit redirect."""
     return [
         {"source": "https://www.wecare.digital", "target": SITE, "status": "301"},
-        *[{"source": source, "target": ACCESS_HOME_TARGET, "status": "302"}
-          for source in ("/access", "/access/", "/access/<*>")],
     ]
 
 
@@ -110,7 +84,7 @@ def verify() -> int:
     if removable != desired_redirects():
         print("FAIL: redirects differ from the approved home routing policy", file=sys.stderr)
         return 1
-    print("Verified: only approved home/access redirects remain")
+    print("Verified: only www canonicalisation remains; retired paths do not redirect")
     return 0
 
 
