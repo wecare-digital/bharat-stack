@@ -391,6 +391,142 @@ def test_the_claim_row_is_settled_by_the_decrement_so_a_short_balance_is_recover
     assert store.rows[gc.PREFIX_CLAIM + digest_of() + "#attempt-1"]["settled"] is True
 
 
+class _MarkerWriteFails(FakeTable):
+    """Fails only the write that FLIPS A MARKER, N times, and nothing else.
+
+    The window `_CreditThrottles` cannot reach. That fake aims its fault at the balance move, so
+    it exercises the state where the money has NOT moved - recoverable by definition. This one
+    aims strictly AFTER the money has moved, at `settled` on the claim row or `credited` on the
+    voided transaction, which is where a recovery decided from a read replays the move and pays
+    twice.
+
+    Aimed by expression fragment rather than by call index, for the same reason: `_mark_settled`
+    is the only write containing `SET settled = :true` and `_mark_credited` the only one
+    containing `SET credited = :true` - the void LATCH writes `credited = :false` and so is not
+    matched - which keeps the aim valid if either path gains a read or a write.
+    """
+
+    def __init__(self, *args, fragment: str = "", failures: int = 0, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.fragment = fragment
+        self.failures = failures
+
+    def update_item(self, **kwargs):
+        if self.failures and self.fragment in str(kwargs.get("UpdateExpression") or ""):
+            self.failures -= 1
+            # A throttle, surfaced as `GiftCardStoreUnavailable` - not a conditional failure, so
+            # it can never be mistaken for a lost race.
+            raise RuntimeError("ProvisionedThroughputExceededException")
+        return super().update_item(**kwargs)
+
+
+def _markers_on(store: FakeTable, prefix: str) -> list:
+    return sorted(key for key in store.rows[gc.PREFIX_CARD + digest_of()]
+                  if key.startswith(prefix))
+
+
+def test_a_redemption_whose_settle_write_failed_debits_the_balance_exactly_once():
+    """REV-4. The claim row's `settled` is on a DIFFERENT item from the balance, so it can only be
+    written after the money has moved - and failing only that write left the claim unsettled with
+    the card already debited. `settled: False` therefore covered two states, 'the decrement never
+    ran' and 'the decrement ran and this write was throttled', and the retry branch treated them
+    identically and deducted again. `balancePaise >= :amount` stops an OVERDRAW, not a second
+    deduction while funds remain.
+
+    So the decrement carries `appliedClaim#<attempt>` in its own expression. The retry is still
+    free to re-drive - that is what keeps an insufficient balance recoverable - but the re-drive
+    now loses a condition instead of debiting 20000 twice for one `paymentAttemptId`.
+    """
+    store = _MarkerWriteFails(key_attr=gc.KEY_ATTRIBUTE,
+                              indexes={gc.STATUS_INDEX: (gc.STATUS_ATTRIBUTE, "createdAt")},
+                              fragment="SET settled = :true", failures=1)
+    issue(store, value_paise=50000)
+    with pytest.raises(gc.GiftCardStoreUnavailable):
+        gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1", amount_paise=20000,
+                  clock=clock())
+
+    # The window itself: money down, claim unsettled, and the marker is the only thing that says
+    # which of the two states this is.
+    claim_key = gc.PREFIX_CLAIM + digest_of() + "#attempt-1"
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 30000
+    assert store.rows[claim_key]["settled"] is False
+    assert _markers_on(store, gc.APPLIED_CLAIM_PREFIX) == [
+        gc.APPLIED_CLAIM_PREFIX + "attempt-1"]
+
+    recovered = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
+                          amount_paise=20000, clock=clock())
+    assert recovered["committed"] is True
+    assert recovered["remainingBalancePaise"] == 30000
+    # 30000, not 10000. One deduction for one payment attempt.
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 30000
+    assert store.rows[claim_key]["settled"] is True
+    # And a third call is the ordinary settled replay.
+    replay = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
+                       amount_paise=20000, clock=clock())
+    assert replay["committed"] is False
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 30000
+
+
+def test_a_stalled_redemption_still_debits_once_when_another_purchase_lands_between():
+    """Why the marker is keyed on the ATTEMPT and not on `activeClaimAttemptId`.
+
+    `activeClaimAttemptId = :me` is already written by the decrement, so `activeClaimAttemptId <>
+    :me` looks like a cheap guard. It is not: the next attempt's decrement overwrites it, so a
+    retry arriving after a second purchase finds its own id gone and deducts again. Narrower
+    window, same loss.
+    """
+    store = _MarkerWriteFails(key_attr=gc.KEY_ATTRIBUTE,
+                              indexes={gc.STATUS_INDEX: (gc.STATUS_ATTRIBUTE, "createdAt")},
+                              fragment="SET settled = :true", failures=1)
+    issue(store, value_paise=50000)
+    with pytest.raises(gc.GiftCardStoreUnavailable):
+        gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1", amount_paise=20000,
+                  clock=clock())
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 30000
+
+    # A genuinely different purchase, which SHOULD deduct, and which moves activeClaimAttemptId.
+    gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-2", amount_paise=5000,
+              clock=clock())
+    assert store.rows[gc.PREFIX_CARD + digest_of()][gc.CLAIM_ATTEMPT_ATTRIBUTE] == "attempt-2"
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 25000
+
+    recovered = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
+                          amount_paise=20000, clock=clock())
+    assert recovered["committed"] is True
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 25000
+
+
+def test_an_applied_move_marker_does_not_outlive_the_move_it_guards():
+    """The marker is a LOCK, not a record - the `GCTXN#` row is the record.
+
+    Once the claim reads `settled` the replay short-circuits before the money move, so nothing
+    consults the marker again. Leaving one behind per redemption would grow the card row by one
+    attribute for the life of the card, toward DynamoDB's 400 KB item cap, and a card row that
+    cannot be written is a liability that cannot be paid.
+    """
+    store = table()
+    issue(store, value_paise=100000)
+    for number in range(1, 6):
+        gc.redeem(store, code_hash=digest_of(), attempt_id=f"attempt-{number}",
+                  amount_paise=1000, clock=clock())
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 95000
+    assert _markers_on(store, gc.APPLIED_CLAIM_PREFIX) == []
+
+    redeemed = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-void",
+                         amount_paise=1000, clock=clock())
+    gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 95000
+    assert _markers_on(store, gc.APPLIED_VOID_PREFIX) == []
+
+    # A dropped marker is safe because the flag it hands over to is already written: the replay
+    # never reaches the money move again.
+    for number in range(1, 6):
+        replay = gc.redeem(store, code_hash=digest_of(), attempt_id=f"attempt-{number}",
+                           amount_paise=1000, clock=clock())
+        assert replay["committed"] is False
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 95000
+
+
 # ── 51 / 52: the ceiling is the SPI's, not money.py's ──────────────────────────
 
 def test_the_issuance_ceiling_is_the_spi_maximum():
@@ -590,6 +726,78 @@ def test_a_void_credit_that_fails_twice_still_returns_the_balance_exactly_once()
     completed = gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
     assert completed["remainingBalancePaise"] == 50000
     assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
+
+
+def test_a_void_whose_credited_write_failed_returns_the_balance_exactly_once():
+    """REV-3, and the counterpart of the redeem window one section above.
+
+    `credited` is on the TRANSACTION row, so the credit and the flag were two writes to two items
+    and the flag could only follow the money. Failing ONLY `SET credited = :true` - strictly after
+    the balance moved, which `_CreditThrottles` cannot reach because it aims at the balance move
+    itself - left `credited: False` with the money already back. The retry branch reads that as
+    "the credit never ran" and re-drove it: a card issued at 50000 and redeemed 40000 ended at
+    90000 paise. The prior bug was a stranded customer balance an operator could see; this one was
+    a silent business-side loss wearing the shape of a successful void.
+
+    Closed by putting the credit's marker on the CARD row in the credit's own expression, so the
+    replay loses a condition rather than adding 40000 a second time.
+    """
+    store = _MarkerWriteFails(key_attr=gc.KEY_ATTRIBUTE,
+                              indexes={gc.STATUS_INDEX: (gc.STATUS_ATTRIBUTE, "createdAt")},
+                              fragment="SET credited = :true", failures=1)
+    issue(store, value_paise=50000)
+    redeemed = gc.redeem(store, code_hash=digest_of(), attempt_id="attempt-1",
+                         amount_paise=40000, clock=clock())
+    original_key = gc.PREFIX_TRANSACTION + digest_of() + "#" + redeemed["transactionId"]
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 10000
+
+    with pytest.raises(gc.GiftCardStoreUnavailable):
+        gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
+
+    # The window: the money is back, the flag never flipped, and the marker is what distinguishes
+    # this from a credit that never ran.
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
+    assert store.rows[original_key]["credited"] is False
+    latched = store.rows[original_key]["voidedBy"]
+    assert _markers_on(store, gc.APPLIED_VOID_PREFIX) == [gc.APPLIED_VOID_PREFIX + latched]
+
+    completed = gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
+    assert completed["transactionId"] == latched
+    # 50000, not 90000.
+    assert completed["remainingBalancePaise"] == 50000
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
+    assert store.rows[original_key]["credited"] is True
+    # One void transaction, not two.
+    assert [key for key in store.rows
+            if key.startswith(gc.PREFIX_TRANSACTION) and store.rows[key].get(
+                "kind") == gc.KIND_VOID] == [gc.PREFIX_TRANSACTION + digest_of() + "#" + latched]
+
+    # And the door re-closes once the flag has landed.
+    with pytest.raises(gc.AlreadyVoided):
+        gc.void(store, transaction_id=redeemed["transactionId"], clock=clock())
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 50000
+
+
+def test_a_plain_credit_is_not_made_idempotent_because_two_top_ups_are_two_events():
+    """The marker is opt-in, and the asymmetry is deliberate rather than an oversight.
+
+    `void` passes `once_key` because a retry is the SAME event arriving again. A top-up has no
+    such key: two credits of the same size are two different events, and de-duplicating them
+    would silently swallow the second one.
+    """
+    store = table()
+    issue(store, value_paise=1000)
+    gc.credit(store, code_hash=digest_of(), amount_paise=500, clock=clock())
+    gc.credit(store, code_hash=digest_of(), amount_paise=500, clock=clock())
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 2000
+    assert _markers_on(store, gc.APPLIED_VOID_PREFIX) == []
+
+    # With a key, the same credit twice moves the balance once.
+    assert gc.credit(store, code_hash=digest_of(), amount_paise=500, once_key="void-abc",
+                     clock=clock()) == 2500
+    assert gc.credit(store, code_hash=digest_of(), amount_paise=500, once_key="void-abc",
+                     clock=clock()) == 2500
+    assert store.rows[gc.PREFIX_CARD + digest_of()]["balancePaise"] == 2500
 
 
 def test_a_void_latched_before_the_credited_flag_existed_is_never_re_credited():

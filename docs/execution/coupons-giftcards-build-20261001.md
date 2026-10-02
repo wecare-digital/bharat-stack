@@ -718,6 +718,39 @@ from here would overwrite live work and could not be checkpointed back.
 with `.venv/bin/python -m pytest tests/test_url_host_routing_rules.py -q` and with the owned-suite
 command above, and judge the two independently.
 
+### 12.1 Code-review rounds after the build step
+
+The figures above are the build step's own and are left as measured. Two review rounds followed, both
+on `gift_card_store.py` and both about the same class of defect — a money move and the flag recording
+it were two writes to two items, so failing only the flag write left a state a retry could not read
+correctly.
+
+| Round | Findings | Resolution | Whole tree after |
+|---|---|---|---|
+| 1 | REV-1, REV-2 | The void's `voidedBy` latch gained `credited`, so a throttled credit leaves a void a retry can COMPLETE instead of stranding the balance behind a permanent `AlreadyVoided` | 6788 passed · 1 skipped · 7 xfailed |
+| 2 | REV-3 (void), REV-4 (redeem), REV-5 (design doc) | Each money move now writes its own marker on the CARD row inside the same `UpdateItem` — `appliedClaim#<paymentAttemptId>` on the decrement, `appliedVoid#<voidTransactionId>` on the credit — under `attribute_not_exists`. One item, one commit | **6793 passed · 1 skipped · 7 xfailed · 0 failed · 0 xpassed** |
+
+REV-3 and REV-4 are worth recording as a pair, because round 1's fix created REV-3: a flag that follows
+the money is sound in one direction only. It can never claim a credit landed when it did not, but
+`credited: False` covers both "the credit never ran" and "the credit ran and this write failed", and the
+retry branch treated them identically. Reproduced, not inferred — failing only `SET credited = :true`,
+a card issued at 50000 and redeemed 40000 ended at **90000** paise. REV-4 is the identical hole one
+function earlier on a far more reachable path: failing only `SET settled = :true`, a 50000 card
+redeeming 20000 ended at **10000** instead of 30000. `balancePaise >= :amount` stops an overdraw, not a
+second deduction while funds remain.
+
+The marker is what makes the recovery safe; the flags remain what make it reachable.
+`_drop_applied_marker` removes each marker once its flag has landed, so the card row stays bounded by
+in-flight moves rather than by their lifetime count — a card row that cannot be written is a liability
+that cannot be paid. Five tests were added, each aimed strictly at the window AFTER the money moved
+(`_MarkerWriteFails`), which is the window the round-1 fake could not reach because it aims at the
+balance move itself. All five fail with the two `attribute_not_exists(#applied)` clauses removed, which
+is how they are known to be gates rather than decoration.
+
+The xfail inventory is unchanged at **7** and still equals DECISION 8's list exactly; the three new
+function names still resolve in `deploy_all_lambdas.py --list`. No alias moved, nothing was published,
+no flag was enabled, nothing was pushed.
+
 ### What is explicitly NOT verified
 
 - **`provision_checkout.py --verify`** — needs AWS and a live role, and the grant is not on the live role

@@ -46,6 +46,22 @@ a permanent `AlreadyVoided` with no operator path back. Both strands of the ledg
 and recover identically, which is the same reason payment status lives behind one module rather
 than being compared string by string in each handler.
 
+A recoverable move must also be a move that cannot happen twice, and those two flags cannot supply
+that on their own. `settled` is on the claim row and `credited` is on the transaction row, so both
+live on a DIFFERENT item from the balance and can only be written after the money has already
+moved. Failing just that second write therefore leaves a state - unsettled claim, or
+`credited: False` - that a retry cannot distinguish from "the move never ran", and re-driving on
+the strength of that read debits or credits the card a second time. So each money move also writes
+its own marker on the CARD row, in the same expression:
+
+    ADD balancePaise :neg  SET #applied = :at      under   attribute_not_exists(#applied)
+
+`appliedClaim#<paymentAttemptId>` for a redemption, `appliedVoid#<voidTransactionId>` for a void.
+One item, one commit, so the balance and the record of having moved it cannot diverge no matter
+where a process dies. The flags remain what make the recovery REACHABLE; the marker is what makes
+it SAFE. `_drop_applied_marker` removes each marker once its flag has landed, so the card row stays
+bounded by in-flight moves rather than by their lifetime count.
+
 Every access is an exact-key operation
 --------------------------------------
 `get_item` / `put_item` / `update_item` on a fully specified partition key, plus the staff
@@ -165,8 +181,24 @@ HOLD_CONDITION = ("attribute_not_exists(activeHoldAttemptId) "
 #: finishes paying. The authoritative single-redemption guarantee is the conditional claim put.
 HOLD_TTL_SECONDS = 900
 
+#: Attribute-NAME prefixes for the applied-move markers, written on the CARD row. Not key
+#: prefixes, and that is the whole point: a marker set by the SAME conditional `UpdateItem` that
+#: moves the balance makes the money move its own idempotency record on ONE item, so no
+#: interleaving can leave money moved with the marker unset. A marker on a second item - the
+#: claim row's `settled`, the voided transaction's `credited` - can only ever be written after
+#: the money has moved, which leaves a window where a retry replays the move.
+#:
+#: Both `_identifier` and `_transaction_id` refuse a value containing `#`, so a marker name can
+#: neither collide across the two namespaces nor be split ambiguously. The longest possible name
+#: is 141 bytes, inside DynamoDB's 255-byte attribute-name bound.
+APPLIED_CLAIM_PREFIX = "appliedClaim#"
+APPLIED_VOID_PREFIX = "appliedVoid#"
+
 #: Every attribute a card row may carry, per section 6.4 plus DECISION 5's three. Enumerated so a
-#: test can assert the code itself is not among them.
+#: test can assert the code itself is not among them. The applied-move markers above are
+#: deliberately absent: their names are composed from an identifier, so they cannot be enumerated,
+#: and they are LOCKS rather than attributes of the card - `_drop_applied_marker` removes each one
+#: as soon as the move it guards is recorded elsewhere.
 CARD_ATTRIBUTES = (
     KEY_ATTRIBUTE, "giftCardId", "codeLast4", "pinHash", "initialValuePaise", "balancePaise",
     "currency", STATUS_ATTRIBUTE, "issuedAtMs", "expiresAtMs", "issuedToContactId",
@@ -916,28 +948,65 @@ def issue(table: Any, *, initial_value_paise: Any, pepper: str, code: Optional[s
     return {"card": item, "code": plain, "codeHash": digest}
 
 
-def credit(table: Any, *, code_hash: Any, amount_paise: Any,
+def credit(table: Any, *, code_hash: Any, amount_paise: Any, once_key: Optional[str] = None,
            clock: Clock = _default_clock) -> int:
     """Add to a balance, with the SPI ceiling asserted IN THE CONDITION.
 
     The ceiling is a condition rather than a pre-read check for the same reason the floor is: two
     concurrent credits that each pass a read-time check can together exceed it.
+
+    `once_key` makes the credit IDEMPOTENT on one item. When given, the same `UpdateItem` that
+    moves the money also writes `appliedVoid#<once_key>` under `attribute_not_exists`, so a
+    replay of the same logical credit loses the condition instead of handing the balance back
+    twice. Without it a credit is a plain addition, which is correct for a top-up - two top-ups
+    of the same size are two different events - and wrong for a void, where a retry is the SAME
+    event arriving again. `void` is the only caller that passes it.
+
+    On a replayed credit the returned balance is the card's balance AS AT THE REPLAY, not as at
+    the original move, because the marker records that the move happened and not what it left
+    behind. The two differ only if another move interleaved, and the figure is used for a record
+    rather than for a decision.
     """
     digest = _hash_hex(code_hash)
     amount = value_paise(amount_paise)
     now = _now_seconds(clock)
+    marker = (APPLIED_VOID_PREFIX + _transaction_id(once_key)) if once_key else ""
     try:
-        updated = table.update_item(
-            Key={KEY_ATTRIBUTE: PREFIX_CARD + digest},
-            UpdateExpression="ADD balancePaise :amount SET updatedAt = :at",
-            ConditionExpression=(f"attribute_exists({KEY_ATTRIBUTE}) "
-                                 "AND balancePaise <= :ceiling"),
-            ExpressionAttributeValues={":amount": amount, ":at": now,
-                                       ":ceiling": MAX_VALUE_PAISE - amount},
-            ReturnValues="ALL_NEW",
-        ).get("Attributes") or {}
+        if marker:
+            # Spelled out as a second call site rather than assembled into kwargs: a `**request`
+            # splat is invisible to the access-pattern enumeration test, and an unused
+            # `ExpressionAttributeNames` entry is a DynamoDB ValidationException, so the name can
+            # only be passed on the branch that uses it.
+            updated = table.update_item(
+                Key={KEY_ATTRIBUTE: PREFIX_CARD + digest},
+                UpdateExpression="ADD balancePaise :amount SET updatedAt = :at, #applied = :at",
+                ConditionExpression=(f"attribute_exists({KEY_ATTRIBUTE}) "
+                                     "AND balancePaise <= :ceiling "
+                                     "AND attribute_not_exists(#applied)"),
+                ExpressionAttributeNames={"#applied": marker},
+                ExpressionAttributeValues={":amount": amount, ":at": now,
+                                           ":ceiling": MAX_VALUE_PAISE - amount},
+                ReturnValues="ALL_NEW",
+            ).get("Attributes") or {}
+        else:
+            updated = table.update_item(
+                Key={KEY_ATTRIBUTE: PREFIX_CARD + digest},
+                UpdateExpression="ADD balancePaise :amount SET updatedAt = :at",
+                ConditionExpression=(f"attribute_exists({KEY_ATTRIBUTE}) "
+                                     "AND balancePaise <= :ceiling"),
+                ExpressionAttributeValues={":amount": amount, ":at": now,
+                                           ":ceiling": MAX_VALUE_PAISE - amount},
+                ReturnValues="ALL_NEW",
+            ).get("Attributes") or {}
     except Exception as error:  # noqa: BLE001
         if _is_conditional_failure(error):
+            if marker:
+                card = get_card(table, code_hash=digest)
+                if card is not None and marker in card:
+                    # This credit ALREADY LANDED and only the bookkeeping that follows it failed.
+                    # Reported as the success it was, because the alternative - raising, or
+                    # re-driving the addition - is the double credit this marker exists to stop.
+                    return int(card.get("balancePaise") or 0)
             raise GiftCardValidationError(
                 "BALANCE_CEILING_EXCEEDED",
                 f"a balance may not exceed {MAX_VALUE_PAISE} paise, the SPI maximum") from None
@@ -1120,6 +1189,14 @@ def redeem(table: Any, *, code_hash: Any, attempt_id: Any, amount_paise: Any,
     decrement rather than reporting a redemption that never moved money. The claim row is never
     deleted, so the window cannot be closed by removing evidence.
 
+    `settled` lives on the claim row, so it can only be written AFTER the money has moved, and a
+    retry that re-reads it cannot tell "the decrement never ran" from "the decrement ran and the
+    settle write failed". That is why the decrement carries its own marker on the CARD row, set
+    in the same expression as the balance move: the retry is still free to re-drive, and the
+    re-drive now loses a condition instead of debiting the card a second time for one
+    `paymentAttemptId`. The claim row makes the REQUEST idempotent; the marker makes the MONEY
+    idempotent, and only the second one is on the item the money is on.
+
     `source` records whether this was ours or a Wix `/v1/redeem`. Section 1.3 predicts `WIX_SPI`
     never appears, so its appearance is the detector for that prediction being wrong, and
     `wecare-gift-card-wix-spi-redemption` alarms on a single occurrence.
@@ -1170,6 +1247,10 @@ def redeem(table: Any, *, code_hash: Any, attempt_id: Any, amount_paise: Any,
 
     balance_after = _decrement(table, digest=digest, amount=amount, attempt=attempt, now=now)
     _mark_settled(table, claim_row_key, balance_after=balance_after, now=now)
+    # The decrement's own marker has done its job: `settled` now short-circuits the replay before
+    # it reaches the money move at all. Dropped so the card row cannot grow one attribute per
+    # redemption for the life of the card.
+    _drop_applied_marker(table, digest, APPLIED_CLAIM_PREFIX + attempt)
 
     record = {
         KEY_ATTRIBUTE: PREFIX_TRANSACTION + digest + "#" + transaction_id,
@@ -1206,17 +1287,33 @@ def _decrement(table: Any, *, digest: str, amount: int, attempt: str, now: int) 
     `activeHoldAttemptId` is set through `if_not_exists` so a Wix-originated redemption with no
     prior hold still leaves the card reading as spoken-for to the NEXT `/v1/redeem` - which is what
     makes that refusal a single `GetItem` rather than a prefix query.
+
+    It also writes `appliedClaim#<attempt>` under `attribute_not_exists`, in THIS expression, and
+    that is what makes the move happen exactly once per attempt rather than merely once per
+    request that gets this far. The claim row's `settled` flag is a second item, so it can only be
+    written after the money has already moved; failing only that write used to leave the claim
+    unsettled with the balance already down, and the retry re-drove the decrement and debited the
+    card twice for one `paymentAttemptId`. `balancePaise >= :amount` stops an OVERDRAW, not a
+    second deduction while funds remain. The marker is on the same item as the balance, so the two
+    cannot diverge.
+
+    `activeClaimAttemptId = :me` could not do this job: the next attempt's decrement overwrites
+    it, so a stalled retry arriving after another purchase would find its own id gone and deduct
+    again. The marker is keyed on the attempt and nothing overwrites it.
     """
+    marker = APPLIED_CLAIM_PREFIX + attempt
     try:
         updated = table.update_item(
             Key={KEY_ATTRIBUTE: PREFIX_CARD + digest},
             UpdateExpression=("ADD balancePaise :neg "
                               "SET activeClaimAttemptId = :me, updatedAt = :at, "
-                              "activeHoldAttemptId = if_not_exists(activeHoldAttemptId, :me)"),
+                              "activeHoldAttemptId = if_not_exists(activeHoldAttemptId, :me), "
+                              "#applied = :at"),
             ConditionExpression=(f"attribute_exists({KEY_ATTRIBUTE}) "
                                  "AND balancePaise >= :amount "
-                                 "AND #status = :active"),
-            ExpressionAttributeNames={"#status": STATUS_ATTRIBUTE},
+                                 "AND #status = :active "
+                                 "AND attribute_not_exists(#applied)"),
+            ExpressionAttributeNames={"#status": STATUS_ATTRIBUTE, "#applied": marker},
             ExpressionAttributeValues={":neg": -amount, ":amount": amount, ":me": attempt,
                                        ":at": now, ":active": STATUS_ACTIVE},
             ReturnValues="ALL_NEW",
@@ -1224,11 +1321,43 @@ def _decrement(table: Any, *, digest: str, amount: int, attempt: str, now: int) 
     except Exception as error:  # noqa: BLE001
         if _is_conditional_failure(error):
             card = get_card(table, code_hash=digest)
+            if card is not None and marker in card:
+                # This attempt's decrement ALREADY LANDED; only the settle that follows it failed.
+                # Answered with the current balance so the caller can finish the bookkeeping,
+                # BEFORE `assert_spendable`, because a card disabled or expired since the move
+                # does not un-move the money - and because re-driving would be the double debit.
+                return int(card.get("balancePaise") or 0)
             assert_spendable(card, now_ms=now * 1000)
             raise InsufficientFunds("this gift card does not hold that much") from None
         raise GiftCardStoreUnavailable(
             f"could not move a gift-card balance: {type(error).__name__}") from error
     return int(updated.get("balancePaise") or 0)
+
+
+def _drop_applied_marker(table: Any, digest: str, marker: str) -> None:
+    """Remove one applied-move marker from the card row. BEST EFFORT, and deliberately silent.
+
+    The marker is a LOCK, not a record - the `GCTXN#` transaction row is the record. Once the
+    claim reads `settled` (or the voided transaction reads `credited`), the replay short-circuits
+    before it reaches the money move, so nothing consults the marker again. Dropping it keeps the
+    card row bounded by the number of IN-FLIGHT moves instead of by the lifetime count of them,
+    which matters because a DynamoDB item is capped at 400 KB and a card row that cannot be
+    written is a liability that cannot be paid.
+
+    A failure here is swallowed, and that is the point rather than a shortcut: it leaves a stale
+    attribute, changes no decision, and the alternative is reporting a money move that succeeded
+    as a failure. A marker left behind by a process that died here is harmless for the same
+    reason - the move it guarded is already recorded.
+    """
+    try:
+        table.update_item(
+            Key={KEY_ATTRIBUTE: PREFIX_CARD + digest},
+            UpdateExpression="REMOVE #applied",
+            ConditionExpression=f"attribute_exists({KEY_ATTRIBUTE})",
+            ExpressionAttributeNames={"#applied": marker},
+        )
+    except Exception:  # noqa: BLE001
+        return
 
 
 def _mark_settled(table: Any, claim_row_key: str, *, balance_after: int, now: int) -> None:
@@ -1287,6 +1416,15 @@ def void(table: Any, *, transaction_id: Any, clock: Clock = _default_clock) -> D
     pending: a latch written before this flag existed cannot be distinguished from one whose
     credit landed, and re-driving a credit that already happened would hand the balance back
     twice. Only an explicit `False` - which only this function writes - re-drives.
+
+    And the re-drive is safe to take at face value because the credit carries `once_key=void_id`,
+    which puts its idempotency marker on the CARD row in the same expression as the money. The
+    `credited` flag alone is sound in one direction only - it can never claim a credit landed when
+    it did not - so `credited: False` covers both "the credit never ran" and "the credit ran and
+    this write failed". A read-modify-write that replayed the balance move on the strength of that
+    read is exactly the double credit the guard-before-credit ordering exists to prevent, reached
+    by retry instead of by race. The marker decides it on the item that holds the balance, so the
+    flag no longer has to.
     """
     pointer = resolve_transaction(table, transaction_id=transaction_id)
     digest = _hash_hex(pointer["codeHash"])
@@ -1324,8 +1462,16 @@ def void(table: Any, *, transaction_id: Any, clock: Clock = _default_clock) -> D
                 f"could not void a gift-card transaction: {type(error).__name__}") from error
 
     amount = int(original.get("amountPaise") or 0)
-    balance_after = credit(table, code_hash=digest, amount_paise=amount, clock=clock)
+    # `once_key=void_id`, which is stable across retries because an uncredited latch is re-driven
+    # under the void id read back off the latch. That is what makes the credit and its marker one
+    # commit on one item: `credited` is on the TRANSACTION row, so it can only be written after
+    # the money has come back, and failing only that write used to leave `credited: False` with
+    # the balance already returned - a state the retry branch above cannot distinguish from "the
+    # credit never ran", so it re-drove the credit and handed the balance back twice.
+    balance_after = credit(table, code_hash=digest, amount_paise=amount, once_key=void_id,
+                           clock=clock)
     _mark_credited(table, original_key, balance_after=balance_after, now=now)
+    _drop_applied_marker(table, digest, APPLIED_VOID_PREFIX + void_id)
     _put(table, {KEY_ATTRIBUTE: PREFIX_TRANSACTION + digest + "#" + void_id,
                  "kind": KIND_VOID, "codeHash": digest, "transactionId": void_id,
                  "paymentAttemptId": pointer["paymentAttemptId"], "amountPaise": amount,
@@ -1342,6 +1488,7 @@ def void(table: Any, *, transaction_id: Any, clock: Clock = _default_clock) -> D
 
 
 __all__ = [
+    "APPLIED_CLAIM_PREFIX", "APPLIED_VOID_PREFIX",
     "AlreadyRedeemed", "AlreadyVoided", "CARD_ATTRIBUTES", "CLAIM_ATTEMPT_ATTRIBUTE",
     "CODE_ALPHABET", "CODE_LENGTH", "CODE_PATTERN", "CURRENCY", "CurrencyNotSupported",
     "DEFAULT_TABLE_NAME", "GiftCardDisabled", "GiftCardError", "GiftCardExpired",
