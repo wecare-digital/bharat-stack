@@ -362,6 +362,8 @@ SPECS: List[Spec] = [
 DELEGATED = {
     "wecare-seo-tools": "scripts/deploy_seo_tools.py  (also .github/workflows/seo-tools-deploy.yml on push)",
     "wecare-mcp": "scripts/deploy_mcp_server.py",
+    # Bundles its own pinned SDK and policy; generic packaging would omit both.
+    "wecare-workspace-mcp": "scripts/build_workspace_mcp.py + scripts/deploy_workspace_mcp.py (CloudFormation, after merge)",
 }
 SKIPPED = {"wecare-docs-scraper": "PackageType=Image, deploys via GitHub Actions"}
 

@@ -1,0 +1,539 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "WECARE scoped administrative MCP control plane; additive routes, encrypted OAuth, inert code jobs.",
+  "Parameters": {
+    "CodeBucket": {
+      "Type": "String"
+    },
+    "CodeKey": {
+      "Type": "String"
+    },
+    "CodeSha256": {
+      "Type": "String"
+    },
+    "GithubTokenField": {
+      "Type": "String",
+      "Default": "token"
+    },
+    "AlarmTopic": {
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "Registry": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "TableName": "wecare-workspace-mcp",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "pk",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "pk",
+            "KeyType": "HASH"
+          }
+        ],
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        },
+        "TimeToLiveSpecification": {
+          "AttributeName": "ttl",
+          "Enabled": true
+        }
+      }
+    },
+    "TokenKey": {
+      "Type": "AWS::KMS::Key",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Description": "WECARE administrative MCP OAuth custody",
+        "EnableKeyRotation": true,
+        "KeyPolicy": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:root"
+                }
+              },
+              "Action": "kms:*",
+              "Resource": "*"
+            }
+          ]
+        }
+      }
+    },
+    "Logs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/wecare-workspace-mcp",
+        "RetentionInDays": 14
+      }
+    },
+    "Role": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "wecare-workspace-mcp-runtime",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "workspace-mcp-scoped",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:/aws/lambda/wecare-workspace-mcp:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:UpdateItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Registry",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Encrypt",
+                    "kms:Decrypt"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "TokenKey",
+                      "Arn"
+                    ]
+                  },
+                  "Condition": {
+                    "StringEquals": {
+                      "kms:EncryptionContext:purpose": "workspace-mcp"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "lambda:GetAlias"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:aws:lambda:us-east-1:${AWS::AccountId}:function:wecare-mcp"
+                    },
+                    {
+                      "Fn::Sub": "arn:aws:lambda:us-east-1:${AWS::AccountId}:function:wecare-workspace-mcp"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/github-pat-y4tXJa",
+                    "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/seo/google-oauth-XnSVlc",
+                    "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google/ads-HuIYKY",
+                    "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/razorpay/api-vaHEaM",
+                    "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/wix/headless-api-key-UTWQel"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Decrypt"
+                  ],
+                  "Resource": "arn:aws:kms:us-east-1:775261844268:key/9b5b8734-9968-4464-90a9-329dad12c1a9",
+                  "Condition": {
+                    "StringEquals": {
+                      "kms:ViaService": "secretsmanager.us-east-1.amazonaws.com",
+                      "kms:EncryptionContext:SecretARN": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google/ads-HuIYKY"
+                    }
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:PutObject"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:s3:::${CodeBucket}/workspace-mcp/patches/*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cognito-idp:AdminListGroupsForUser"
+                  ],
+                  "Resource": "arn:aws:cognito-idp:us-east-1:775261844268:userpool/us-east-1_cSx0RHCIR"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "Function": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": [
+        "Logs"
+      ],
+      "Properties": {
+        "FunctionName": "wecare-workspace-mcp",
+        "Runtime": "python3.12",
+        "Architectures": [
+          "arm64"
+        ],
+        "Handler": "handler.handler",
+        "MemorySize": 256,
+        "Timeout": 28,
+        "ReservedConcurrentExecutions": 2,
+        "Role": {
+          "Fn::GetAtt": [
+            "Role",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "CodeBucket"
+          },
+          "S3Key": {
+            "Ref": "CodeKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "REGISTRY_TABLE": {
+              "Ref": "Registry"
+            },
+            "TOKEN_KEY": {
+              "Fn::GetAtt": [
+                "TokenKey",
+                "Arn"
+              ]
+            },
+            "PATCH_BUCKET": {
+              "Ref": "CodeBucket"
+            },
+            "CODE_JOBS_ENABLED": "false",
+            "GITHUB_TOKEN_FIELD": {
+              "Ref": "GithubTokenField"
+            }
+          }
+        }
+      }
+    },
+    "Version": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "Function"
+        },
+        "CodeSha256": {
+          "Ref": "CodeSha256"
+        },
+        "Description": "Administrative MCP fixed read adapters and registered OAuth"
+      }
+    },
+    "Alias": {
+      "Type": "AWS::Lambda::Alias",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "Function"
+        },
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "Version",
+            "Version"
+          ]
+        },
+        "Name": "live"
+      }
+    },
+    "Integration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": "zllr9lrg7j",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Ref": "Alias"
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 29000
+      }
+    },
+    "Authorizer": {
+      "Type": "AWS::ApiGatewayV2::Authorizer",
+      "Properties": {
+        "ApiId": "zllr9lrg7j",
+        "Name": "workspace-mcp-staff",
+        "AuthorizerType": "JWT",
+        "IdentitySource": [
+          "$request.header.Authorization"
+        ],
+        "JwtConfiguration": {
+          "Audience": [
+            "1j8kbi48m4v2rped3n224rlevb"
+          ],
+          "Issuer": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_cSx0RHCIR"
+        }
+      }
+    },
+    "StaffRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": "zllr9lrg7j",
+        "RouteKey": "ANY /workspace/mcp",
+        "Target": {
+          "Fn::Join": [
+            "",
+            [
+              "integrations/",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        },
+        "AuthorizationType": "JWT",
+        "AuthorizerId": {
+          "Ref": "Authorizer"
+        }
+      }
+    },
+    "IamRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": "zllr9lrg7j",
+        "RouteKey": "POST /workspace/mcp-iam",
+        "Target": {
+          "Fn::Join": [
+            "",
+            [
+              "integrations/",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        },
+        "AuthorizationType": "AWS_IAM"
+      }
+    },
+    "CallbackRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": "zllr9lrg7j",
+        "RouteKey": "GET /workspace/mcp/oauth/callback",
+        "Target": {
+          "Fn::Join": [
+            "",
+            [
+              "integrations/",
+              {
+                "Ref": "Integration"
+              }
+            ]
+          ]
+        },
+        "AuthorizationType": "NONE"
+      }
+    },
+    "StaffPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "Alias"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceAccount": "775261844268",
+        "SourceArn": {
+          "Fn::Sub": "arn:aws:execute-api:us-east-1:${AWS::AccountId}:zllr9lrg7j/prod/*/workspace/mcp"
+        }
+      }
+    },
+    "IamPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "Alias"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceAccount": "775261844268",
+        "SourceArn": {
+          "Fn::Sub": "arn:aws:execute-api:us-east-1:${AWS::AccountId}:zllr9lrg7j/prod/*/workspace/mcp-iam"
+        }
+      }
+    },
+    "CallbackPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "Alias"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceAccount": "775261844268",
+        "SourceArn": {
+          "Fn::Sub": "arn:aws:execute-api:us-east-1:${AWS::AccountId}:zllr9lrg7j/prod/*/workspace/mcp/oauth/callback"
+        }
+      }
+    },
+    "PatchReadRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "wecare-workspace-mcp-patch-read",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": "arn:aws:iam::775261844268:oidc-provider/token.actions.githubusercontent.com"
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                  "token.actions.githubusercontent.com:sub": "repo:wecare-digital/wecare-digital:ref:refs/heads/stack"
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "patch-read-only",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "s3:GetObject",
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:s3:::${CodeBucket}/workspace-mcp/patches/*"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "Errors": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "wecare-workspace-mcp-errors",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "Function"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlarmTopic"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "FunctionArn": {
+      "Value": {
+        "Ref": "Alias"
+      }
+    },
+    "Registry": {
+      "Value": {
+        "Ref": "Registry"
+      }
+    },
+    "TokenKey": {
+      "Value": {
+        "Fn::GetAtt": [
+          "TokenKey",
+          "Arn"
+        ]
+      }
+    },
+    "PatchReadRoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "PatchReadRole",
+          "Arn"
+        ]
+      }
+    },
+    "StaffEndpoint": {
+      "Value": "https://wecare.digital/api/workspace/mcp"
+    },
+    "IamEndpoint": {
+      "Value": "https://zllr9lrg7j.execute-api.us-east-1.amazonaws.com/prod/workspace/mcp-iam"
+    }
+  },
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
+    },
+    "com.aws.cloudformation.Context": {
+      "ref": [
+        {
+          "at": "docs/workspace-mcp.md",
+          "has": "Authentication, fixed read adapters, runtime credential custody and rollback constraints"
+        }
+      ]
+    }
+  }
+}

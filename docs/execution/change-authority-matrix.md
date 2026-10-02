@@ -1,5 +1,74 @@
 # Change authority matrix
 
+## 2026-10-02 dashboard MCP connection controls
+
+- A0_READ: refreshed origin/stack, inspected current dashboard navigation, staff
+  access-token transport and role handling; preserved other sessions' dirty files.
+- A1_LOCAL: added an Admin-only MCP connections inner page, overview/Platform links,
+  independent Meta authorization and verification, multi-provider checks, explicit
+  pending states, responsive shared design and bounded activity output.
+- A2_REMOTE_CODE: owner explicitly requested build and git push. Typecheck, seven
+  focused tests, all 705 frontend tests, production build, public-page manifest and
+  export credential gate passed before explicit-path commit and non-force stack push.
+- A3_PRODUCTION: no backend changes or provider consent performed in this phase.
+  The existing frontend release pipeline follows stack. Code-job dispatch stays off.
+
+Evidence: `workspace-mcp-dashboard-20261002.md`. Rollback: normal frontend commit
+revert; preserve the deployed MCP stack and other sessions' work.
+
+## 2026-10-01 administrative MCP merge and deployment
+
+- A0_READ: confirmed PR #179 merged and its applicable CI checks passed; rediscovered
+  account, stack absence, API routes and public live alias before deployment.
+- A1_LOCAL: tested the exact merged tree (6022 Python tests passed, one skipped;
+  56 focused tests passed) and rebuilt the reproducible release bundle.
+- A3_PRODUCTION: owner explicitly instructed merge and test. AWS MCP created,
+  reviewed and executed the additive CloudFormation change set merged-d24c0250:
+  17 Add actions, stack CREATE_COMPLETE, new live version 1. Signed live MCP and
+  AWS/GitHub reads passed; authentication, OAuth nonce and tool-policy guards passed.
+  CODE_JOBS_ENABLED remains false and public MCP live remains version 9.
+- A1_LOCAL/A2_REMOTE_CODE: enabled the new local Kiro/Codex server, preserving all
+  other entries and private backups; set the scoped patch read-role repository
+  variable. Recorded sanitized deployment evidence and remaining consent checks.
+
+Evidence: `workspace-mcp-live-20261001.md` and
+`snapshots/workspace-mcp-deployment-20261001.json`. Rollback: disable the new client
+entries; use reviewed additive-stack IaC rollback, preserving retained DDB/KMS;
+restore captured live version 1 for later Lambda releases. No destructive rollback,
+provider sends, payment changes or code-job dispatch occurred.
+
+## 2026-10-01 administrative MCP feature branch
+
+- A0_READ: rediscovered AWS identity (775261844268/us-east-1), API routes/stage,
+  staff Cognito pool/client/groups, public MCP live alias, existing artifact bucket,
+  GitHub OIDC provider and human-routed alarm topic through AWS MCP. Read Meta
+  protected-resource/authorization metadata. Validated additive CloudFormation
+  template through AWS MCP. Runtime-only asm-exec GitHub credential read returned
+  repository HTTP 200; no credential value entered reports or tool output.
+- A1_LOCAL: built the administrative MCP router, versioned provider policy,
+  encrypted registry/OAuth custody, SDK adapters, inactive supplied-patch workflow,
+  reproducible package builder, IaC, tests and activation runbook in an isolated
+  checkout. Owner explicitly requested a separate branch and a later merge;
+  `feature/workspace-mcp` is the authorized branch exception.
+- A2_REMOTE_CODE: explicit-path commit and non-force feature-branch push only.
+  Final source verification: 6059 Python tests passed/one skipped, 46 focused MCP
+  tests, 698 frontend tests, typecheck, production build, public manifest, exported
+  bundle secret gate, workflow YAML and CloudFormation validation passed. Draft PR
+  targets stack; no merge or production deployment is included. Rollback: normal
+  revert or abandon the unmerged feature branch, without touching other sessions.
+- A3_PRODUCTION: not exercised. New resources, provider consents and live endpoints
+  await the later merge/activation. Code-job dispatch defaults off in IaC.
+
+Evidence and activation limits: `workspace-mcp-build-20261001.md` and
+`../workspace-mcp.md`. No provider credentials were rotated or replaced; no
+WhatsApp number, messages, payments, ad spend or existing certificate was changed.
+
+The same feature branch received review fixes for token-refresh leases, custody
+context and patch bounds, managed commit-runner authentication, and a demonstrated
+baseline media-checker false positive. Ten rooting-flow regression cases passed;
+checkout source was preserved. Fresh Codex AWS/Meta/WhatsApp reads succeeded; AWS
+still has no administrative MCP routes. No production deployment was attempted.
+
 ## Classes
 
 | Class | Scope | Required behavior |
@@ -699,3 +768,27 @@ that, and states the authority exactly as it stands rather than stronger.
   passed/one skipped; 100 live URL/host probes zero mismatches; FAQ and customer
   export gates passed. Frontend source unchanged from the 698-test build.
   Rollback by normal revert; no production configuration changed by this merge.
+
+- 2026-10-02 A0_READ/A1_LOCAL: reproduced Meta Social invalid MCP scope and
+  WhatsApp authorized_unverified followed by MCP authorization refusal. Native
+  Codex app-list and WhatsApp business-list reads passed; custom cloud DCR returned
+  invalid_client_metadata. Corrected cloud client registration, token/client
+  binding, SDK verification, Google cloud OAuth and documentation-only labeling.
+  Validation: 6036 Python passed/one skipped, 705 frontend passed, focused final
+  59 Python/seven frontend passed, typecheck/build and cfn-lint 1.40.2 passed.
+  A3_PRODUCTION: prepare two-stage CloudFormation update for the dedicated MCP
+  stack: retain version 1 first, then scoped IAM and version replacement. No
+  customer resources, payment writes, WhatsApp sends or code-job enablement.
+  Rollback: previous artifact 711c209c1a1c8d6b4c7a0cfd3e3f40eec806e7fb683acaa99aa2be37fa361803
+  and retained Lambda version 1. Applied/live results recorded separately.
+
+- 2026-10-02 A3_PRODUCTION complete: MCP stack UPDATE_COMPLETE; retained version
+  1 confirmed, live version 2 Active/Successful and exact bundle hash matched.
+  AWS/GitHub/Razorpay/Wix reads and Plivo/Sinch documentation discovery passed.
+  Meta cloud client registration remains provider-blocked; Google cloud grants
+  remain absent pending owner verification. Evidence:
+  docs/execution/workspace-mcp-adapters-20261002.md and matching snapshot.
+  A1_LOCAL/A2_REMOTE_CODE: correct route audit's customer-auth call recognition,
+  no public allowlist change. Focused 60 tests and fresh 365-route classification
+  passed; inert checkout/session/MCP rejection probes passed. Rollback scanner
+  through ordinary revert; runtime customer authentication remains unchanged.

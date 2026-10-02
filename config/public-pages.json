@@ -68,6 +68,11 @@
       "note": "The five pages that replace an email inbox. A request starts on one of these."
     },
     {
+      "id": "perks",
+      "title": "Perks",
+      "note": "Gift cards, rewards and offers. Non-transacting until a provider is wired up."
+    },
+    {
       "id": "legal",
       "title": "Legal",
       "note": "Published terms and the data-handling policy."
@@ -103,6 +108,12 @@
       "group": "start",
       "name": "Orders",
       "description": "Check the status of an order, delivery, request or booking."
+    },
+    {
+      "path": "/zip",
+      "group": "start",
+      "name": "Zip",
+      "description": "Everything about your request, delivery or pickup in one place: track an order, amend a request, send documents, open your vault or leave a review."
     },
     {
       "path": "/grahak-os",
@@ -205,6 +216,12 @@
       "group": "selfservice",
       "name": "Refer & Earn",
       "description": "Introduce someone who would find this useful."
+    },
+    {
+      "path": "/perks",
+      "group": "perks",
+      "name": "Perks",
+      "description": "Gifts, rewards and offers in one place. Choose a WECARE.DIGITAL gift card, explore offers to apply at checkout, and more reasons to come back."
     },
     {
       "path": "/privacy",

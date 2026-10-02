@@ -323,6 +323,33 @@ export const TERMS_SECTIONS: LegalSection[] = [
     ],
   },
   {
+    /*
+     * ADDED for the customer-experience upgrade (/zip). WHY A SUB-CLAUSE OF 15, not a new numbered
+     * section: numbers here are load-bearing (see types.ts) and "How to contact us" is the last
+     * top-level section by owner instruction, so a new top-level section would either renumber
+     * citations or push contact out of last place. Delivery and fulfilment live under 15, so the
+     * tracking / rescheduling / failed-delivery detail belongs beneath it. Appointment-style pickups
+     * cross-reference 16 rather than restate it.
+     *
+     * HONESTY CONSTRAINT: the /zip page aggregates only capabilities that actually exist today -
+     * tracking an order or request, amending a request, sending documents, the vault and leaving a
+     * review - all of which are links to existing routes. General courier PICKUP and shipment
+     * booking have NO integrated provider yet; the /zip controls for them are inert "coming soon".
+     * So this clause must NOT promise a general pickup or shipment-booking service. It frames those
+     * as not currently offered and conditional on a future provider, and covers tracking, timing,
+     * rescheduling, missed pickup and failed delivery only to the extent they apply to what exists.
+     */
+    number: '15.1', heading: 'Tracking, rescheduling and the Zip page', id: 's15-1',
+    paragraphs: [
+      'Where a service supports it, you can track the status of an order, a request or a booking, ask us to amend an open request, send us documents, use your vault, and leave a review. These are the capabilities we actually offer, and we surface them together on the Zip page at /zip/.',
+      'Any delivery date, dispatch window or turnaround time we show is an estimate unless we expressly say it is guaranteed, and it can be affected by stock, customisation, the destination, a third-party carrier, or circumstances beyond our reasonable control. Section 36 applies to events outside anyone\'s control.',
+      'Where a delivery, dispatch or appointment can be rescheduled or cancelled, the conditions for doing so - including any cut-off, any missed-slot consequence and any charge - are the ones disclosed for that service and in section 16 for scheduled services. Please give us a complete and accurate address, contact number and any access or delivery instructions; a failed or missed delivery caused by details that are wrong, incomplete or out of date may lead to a re-delivery attempt, a charge, or a return, as disclosed for that service.',
+      'If a delivery fails, is missed, is materially delayed, or arrives lost or damaged, tell us and we will handle it under the policy for that service and under the law. Where an independent carrier or fulfilment partner is involved, their handling conditions may also apply, but that does not reduce any right the law gives you against us.',
+      'We do not currently offer a general courier-pickup or shipment-booking service. Where the Zip page shows a pickup, visit or shipment option marked as not yet available, that option is not live and cannot be booked. If and when we integrate a provider for it, it will be offered on its own disclosed conditions, and until then nothing on that page is a promise that we will collect from, visit or ship for you.',
+      'Nothing in this section limits a cancellation, refund, replacement or other remedy the law requires us to provide.',
+    ],
+  },
+  {
     number: '16', heading: 'Appointments, consultations and scheduled services', id: 's16',
     inShort: 'Turn up at the agreed time and bring what is needed. If a provider cancels, you get a reschedule, an alternative, or a refund. A named professional is not swapped without telling you.',
     paragraphs: [
@@ -390,6 +417,32 @@ export const TERMS_SECTIONS: LegalSection[] = [
     ],
   },
   {
+    /*
+     * ADDED for the customer-experience upgrade (Perks / gift cards). A SUB-CLAUSE OF 21, which
+     * already covers gift cards, credits and promotional balances - the detail on purchase,
+     * redemption and balances belongs beneath it rather than as a renumbering new section.
+     *
+     * HONESTY / CONFIG CONSTRAINT: gift cards are built but gated off and not on sale online yet,
+     * and the live gift-card configuration (issuer, validity, any expiry, product restrictions) is
+     * held in our commerce backend and cannot be asserted as fixed values from here. So specifics
+     * are framed as "where applicable" / "as configured" / "as disclosed when the card is issued"
+     * rather than stated as guarantees. NO third-party gift-card provider is named - the clause
+     * refers only to WECARE.DIGITAL gift cards and "our commerce backend", because the provider is
+     * an abstract seam in the code and naming a vendor here would be both wrong-if-it-changes and
+     * outside what the business has agreed.
+     */
+    number: '21.1', heading: 'How WECARE.DIGITAL gift cards work', id: 's21-1',
+    paragraphs: [
+      'A WECARE.DIGITAL gift card may be bought by you, given to you by someone else, or issued by us as part of a promotion or as an agreed alternative to a money refund. When a gift card is bought or issued, it is activated and a balance is loaded onto it in Indian rupees, as disclosed at the time.',
+      'You redeem a gift card at checkout against eligible WECARE.DIGITAL products and services. Redemption is applied by us server-side against the authoritative order total; the card pays part or all of what is owed, and any remaining amount is payable by your other chosen payment method. We do not treat a balance shown in your browser as the authority on what a card is worth - the balance we verify in our commerce backend is.',
+      'Partial redemption is supported where the card balance is less than the amount owed: the card covers what it can and the rest is payable separately. Where a redemption is less than the full balance, the remaining balance stays on the card for a later eligible purchase, subject to any validity condition below.',
+      'A gift card may carry validity, expiry, minimum-order, eligible-product or other restrictions where applicable. Any such condition is the one disclosed when the card is bought or issued and as configured in our commerce backend; where an expiry or restriction would reduce a right the law does not allow us to reduce, the law prevails and that condition does not apply to that extent.',
+      'Keep a gift-card code secure and treat it like cash: anyone with the code may be able to redeem it. Tell us promptly if you believe a code has been lost, stolen, exposed or used without your authorisation, and we will take reasonable steps - which may include suspending the code while we investigate - but we cannot always recover a balance already spent by someone who had the code. We may void, suspend or reverse a gift card obtained or used through fraud, error, duplicate issuance, automated abuse or another material breach of these Terms.',
+      'A promotional balance we give away may carry different conditions from a balance you paid for - for example a shorter validity, a narrower set of eligible products, or no cash-out - and those conditions are disclosed when it is issued. A purchased balance is treated as your money to the extent the law requires.',
+      'Gift cards and balances are not normally redeemable for cash, and buying one is a purchase of a gift card rather than a deposit or a banking service. If an order paid for with a gift card is cancelled or refunded, the refund may be returned to the gift card or as account credit rather than as cash, where that is lawful and was disclosed; this does not remove a money refund the law requires. Gift cards are not on sale online at the time of writing, and this clause describes how they work when they are offered.',
+    ],
+  },
+  {
     number: '22', heading: 'Partner, referral and affiliate programmes', id: 's22',
     inShort: 'Joining one means accepting its own terms. Taking part does not make you our employee, partner, franchisee or agent.',
     paragraphs: [
@@ -407,6 +460,43 @@ export const TERMS_SECTIONS: LegalSection[] = [
       'A promotion may have eligibility requirements, a validity period, a minimum transaction amount, usage limits, product restrictions and other terms.',
       'Promotional benefits cannot be exchanged for cash unless we say so or the law requires it.',
       'We may cancel a promotional benefit obtained through fraud, manipulation, automated abuse, duplicate accounts, or another material breach of the promotion\'s conditions.',
+    ],
+  },
+  {
+    /*
+     * ADDED for the customer-experience upgrade (Perks / coupons). A SUB-CLAUSE OF 23, which
+     * already covers promotions, coupons and offers; this adds the eligibility / validity /
+     * stacking / refund-impact detail the new coupon field at checkout needs.
+     *
+     * CONFIG CONSTRAINT: coupons and offers are Wix-native and validated server-side, and the live
+     * configuration (which codes exist, their validity, minimum order, eligible products, usage
+     * limits, stacking rules) lives in our commerce backend and cannot be asserted as fixed values
+     * from here. The /perks page honestly shows no live offers. So this clause is written in terms
+     * of "as configured in our commerce backend" / "where applicable" rather than listing specific
+     * values, and does not claim any particular offer is currently available.
+     */
+    number: '23.1', heading: 'How coupons and offers apply at checkout', id: 's23-1',
+    paragraphs: [
+      'Where a coupon or offer is available, whether it applies to your order is decided by us server-side against the conditions configured for it in our commerce backend, not by anything calculated in your browser. A code that looks accepted on screen is only a request until we validate and apply it, and the discount you actually receive is the one our systems confirm.',
+      'A coupon or offer may be subject to eligibility conditions, a validity period and expiry, a minimum order value, a limited set of eligible products or services, per-customer or overall usage limits, and rules on whether it can be combined with other offers. Unless the offer expressly says codes can be stacked, assume only one applies to an order; where codes conflict, we apply them as configured for those offers.',
+      'We may decline, withdraw or reverse a coupon or offer that has expired, that does not meet its conditions, or that was obtained or used through fraud, manipulation, automated abuse, duplicate accounts or another material breach of its terms. A coupon or offer has no cash value and cannot be exchanged for cash unless we say so or the law requires it.',
+      'If an order that used a coupon or offer is later cancelled, returned or partially refunded, the refund reflects what you actually paid after the discount rather than the pre-discount price, and a discount tied to a condition you no longer meet after a change may be adjusted accordingly - subject always to any refund or remedy the law requires.',
+    ],
+  },
+  {
+    /*
+     * ADDED for the customer-experience upgrade (Perks / rewards). HONESTY CONSTRAINT, and the
+     * reason this clause is short: there is NO rewards backend. The /perks Rewards section is a
+     * non-transacting placeholder with no points, balances, history, earning or redemption. So
+     * this clause must NOT invent eligibility, earning, redemption or expiry mechanics for a
+     * programme that does not exist. It states the truthful position - no rewards programme is
+     * currently operating - and defers any future programme to its own published terms, which is
+     * exactly as much as can be said truthfully today.
+     */
+    number: '23.2', heading: 'Rewards', id: 's23-2',
+    paragraphs: [
+      'We do not currently operate a rewards or loyalty programme. There are no reward points, balances, tiers or history to earn, hold or redeem, and anything shown as "coming soon" is a statement of intent, not a programme you are enrolled in or entitled to.',
+      'If we launch a rewards programme in future, it will have its own published terms covering eligibility, how any benefit is earned and redeemed, any validity or expiry, misuse and fraud, and how we may change or end it. Those terms will govern that programme, and nothing here creates a reward entitlement before then.',
     ],
   },
   {
@@ -487,10 +577,10 @@ export const TERMS_SECTIONS: LegalSection[] = [
     number: '31', heading: 'What we do not promise', id: 's31',
     inShort: 'We do not promise the Platform is flawless or always up, or that you will get a particular outcome. Statutory warranties and consumer rights still stand.',
     paragraphs: [
-      'To the fullest extent the law allows, the Platform is provided on an "as available" basis.',
-      'We do not promise that every feature will be uninterrupted, always available, completely free of errors, or suited to your particular purpose.',
+      'To the maximum extent permitted by applicable law, the Platform and the Services are provided on an "as is" and "as available" basis, and we do not give any warranty, condition or representation that is not expressly set out in these Terms or required by law.',
+      'We do not promise that every feature will be uninterrupted, always available, timely, secure, completely free of errors or defects, or suited to your particular purpose, or that any defect will be corrected.',
       'We do not promise a particular business, professional, legal, medical, personal, travel or financial outcome because a product, service or provider is reachable through WECARE.DIGITAL.',
-      'Nothing here excludes a statutory warranty, obligation, consumer right or remedy that cannot lawfully be excluded.',
+      'This section does not exclude or limit any warranty, condition, obligation, consumer right or remedy that cannot lawfully be excluded or limited, including the statutory guarantees under India\'s consumer protection law. Where such a right applies, it continues in full and this section is read subject to it.',
     ],
   },
   {
@@ -524,14 +614,39 @@ export const TERMS_SECTIONS: LegalSection[] = [
     ],
   },
   {
-    number: '32', heading: 'Limits on liability', id: 's32',
-    inShort: 'Neither of us is liable for unforeseeable indirect losses, and our contractual liability for a paid transaction is normally capped at what you paid for it. Limits never apply where the law forbids them.',
+    /*
+     * ADDED for the customer-experience upgrade (blog "Support this work"). A SUB-CLAUSE OF 31,
+     * beside 31.1 on editorial content, because a voluntary contribution attaches to the published
+     * articles rather than to a purchase - there is no cart, no Wix order and no product. It
+     * cross-references 12 for payments and 14 for refunds rather than restating them.
+     *
+     * FACTUAL BASIS (verified against amplify/.../ecommerce/blog_contribution.py and
+     * src/config/contribution.ts): a BLOG_CONTRIBUTION is a voluntary payment the reader chooses,
+     * in integer paise, processed through Razorpay on the same server-side verify / webhook /
+     * idempotency path as the rest of checkout; it creates NO Wix order and adds no fee on top. It
+     * is BUILT BUT GATED OFF (CHECKOUT_INITIATION_ENABLED default OFF) and not live. So the clause
+     * describes it truthfully as voluntary and not currently charging, names Razorpay only as the
+     * processor (consistent with 12), and makes none of the equity/investment/employment claims the
+     * brief rules out.
+     */
+    number: '31.2', heading: 'Voluntary contributions to our published work', id: 's31-2',
     paragraphs: [
-      'Nothing in these Terms excludes or limits liability where the law prohibits that.',
-      'Subject to that, and to the fullest extent the law allows, neither of us is normally responsible to the other for indirect, incidental, special or consequential losses that were not reasonably foreseeable.',
-      'Where our contractual liability may lawfully be limited, our total contractual liability arising directly from a particular paid transaction will normally not exceed what you paid us for the product or service the claim is about.',
-      'That cap does not apply where liability cannot legally be restricted, including liability for fraud or wilful misconduct.',
-      'Nothing in this section restricts mandatory consumer rights.',
+      'Some articles invite a voluntary contribution to support the work ("Support this work"). A contribution is a gift you choose to make. It is optional, it buys you nothing, and declining to contribute does not change your access to anything we publish or offer.',
+      'A contribution is not an investment, equity, a loan, a security, a deposit, a subscription or a donation to a registered charity, and it is not necessarily tax-deductible - do not treat it as any of those. It does not make you an employee, partner, shareholder or agent of ours, and it does not give you any ownership, revenue share, control or other interest in WECARE.DIGITAL BHARATWORKS or its work.',
+      'Contributing does not buy influence over what we publish. It does not entitle you to commission, edit, approve, remove or shape any article, and it creates no editorial, advisory or professional relationship. What we publish stays our own editorial decision, and section 31.1 continues to apply to that content.',
+      'Where contributions are enabled, the amount is the one you choose and we confirm server-side, in Indian rupees, and it is processed by our payment provider (Razorpay) under section 12 - we do not add a fee on top of a contribution. A contribution does not create an order, a product or a shipment, and there is nothing to deliver.',
+      'If a payment does not complete, is declined, or fails verification, no contribution is taken. Because a contribution is voluntary and buys nothing, it is generally not refundable once successfully processed; even so, we will review and, where appropriate, refund or reverse a contribution that was taken in error, duplicated, taken without authorisation, or taken through fraud, and we may reverse or decline a contribution we reasonably believe to be fraudulent. If you raise a chargeback or payment dispute, section 14.12 applies. Nothing in this clause removes a refund or remedy the law requires.',
+    ],
+  },
+  {
+    number: '32', heading: 'Limits on liability', id: 's32',
+    inShort: 'Neither of us is liable for unforeseeable indirect losses, and our contractual liability for a paid transaction is normally capped at what you paid for it. These limits apply only as far as the law allows, and never to liability that cannot be excluded.',
+    paragraphs: [
+      'This section applies only to the maximum extent permitted by applicable law. We do not exclude or limit, and nothing in these Terms should be read as excluding or limiting, any liability that cannot lawfully be excluded or limited - including liability for death or personal injury caused by negligence, for fraud or fraudulent misrepresentation, for wilful misconduct or gross negligence, and any liability under India\'s consumer protection law or other mandatory law. This savings provision prevails over everything else in this section.',
+      'Subject to that savings provision, and to the maximum extent permitted by applicable law, neither of us is responsible to the other for indirect, incidental, special, punitive or consequential losses, or for loss of profit, revenue, goodwill, data or anticipated savings, that were not reasonably foreseeable as a likely result of the matter complained of.',
+      'Subject to that savings provision, and where our liability may lawfully be limited, our total aggregate liability arising directly from a particular paid transaction will not exceed the amount you paid us for the product or Service the claim is about.',
+      'Where liability cannot lawfully be capped or excluded, the cap and exclusions above do not apply to it, and our liability for that matter is as the law provides.',
+      'Nothing in this section restricts or affects your mandatory rights as a consumer.',
     ],
   },
   {
