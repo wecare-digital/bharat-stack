@@ -116,7 +116,7 @@ SITE_PAGES = [
     ('/careers-plus-culture', 'Careers & Culture', 'informational'),
     ('/partner-up', 'Partnership Program', 'informational'),
     ('/enterprise-assist', 'Enterprise Support', 'service'),
-    ('/gift-card', 'eGift Card', 'service'), ('/blog', 'Blog Index', 'blog_hub'),
+    ('/perks', 'Perks', 'service'), ('/blog', 'Blog Index', 'blog_hub'),
     ('/sitemap', 'HTML Sitemap', 'utility'), ('/appointment', 'Schedule Appointment', 'service'),
     ('/submit-request', 'Submit Request', 'service'), ('/track-request', 'Track Request', 'service'),
     ('/amend-request', 'Amend Request', 'service'), ('/order-notes', 'Order Notes', 'service'),

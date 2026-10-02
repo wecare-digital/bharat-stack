@@ -6,6 +6,7 @@ import BlogIndexPage from '../pages/blog/page/[page]';
 import BlogPostPage from '../pages/post/[slug]';
 import { toBlogCard, blogPageCount, POSTS_PER_PAGE, type BlogCard, type PublicBlogPost } from '../lib/public-blog';
 import type { BlogIndexPageProps } from '../lib/blog-index-props';
+import { CONTRIBUTION_PRESETS_PAISE, paiseToRupees } from '../config/contribution';
 
 vi.mock( 'next/head', () => ( { default: ( { children }: { children: React.ReactNode } ) => <>{ children }</> } ) );
 
@@ -785,6 +786,74 @@ describe( 'Blog post page', () => {
 
     // Nothing lifts for a reader who asked for less motion - this page had no such block.
     expect( css ).toContain( '@media(prefers-reduced-motion:reduce)' );
+  } );
+
+  /**
+   * THE "SUPPORT THIS WORK" CONTRIBUTION BLOCK SITS BETWEEN TAGS AND SHARE, and this is the test
+   * that fails if it is moved.
+   *
+   * Section 5 asks for the voluntary-contribution section AFTER the Tags and BEFORE the Share
+   * controls, so the reading order is content -> Tags -> Contribution -> Share. The order is the
+   * requirement, not the presence, so this asserts DOM document position rather than merely that
+   * the block renders: compareDocumentPosition tells us the contribution section follows the tags
+   * nav and precedes the share row. Move the block above the tags or below the share and this
+   * flips sign and the test fails.
+   */
+  it( 'renders the contribution block after Tags and before Share', () => {
+    const { container } = render( <BlogPostPage post={ samplePost } /> );
+
+    const tags = container.querySelector( 'nav.tags' );
+    const contribution = container.querySelector( 'section.bc' );
+    const share = container.querySelector( '.post-share' );
+
+    expect( tags ).not.toBeNull();
+    expect( contribution ).not.toBeNull();
+    expect( share ).not.toBeNull();
+
+    // FOLLOWING means "comes after in document order". Tags -> Contribution -> Share.
+    expect( tags!.compareDocumentPosition( contribution! ) & Node.DOCUMENT_POSITION_FOLLOWING )
+      .toBeTruthy();
+    expect( contribution!.compareDocumentPosition( share! ) & Node.DOCUMENT_POSITION_FOLLOWING )
+      .toBeTruthy();
+
+    // The reveal sentinel is untouched: shareRef still names .post-share, so the ref did not move
+    // onto the new block. (If it had, .post-share would no longer be the observed element.)
+    expect( share!.classList.contains( 'post-share' ) ).toBe( true );
+  } );
+
+  /**
+   * THE MANDATED COPY, AND NO SECOND H1. The heading and primary message are fixed strings in the
+   * brief; the heading must be an h2 so the post keeps exactly one h1 (htmlcheck guards H1-MANY).
+   */
+  it( 'shows the Support this work heading and message, and adds no second h1', () => {
+    const { container } = render( <BlogPostPage post={ samplePost } /> );
+
+    const block = container.querySelector( 'section.bc' )!;
+    expect( block.querySelector( 'h2' )?.textContent ).toBe( 'Support this work' );
+    expect( block.textContent ).toContain(
+      'If this article was useful, you can make a small voluntary contribution to support more '
+      + 'independent writing and practical guides from WECARE.DIGITAL.'
+    );
+    // Still exactly one h1 on the whole page - the title - and the contribution added none.
+    expect( container.querySelectorAll( 'h1' ) ).toHaveLength( 1 );
+    expect( block.querySelector( 'h1' ) ).toBeNull();
+  } );
+
+  /**
+   * THE PRESET AMOUNTS COME FROM THE CENTRAL CONFIG, not from literals re-typed into the page.
+   * Reading them from src/config/contribution.ts here is the same move ShareMeta.test.tsx makes
+   * for the share card: the test holds the rendered values equal to the one source.
+   */
+  it( 'renders the preset amounts from the central contribution config', () => {
+    const { container } = render( <BlogPostPage post={ samplePost } /> );
+    const faces = Array.from( container.querySelectorAll( 'section.bc .bc-choice-face' ) )
+      .map( n => n.textContent || '' );
+
+    for ( const paise of CONTRIBUTION_PRESETS_PAISE ) {
+      expect( faces.some( f => f.includes( String( paiseToRupees( paise ) ) ) ) ).toBe( true );
+    }
+    // And the "Other" custom option is offered alongside the presets.
+    expect( faces.some( f => f.includes( 'Other' ) ) ).toBe( true );
   } );
 } );
 

@@ -572,6 +572,14 @@ const PUBLIC_PAGE_META: Record<string, {
   // not exist. They qualify through the isContentPublic chain below and own their whole <head>
   // through components/ShopProductHead.tsx, exactly as /post/[slug] does through SEO.tsx.
   '/shop': { name: 'Shop', type: 'CollectionPage', description: 'What WECARE.DIGITAL sells, with each item\'s price and what it includes.' },
+  // Zip gathers the request/delivery/pickup actions in one place. It links the real request
+  // routes (orders, request-amendment, drop-docs, vault, leave-review) and renders anything with
+  // no backend (pickup/visit/delivery tracking) as a clearly non-transacting item.
+  '/zip': { name: 'Zip', type: 'WebPage', description: 'Everything about your request, delivery or pickup in one place: track an order, amend a request, send documents, open your vault or leave a review.' },
+  // Perks is the gift-cards / rewards / offers page, and the repaired destination for the
+  // gift-card links that used to point at a 404. Gift-card, rewards and offers controls are
+  // non-transacting until a provider is wired up; no third-party provider name appears.
+  '/perks': { name: 'Perks', type: 'WebPage', description: 'Gifts, rewards and offers in one place. Choose a WECARE.DIGITAL gift card, explore offers to apply at checkout, and more reasons to come back.' },
 };
 
 /**

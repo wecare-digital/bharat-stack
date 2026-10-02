@@ -76,6 +76,12 @@ const PUBLIC_EXACT = new Set( [
   // the '/shop/' prefix below, because the set moves with the catalogue snapshot rather than with
   // the code, which is the same reason '/blog/page/' is a prefix.
   '/shop',
+  // Zip (the request/delivery/pickup hub) and Perks (gift cards, rewards, offers). Same rule as
+  // every group above: both are in PUBLIC_PAGE_META in _app.tsx, so they render; advertising them
+  // here without that entry would put blank pages in front of a crawler. /perks is also the
+  // repaired destination for the gift-card links.
+  '/perks',
+  '/zip',
 ] );
 // '/blog/page/' is pages 2..N of the paginated blog index. It has to be a prefix rather than
 // exact entries because the count moves with the corpus - 834 posts at 24 a page is 35 pages

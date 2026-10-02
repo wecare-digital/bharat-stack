@@ -117,6 +117,13 @@ const STRUCTURAL = [
    */
   { path: '/shop', group: 'start' },
   { path: '/orders', group: 'start' },
+  // Zip is the request/delivery/pickup hub — a front door to a set of actions, like Orders and
+  // Blog beside it, rather than a service page — so it sits in 'start'. Its name and description
+  // come from PUBLIC_PAGE_META in _app.tsx.
+  { path: '/zip', group: 'start' },
+  // Perks is its own positioning group (gift cards, rewards, offers), declared in the groups[]
+  // array of config/public-pages.json. It is the repaired destination for the gift-card links.
+  { path: '/perks', group: 'perks' },
   // Grahak OS and VayuLok are the two platform products: they are what a business buys, as
   // against the consumer services in products.ts. Both have bespoke page files rather than
   // coming through ProductPage.tsx, which is the closest thing to a structural signal - but
