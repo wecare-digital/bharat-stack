@@ -132,6 +132,13 @@ next-env.d.ts
 # filename. Never tracked.
 .scratch/
 
+# Git worktrees created for parallel work. A worktree at origin/stack is how a
+# session pushes without touching a shared dirty tree, so these are created and
+# removed constantly. Untracked and unignored, each one showed up in `git status`
+# as a pending change, which is misleading precisely when the point of the
+# worktree was to keep the shared tree legible.
+.worktrees/
+
 # Partial output of `aws_account_inventory.py --only ...`. The full inventory at
 # docs/execution/aws-inventory.{json,md} is committed; a single-collector run is
 # a local debugging artifact where every other family reads null.
