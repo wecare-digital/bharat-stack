@@ -1,6 +1,6 @@
 # Retire one Razorpay merchant account from current source, keep the other
 
-Iteration 2 of the stale-account purge. Iteration 1 was rejected because the purge was absent from the reviewed tree — `57f5b505` and its full revert `e61a49c4` cancelled exactly — so local `stack` still carried `acc_HDfub6wOfQybuH` in deployed Lambda source, both webhook fixtures, the readiness module, the spec, the dashboard component, and `docs/compatibility.md`, where the retired account was still described as *"strong — this is the account that talks to us"*. Commit `6e1a4178` lands the purge by adopting `origin/stack`'s byte-identical content for nine authorized paths rather than merging, because a plain merge is blocked by a cross-session dirty file. All eight blocking checks pass: every non-Class-C occurrence of both retired identifiers is gone except one declined cross-session seam, Class C immutable history is byte-unchanged in this commit, the money-safety mismatch test was kept with a synthetic fixture, the deep link was correctly left alone, the partner-onboarding fallback was removed with a proving test, and no credential value appears anywhere.
+Iteration 2 of the stale-account purge. Iteration 1 was rejected because the purge was absent from the reviewed tree — `57f5b505` and its full revert `e61a49c4` cancelled exactly — so local `stack` still carried `[retired Razorpay account]` in deployed Lambda source, both webhook fixtures, the readiness module, the spec, the dashboard component, and `docs/compatibility.md`, where the retired account was still described as *"strong — this is the account that talks to us"*. Commit `6e1a4178` lands the purge by adopting `origin/stack`'s byte-identical content for nine authorized paths rather than merging, because a plain merge is blocked by a cross-session dirty file. All eight blocking checks pass: every non-Class-C occurrence of both retired identifiers is gone except one declined cross-session seam, Class C immutable history is byte-unchanged in this commit, the money-safety mismatch test was kept with a synthetic fixture, the deep link was correctly left alone, the partner-onboarding fallback was removed with a proving test, and no credential value appears anywhere.
 
 Watch for: (1) `.kiro/steering/META-BETA-REQUEST-EMAIL.md:49,51` still names the retired merchant account in a draft email to Meta — **confirmed**, and declining to fix it is correct under the multi-session rule, but the hazard is real and the unblock is a merge, not an edit. (2) `origin/stack` — the tree the orchestrator is told to merge — **rewrites six Class C immutable-history files**, including a measured dedup key in `phase-04d-payment-audit.md`; **confirmed**, and nobody has flagged it. (3) The live Lambda environment half remains unverified from source. (4) Two fixtures and one test comment now overclaim provenance after the mechanical substitution.
 
@@ -12,7 +12,7 @@ The landing method is the interesting design decision. `git merge origin/stack` 
 
 The surviving seam is the one incomplete target. `META-BETA-REQUEST-EMAIL.md` is a record of emails sent to Meta, and lines 49 and 51 list the retired account as the Razorpay merchant for two payment configurations. An owner reusing that steering file would name a retired merchant account to Meta. The dirty hunk belongs to a different region of the file (an editor's note at lines 6-23 about MCC and PayU), so the merge resolves both edits without conflict once the other session commits — confirmed by reading both diffs. Declining is correct: committing the working-tree version of that path would sweep eighteen lines of another session's work, which is exactly the failure rule 3b exists to prevent.
 
-The Class C immutability check passes for this commit and fails for the tree it is told to merge with. `origin/stack` substitutes the placeholder into `phase-04d-payment-audit.md`, `checkout-consolidation-findings-20261001.md`, `deep-audit-20261001b.md`, `phase-a-plan.md` and `section68-current-state-audit-20261001.md`. One of those replaces the literal measured dedup key `acc_HDfub6wOfQybuH:payment.downtime.started:1790100905`, so an audit record of a measurement no longer contains the thing measured. The same repository already applies the correct principle in the seam file itself — *"rewriting a sent email would falsify the record"*. This is a decision for the orchestrator before merging, not a defect in `6e1a4178`.
+The Class C immutability check passes for this commit and fails for the tree it is told to merge with. `origin/stack` substitutes the placeholder into `phase-04d-payment-audit.md`, `checkout-consolidation-findings-20261001.md`, `deep-audit-20261001b.md`, `phase-a-plan.md` and `section68-current-state-audit-20261001.md`. One of those replaces the literal measured dedup key `[retired Razorpay account]:payment.downtime.started:1790100905`, so an audit record of a measurement no longer contains the thing measured. The same repository already applies the correct principle in the seam file itself — *"rewriting a sent email would falsify the record"*. This is a decision for the orchestrator before merging, not a defect in `6e1a4178`.
 
 Class B behaviour is untouched: only the `payment_readiness.py` module docstring changed, the authoritative constant is still `acc_TTFSyolquKEZEy`, and the RETIRED / AUTHORITATIVE distinction plus the past-tense correction narrative both survive. The brief asked for the literal retired id to survive as the thing-being-corrected and it does not; that deviation was accepted in iteration 1 on the strength of the owner's verbatim *"remove old from everywhere"*, and the coder recorded it explicitly rather than letting a later reader read the brief as unmet.
 
@@ -23,7 +23,7 @@ Three provenance claims are now slightly false after the mechanical substitution
 <details>
 <summary>Issues (9)</summary>
 
-1. **Retired MID survives in the Meta beta-request steering file** (confirmed, non-blocking) — `.kiro/steering/META-BETA-REQUEST-EMAIL.md:49,51` still names `acc_HDfub6wOfQybuH` as the Razorpay merchant for two payment configurations in a draft email to Meta. Declining is correct (another session holds the file dirty); unblock by merging `origin/stack` after that session commits, and do not let the two surviving hits read as a missed target.
+1. **Retired MID survives in the Meta beta-request steering file** (confirmed, non-blocking) — `.kiro/steering/META-BETA-REQUEST-EMAIL.md:49,51` still names `[retired Razorpay account]` as the Razorpay merchant for two payment configurations in a draft email to Meta. Declining is correct (another session holds the file dirty); unblock by merging `origin/stack` after that session commits, and do not let the two surviving hits read as a missed target.
 2. **`origin/stack` rewrites six Class C immutable-history files** (confirmed, non-blocking here, decide before merging) — the prescribed merge imports placeholder substitutions into `phase-04d-payment-audit.md`, `checkout-consolidation-findings-20261001.md`, `deep-audit-20261001b.md`, `phase-a-plan.md` and `section68-current-state-audit-20261001.md`, including a measured dedup key. Decide explicitly whether audit-trail rewriting is accepted, rather than inheriting it silently.
 3. **Live Lambda environment unverified** (confirmed, carried from iteration 1) — `origin/stack`'s doc claims `wecare-whatsapp-business-api:live` is at v60 with both retained values, but this is a source-only change and nothing here measured AWS. Confirm with `get-alias` and `get-function-configuration` on the alias before treating the live surface as clean.
 4. **`test_payment_status.py` fixtures overclaim provenance** (confirmed, cosmetic) — both still carry *"The real live payload, copied from a RazorpayWebhookLogTable row on 2026-09-23"* while `account_id` is now `acc_RETIRED_FIXTURE`. Qualify the comment so the fixture is not read as verbatim.
@@ -58,10 +58,10 @@ local working tree (another session, uncommitted):  lines 6-23, +18
     an editor's note about MCC 4722 vs live 7392, and PayU retirement
 
 origin/stack (committed):                           lines 49, 51
-    acc_HDfub6wOfQybuH → [retired Razorpay account]
+    [retired Razorpay account] → [retired Razorpay account]
 ```
 
-Non-overlapping, so the merge resolves both. `git grep -c acc_HDfub6wOfQybuH origin/stack` returns nothing, confirming the remote tree is clean of the id.
+Non-overlapping, so the merge resolves both. `git grep -c [retired Razorpay account] origin/stack` returns nothing, confirming the remote tree is clean of the id.
 
 What makes this more than prose: those lines sit in a table of payment configurations inside an email template addressed to Meta, so the retired merchant account is the value an owner would transcribe into a live beta request. The purge exists to prevent exactly that. The brief's check 1 counts this as blocking, but `01-standing-authorization` A1_LOCAL and the multi-session rules both require preserving a file another session owns, and steering outranks the brief — committing the working-tree version of that path would sweep eighteen lines of unrelated work under this commit's message, which is the failure rule 3b was written for. Recording it with a named unblock is the correct outcome, not an edit.
 
@@ -77,7 +77,7 @@ git diff --stat c6fd53dc HEAD -- change-authority-matrix.md phase-04d-payment-au
 `origin/stack` is a different story — 6 files, +69/-22. The substitution in the payment audit is the one worth seeing, because it removes a literal that was a measurement:
 
 ```diff
--discriminator. One key — `acc_HDfub6wOfQybuH:payment.downtime.started:1790100905` — was
+-discriminator. One key — `[retired Razorpay account]:payment.downtime.started:1790100905` — was
 +discriminator. One key — `[retired Razorpay account]:payment.downtime.started:1790100905` — was
  delivered 6 times with two distinct body sizes while our endpoint returned 200 each time.
 ```
@@ -85,7 +85,7 @@ git diff --stat c6fd53dc HEAD -- change-authority-matrix.md phase-04d-payment-au
 And in the checkout findings, a column headed *"Live value"* no longer holds the value that was live:
 
 ```diff
--| `wecare-whatsapp-business-api` | `RAZORPAY_MID` | `acc_HDfub6wOfQybuH` | `acc_TTFSyolquKEZEy` — **stale on live** |
+-| `wecare-whatsapp-business-api` | `RAZORPAY_MID` | `[retired Razorpay account]` | `acc_TTFSyolquKEZEy` — **stale on live** |
 +| `wecare-whatsapp-business-api` | `RAZORPAY_MID` | `[retired Razorpay account]` | `acc_TTFSyolquKEZEy` — **stale on live** |
 ```
 

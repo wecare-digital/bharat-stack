@@ -70,29 +70,8 @@ LEGACY_WORKSPACE_PREFIXES = (
     "/service", "/docs", "/seo", "/admin", "/link", "/task", "/settings",
 )
 
-# /access is handled separately, NOT because it is special but because its sanctioned answer
-# changed after this file was first written. 2026-10-01, in order:
-#   1. originally  301 -> /workspace/access/ -> 200 staff Authenticator shell   (the defect)
-#   2. then        404, when the owner's "delete all url redirects now" removed 138 rules
-#   3. now         302 -> https://wecare.digital/ -> 200, emitted by desired_redirects()
-# Step 3 is the destination the task plan asked for in the first place (/access was a CONVERT
-# prefix, target '/' at 302) and is config-as-code rather than a hand-applied rule, so it is
-# rebuilt by --apply rather than merely surviving it. The 404 in step 2 was the stale middle
-# state, not the goal. What has to stay true across all three is the SAFETY property, which is
-# asserted on the terminal URL below: a customer who types /access must never be handed a staff
-# login. Landing on the canonical home satisfies that; so did the 404.
+# Retired direct access has no individual redirect or exported page.
 ACCESS_PREFIX = "/access"
-# Where /access** lands, and why the query parameter is part of the expectation rather than noise.
-# CHANGED 2026-10-01: the target was a bare `https://wecare.digital/`, and Amplify forwarded the
-# INCOMING query string to it - measured as
-# `/access/?next=https://evil.example -> 302 -> https://wecare.digital/?next=https://evil.example`.
-# The handoff requires untrusted path, query and fragment content to be dropped when a retired
-# customer URL is sent home, so the target now carries its own parameter, which is the documented
-# way to stop Amplify forwarding the caller's: "if the destination address for the matching rule
-# has query parameters, query parameters aren't forwarded". `from=access` is a literal WE emit and
-# nothing reads it. Asserting the exact terminal URL is what proves the drop rather than assuming
-# it: if forwarding ever resumes, the terminal carries the caller's parameter and the row fails.
-ACCESS_HOME = f"{SITE}/?from=access"
 
 # The legacy content/SEO aliases. Owner-retired 2026-10-01; 404 is the intended answer and a
 # 301 reappearing here would mean the removal was reverted.
@@ -181,48 +160,14 @@ def matrix() -> list[dict]:
     rows.append(_row("legacy-workspace", f"{SITE}/admin/anything/deep", 404,
                      "a deep path under a retired prefix"))
 
-    # /access - see ACCESS_PREFIX above. Asserted on the TERMINAL URL, not just the status,
-    # because 200 alone cannot tell the canonical home from the staff Authenticator shell -
-    # and the shell is exactly what this row exists to forbid. Pinning the URL is what makes
-    # a regression into /workspace/access/ fail here instead of passing as "200, fine".
-    for access_url in (f"{SITE}{ACCESS_PREFIX}/", f"{SITE}{ACCESS_PREFIX}"):
-        rows.append(_row("legacy-workspace", access_url, 200,
-                         "retired staff entry point: 302 to the canonical HOME, never the "
-                         "Authenticator shell", terminal_url=ACCESS_HOME))
-    rows.append(_row("legacy-workspace", f"{SITE}{ACCESS_PREFIX}/anything/deep", 200,
-                     "the /access/<*> wildcard lands on home too", terminal_url=ACCESS_HOME))
-    # The rows that exist because the plan's design note D1 asserted something nobody probed:
-    # "the target is a literal /, so no path, query or fragment is forwarded". When first measured
-    # the PATH was dropped and the QUERY was NOT - Amplify appended the caller's query string to
-    # the target. These three probes carry a query ON PURPOSE, so that the drop is proven rather
-    # than assumed, and they are pinned on the exact terminal URL: the caller's parameter appearing
-    # there is what failure looks like.
-    #
-    # FIXED 2026-10-01 rather than documented-and-left, because the handoff requires untrusted
-    # path, query and fragment content to be dropped when a retired customer URL goes home, and a
-    # forwarded attacker-supplied parameter is a defect against that requirement even though it was
-    # inert in effect (the Location host is a literal, and nothing on the home page reads a query
-    # parameter - neither src/pages/index.tsx nor src/pages/_app.tsx references location.search,
-    # URLSearchParams or router.query). The fix is in the redirect target, not here: see
-    # ACCESS_HOME above and scripts/provision_legacy_redirects.py.
-    #
-    # Measured before the fix : /access/?next=https://evil.example
-    #                           -> 302 -> https://wecare.digital/?next=https://evil.example
-    # Measured after the fix  : -> 302 -> https://wecare.digital/?from=access
-    #
-    # All three routes home now agree, which was the asymmetry worth closing: src/pages/404.tsx
-    # calls router.replace with a literal '/', and the home-fallback viewer-request function
-    # discards path and query (confirmed at the edge). A fragment is never transmitted by a client,
-    # so it cannot be probed and is not claimed either way.
-    for access_query in (
-        f"{ACCESS_PREFIX}/?next=https://evil.example",
-        f"{ACCESS_PREFIX}?a=b&c=d",
-        f"{ACCESS_PREFIX}/x/y?return=//evil",
+    # Retired access paths return HTTP 404; the common browser fallback then goes home.
+    for access_path in (
+        '/access', '/access/', '/access/anything/deep',
+        '/access/?next=https://evil.example', '/access?a=b&c=d',
+        '/access/x/y?return=//evil',
     ):
-        rows.append(_row("legacy-workspace", f"{SITE}{access_query}", 200,
-                         "redirect home must DROP both the path and the caller's query - the "
-                         "terminal must carry our from=access and nothing of the request",
-                         terminal_url=ACCESS_HOME))
+        rows.append(_row('legacy-workspace', f'{SITE}{access_path}', 404,
+                         'retired direct access returns 404 without an individual HTTP redirect'))
 
     # ── retired content aliases ─────────────────────────────────────────────────────
     for path in RETIRED_CONTENT:
