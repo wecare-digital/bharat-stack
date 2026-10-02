@@ -97,4 +97,59 @@ describe( 'the measured palette is the one in the file', () => {
     // Reduced motion is respected.
     expect( SOURCE ).toContain( 'prefers-reduced-motion' );
   } );
+
+  /**
+   * THE REGRESSION THAT SHIPPED TO PRODUCTION, and the reason this test exists.
+   *
+   * The two segments were once hoisted into a single `const inner = (<>...</>)` and referenced from
+   * both the <a> and <button> branches. styled-jsx's transform only stamps its scoping hash class
+   * onto JSX inside the same return tree as the <style jsx> element, so hoisted JSX was never
+   * stamped: the built markup emitted `class="pill-label"` / `class="pill-action"` with NO hash,
+   * while the rules compiled to `.pill-label.jsx-<hash>{...}`. Those selectors could not match.
+   * The outer control WAS stamped, so the pill kept its shape, its 2px edge and its dark fill
+   * while neither segment got its own background or colour - it rendered as one dark slab reading
+   * "Sign inSend code". It was live on /account/sign-in/ in that state.
+   *
+   * jsdom cannot compute styled-jsx, so this is asserted on the SOURCE: each segment class must
+   * appear exactly TWICE - once inside each branch's own return tree - and never be assigned to a
+   * variable or produced by a helper.
+   */
+  it( 'writes both segments inline in each branch, so styled-jsx can scope them', () => {
+    // COMMENTS ARE STRIPPED FIRST. The fix's own docblock quotes the broken pattern it replaced
+    // ("const inner = ...") so that the next reader understands why the duplication below is
+    // deliberate - asserting against the raw source would match that explanation and fail,
+    // punishing the documentation rather than the defect. What must be absent is real CODE.
+    const code = SOURCE
+      .replace( /\/\*[\s\S]*?\*\//g, '' )
+      .replace( /^\s*\/\/.*$/gm, '' );
+
+    const labels = code.match( /className="pill-label"/g ) || [];
+    const actions = code.match( /className="pill-action"/g ) || [];
+    // Twice each: the <a> branch and the <button> branch write their own.
+    expect( labels ).toHaveLength( 2 );
+    expect( actions ).toHaveLength( 2 );
+
+    // NOT HOISTED. Any of these means the segments have been lifted out of the return tree again
+    // and the scoping hash will silently stop being applied.
+    expect( code ).not.toMatch( /const\s+inner\s*=/ );
+    expect( code ).not.toMatch( /const\s+segments\s*=/ );
+    expect( code ).not.toMatch( /function\s+renderSegments/ );
+  } );
+
+  /**
+   * The same guard from the other side: the component must still render both segments, with the
+   * label visible-but-aria-hidden and the action carrying the accessible name.
+   */
+  it( 'renders both segments with the action as the accessible name', () => {
+    const { container } = render( <PillButton label="Collect" action="Send code" /> );
+    const label = container.querySelector( '.pill-label' );
+    const action = container.querySelector( '.pill-action' );
+    expect( label?.textContent ).toBe( 'Collect' );
+    expect( action?.textContent ).toBe( 'Send code' );
+    // Decoration is hidden from the accessibility tree; the control answers to the action alone,
+    // so neither segment is announced twice.
+    expect( label?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
+    expect( action?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
+    expect( screen.getByRole( 'button', { name: 'Send code' } ) ).toBeTruthy();
+  } );
 } );
