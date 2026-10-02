@@ -46,6 +46,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SNAPSHOTS = ROOT / "docs/execution/snapshots"
 BEFORE = SNAPSHOTS / "amplify-custom-rules-before-url-host-cleanup-20261001.json"
 AFTER = SNAPSHOTS / "amplify-custom-rules-after-url-host-cleanup-20261001.json"
+# Pre-change evidence for the owner's 2026-10-02 /access removal: the live 12-rule array with the
+# three retired `/access` 302s still in it. This is the state `apply()` has to reconcile FROM.
+RETIRED_BEFORE = SNAPSHOTS / "retired-url-rules-before-20261002.json"
 
 # The host-canonicalisation rule, restored 2026-10-01T08:59:52Z. Deliberately NOT a path
 # redirect: the source is a bare origin with no path component, which is what makes Amplify
@@ -102,6 +105,16 @@ SUPERSEDED_CONVERT_PREFIXES = (
     "/service", "/docs", "/seo", "/admin", "/access", "/link", "/task", "/settings",
 )
 
+# The three `/access` -> home 302s the owner ordered removed on 2026-10-02, kept as DATA so the
+# negative assertions below name the same three shapes the removal record does. Held here rather
+# than inline because "no /access rule is emitted" is asserted in three places and must not drift
+# into three different spellings of the retired set.
+#
+# They are retired, not sanctioned. See `docs/execution/retired-url-forwarding-removal-20261002.md`:
+# the owner asked for the forwarding removed following the /access complaint, Amplify job 1231
+# deployed it, and 32 retired path probes were measured returning HTTP 404 with no Location header.
+RETIRED_ACCESS_SOURCES = ("/access", "/access/", "/access/<*>")
+
 
 @pytest.fixture(scope="module")
 def redirects():
@@ -123,6 +136,23 @@ def before() -> list[dict]:
 @pytest.fixture(scope="module")
 def after() -> list[dict]:
     return json.loads(AFTER.read_text())
+
+
+@pytest.fixture(scope="module")
+def retired_live() -> list[dict]:
+    """The 12-rule LIVE array as it stood before the owner's /access removal.
+
+    The committed pre-change evidence for that removal, so it is the real starting state the
+    provisioner exists to reconcile rather than one assembled here: the host rule at index 0, the
+    three retired `/access` 302s at indexes 1-3, seven passthrough rewrites and the catch-all.
+
+    Every test that needs to observe `apply()` WRITING uses this, not `after`. `after` is the
+    already-reconciled 9-rule array, and `apply()` short-circuits on it with "policy is current;
+    no write needed" - correctly, because it is idempotent. Driving from the pre-removal array
+    exercises the write path and proves the retired rules are actively REMOVED rather than merely
+    never re-added, which is the stronger property and the one the owner asked for.
+    """
+    return json.loads(RETIRED_BEFORE.read_text())
 
 
 class _CapturingAmplify:
@@ -236,7 +266,7 @@ def test_no_rule_source_could_ever_shadow_a_passthrough(after):
 
 
 def test_no_sanctioned_redirect_can_shadow_a_passthrough_in_the_live_shape(
-    redirects, after, tmp_path, monkeypatch,
+    redirects, retired_live, tmp_path, monkeypatch,
 ):
     """The property that is actually true of the LIVE array, asserted on the live shape.
 
@@ -255,12 +285,26 @@ def test_no_sanctioned_redirect_can_shadow_a_passthrough_in_the_live_shape(
 
     This does not make the sibling snapshot test redundant - that one reads a committed
     artefact, this one reads generated config, and the two can drift apart.
+
+    DRIVEN FROM `retired_live` SINCE 2026-10-02, not from `after`. `apply()` is idempotent and
+    short-circuits on an already-reconciled array with "policy is current; no write needed", so
+    once the /access removal landed, `after` produced no write at all and `client.written` was
+    None - the assertions below were measuring nothing. The pre-removal 12-rule array is the state
+    the provisioner actually reconciles from, so it exercises the write path AND proves the retired
+    rules are removed rather than merely never added.
     """
     _require_converged_provisioner(redirects.desired_redirects())
     monkeypatch.setattr(redirects, "ROOT", tmp_path)
     client = _CapturingAmplify()
-    assert redirects.apply(client, [dict(rule) for rule in after]) == 0
+    assert redirects.apply(client, [dict(rule) for rule in retired_live]) == 0
     assert client.written is not None, "apply() should have written"
+
+    # The removal itself: the three retired sources must be gone from what was written.
+    written_sources = {str(rule.get("source", "")) for rule in client.written}
+    assert not written_sources & set(RETIRED_ACCESS_SOURCES), (
+        f"apply() preserved retired /access forwarding: "
+        f"{sorted(written_sources & set(RETIRED_ACCESS_SOURCES))}"
+    )
 
     passthrough_sources = {
         str(rule.get("source", "")) for rule in client.written if _is_passthrough(rule)
@@ -317,30 +361,35 @@ def test_the_www_rule_is_first_and_carries_no_path(after):
 
 # ─────────────────── the superseded policy, cross-referenced not duplicated ───────────────────
 
-def test_the_provisioner_emits_only_the_two_sanctioned_exceptions(redirects):
-    """The owner's 2026-10-01 instruction. Owned by test_legacy_redirect_rollback_snapshot.py.
+def test_the_provisioner_emits_only_the_one_sanctioned_exception(redirects):
+    """The owner's instruction. Owned by test_legacy_redirect_rollback_snapshot.py.
 
     Asserted here only so that a future change to `desired_redirects()` fails in BOTH the
     file that implements the removal policy and the file that pins the rule array, rather
     than passing here and looking structurally fine.
 
-    SUPERSEDED, 2026-10-01 (convergence step). This test read
-    `assert redirects.desired_redirects() == []` and was correct when written: the owner's
-    instruction was "delete all url redirects now", and the provisioner returned an empty
-    list. It then FAILED, which is precisely the cross-file alarm the docstring above
-    describes working as intended - another session narrowed the policy from "no redirects
-    at all" to "no redirects EXCEPT two named exceptions" while this task was converging:
+    TWO EXCEPTIONS BECAME ONE, 2026-10-02, and this test is RENAMED because its old name
+    (`..._the_two_sanctioned_exceptions`) contradicted its body the moment the second one went.
 
-      1. www -> apex canonicalisation, now emitted as config-as-code rather than restored
-         by hand. This is the fix the KNOWN HAZARD below was waiting for - see that test.
-      2. /access (bare, slashed and wildcard) -> the canonical home at 302. /access was a
-         CONVERT prefix in the original plan, so this lands the planned destination for it.
+    The history, kept because each step explains the next. Written as
+    `assert desired_redirects() == []` under the owner's "delete all url redirects now". A
+    concurrent session then widened the policy to two sanctioned exceptions - www
+    canonicalisation, plus `/access` (bare, slashed and wildcard) -> home at 302 - and this test
+    failed, which was the cross-file alarm working as intended.
 
-    The old assertion is kept above in prose rather than deleted, because the reason it
-    existed - a redirect map that quietly regrows is how the staff-shell defect happened in
-    the first place - is still the reason this test exists. What changed is the approved
-    set, not the need to pin it. So it now asserts the set EXACTLY: a third entry appearing
-    fails here just as loudly as the second one did.
+    The owner then removed `/access` as well, following the /access complaint:
+    `docs/execution/retired-url-forwarding-removal-20261002.md`, shipped as Amplify job 1231,
+    live-verified with 32 retired path probes returning HTTP 404 and no Location header. So the
+    sanctioned set is the host rule ALONE, and the three `/access` entries this test used to
+    require are retired rather than merely absent.
+
+    WHAT DID NOT CHANGE IS THE PROPERTY. The reason this test exists - a redirect map that
+    quietly regrows is how the staff-shell defect happened - is untouched, and shrinking the
+    expected set without adding anything would have converted a test that fails on ANY map change
+    into one that merely describes today. So the expectation moved and the guard got STRONGER: the
+    set is still pinned exactly, and the three retired sources are now named in a negative
+    assertion, so re-adding one fails here by name instead of merely failing an equality a reader
+    has to decode.
     """
     emitted = redirects.desired_redirects()
     _require_converged_provisioner(emitted)
@@ -349,32 +398,40 @@ def test_the_provisioner_emits_only_the_two_sanctioned_exceptions(redirects):
         "www canonicalisation must stay config-as-code, or --apply deletes it again"
     )
 
-    # Exactly the sanctioned set, no more. Anything else is the map regrowing.
+    # Non-negotiable: the retired /access forwarding may never come back through config-as-code.
+    # Asserted by name, and deliberately BEFORE the equality below. The equality would catch this
+    # too, but it fails for a dozen innocent reasons with a message a reader has to decode, and an
+    # assertion placed after it could never run - which is the same defect as a guard that only
+    # describes today. This one names the regression the owner actually asked to prevent, so it
+    # reports it directly; the equality then catches everything else.
     #
-    # TARGET CHANGED 2026-10-01 (third convergence pass), from a bare `https://wecare.digital/`
-    # to `https://wecare.digital/?from=access`, and the query parameter is load-bearing rather
-    # than cosmetic. Amplify forwards the INCOMING query string to the target of a 301/302 by
-    # default, which was measured here: `/access/?next=https://evil.example` answered
-    # `302 -> https://wecare.digital/?next=https://evil.example`. The handoff requires untrusted
-    # path, query and fragment content to be dropped when a retired customer URL is sent home, so
-    # forwarding a caller-supplied parameter was a defect against it. Giving the destination its
-    # own query parameter is the documented way to stop the forwarding, so the parameter IS the
-    # mechanism - asserting the bare form again would reinstate the defect.
-    assert emitted == [
-        WWW_CANONICAL,
-        {"source": "/access", "target": "https://wecare.digital/?from=access", "status": "302"},
-        {"source": "/access/", "target": "https://wecare.digital/?from=access", "status": "302"},
-        {"source": "/access/<*>", "target": "https://wecare.digital/?from=access", "status": "302"},
-    ], "only www canonicalisation and /access -> home are sanctioned; anything else regrew"
+    # Note which direction the old defect ran, because it is the reason the sanctioned form was
+    # never safe either: Amplify forwards the INCOMING query string to the target of a 301/302 by
+    # default - measured, `/access/?next=https://evil.example` answered
+    # `302 -> https://wecare.digital/?next=https://evil.example`. The `?from=access` parameter was
+    # added to suppress that forwarding. Removing the rule entirely closes the same hole without
+    # depending on a parameter to do it.
+    emitted_sources = {str(rule.get("source", "")) for rule in emitted}
+    for retired in RETIRED_ACCESS_SOURCES:
+        assert retired not in emitted_sources, (
+            f"{retired} is emitted again - the owner removed this forwarding on 2026-10-02 and a "
+            f"302 here also reinstates the query-string forwarding that `?from=access` existed to "
+            f"suppress; retired paths must reach the 404 catch-all and fall home from there"
+        )
 
-    # The whole point of the task: no sanctioned exception may lead into the staff tree.
+    # Exactly the sanctioned set, no more. Anything else is the map regrowing.
+    assert emitted == [WWW_CANONICAL], (
+        "www canonicalisation is the ONLY sanctioned redirect; anything else regrew"
+    )
+
+    # The whole point of the original task: no sanctioned exception may lead into the staff tree.
     for rule in emitted:
         assert not str(rule["target"]).startswith("/workspace"), (
             f"{rule['source']} targets the staff workspace: {rule['target']}"
         )
 
 
-def test_the_provisioner_now_PRESERVES_the_host_rule(redirects, after, tmp_path, monkeypatch):
+def test_the_provisioner_now_PRESERVES_the_host_rule(redirects, retired_live, tmp_path, monkeypatch):
     """HAZARD FIXED 2026-10-01, by another session, while this task was converging. INVERTED.
 
     HISTORY, kept because the failure mode is worth remembering rather than because it is
@@ -397,11 +454,16 @@ def test_the_provisioner_now_PRESERVES_the_host_rule(redirects, after, tmp_path,
     The sibling assertion also had to change shape, not just polarity: `client.written` can
     no longer equal `after[1:]`, because the host rule is now rebuilt into position 0 rather
     than stripped. It is asserted as first-and-present instead.
+
+    DRIVEN FROM `retired_live` SINCE 2026-10-02, for the reason given in
+    `test_no_sanctioned_redirect_can_shadow_a_passthrough_in_the_live_shape`: `apply()` writes
+    nothing when the array it is handed is already reconciled, so driving from `after` left
+    `client.written` None and this test asserting nothing. Every assertion below is unchanged.
     """
     _require_converged_provisioner(redirects.desired_redirects())
     monkeypatch.setattr(redirects, "ROOT", tmp_path)
     client = _CapturingAmplify()
-    assert redirects.apply(client, [dict(rule) for rule in after]) == 0
+    assert redirects.apply(client, [dict(rule) for rule in retired_live]) == 0
     assert client.written is not None, "apply() should have written"
 
     assert WWW_CANONICAL in client.written, (
@@ -412,7 +474,7 @@ def test_the_provisioner_now_PRESERVES_the_host_rule(redirects, after, tmp_path,
     )
 
     # Every passthrough rewrite that was live must still be live, in its original order.
-    passthroughs_before = [r for r in after if _is_passthrough(r)]
+    passthroughs_before = [r for r in retired_live if _is_passthrough(r)]
     passthroughs_after = [r for r in client.written if _is_passthrough(r)]
     assert passthroughs_after == passthroughs_before, (
         "apply() must preserve every /api, /get, /r and /mcp rewrite in order"
@@ -424,21 +486,55 @@ def test_the_provisioner_now_PRESERVES_the_host_rule(redirects, after, tmp_path,
 
 
 def test_provisioner_keeps_only_approved_home_redirects(redirects):
+    """The approved set is the host rule and NOTHING else, as of the 2026-10-02 removal.
+
+    This asserted the three `/access` -> `https://wecare.digital/?from=access` 302s and their
+    query parameter. The owner removed that forwarding
+    (`docs/execution/retired-url-forwarding-removal-20261002.md`, Amplify job 1231), so there is
+    no approved home redirect left to describe - a retired path now gets a real HTTP 404 from the
+    CDN and the browser falls home from there.
+
+    Kept rather than deleted, and the emptiness asserted rather than implied: "no path redirect is
+    approved" is a live property worth failing on, and a deleted test cannot fail.
+    """
     approved = redirects.desired_redirects()
     assert approved[0] == WWW_CANONICAL
-    assert {r['source'] for r in approved[1:]} == {'/access', '/access/', '/access/<*>'}
-    # The target must stay on the canonical apex AND must keep carrying its own query parameter.
-    # See the dated note in test_the_provisioner_emits_only_the_two_sanctioned_exceptions: the
-    # parameter is what stops Amplify forwarding the caller's query string, so a bare
-    # `https://wecare.digital/` here would silently reinstate the forwarding this closed. Both
-    # halves are asserted, because the host alone was what the previous version checked.
-    assert all(r['target'] == 'https://wecare.digital/?from=access' for r in approved[1:])
-    assert all(r['target'].startswith('https://wecare.digital/?') for r in approved[1:])
+    # Named first, for the same reason as the test above: the retired set must fail by name rather
+    # than as a side effect of an equality, and an assertion after the equality could never run.
+    approved_sources = {str(rule.get("source", "")) for rule in approved}
+    assert not approved_sources & set(RETIRED_ACCESS_SOURCES), (
+        f"retired /access forwarding is approved again: "
+        f"{sorted(approved_sources & set(RETIRED_ACCESS_SOURCES))}"
+    )
+    assert approved[1:] == [], (
+        f"no path redirect is approved after the 2026-10-02 removal, found {approved[1:]}"
+    )
 
 
-def test_provisioner_preserves_www_and_runtime_rewrites(redirects, after, tmp_path, monkeypatch):
+def test_provisioner_preserves_www_and_runtime_rewrites(redirects, retired_live, after,
+                                                        tmp_path, monkeypatch):
+    """Reconciling the pre-removal live array must reproduce the committed post-removal snapshot.
+
+    Was `apply(client, after)` asserting `written == desired_redirects() + after[1:]`. That held
+    while `desired_redirects()` still emitted the `/access` rules; after the owner's 2026-10-02
+    removal, `after` was already reconciled, so `apply()` short-circuited and wrote nothing and the
+    equality compared against None.
+
+    Driving from the 12-rule pre-removal array makes the assertion stronger than the one it
+    replaces, because the two committed snapshots now pin each other: applying the policy to the
+    state before the removal must produce, rule for rule and in order, the state after it. The
+    expected array is derived through the provisioner's own `is_ours`, so it is the policy being
+    asserted rather than a hard-coded slice that would silently stop meaning anything if a rule
+    moved.
+    """
     monkeypatch.setattr(redirects, 'ROOT', tmp_path)
     client = _CapturingAmplify()
-    assert redirects.apply(client, [dict(rule) for rule in after]) == 0
-    assert client.written == redirects.desired_redirects() + after[1:]
+    assert redirects.apply(client, [dict(rule) for rule in retired_live]) == 0
+    assert client.written is not None, "apply() should have written"
+
+    preserved = [rule for rule in retired_live if not redirects.is_ours(rule)]
+    assert client.written == redirects.desired_redirects() + preserved
+    assert client.written == after, (
+        "reconciling the pre-removal array must reproduce the committed 9-rule snapshot exactly"
+    )
     assert client.written[-1] == CATCH_ALL
