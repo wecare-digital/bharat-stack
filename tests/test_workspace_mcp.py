@@ -186,6 +186,7 @@ def test_ads_rejects_token_from_a_different_oauth_client(module, memory):
 
 def test_ads_verification_discovers_tools_without_claiming_account_access(module, memory, monkeypatch):
     monkeypatch.setattr(module, 'token', lambda *a: 'fixture-access')
+    monkeypatch.setattr(module, 'secret_json', lambda name: {'app_secret': 'fixture-app-secret'})
     calls = []
     def remote(url, payload, headers):
         if payload is None:
@@ -206,6 +207,7 @@ def test_ads_verification_discovers_tools_without_claiming_account_access(module
 
 def test_ads_empty_or_failed_tool_discovery_is_not_authenticated(module, memory, monkeypatch):
     monkeypatch.setattr(module, 'token', lambda *a: 'fixture-access')
+    monkeypatch.setattr(module, 'secret_json', lambda name: {'app_secret': 'fixture-app-secret'})
     def remote(url, payload, headers):
         if payload is None:
             return {'data': [{'permission': name, 'status': 'granted'} for name in ('ads_read', 'ads_mcp_management')]}, None
@@ -217,7 +219,9 @@ def test_ads_empty_or_failed_tool_discovery_is_not_authenticated(module, memory,
 
 
 def test_ads_missing_grant_is_reported_before_mcp_connection(module, memory, monkeypatch):
+    import urllib.parse
     monkeypatch.setattr(module, 'token', lambda *a: 'fixture-access')
+    monkeypatch.setattr(module, 'secret_json', lambda name: {'app_secret': 'fixture-app-secret'})
     calls = []
     def remote(url, payload, headers):
         calls.append(url)
@@ -226,7 +230,102 @@ def test_ads_missing_grant_is_reported_before_mcp_connection(module, memory, mon
     monkeypatch.setattr(module, 'http', remote)
     with pytest.raises(module.Refusal, match='did not grant required Ads MCP permissions: ads_mcp_management'):
         module.run_tool('owner', 'connection_verify', {'provider': 'meta-ads'})
-    assert calls == ['https://graph.facebook.com/v26.0/me/permissions']
+    assert len(calls) == 1
+    parsed = urllib.parse.urlparse(calls[0])
+    assert parsed.scheme + '://' + parsed.netloc + parsed.path == 'https://graph.facebook.com/v26.0/me/permissions'
+    assert urllib.parse.parse_qs(parsed.query)['appsecret_proof'][0]
+
+
+def test_ads_permission_read_carries_a_correct_appsecret_proof(module, memory, monkeypatch):
+    import hashlib
+    import hmac
+    import urllib.parse
+    monkeypatch.setattr(module, 'token', lambda *a: 'fixture-access')
+    monkeypatch.setattr(module, 'secret_json', lambda name: {'app_secret': 'fixture-app-secret'})
+    calls = []
+    def remote(url, payload, headers):
+        calls.append(url)
+        return {'data': [{'permission': 'ads_read', 'status': 'declined'}]}, None
+    monkeypatch.setattr(module, 'http', remote)
+    with pytest.raises(module.Refusal, match='did not grant required'):
+        module.run_tool('owner', 'connection_verify', {'provider': 'meta-ads'})
+    expected = hmac.new(b'fixture-app-secret', b'fixture-access', hashlib.sha256).hexdigest()
+    query = urllib.parse.parse_qs(urllib.parse.urlparse(calls[0]).query)
+    assert query['appsecret_proof'] == [expected]
+    # Only the HMAC travels. The app secret itself never reaches the request.
+    assert 'fixture-app-secret' not in calls[0]
+
+
+def test_ads_verification_fails_closed_without_the_app_secret(module, memory, monkeypatch):
+    monkeypatch.setattr(module, 'token', lambda *a: 'fixture-access')
+    monkeypatch.setattr(module, 'secret_json', lambda name: {})
+    monkeypatch.setattr(module, 'http', lambda *a, **kw: pytest.fail('must not read Graph without a proof'))
+    with pytest.raises(module.Refusal, match='app credential is unavailable'):
+        module.run_tool('owner', 'connection_verify', {'provider': 'meta-ads'})
+
+
+def test_vendored_appsecret_proof_matches_the_shared_helper(module):
+    from lambda_utils.appsecret import build_appsecret_proof
+    assert (module.appsecret_proof('fixture-access', 'fixture-app-secret')
+        == build_appsecret_proof('fixture-access', 'fixture-app-secret'))
+    assert module.appsecret_proof('', 'fixture-app-secret') == ''
+    assert module.appsecret_proof('fixture-access', '') == ''
+
+
+@pytest.mark.parametrize('status', [400, 401, 403])
+def test_http_4xx_detail_is_structured_and_omits_url_and_body(module, monkeypatch, status):
+    import email.message
+    import io
+    import urllib.error
+    url = 'https://graph.facebook.com/v26.0/me/permissions?appsecret_proof=deadbeef'
+    headers = email.message.Message()
+    headers['WWW-Authenticate'] = 'Bearer scope="ads_read ads_mcp_management"'
+    body = b'{"error":{"message":"Unsupported get request","type":"OAuthException","code":100}}'
+    class Opener:
+        def open(self, *a, **kw):
+            raise urllib.error.HTTPError(url, status, 'Bad Request', headers, io.BytesIO(body))
+    monkeypatch.setattr(module.urllib.request, 'build_opener', lambda *a: Opener())
+    with pytest.raises(module.Refusal) as caught:
+        module.http(url, None, {'Authorization': 'Bearer fixture-access'})
+    exc = caught.value
+    assert exc.detail == {'status': status, 'code': 100, 'type': 'OAuthException',
+        'message': 'Unsupported get request', 'scope': 'ads_read ads_mcp_management'}
+    rendered = str(exc) + json.dumps(exc.detail)
+    assert str(status) in rendered and '100' in rendered and 'OAuthException' in rendered
+    # Neither the request URL nor its secret-derived query string may travel.
+    assert 'deadbeef' not in rendered and 'appsecret_proof' not in rendered
+    assert 'fixture-access' not in rendered
+
+
+def test_http_drops_a_provider_message_that_echoes_a_credential(module, monkeypatch):
+    import email.message
+    import io
+    import urllib.error
+    body = b'{"error":{"message":"Invalid appsecret_proof provided","type":"OAuthException","code":100}}'
+    class Opener:
+        def open(self, *a, **kw):
+            raise urllib.error.HTTPError('https://graph.facebook.com/v26.0/me/permissions',
+                400, 'Bad Request', email.message.Message(), io.BytesIO(body))
+    monkeypatch.setattr(module.urllib.request, 'build_opener', lambda *a: Opener())
+    with pytest.raises(module.Refusal) as caught:
+        module.http('https://graph.facebook.com/v26.0/me/permissions')
+    assert 'message' not in caught.value.detail
+    assert caught.value.detail == {'status': 400, 'code': 100, 'type': 'OAuthException'}
+    assert 'appsecret_proof' not in str(caught.value)
+
+
+def test_http_5xx_stays_opaque_without_detail(module, monkeypatch):
+    import email.message
+    import io
+    import urllib.error
+    class Opener:
+        def open(self, *a, **kw):
+            raise urllib.error.HTTPError('https://mcp.facebook.com/ads', 500, 'Server Error',
+                email.message.Message(), io.BytesIO(b'{"error":{"message":"boom","code":1}}'))
+    monkeypatch.setattr(module.urllib.request, 'build_opener', lambda *a: Opener())
+    with pytest.raises(module.Refusal, match='^Provider unavailable$') as caught:
+        module.http('https://mcp.facebook.com/ads')
+    assert caught.value.detail is None
 
 
 def test_registered_meta_client_is_reused_without_business_app_id(module, memory, monkeypatch):
@@ -305,6 +404,11 @@ def test_iac_roles_cannot_mutate_providers_or_lambda():
     statements = resources["Role"]["Properties"]["Policies"][0]["PolicyDocument"]["Statement"]
     actions = {a for s in statements for a in s["Action"]}
     assert "lambda:UpdateFunctionCode" not in actions and "iam:PassRole" not in actions
+    reads = [s for s in statements if "secretsmanager:GetSecretValue" in s["Action"]]
+    secret_arns = [r for s in reads for r in ([s["Resource"]] if isinstance(s["Resource"], str) else s["Resource"])]
+    assert any(r.startswith("arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/meta-system-user-token") for r in secret_arns)
+    # The Graph proof needs one named secret, never a wildcard over every credential.
+    assert all(r != "*" and ":secret:*" not in r for r in secret_arns)
     assert resources["Function"]["Properties"]["Environment"]["Variables"]["CODE_JOBS_ENABLED"] == "false"
     assert resources['Version']['UpdateReplacePolicy'] == 'Retain'
     assert resources['Version']['DeletionPolicy'] == 'Retain'

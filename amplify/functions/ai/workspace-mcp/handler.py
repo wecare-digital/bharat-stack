@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import json
 import logging
 import os
@@ -41,7 +42,10 @@ LOGGER.setLevel(logging.INFO)
 
 
 class Refusal(Exception):
-    pass
+    def __init__(self, message, detail=None):
+        # str(exc) stays exactly the message; detail carries structured diagnostics only.
+        super().__init__(message)
+        self.detail = detail
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -55,6 +59,46 @@ def client(service):
 
 def table():
     return boto3.resource("dynamodb", region_name=REGION).Table(TABLE_NAME)
+
+
+CREDENTIAL_ECHO = re.compile(r"appsecret_proof|access_token|client_secret|bearer", re.I)
+
+
+def provider_error_detail(exc):
+    # Structured fields only. The request URL carries appsecret_proof and the raw body may
+    # echo credentials, so neither ever reaches this payload, a message or a log.
+    try:
+        detail = {"status": exc.code}
+        reader = getattr(exc, "read", None)
+        raw = reader(8192) if callable(reader) else b""
+        document = json.loads(raw.decode("utf-8", "replace")) if raw else {}
+        error = document.get("error") if isinstance(document, dict) else None
+        if isinstance(error, dict):
+            if isinstance(error.get("code"), int): detail["code"] = error["code"]
+            if isinstance(error.get("type"), str) and error["type"]: detail["type"] = error["type"][:300]
+            message = error.get("message")
+            # Meta's own prose, but it is adjacent echo of our request; drop it if it names a credential.
+            if isinstance(message, str) and message and not CREDENTIAL_ECHO.search(message):
+                detail["message"] = message[:300]
+        challenge = (exc.headers or {}).get("WWW-Authenticate", "") or ""
+        scope = re.search(r'scope="([^"]*)"', challenge)
+        if scope and scope.group(1): detail["scope"] = scope.group(1)[:300]
+        return detail
+    except Exception:
+        # Diagnostics must never change control flow.
+        return {"status": exc.code}
+
+
+def provider_error_message(detail):
+    parts = ["http " + str(detail.get("status"))]
+    named = "/".join(str(detail[key]) for key in ("code", "type") if key in detail)
+    if named:
+        parts.append("meta " + named + (": " + detail["message"] if "message" in detail else ""))
+    elif "message" in detail:
+        parts.append(detail["message"])
+    if "scope" in detail:
+        parts.append('scope="' + detail["scope"] + '"')
+    return "Provider authorization required (" + "; ".join(parts) + ")"
 
 
 def http(url, payload=None, headers=None, form=False):
@@ -88,8 +132,12 @@ def http(url, payload=None, headers=None, form=False):
                 data = json.loads(raw) if raw else {}
             return data, response.headers.get("Mcp-Session-Id")
     except urllib.error.HTTPError as exc:
-        # Discard error bodies and query strings; they may contain credentials.
-        raise Refusal("Provider authorization required" if exc.code in (400, 401, 403) else "Provider unavailable") from None
+        # Keep the parsed status, Meta error code/type/message and challenge scope.
+        # Error bodies, query strings and headers themselves stay discarded; they may contain credentials.
+        if exc.code in (400, 401, 403):
+            detail = provider_error_detail(exc)
+            raise Refusal(provider_error_message(detail), detail) from None
+        raise Refusal("Provider unavailable") from None
     except (TimeoutError, urllib.error.URLError):
         raise Refusal("Provider unavailable") from None
 
@@ -167,9 +215,28 @@ def provider_config(name):
 
 
 def secret_json(name):
-    if name not in {'wecare/seo/google-oauth', 'wecare/google/ads', 'wecare/razorpay/api', 'wecare/wix/headless-api-key'}:
+    if name not in {'wecare/seo/google-oauth', 'wecare/google/ads', 'wecare/razorpay/api',
+                    'wecare/wix/headless-api-key', 'wecare/meta-system-user-token'}:
         raise Refusal('Credential is outside the adapter policy')
     return json.loads(client('secretsmanager').get_secret_value(SecretId=name)['SecretString'])
+
+
+def meta_app_secret():
+    # Resolved at request time, never at import: a module-scope read caches the value for the
+    # life of the execution environment, so a rotation would not take effect. The value never
+    # enters a log, a log expression, a Refusal message or a response.
+    value = secret_json('wecare/meta-system-user-token').get('app_secret')
+    if not isinstance(value, str) or not value:
+        raise Refusal('Meta app credential is unavailable for Graph verification')
+    return value
+
+
+def appsecret_proof(access_token, app_secret):
+    # Vendored from amplify/functions/shared/lambda_utils/appsecret.py; that module is not in
+    # this bundle (scripts/build_workspace_mcp.py). Keyed by the app secret over the token.
+    if not access_token or not app_secret:
+        return ''
+    return hmac.new(app_secret.encode('utf-8'), access_token.encode('utf-8'), hashlib.sha256).hexdigest()
 
 
 def oauth_client(owner, provider):
@@ -529,8 +596,15 @@ def run_tool(owner, name, args):
             return {'status': verified_status, 'provider': provider, 'read': answer}
         provider_config(provider)
         if provider == 'meta-ads':
-            headers = {'Authorization': 'Bearer ' + token(owner, provider)}
-            permissions, _ = http(f"https://graph.facebook.com/{POLICY['metaOAuthVersion']}/me/permissions", None, headers)
+            access = token(owner, provider)
+            headers = {'Authorization': 'Bearer ' + access}
+            # The Ads app requires an app secret proof on Graph reads. Fail closed rather than
+            # retrying without it; a proof-less request is the bug this replaces.
+            proof = appsecret_proof(access, meta_app_secret())
+            if not proof:
+                raise Refusal('Meta Graph verification requires an app secret proof')
+            permissions, _ = http(f"https://graph.facebook.com/{POLICY['metaOAuthVersion']}/me/permissions?"
+                + urllib.parse.urlencode({'appsecret_proof': proof}), None, headers)
             entries = permissions.get('data')
             if not isinstance(entries, list):
                 raise Refusal('Meta Ads permission read could not be verified')
@@ -620,13 +694,18 @@ def handler(event, context):
         elif method == "tools/call":
             tool_name = params.get("name")
             audit_name = tool_name if tool_name in {entry[0] for entry in TOOLS} else "unknown"
+            audit_detail = None
             try:
                 value = run_tool(owner, params.get("name"), params.get("arguments", {}))
                 result = {"content": [{"type": "text", "text": json.dumps(value, default=int)}], "isError": False}
             except Refusal as exc:
                 result = {"content": [{"type": "text", "text": str(exc)}], "isError": True}
-            LOGGER.info(json.dumps({"event": "workspace_mcp_tool", "principalHash": owner,
-                "tool": audit_name, "outcome": "refused" if result["isError"] else "completed"}))
+                audit_detail = getattr(exc, "detail", None)
+            audit = {"event": "workspace_mcp_tool", "principalHash": owner,
+                "tool": audit_name, "outcome": "refused" if result["isError"] else "completed"}
+            # Structured provider diagnostics only; arguments and credentials never appear.
+            if audit_detail: audit["detail"] = audit_detail
+            LOGGER.info(json.dumps(audit))
         else: return response(200, {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": "Method not found"}})
         return response(200, {"jsonrpc": "2.0", "id": request_id, "result": result})
     except (ValueError, TypeError, KeyError, Refusal):
