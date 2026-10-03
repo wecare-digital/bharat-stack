@@ -1,22 +1,66 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import PillButton from './PillButton';
+import AddressFields, {
+  AddressDraft,
+  EMPTY_ADDRESS_DRAFT,
+  StoredAddress,
+  addressDraftValid,
+  addressPayload,
+  draftFromStored,
+} from './AddressFields';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
 const EMAIL_VERIFY_URL = `${API_BASE}/auth/email-verification`;
 const PROFILE_URL = `${API_BASE}/customer/profile`;
 
+/**
+ * Mirrors `otp_challenge.DEFAULT_RESEND_COOLDOWN` (60 s). A COURTESY, NOT THE CONTROL: the
+ * server's own cooldown and its five-per-hour cap are what bound abuse, and they are enforced
+ * whatever this browser believes. This exists so the customer is told to wait instead of being
+ * handed a 429 they did not ask for.
+ */
+const RESEND_COOLDOWN_MS = 60_000;
+
 type VerificationStep = 'idle' | 'sending' | 'sent' | 'verifying' | 'verified' | 'error';
+
+/**
+ * WHICH QUESTION THIS FORM IS ASKING. One component rather than four, because all four modes
+ * post to the same endpoint and share the same validation - only the fields shown, the body
+ * posted and the Save predicate differ.
+ *
+ *   create  - first-time checkout: name + email(+OTP) + address, all four posted
+ *   address - returning customer editing the delivery address only, no OTP
+ *   name    - returning customer editing their name only, no OTP
+ *   email   - returning customer changing their email, OTP required for a NEW address
+ */
+export type CheckoutProfileMode = 'create' | 'address' | 'email' | 'name';
 
 export interface CheckoutProfileValue {
   contactId: string;
   name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
+  addressComplete: boolean;
+  address: StoredAddress | null;
 }
 
 interface Props {
   accessToken: string;
+  /**
+   * OPTIONAL, defaulting to 'create'. The default is load-bearing rather than convenient: every
+   * caller that only ever created a profile keeps compiling and keeps exercising the create
+   * path, and `src/test/CheckoutProfile.test.tsx` is the regression guard on exactly that.
+   */
+  mode?: CheckoutProfileMode;
+  /**
+   * Pre-fill for the edit modes, read once at mount. The cart page mounts a fresh editor per
+   * affordance, so there is no need to track later changes to this prop - and tracking them
+   * would overwrite what the customer is mid-way through typing.
+   */
+  initial?: { firstName: string; lastName: string; email: string; address: StoredAddress | null };
   onReady: ( profile: CheckoutProfileValue ) => void;
 }
 
@@ -47,18 +91,71 @@ async function jsonPost (
   return payload;
 }
 
-const CheckoutProfile: React.FC<Props> = ( { accessToken, onReady } ) => {
-  const [ firstName, setFirstName ] = useState( '' );
-  const [ lastName, setLastName ] = useState( '' );
-  const [ email, setEmail ] = useState( '' );
+const CheckoutProfile: React.FC<Props> = ( { accessToken, mode = 'create', initial, onReady } ) => {
+  const [ firstName, setFirstName ] = useState( initial?.firstName || '' );
+  const [ lastName, setLastName ] = useState( initial?.lastName || '' );
+  const [ email, setEmail ] = useState( initial?.email || '' );
+  const [ address, setAddress ] = useState<AddressDraft>(
+    () => ( initial?.address ? draftFromStored( initial.address ) : { ...EMPTY_ADDRESS_DRAFT } ) );
+  const [ addressField, setAddressField ] = useState( '' );
   const [ code, setCode ] = useState( '' );
   const [ proof, setProof ] = useState( '' );
   const [ step, setStep ] = useState<VerificationStep>( 'idle' );
   const [ saving, setSaving ] = useState( false );
   const [ message, setMessage ] = useState( '' );
 
+  // The resend state. `cooldownUntil` is an epoch millisecond, so it survives a re-render and
+  // cannot drift the way a decrementing counter can; `sendBlocked` is the one failure that has no
+  // retry hint and must simply stop asking.
+  const [ cooldownUntil, setCooldownUntil ] = useState( 0 );
+  const [ sendBlocked, setSendBlocked ] = useState( false );
+  const [ sendFailed, setSendFailed ] = useState( false );
+  const [ clockTick, setClockTick ] = useState( () => Date.now() );
+
+  const showNames = mode === 'create' || mode === 'name';
+  const showEmail = mode === 'create' || mode === 'email';
+  const showAddress = mode === 'create' || mode === 'address';
+
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test( email.trim() );
   const namesValid = firstName.trim().length > 0 && lastName.trim().length > 0;
+  const addressValid = addressDraftValid( address );
+
+  // An unchanged email needs no fresh proof - the backend's ordered table accepts re-submitting
+  // the address already proven on a row this session owns. Compared trimmed and lowercased,
+  // because that is what `identity.normalize_email` does before it decides the same thing.
+  const emailUnchanged = mode === 'email'
+    && !!initial?.email
+    && email.trim().toLowerCase() === initial.email.trim().toLowerCase();
+
+  // §4.2's table, one line per mode. The old single predicate (`!namesValid || !proof`) would
+  // leave Save permanently disabled in `address` and `name` mode, where no name and no proof are
+  // ever collected.
+  const canSave = mode === 'create'
+    ? namesValid && emailValid && !!proof && addressValid
+    : mode === 'address'
+      ? addressValid
+      : mode === 'name'
+        ? namesValid
+        : emailValid && ( emailUnchanged || !!proof );
+
+  /*
+   * The countdown ticks only while a cooldown is running, and the interval clears BOTH on unmount
+   * and the moment it expires - an interval left running past its purpose is a re-render every
+   * second for the life of the page.
+   */
+  useEffect( () => {
+    if ( cooldownUntil <= Date.now() ) return undefined;
+    setClockTick( Date.now() );
+    const id = setInterval( () => {
+      const tick = Date.now();
+      setClockTick( tick );
+      if ( tick >= cooldownUntil ) clearInterval( id );
+    }, 1000 );
+    return () => clearInterval( id );
+  }, [ cooldownUntil ] );
+
+  const cooldownSeconds = Math.max( 0, Math.ceil( ( cooldownUntil - clockTick ) / 1000 ) );
+  const sendDisabled = step === 'sending' || !emailValid || sendBlocked || cooldownSeconds > 0;
 
   const resetEmail = ( next: string ) => {
     setEmail( next );
@@ -66,27 +163,82 @@ const CheckoutProfile: React.FC<Props> = ( { accessToken, onReady } ) => {
     setCode( '' );
     setStep( 'idle' );
     setMessage( '' );
+    setSendFailed( false );
+    // The five-per-hour cap is counted per email address, so a different address has its own
+    // budget and the block lifts. The cooldown deliberately does NOT lift: the other 429 axis is
+    // per phone and per IP, and clearing it on an email edit would hand out a free retry.
+    setSendBlocked( false );
+  };
+
+  /**
+   * §4.2's failure table. The question each row answers is not "what went wrong" but "was a send
+   * consumed": a 503 or a 500 fires BEFORE `otp_challenge.issue`, so nothing was spent and a
+   * client cooldown would make a transient store outage look like rate limiting. A 502 fires
+   * AFTER it, so the server's own 60 s is already running and one of five hourly sends is gone.
+   */
+  const applySendFailure = ( error: unknown ) => {
+    const detail = ( error || {} ) as { payload?: Record<string, any>; status?: number };
+    const payload = detail.payload || {};
+    const status = detail.status;
+    const hint = Number( payload.retryAfterSeconds );
+
+    // Back to the Send code control, not left staring at a code box for a code that never came.
+    setStep( 'idle' );
+    setCode( '' );
+    setSendFailed( true );
+
+    // One rule for both 429 shapes - `RESEND_TOO_SOON` from the challenge store and
+    // `TOO_MANY_REQUESTS` from the per-phone/per-IP throttle, which is the axis actually bounding
+    // abuse now that both WAF web ACLs are gone. Keying on the hint rather than on the code means
+    // a new throttle that carries one is handled without a code list to update.
+    if ( Number.isFinite( hint ) && hint > 0 ) {
+      setCooldownUntil( Date.now() + Math.ceil( hint ) * 1000 );
+      setMessage( `Wait ${ Math.ceil( hint ) } seconds before asking for another code.` );
+      return;
+    }
+    if ( payload.error === 'RESEND_LIMIT_REACHED' ) {
+      setSendBlocked( true );
+      setMessage( 'Too many codes requested. Try again later.' );
+      return;
+    }
+    if ( payload.error === 'SEND_FAILED' || status === 502 ) {
+      setCooldownUntil( Date.now() + RESEND_COOLDOWN_MS );
+      setMessage( 'We could not send the email code. You can ask for another in a moment.' );
+      return;
+    }
+    setCooldownUntil( 0 );
+    if ( payload.error === 'INVALID_EMAIL' ) {
+      setMessage( 'Enter a valid email address.' );
+      return;
+    }
+    if ( status === 503 || status === 500 ) {
+      setMessage( 'We could not reach the verification service. Try again.' );
+      return;
+    }
+    setMessage( 'We could not reach the server. Try again.' );
   };
 
   const sendCode = async () => {
     if ( !emailValid ) {
       setMessage( 'Enter a valid email address.' );
-      setStep( 'error' );
       return;
     }
     setMessage( '' );
+    setSendFailed( false );
     setStep( 'sending' );
     try {
       await jsonPost( EMAIL_VERIFY_URL, {
         action: 'request',
         email: email.trim(),
-        firstName: firstName.trim(),
+        // In `email` mode the name inputs are not rendered, so the live value is empty and the
+        // verification email would greet nobody. Fall back to the name already on the row.
+        firstName: ( firstName || initial?.firstName || '' ).trim(),
       } );
       setStep( 'sent' );
+      setCooldownUntil( Date.now() + RESEND_COOLDOWN_MS );
       setMessage( 'Verification code sent to your email.' );
-    } catch {
-      setStep( 'error' );
-      setMessage( 'We could not send the email code. Please try again.' );
+    } catch ( error ) {
+      applySendFailure( error );
     }
   };
 
@@ -113,28 +265,54 @@ const CheckoutProfile: React.FC<Props> = ( { accessToken, onReady } ) => {
     }
   };
 
+  /**
+   * The body, per mode. **No mode ever posts an `emailProof` without an `email`** - that is the
+   * shape the backend refuses with 400 on the grounds that a proof is a claim about an address,
+   * so binding it to a stored value would let a proof minted for one address verify another.
+   */
+  const saveBody = (): Record<string, unknown> => {
+    if ( mode === 'address' ) return { address: addressPayload( address ) };
+    if ( mode === 'name' ) return { firstName: firstName.trim(), lastName: lastName.trim() };
+    if ( mode === 'email' ) {
+      return proof
+        ? { email: email.trim(), emailProof: proof }
+        : { email: email.trim() };
+    }
+    return {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.trim(),
+      emailProof: proof,
+      address: addressPayload( address ),
+    };
+  };
+
   const saveProfile = async () => {
-    if ( !namesValid || !proof ) {
-      setMessage( !namesValid
-        ? 'Enter your first and last name.'
-        : 'Verify your email before continuing.' );
+    if ( !canSave ) {
+      if ( showNames && !namesValid ) setMessage( 'Enter your first and last name.' );
+      else if ( showEmail && !emailValid ) setMessage( 'Enter a valid email address.' );
+      else if ( showEmail && !proof && !emailUnchanged ) setMessage( 'Verify your email before continuing.' );
+      else setMessage( 'Complete your delivery address.' );
       return;
     }
     setSaving( true );
     setMessage( '' );
+    setAddressField( '' );
     try {
-      const reply = await jsonPost( PROFILE_URL, {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        email: email.trim(),
-        emailProof: proof,
-      }, accessToken );
+      const reply = await jsonPost( PROFILE_URL, saveBody(), accessToken );
       if ( reply.status !== 'PROFILE_READY' ) throw new Error( 'PROFILE_NOT_READY' );
+      const storedAddress = ( reply.address && typeof reply.address === 'object' )
+        ? reply.address as StoredAddress
+        : null;
       onReady( {
         contactId: String( reply.contactId || '' ),
         name: String( reply.name || '' ),
+        firstName: String( reply.firstName || '' ),
+        lastName: String( reply.lastName || '' ),
         email: String( reply.email || '' ),
         phone: String( reply.phone || '' ),
+        addressComplete: Boolean( reply.addressComplete ),
+        address: storedAddress,
       } );
       setMessage( 'Details saved. You can continue to secure payment.' );
     } catch ( error ) {
@@ -145,6 +323,13 @@ const CheckoutProfile: React.FC<Props> = ( { accessToken, onReady } ) => {
         setProof( '' );
         setStep( 'idle' );
         setMessage( 'Email verification expired. Please verify your email again.' );
+      } else if ( payload.error === 'INVALID_ADDRESS' ) {
+        // The server names the field it refused, so mark that input rather than showing a
+        // form-level message the customer has to guess at. No value is echoed back.
+        setAddressField( String( payload.field || '' ) );
+        setMessage( payload.code === 'INVALID_PIN'
+          ? 'Enter a six-digit Indian PIN code.'
+          : 'Check your delivery address and try again.' );
       } else {
         setMessage( 'We could not save your checkout details. Please try again.' );
       }
@@ -158,72 +343,111 @@ const CheckoutProfile: React.FC<Props> = ( { accessToken, onReady } ) => {
       <div className="checkout-profile-head">
         <div>
           <p className="checkout-profile-eyebrow">Checkout details</p>
-          <h2 id="checkout-profile-title">Confirm who is placing the order</h2>
+          <h2 id="checkout-profile-title">
+            { mode === 'name' ? 'Update your name'
+              : mode === 'address' ? 'Update your delivery address'
+                : mode === 'email' ? 'Change your email'
+                  : 'Confirm who is placing the order' }
+          </h2>
         </div>
         <span className="phone-verified">✓ WhatsApp verified by sign-in</span>
       </div>
 
+      { mode === 'email' && (
+        <p className="checkout-profile-note">A new email needs a fresh code before we save it.</p>
+      ) }
+      { ( mode === 'name' || mode === 'address' ) && (
+        <p className="checkout-profile-note">Saved. No verification needed.</p>
+      ) }
+
       <div className="checkout-profile-grid">
-        <label>
-          <span>First name</span>
-          <input
-            value={ firstName }
-            onChange={ event => setFirstName( event.target.value ) }
-            autoComplete="given-name"
-            maxLength={ 100 }
-            placeholder="First name"
-          />
-        </label>
+        { showNames && (
+          <label>
+            <span>First name</span>
+            <input
+              value={ firstName }
+              onChange={ event => setFirstName( event.target.value ) }
+              autoComplete="given-name"
+              maxLength={ 100 }
+              placeholder="First name"
+            />
+          </label>
+        ) }
 
-        <label>
-          <span>Last name</span>
-          <input
-            value={ lastName }
-            onChange={ event => setLastName( event.target.value ) }
-            autoComplete="family-name"
-            maxLength={ 100 }
-            placeholder="Last name"
-          />
-        </label>
+        { showNames && (
+          <label>
+            <span>Last name</span>
+            <input
+              value={ lastName }
+              onChange={ event => setLastName( event.target.value ) }
+              autoComplete="family-name"
+              maxLength={ 100 }
+              placeholder="Last name"
+            />
+          </label>
+        ) }
 
-        <div className="email-field">
-          <label htmlFor="checkout-email">Email</label>
-          <input
-            id="checkout-email"
-            type="email"
-            value={ email }
-            onChange={ event => resetEmail( event.target.value ) }
-            autoComplete="email"
-            placeholder="you@example.com"
-            aria-invalid={ step === 'error' ? 'true' : undefined }
-          />
-          <div className="verify-row">
-            { step === 'verified' ? (
-              <span className="verified">✓ Email verified</span>
-            ) : step === 'sent' || step === 'error' || step === 'verifying' ? (
-              <>
-                <input
-                  className="otp"
-                  value={ code }
-                  onChange={ event => setCode( event.target.value.replace( /\D/g, '' ).slice( 0, 6 ) ) }
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  aria-label="Email verification code"
-                  placeholder="Code"
-                  disabled={ step === 'verifying' }
-                />
-                <button type="button" onClick={ verifyCode } disabled={ step === 'verifying' }>
-                  { step === 'verifying' ? 'Checking…' : 'Verify' }
+        { showEmail && (
+          <div className="email-field">
+            <label htmlFor="checkout-email">Email</label>
+            <input
+              id="checkout-email"
+              type="email"
+              value={ email }
+              onChange={ event => resetEmail( event.target.value ) }
+              autoComplete="email"
+              placeholder="you@example.com"
+              aria-invalid={ step === 'error' ? 'true' : undefined }
+            />
+            <div className="verify-row">
+              { step === 'verified' ? (
+                <span className="verified">✓ Email verified</span>
+              ) : step === 'sent' || step === 'error' || step === 'verifying' ? (
+                <>
+                  <input
+                    className="otp"
+                    value={ code }
+                    onChange={ event => setCode( event.target.value.replace( /\D/g, '' ).slice( 0, 6 ) ) }
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    aria-label="Email verification code"
+                    placeholder="Code"
+                    disabled={ step === 'verifying' }
+                  />
+                  <button type="button" onClick={ verifyCode } disabled={ step === 'verifying' }>
+                    { step === 'verifying' ? 'Checking…' : 'Verify' }
+                  </button>
+                  <button type="button" onClick={ sendCode } disabled={ sendDisabled }>
+                    { cooldownSeconds > 0 ? `Resend code ${ cooldownSeconds }s` : 'Resend code' }
+                  </button>
+                </>
+              ) : (
+                <button type="button" onClick={ sendCode } disabled={ sendDisabled }>
+                  { step === 'sending' ? 'Sending…'
+                    : cooldownSeconds > 0 ? `Send code ${ cooldownSeconds }s` : 'Send code' }
                 </button>
-              </>
-            ) : (
-              <button type="button" onClick={ sendCode } disabled={ step === 'sending' || !emailValid }>
-                { step === 'sending' ? 'Sending…' : 'Send code' }
-              </button>
-            ) }
+              ) }
+            </div>
+            { /* The seconds are announced as they change, and they are also part of the
+                 button's own visible text, so its accessible name contains its label -
+                 WCAG 2.5.3 Label in Name, the rule PillButton's docblock records. */ }
+            <p className="resend-countdown" aria-live="polite">
+              { cooldownSeconds > 0
+                ? `Another code can be requested in ${ cooldownSeconds }s.`
+                : '' }
+            </p>
           </div>
-        </div>
+        ) }
       </div>
+
+      { showAddress && (
+        <AddressFields
+          value={ address }
+          onChange={ next => { setAddress( next ); setAddressField( '' ); } }
+          disabled={ saving }
+          invalidField={ addressField }
+        />
+      ) }
 
       <p className="checkout-profile-note">
         Your verified phone and email are saved to the existing WECARE.DIGITAL Contacts workspace
@@ -238,7 +462,7 @@ const CheckoutProfile: React.FC<Props> = ( { accessToken, onReady } ) => {
           type="button"
           label="Details"
           action={ saving ? 'Saving…' : 'Save & continue' }
-          disabled={ saving || !namesValid || !proof }
+          disabled={ saving || !canSave }
           busy={ saving }
           onClick={ saveProfile }
         />
@@ -271,7 +495,7 @@ const CheckoutProfile: React.FC<Props> = ( { accessToken, onReady } ) => {
         .checkout-profile-grid input:focus-visible{
           outline:3px solid #1a3a2a;outline-offset:2px;border-color:#1a3a2a;
         }
-        .verify-row{display:flex;align-items:center;gap:8px;min-height:34px}
+        .verify-row{display:flex;align-items:center;gap:8px;min-height:34px;flex-wrap:wrap}
         .verify-row button{
           min-height:34px;padding:0 12px;border:1px solid #1a3a2a;border-radius:999px;background:#fff;
           color:#1a3a2a;font:inherit;font-size:12px;font-weight:700;cursor:pointer;
@@ -279,6 +503,7 @@ const CheckoutProfile: React.FC<Props> = ( { accessToken, onReady } ) => {
         .verify-row button:hover:not(:disabled){background:#d1f470}
         .verify-row button:disabled{opacity:.55;cursor:default}
         .verify-row .otp{width:96px;min-height:34px;padding:0 10px;font-size:14px}
+        .resend-countdown{margin:6px 0 0;font-size:12px;line-height:1.4;color:rgba(0,0,0,.66)}
         .checkout-profile-note,.checkout-profile-status{
           margin:14px 0 0;font-size:14px;line-height:1.5;color:rgba(0,0,0,.66);
         }

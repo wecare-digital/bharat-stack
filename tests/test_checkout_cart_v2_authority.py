@@ -40,14 +40,32 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 
 from crm_fake_dynamo import FakeDynamo  # noqa: E402
 
+from lambda_utils.ecommerce import contact_address  # noqa: E402
+from lambda_utils.identity import customer as customer_identity  # noqa: E402
+
 HANDLER = ROOT / "amplify/functions/ecommerce/checkout/handler.py"
 FIXTURES = pathlib.Path(__file__).parent / "fixtures"
 ATTEMPTS_TABLE = "stack-wecare-digital-PaymentAttemptsTable"
 KEYS_TABLE = "stack-wecare-digital-CommerceKeys"
+CONTACTS_TABLE = "stack-wecare-digital-ContactsTable"
 CUSTOMER = "CUS_01J8Z9EXAMPLECUSTOMER"
 
 OWNED = {"addressLine1": "12 Dalhousie Square", "city": "Kolkata",
          "state": "West Bengal", "postalCode": "700001"}
+
+#: The QA recipient, as a session may spell it and as the WRITER stores it. The contact row is
+#: seeded under the second one, never the first: `auth/customer-profile` normalises before it
+#: writes, so a test that seeded the session's spelling would assume the read key instead of
+#: testing it.
+SESSION_PHONE = "+918100640044"
+STORED_PHONE = customer_identity.normalize_phone_preserving_country(SESSION_PHONE)
+#: The same number, differently spaced, for the §3.0 pin on the PRICING path.
+RAW_SESSION_PHONE = "+91 81006 40044"
+
+#: What the stored address becomes on the Wix cart. Written out rather than derived, so a change
+#: to the mapping has to be acknowledged here.
+EXPECTED_WIX_ADDRESS = {"country": "IN", "subdivision": "IN-WB", "city": "Kolkata",
+                        "postalCode": "700001", "addressLine": "12 Dalhousie Square"}
 
 #: Expected figures, re-derived here rather than copied from the implementation:
 #: Wix collection 25499.00 = items 24999.00 + delivery 500.00.
@@ -67,9 +85,9 @@ def live():
 
 
 class _Identity:
-    def __init__(self, customer_id=CUSTOMER):
+    def __init__(self, customer_id=CUSTOMER, phone=SESSION_PHONE):
         self.customer_id = customer_id
-        self.phone = "+918100640044"
+        self.phone = phone
         self.subject = "subject-1"
 
     def owns(self, cid):
@@ -110,9 +128,13 @@ class RecordingWix:
     def __init__(self, response=None):
         self.response = delivery_complete() if response is None else response
         self.calls = []
+        #: `(method, endpoint, body)`, so a test can assert on what was SENT and not only on
+        #: which endpoints were touched.
+        self.requests = []
 
     def __call__(self, endpoint, method="GET", body=None):
         self.calls.append((method.upper(), endpoint))
+        self.requests.append((method.upper(), endpoint, copy.deepcopy(body)))
         if endpoint.startswith("/stores/v3/products/"):
             # `normalized_catalog_items` resolves the live variant before pricing.
             reference = self.response["cart"]["lineItems"][0]["source"]["catalogReference"]
@@ -142,11 +164,18 @@ def env(monkeypatch):
     monkeypatch.setenv("WIX_CART_V2_ENABLED", "true")
     monkeypatch.delenv("WIX_CART_V2_DISABLED", raising=False)
 
+    monkeypatch.setenv("CONTACTS_TABLE", CONTACTS_TABLE)
+
     spec = importlib.util.spec_from_file_location("checkout_cart_v2_under_test", HANDLER)
     h = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(h)
 
-    fake = FakeDynamo(keys={ATTEMPTS_TABLE: "paymentAttemptId", KEYS_TABLE: "orderId"})
+    # `FakeDynamo.Table` raises for an undeclared table and `FakeTable.query` for an undeclared
+    # index, so the contacts table and its `phone-index` have to be declared before the real
+    # `_load_owned_address` -- which goes through `_checkout_profile` -- can run at all.
+    fake = FakeDynamo(keys={ATTEMPTS_TABLE: "paymentAttemptId", KEYS_TABLE: "orderId",
+                            CONTACTS_TABLE: "id"},
+                      indexes={CONTACTS_TABLE: {"phone-index": ("phone", None)}})
     lam = _FakeLambda()
     wix = RecordingWix()
 
@@ -156,10 +185,48 @@ def env(monkeypatch):
     monkeypatch.setattr(h, "_wix_request", wix)
     monkeypatch.setattr(h.wix_ecom, "_request", wix)
     monkeypatch.setattr(h.customer_auth, "authenticate", lambda event: _Identity())
-    # The owned-address loader seam. In production this reads the authenticated customer's
-    # profile; here it returns a real address. It is NEVER taken from the request body.
+    seed_contact(fake)
+    # The owned-address loader seam, stubbed for the money tests so they measure the PRICE and
+    # not the profile read. The tests that are about the read restore the real loader with
+    # `monkeypatch.setattr(h, "LOAD_OWNED_ADDRESS", h._load_owned_address)`. It is NEVER taken
+    # from the request body.
     monkeypatch.setattr(h, "LOAD_OWNED_ADDRESS", lambda customer_id: dict(OWNED))
     return h, fake, lam, wix, monkeypatch
+
+
+def seed_contact(fake, *, phone=STORED_PHONE, address=OWNED, customer=CUSTOMER):
+    """A CRM contact row exactly as `auth/customer-profile` writes one.
+
+    Carries `checkoutCustomerId`, `email` and `emailVerifiedAt` because `_checkout_profile` is
+    the ready-to-pay predicate and refuses a row missing any of them, plus
+    `checkoutDeliveryAddress`, which is what `_load_owned_address` reads.
+    """
+    fake.Table(CONTACTS_TABLE).put_item(Item={
+        "id": "contact-v2-1",
+        "contactId": "contact-v2-1",
+        "phone": phone,
+        "email": "asha@example.com",
+        "name": "Asha Sen",
+        "firstName": "Asha",
+        "lastName": "Sen",
+        "checkoutCustomerId": customer,
+        "emailVerifiedAt": 1,
+        "deletedAt": None,
+        contact_address.ATTRIBUTE: dict(address),
+        contact_address.UPDATED_ATTRIBUTE: 1,
+    })
+
+
+def contacts_queries(fake):
+    return [call for call in fake.calls if call == (CONTACTS_TABLE, "query:phone-index")]
+
+
+def _delivery_address_bodies(wix):
+    """Every `deliveryInfo.address` payload this run sent to Wix."""
+    return [(body["cart"]["deliveryInfo"]["address"])
+            for method, endpoint, body in wix.requests
+            if method == "PATCH" and isinstance(body, dict)
+            and "deliveryInfo" in (body.get("cart") or {})]
 
 
 def _create_event(**over):
@@ -243,7 +310,8 @@ def test_money_in_the_response_is_an_integer_number_of_paise(env):
 # ── no address means no price, and no invented address ───────────────────────────
 
 def test_without_an_owned_address_the_handler_refuses_before_touching_wix(env):
-    """The loader seam returns nothing, as it does in production until the profile read is wired.
+    """The loader seam returns nothing, which in production now means the customer has saved no
+    usable address -- the seam itself reads the CRM contact row and is no longer `None`.
 
     The response is a recoverable 409 naming what the customer must do, not a 500 and not a total
     computed from a placeholder. The stronger assertion is the second one: **no Wix call is made at
@@ -486,3 +554,209 @@ def test_a_coupon_discounted_cart_prices_and_reconciles_through_the_handler(env)
     assert collection < COLLECTION_PAISE              # the coupon really did reduce it
     assert body["amountPaise"] > collection           # fee and its GST were added on top
     assert body["amountPaise"] == int(rows[0]["amountPaise"])
+
+
+# ── the server loads the address itself: LOAD_OWNED_ADDRESS is no longer None ────
+#
+# Every test below restores the REAL loader over the fixture's stub, because the behaviour under
+# test is the profile read rather than the price. Until this phase the production default was
+# `None`, so a V2 checkout answered `DELIVERY_DETAILS_REQUIRED` forever -- silently, with no log
+# line, for a customer who had saved an address.
+
+
+def _prepare_event(**over):
+    event = _create_event(**over)
+    body = json.loads(event["body"])
+    body["action"] = "prepare"
+    body.setdefault("requestKey", "request-cart-v2-prepare-1")
+    event["body"] = json.dumps(body)
+    return event
+
+
+def test_prepare_sends_the_stored_address_to_wix_without_a_second_contacts_query(env):
+    """The threaded-profile branch: `_website_prepare` already holds the row.
+
+    Two assertions, and the second is the one that justifies the threading -- `_website_prepare`
+    loads the contact row to build the Razorpay prefill, so re-reading it inside `_v2_snapshot`
+    would double a DynamoDB Query on the happy path of every checkout.
+    """
+    h, fake, _lam, wix, monkeypatch = env
+    monkeypatch.setattr(h, "LOAD_OWNED_ADDRESS", h._load_owned_address)
+
+    response = h.handler(_prepare_event(), None)
+    assert response["statusCode"] == 200
+    assert json.loads(response["body"])["status"] == "PAYMENT_INITIATION_DISABLED"
+
+    assert _delivery_address_bodies(wix) == [EXPECTED_WIX_ADDRESS]
+    assert len(contacts_queries(fake)) == 1, \
+        "the threaded profile must not be re-read inside _v2_snapshot"
+
+
+def test_create_loads_the_stored_address_through_the_loader_itself(env):
+    """`_create` threads no profile, so this exercises `_load_owned_address` end to end."""
+    h, fake, _lam, wix, monkeypatch = env
+    monkeypatch.setattr(h, "LOAD_OWNED_ADDRESS", h._load_owned_address)
+
+    response = h.handler(_create_event(), None)
+    assert response["statusCode"] == 200
+    assert json.loads(response["body"])["amountPaise"] == TOTAL_PAYABLE_PAISE
+    assert _delivery_address_bodies(wix) == [EXPECTED_WIX_ADDRESS]
+    assert len(contacts_queries(fake)) == 1
+
+
+def test_a_raw_session_phone_still_resolves_the_address_on_the_pricing_path(env):
+    """The §3.0 pin on the PRICING path, asserted where the path can actually be measured.
+
+    The contact row is keyed on the phone, the writer stores
+    `normalize_phone_preserving_country`'s output, and this session carries the same number
+    differently spaced. A read key that is right for `action:"profile"` and wrong here would
+    refuse a payable customer with `409 DELIVERY_DETAILS_REQUIRED` -- the failure this phase
+    exists to remove, arriving one layer down. Both assertions below fail on the raw lookup:
+    `_load_owned_address` returns `None`, and the prepare answers that 409.
+
+    MEASURED, PRE-EXISTING, AND NOT THIS PHASE'S TO FIX: a differently-spaced session phone
+    cannot reach pricing at all. `customer_cart._cart_key` (`customer_cart.py:46`) requires
+    `identity.phone` to match `\\+[1-9][0-9]{7,14}` exactly, because the raw session value IS the
+    `CUSTOMERCART#` partition key, so the request fails there with a `ValueError` and
+    `_website_prepare`'s generic arm answers `503`. That check sits after the address
+    resolution, which is why the address is still provably resolved. Re-keying the saved cart
+    onto the normaliser would move every existing `CUSTOMERCART#` row -- a data-model change
+    outside design §9's file list -- so it is recorded rather than attempted. In practice this
+    is unreachable anyway: Cognito stores `phone_number` in E.164.
+    """
+    h, fake, _lam, _wix, monkeypatch = env
+    monkeypatch.setattr(h, "LOAD_OWNED_ADDRESS", h._load_owned_address)
+    monkeypatch.setattr(h.customer_auth, "authenticate",
+                        lambda event: _Identity(phone=RAW_SESSION_PHONE))
+    assert RAW_SESSION_PHONE != STORED_PHONE
+
+    # The read key under test, directly: the seeded row is found despite the spelling.
+    resolved = h._load_owned_address(_Identity(phone=RAW_SESSION_PHONE))
+    assert resolved is not None
+    assert resolved["city"] == "Kolkata"
+
+    # And through the handler: the request gets PAST the address check.
+    response = h.handler(_prepare_event(), None)
+    assert json.loads(response["body"]).get("error") != "DELIVERY_DETAILS_REQUIRED"
+
+
+def test_a_stored_address_wix_cannot_map_is_refused_before_any_wix_call(env):
+    """`from_contact` re-validates, so an unmappable stored address is a recoverable 409.
+
+    Not a 503, which no retry fixes, and not a priced cart with the wrong CGST/SGST-versus-IGST
+    split. And nothing is left behind on the live site: zero Wix calls.
+    """
+    h, fake, _lam, wix, monkeypatch = env
+    monkeypatch.setattr(h, "LOAD_OWNED_ADDRESS", h._load_owned_address)
+    fake.tables[CONTACTS_TABLE].clear()
+    seed_contact(fake, address={"addressLine1": "12 MG Road", "city": "Bengaluru",
+                                "state": "Nowhere Pradesh", "postalCode": "560001"})
+
+    response = h.handler(_prepare_event(), None)
+    assert response["statusCode"] == 409
+    assert json.loads(response["body"])["error"] == "DELIVERY_DETAILS_REQUIRED"
+    assert wix.calls == []
+    assert fake.all_rows(ATTEMPTS_TABLE) == []
+
+
+# ── a missing delivery METHOD is its own answer ──────────────────────────────────
+
+class _ScriptedCalculateWix(RecordingWix):
+    """Replays a different response for each successive Calculate Cart call.
+
+    `calculate` and `preview` are the same Wix endpoint, so the only way to make the second
+    answer differ from the first is to script by call order: 1 = `calculate` (raises inside
+    `purchase_intent`), 2 = `preview` from `_delivery_is_missing`, 3 = `preview` from
+    `_blocking_codes`. An entry that is an exception instance is raised instead of returned.
+    """
+
+    def __init__(self, script):
+        super().__init__()
+        self.script = list(script)
+        self.calculate_calls = 0
+
+    def __call__(self, endpoint, method="GET", body=None):
+        if endpoint.endswith("/calculate"):
+            self.calls.append((method.upper(), endpoint))
+            self.requests.append((method.upper(), endpoint, copy.deepcopy(body)))
+            index = min(self.calculate_calls, len(self.script) - 1)
+            self.calculate_calls += 1
+            reply = self.script[index]
+            if isinstance(reply, Exception):
+                raise reply
+            return copy.deepcopy(reply)
+        return super().__call__(endpoint, method=method, body=body)
+
+
+def _method_only():
+    """The live unpriceable response with the ADDRESS violation removed.
+
+    `demo: true` is what makes `calculate` refuse; the remaining violation is what makes the
+    refusal a delivery-method problem rather than an address one.
+    """
+    response = live()
+    response["summary"]["violations"] = [
+        violation for violation in response["summary"]["violations"]
+        if violation["code"] != "MISSING_DELIVERY_ADDRESS"]
+    return response
+
+
+def test_a_method_only_refusal_is_distinguishable_from_a_missing_address(env):
+    """Wix has the address and offers no way to deliver to it.
+
+    Collapsing this into `DELIVERY_DETAILS_REQUIRED` tells a customer to enter an address they
+    already saved, forever, and no retry helps -- it needs a shipping rule on the Wix site.
+    """
+    h, fake, _lam, _wix, monkeypatch = env
+    monkeypatch.setattr(h, "LOAD_OWNED_ADDRESS", h._load_owned_address)
+    wix = _ScriptedCalculateWix([_method_only()])
+    monkeypatch.setattr(h, "_wix_request", wix)
+    monkeypatch.setattr(h.wix_ecom, "_request", wix)
+
+    response = h.handler(_prepare_event(), None)
+    assert response["statusCode"] == 409
+    assert json.loads(response["body"])["error"] == "DELIVERY_METHOD_UNAVAILABLE"
+    # The address really did reach Wix, which is what makes "method, not address" honest.
+    assert _delivery_address_bodies(wix) == [EXPECTED_WIX_ADDRESS]
+    assert fake.all_rows(ATTEMPTS_TABLE) == []
+
+
+def test_a_preview_that_fails_is_no_evidence_and_the_refusal_stays_generic(env):
+    """Fail-closed on no evidence, mirroring `purchase_intent._delivery_is_missing`.
+
+    The violation read behind `DELIVERY_METHOD_UNAVAILABLE` is a second Calculate Cart call, and
+    it can fail on its own. An unexplained failure must not be reported to a customer as
+    "Wix offers no delivery method here", so the parent refusal re-raises unchanged.
+    """
+    h, fake, _lam, _wix, monkeypatch = env
+    monkeypatch.setattr(h, "LOAD_OWNED_ADDRESS", h._load_owned_address)
+    wix = _ScriptedCalculateWix([_method_only(), _method_only(),
+                                 RuntimeError("wix is unreachable")])
+    monkeypatch.setattr(h, "_wix_request", wix)
+    monkeypatch.setattr(h.wix_ecom, "_request", wix)
+
+    response = h.handler(_prepare_event(), None)
+    assert response["statusCode"] == 409
+    assert json.loads(response["body"])["error"] == "DELIVERY_DETAILS_REQUIRED"
+    assert fake.all_rows(ATTEMPTS_TABLE) == []
+
+
+def test_the_in_whatsapp_create_path_still_answers_a_recoverable_409(env):
+    """`DeliveryMethodUnavailable` subclasses `DeliveryDetailsRequired`, and that is deliberate.
+
+    `_create` is the retained in-WhatsApp path. Its existing first arm catches the parent, so
+    the subclass needs no edit there: the answer stays `409 DELIVERY_DETAILS_REQUIRED` rather
+    than becoming `500 INTERNAL_ERROR` (a plain `Exception`) or `409 AMOUNT_NOT_SETTLED` (a plain
+    `ValueError`, via `_create`'s trailing arm).
+    """
+    h, fake, _lam, _wix, monkeypatch = env
+
+    def refuse(identity, line_items, *, profile=None):
+        raise h.DeliveryMethodUnavailable("wix offered no usable delivery method")
+
+    monkeypatch.setattr(h, "_v2_snapshot", refuse)
+
+    response = h.handler(_create_event(), None)
+    assert response["statusCode"] == 409
+    assert json.loads(response["body"])["error"] == "DELIVERY_DETAILS_REQUIRED"
+    assert fake.all_rows(ATTEMPTS_TABLE) == []

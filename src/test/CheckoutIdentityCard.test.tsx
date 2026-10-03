@@ -1,0 +1,119 @@
+import React from 'react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import CheckoutIdentityCard from '../components/CheckoutIdentityCard';
+import type { StoredAddress } from '../components/AddressFields';
+
+/**
+ * THE FIRST TEST HERE IS A DRIFT GUARD, NOT A RENDERING TEST.
+ *
+ * `fullAddress` is derived server-side and is the string that reaches Wix and the invoice. If
+ * anyone ever composes the Deliver line in the card from the six components instead, the card
+ * starts reassuring the customer about a second rendering of the address that nothing downstream
+ * uses - and the two can disagree without either side being obviously wrong.
+ *
+ * So the fixture is built to DISAGREE on purpose: its `fullAddress` names 7 Residency Road and
+ * PIN 560002, while its components say 12 MG Road and 560001. Any composition from the components
+ * produces a line this test rejects. A fixture where the two agree could not tell the difference.
+ */
+const ADDRESS: StoredAddress = {
+  addressLine1: '12 MG Road',
+  addressLine2: 'Flat 3B',
+  locality: '',
+  city: 'Bengaluru',
+  state: 'Karnataka',
+  postalCode: '560001',
+  country: 'India',
+  countryCode: 'IN',
+  fullAddress: '7 Residency Road, Bengaluru, Karnataka, 560002, India',
+};
+
+const IDENTITY = {
+  name: 'Rahul Sharma',
+  email: 'rahul@example.com',
+  phone: '+918100640044',
+  address: ADDRESS,
+};
+
+function renderCard ( overrides: Partial<React.ComponentProps<typeof CheckoutIdentityCard>> = {} ) {
+  const props = {
+    identity: IDENTITY,
+    onEditName: vi.fn(),
+    onChangeEmail: vi.fn(),
+    onEditAddress: vi.fn(),
+    ...overrides,
+  };
+  render( <CheckoutIdentityCard { ...props } /> );
+  return props;
+}
+
+/** The row element, reached through its own label so no class name is assumed. */
+function row ( label: string ): HTMLElement {
+  return screen.getByText( label ).parentElement as HTMLElement;
+}
+
+describe( 'CheckoutIdentityCard', () => {
+  it( 'renders the Deliver line as the server fullAddress, verbatim', () => {
+    renderCard();
+    expect( screen.getByText( ADDRESS.fullAddress ) ).toBeInTheDocument();
+    // The components would compose a different line. Neither the line-1 value nor the PIN the
+    // components carry may appear, because either would mean the card composed its own string.
+    const deliver = row( 'Deliver' );
+    expect( deliver.textContent ).toContain( '7 Residency Road' );
+    expect( deliver.textContent ).not.toContain( '12 MG Road' );
+    expect( deliver.textContent ).not.toContain( '560001' );
+    expect( deliver.textContent ).not.toContain( 'Flat 3B' );
+  } );
+
+  it( 'renders nothing for the Deliver line when no address is on file', () => {
+    renderCard( { identity: { ...IDENTITY, address: null } } );
+    expect( row( 'Deliver' ).textContent ).toBe( 'DeliverEdit address' );
+  } );
+
+  it( 'states that the email is verified', () => {
+    renderCard();
+    expect( row( 'Email' ).textContent ).toContain( 'verified' );
+    expect( screen.getByText( '✓ verified' ) ).toBeInTheDocument();
+  } );
+
+  it( 'states how the phone was verified, because the session IS the proof', () => {
+    renderCard();
+    expect( screen.getByText( '✓ verified by WhatsApp sign-in' ) ).toBeInTheDocument();
+    expect( row( 'Phone' ).textContent ).toContain( 'verified by WhatsApp sign-in' );
+  } );
+
+  it( 'puts no verified badge on the address, because nobody verified it', () => {
+    renderCard();
+    expect( row( 'Deliver' ).textContent ).not.toContain( 'verified' );
+    expect( row( 'Deliver' ).textContent ).not.toContain( '✓' );
+  } );
+
+  it( 'offers no way to edit the phone, because the phone is the identity', () => {
+    renderCard();
+    expect( row( 'Phone' ).querySelector( 'button' ) ).toBeNull();
+    expect( screen.queryByRole( 'button', { name: /phone|number/i } ) ).toBeNull();
+    expect( screen.getAllByRole( 'button' ) ).toHaveLength( 3 );
+  } );
+
+  it( 'disables all three affordances while the editor is open', () => {
+    renderCard( { editorOpen: true } );
+    expect( screen.getByRole( 'button', { name: 'Edit name' } ) ).toBeDisabled();
+    expect( screen.getByRole( 'button', { name: 'Change email' } ) ).toBeDisabled();
+    expect( screen.getByRole( 'button', { name: 'Edit address' } ) ).toBeDisabled();
+  } );
+
+  it( 'reports which affordance was used when the editor is closed', () => {
+    const props = renderCard();
+    fireEvent.click( screen.getByRole( 'button', { name: 'Edit name' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Change email' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Edit address' } ) );
+    expect( props.onEditName ).toHaveBeenCalledTimes( 1 );
+    expect( props.onChangeEmail ).toHaveBeenCalledTimes( 1 );
+    expect( props.onEditAddress ).toHaveBeenCalledTimes( 1 );
+  } );
+
+  it( 'masks the middle of the phone without inventing digits', () => {
+    renderCard();
+    expect( screen.getByText( '+91 81006 ·····' ) ).toBeInTheDocument();
+  } );
+} );

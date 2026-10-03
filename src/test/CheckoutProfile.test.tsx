@@ -18,7 +18,25 @@ describe( 'CheckoutProfile', () => {
     expect( screen.queryByLabelText( /WhatsApp number/i ) ).toBeNull();
   } );
 
-  it( 'verifies email then saves only the narrow profile body', async () => {
+  /*
+   * CORRECTED FOR FEAT-001's ADDRESS_REQUIRED RULE, and the rename is part of the correction.
+   *
+   * This case used to be called "saves only the narrow profile body" and saved with no address at
+   * all. That is no longer a body the server accepts: creating a contact row now REQUIRES an
+   * address, and `auth/customer-profile/handler.py:422` answers
+   * `400 INVALID_ADDRESS / code:"ADDRESS_REQUIRED"` without one. So the old assertion pinned a
+   * request that is guaranteed to fail for every first-time customer - the exact dead end this
+   * phase exists to remove - rather than pinning a narrow body.
+   *
+   * What it pins now: Save stays DISABLED until the address is complete, and the create-mode body
+   * is the five fields and nothing more. The "narrow" half of the original intent is kept by the
+   * `toEqual` and by the phone/tags/optIn/allowlist assertion below, which are what actually
+   * guarded against the form posting marketing state.
+   *
+   * The other three cases in this file are untouched. They pass neither `mode` nor `initial` and
+   * so remain the regression guard on the 'create' default.
+   */
+  it( 'verifies email, holds Save until the address is complete, then saves the create body', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce( { ok: true, json: async () => ( { status: 'sent' } ) } )
       .mockResolvedValueOnce( {
@@ -53,6 +71,15 @@ describe( 'CheckoutProfile', () => {
     fireEvent.click( screen.getByRole( 'button', { name: 'Verify' } ) );
     await screen.findByText( '✓ Email verified' );
 
+    // A verified email is not enough on creation: the row cannot be written without an address.
+    expect( screen.getByRole( 'button', { name: /Save & continue/ } ) ).toBeDisabled();
+
+    fireEvent.change( screen.getByLabelText( 'Address line 1' ), { target: { value: '12 MG Road' } } );
+    fireEvent.change( screen.getByLabelText( 'City' ), { target: { value: 'Bengaluru' } } );
+    fireEvent.change( screen.getByLabelText( 'State' ), { target: { value: 'Karnataka' } } );
+    fireEvent.change( screen.getByLabelText( 'PIN code' ), { target: { value: '560001' } } );
+    expect( screen.getByRole( 'button', { name: /Save & continue/ } ) ).toBeEnabled();
+
     fireEvent.click( screen.getByRole( 'button', { name: /Save & continue/ } ) );
     await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 3 ) );
 
@@ -64,6 +91,13 @@ describe( 'CheckoutProfile', () => {
       lastName: 'Sen',
       email: 'asha@example.com',
       emailProof: 'fixture-proof',
+      address: {
+        addressLine1: '12 MG Road',
+        addressLine2: '',
+        city: 'Bengaluru',
+        state: 'Karnataka',
+        postalCode: '560001',
+      },
     } );
     expect( init.body ).not.toMatch( /phone|tags|optIn|allowlist/ );
     expect( onReady ).toHaveBeenCalledTimes( 1 );
