@@ -18,7 +18,7 @@ describe( 'BlogSubscribe', () => {
 
     expect( screen.getByLabelText( 'First name' ) ).toBeInTheDocument();
     expect( screen.getByLabelText( 'Last name' ) ).toBeInTheDocument();
-    expect( screen.getByLabelText( 'Country code' ) ).toBeInTheDocument();
+    expect( screen.getByLabelText( 'Calling code' ) ).toBeInTheDocument();
     expect( screen.getByLabelText( 'Email' ) ).toBeInTheDocument();
 
     const subscribe = screen.getByRole( 'button', { name: 'Subscribe' } ) as HTMLButtonElement;
@@ -36,7 +36,7 @@ describe( 'BlogSubscribe', () => {
     fireEvent.change( screen.getByPlaceholderText( '10-digit WhatsApp number' ), {
       target: { value: '9330994400' },
     } );
-    const sendButtons = screen.getAllByRole( 'button', { name: 'Send code' } );
+    const sendButtons = screen.getAllByRole( 'button', { name: 'Send OTP on WhatsApp' } );
     fireEvent.click( sendButtons[ 0 ] );
 
     await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 1 ) );
