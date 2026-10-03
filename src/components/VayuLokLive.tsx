@@ -2031,27 +2031,27 @@ const VayuLokLive: React.FC = () => {
            text #1a1a1a; h2 40px/700/-1.2px; eyebrow 12px/700/0.72px-tracking
            uppercase in dark green #1a3a2a (NOT the light --green, which read as
            loose/washed-out against the home language); body a tighter 17px. */
-        .vl-live-h2{margin:0 0 14px;font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.1;letter-spacing:-1.2px;color:#1a1a1a}
+        .vl-live-h2{margin:0 0 14px;font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;letter-spacing:-1.2px;color:rgba(0,0,0,.95)}
         .vl-live-card-h{margin:0 0 6px;font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#1a1a1a}
-        .vl-live-body{margin:0;max-width:62ch;font-size:17px;font-weight:400;line-height:1.55;letter-spacing:-.1px;color:rgba(0,0,0,.72)}
+        .vl-live-body{margin:0;max-width:62ch;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898)}
         .vl-live-eyebrow{margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1a3a2a}
         .vl-live-label{margin:0 0 7px;font-size:12px;font-weight:600;letter-spacing:.01em;color:rgba(0,0,0,.54)}
         .vl-live-small{margin:0;font-size:13px;line-height:1.4;color:var(--ink-muted)}
         .vl-live-mb16{margin-bottom:16px}
 
-        .vl-live-block{padding-block:44px}
+        .vl-live-block{padding-block:48px}
         .vl-live-block:first-child{padding-top:0}
         .vl-live-block-top{padding-top:0}
 
         /* The grid. ONE grid, TWO columns, TWO items. */
-        .vl-live-grid{display:grid;grid-template-columns:minmax(0,1fr);row-gap:40px;padding-top:40px}
+        .vl-live-grid{display:grid;grid-template-columns:minmax(0,1fr);row-gap:64px;padding-top:48px}
         .vl-live-left{min-width:0;container-type:inline-size;container-name:vllive}
         .vl-live-right{min-width:0}
 
-        .vl-live-left > .vl-live-section{margin-top:44px;padding-top:24px;border-top:1px solid var(--hair)}
+        .vl-live-left > .vl-live-section{margin-top:64px;padding-top:0;border-top:0}
 
         .vl-live-map-sticky{display:flex;flex-direction:column;gap:10px}
-        .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid var(--hair);border-radius:18px;background:var(--ground);box-shadow:0 8px 28px rgba(26,58,42,.08)}
+        .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid var(--hair);border-radius:14px;background:var(--ground)}
         .vl-live-map-fallback{
           position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;gap:14px;
           width:100%;height:100%;padding:24px;border:0;border-radius:inherit;overflow:hidden;
@@ -2094,14 +2094,14 @@ const VayuLokLive: React.FC = () => {
            (2px rgba(26,58,42,.22), 12px radius, 52px) that darkens its border and
            shows a lime ring on focus. The field owns the ONLY border and the ONLY
            focus ring; the input inside is fully neutralised below. */
-        .vl-live-search-field{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;border:2px solid rgba(26,58,42,.22);border-radius:12px;background:#fff}
-        .vl-live-search-field:focus-within{border-color:#1a3a2a;box-shadow:0 0 0 3px rgba(209,244,112,.45)}
+        .vl-live-search-field{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;border:2px solid var(--hair);border-radius:12px;background:#fff}
+        .vl-live-search-field:focus-within{border-color:#1a3a2a;box-shadow:none;outline:3px solid #1a3a2a;outline-offset:3px}
         /* The input is neutralised against the site's GLOBAL input:focus rules
            (inner-pages.css / Dashboard.css), which were drawing a second rounded
            box (lime box-shadow + 8px radius + padding) INSIDE this field - the
            "inner border" the owner reported. Zero every box-defining property with
            !important so no global rule can reintroduce an inner box. */
-        .vl-live-search-input{flex:1 1 auto;min-width:0;height:auto;font:inherit;font-size:17px;color:#1a1a1a;background:transparent !important;border:0 !important;outline:0 !important;box-shadow:none !important;border-radius:0 !important;padding:0 !important}
+        .vl-live-search-input{flex:1 1 auto;min-width:0;height:auto;font:inherit;font-size:17px;color:rgba(0,0,0,.898);background:transparent !important;border:0 !important;outline:0 !important;box-shadow:none !important;border-radius:0 !important;padding:0 !important}
         .vl-live-search-input:focus,.vl-live-search-input:focus-visible{box-shadow:none !important;border:0 !important;outline:0 !important}
         .vl-live-search-input::placeholder{color:rgba(0,0,0,.44)}
         .vl-live-search-results{position:absolute;top:calc(100% + 6px);inset-inline:0;z-index:5;margin:0;padding:0;list-style:none;overflow:hidden;border:1px solid var(--hair);border-radius:var(--r-field);background:var(--paper)}
@@ -2118,7 +2118,7 @@ const VayuLokLive: React.FC = () => {
            20px/700, the address a muted 15px (was an oversized 20px that made the
            header feel loose), figures stay large (the home h1 rung) and body/cond
            text drops to the home 17px with the home muted tone. */
-        .vl-live-place{margin:0 0 4px;font-size:20px;font-weight:700;line-height:1.25;letter-spacing:-.4px;color:#1a1a1a}
+        .vl-live-place{margin:0 0 4px;font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
         .vl-live-place-addr{margin:0 0 28px;max-width:62ch;font-size:15px;font-weight:400;line-height:1.5;letter-spacing:0;color:rgba(0,0,0,.54)}
 
         .vl-live-data-error{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 24px;padding:14px 16px;border:1px solid #e8c547;border-radius:14px;background:var(--tint-warn);font-size:13px;color:#6e4a18}
@@ -2128,12 +2128,12 @@ const VayuLokLive: React.FC = () => {
         .vl-live-data-skeleton i:nth-child(2){width:72%}.vl-live-data-skeleton i:nth-child(3){width:86%}.vl-live-data-skeleton i:nth-child(4){width:58%}
         .vl-live-sub-fact.is-stale{color:#8a5a1f}
         @keyframes vl-live-shimmer{to{background-position:-200% 0}}
-        .vl-live-now{padding-top:28px;border-top:1px solid var(--hair)}
+        .vl-live-now{padding-top:0;border-top:0}
         .vl-live-figure{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:8px 0 0}
         .vl-live-metric-xl{font-size:clamp(40px,4.3vw,56px);font-weight:600;line-height:1.04;letter-spacing:-0.04em;color:#1a1a1a}
         .vl-live-metric-lg{font-size:clamp(32px,3.2vw,40px);font-weight:600;line-height:1.08;letter-spacing:-1.6px;color:#1a1a1a}
         .vl-live-metric-md{display:block;font-size:20px;font-weight:700;line-height:1.25;letter-spacing:-.4px;color:#1a1a1a}
-        .vl-live-cond{margin:14px 0 0;max-width:46ch;font-size:17px;font-weight:400;line-height:1.55;letter-spacing:-.1px;color:rgba(0,0,0,.72)}
+        .vl-live-cond{margin:14px 0 0;max-width:46ch;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898)}
         .vl-live-sub-fact{margin:8px 0 0;font-size:14px;line-height:1.5;color:rgba(0,0,0,.54)}
 
         /* AQI mark - severity encoded by FORM as well as tone. */
@@ -2154,14 +2154,14 @@ const VayuLokLive: React.FC = () => {
         .vl-live-layer:focus-visible{outline:3px solid var(--green);outline-offset:3px}
         .vl-live-layer[aria-pressed="true"]{border-color:var(--green);background:var(--lime)}
 
-        .vl-live-map-legend{position:absolute;top:16px;right:16px;z-index:4;width:224px;padding:16px;border:1px solid var(--hair);border-radius:14px;background:var(--paper);box-shadow:0 6px 20px rgba(26,58,42,.12)}
+        .vl-live-map-legend{position:absolute;top:16px;right:16px;z-index:4;width:224px;padding:16px;border:1px solid var(--hair);border-radius:14px;background:var(--paper)}
         .vl-live-scale{height:10px;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--aqi-good) 0%,var(--aqi-sat) 22%,var(--aqi-mod) 48%,var(--aqi-poor) 74%,var(--aqi-worst) 100%)}
         .vl-live-scale-ends{display:flex;justify-content:space-between;margin-top:8px;gap:8px}
         .vl-live-scale-ends span{font-size:12px;font-weight:700;color:var(--green)}
         .vl-live-scale-mid{margin:8px 0 0;font-size:12px;line-height:1.4;color:var(--ink-muted)}
 
         /* Keep the preview above Google's bottom legal/attribution area. */
-        .vl-live-map-preview{position:absolute;left:16px;bottom:76px;z-index:4;width:320px;padding:0 16px 16px;border:1px solid var(--hair);border-radius:16px;background:var(--paper);box-shadow:0 6px 20px rgba(26,58,42,.12);overflow:hidden}
+        .vl-live-map-preview{position:absolute;left:16px;bottom:76px;z-index:4;width:320px;padding:0 16px 16px;border:1px solid var(--hair);border-radius:14px;background:var(--paper);overflow:hidden}
         .vl-live-place-photos{display:flex;gap:0;overflow-x:auto;margin:0 -16px;scroll-snap-type:x mandatory;scrollbar-width:none}
         .vl-live-place-photos::-webkit-scrollbar{display:none}
         .vl-live-place-photo{position:relative;flex:0 0 100%;width:100%;height:132px;margin:0;scroll-snap-align:start;background:#eef3ef}
@@ -2185,9 +2185,9 @@ const VayuLokLive: React.FC = () => {
         .vl-live-preview-metrics .vl-live-metric-md{font-size:17px}
         .vl-live-preview-cat{margin:4px 0 0;font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--ink-muted)}
 
-        .vl-live-best-outside{display:grid;gap:10px;padding:24px;border-radius:18px;background:var(--green);color:#fff}
-        .vl-live-best-outside .vl-live-metric-lg,.vl-live-best-outside .vl-live-body{color:#fff}
-        .vl-live-best-outside .vl-live-small{color:rgba(255,255,255,.76)}
+        .vl-live-best-outside{display:grid;gap:10px;padding:24px;border:2px solid var(--lime);border-radius:14px;background:var(--lime-tint);color:var(--ink-base)}
+        .vl-live-best-outside .vl-live-metric-lg,.vl-live-best-outside .vl-live-body{color:var(--ink-head)}
+        .vl-live-best-outside .vl-live-small{color:var(--ink-muted)}
         .vl-live-hour-rail,.vl-live-day-rail{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;padding:2px 0 8px;scrollbar-width:thin}
         .vl-live-hour-card{position:relative;flex:0 0 112px;min-height:144px;padding:14px;border:1px solid var(--hair);border-radius:14px;background:#fff;scroll-snap-align:start}
         .vl-live-hour-card time,.vl-live-hour-card span{display:block;font-size:12px;line-height:1.35;color:var(--ink-muted)}
@@ -2269,8 +2269,9 @@ const VayuLokLive: React.FC = () => {
 
         .vl-live-section{padding-top:0}
 
-        .vl-live-solar-load{min-height:42px;padding:0 16px;border:1px solid var(--green);border-radius:999px;background:var(--green);color:#fff;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
-        .vl-live-solar-load:hover{background:#214934}
+        .vl-live-solar-load{min-height:52px;padding:0 24px;border:2px solid var(--green);border-radius:50px;background:var(--lime);color:var(--green);font:inherit;font-size:17px;font-weight:600;cursor:pointer;transition:background-color .2s,transform .2s,box-shadow .2s}
+        .vl-live-solar-load:hover{background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+        .vl-live-solar-load:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
 
         /* SUBSCRIBE - the shipped .blog-wa-subscribe pill (ROLE 8). */
         .vl-live-wa-subscribe{display:inline-flex;align-items:center;gap:10px;padding:12px 20px;border-radius:999px;background:var(--lime);color:var(--green);font-weight:700;font-size:17px;text-decoration:none;transition:transform .2s,box-shadow .2s}
@@ -2292,7 +2293,8 @@ const VayuLokLive: React.FC = () => {
           .vl-live-weather-grid>div:nth-child(even){padding-left:0;border-left:0}
           .vl-live-pollen-grid{grid-template-columns:1fr}
           .vl-live-section{padding-top:0}
-          .vl-live-block{padding-block:36px}
+          .vl-live-block{padding-block:32px}
+          .vl-live-left > .vl-live-section{margin-top:64px}
           .vl-live-map-controls{top:12px;left:12px}
           .vl-live-map-legend{width:136px}
           .vl-live-map-preview{width:min(244px,calc(100% - 24px))}
