@@ -1035,10 +1035,20 @@ const VayuLokLive: React.FC = () => {
 
         /* Search. */
         .vl-live-search{position:relative;max-width:520px}
-        .vl-live-search-field{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 14px;border:1px solid var(--hair);border-radius:var(--r-field);background:var(--paper)}
-        .vl-live-search-field:focus-within{border-color:var(--green)}
-        .vl-live-search-input{flex:1 1 auto;min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:16px;color:var(--ink-base)}
-        .vl-live-search-input::placeholder{color:var(--ink-muted)}
+        /* One control, matching the shipped BlogSearch field: a single bordered box
+           (2px rgba(26,58,42,.22), 12px radius, 52px) that darkens its border and
+           shows a lime ring on focus. The field owns the ONLY border and the ONLY
+           focus ring; the input inside is fully neutralised below. */
+        .vl-live-search-field{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;border:2px solid rgba(26,58,42,.22);border-radius:12px;background:#fff}
+        .vl-live-search-field:focus-within{border-color:#1a3a2a;box-shadow:0 0 0 3px rgba(209,244,112,.45)}
+        /* The input is neutralised against the site's GLOBAL input:focus rules
+           (inner-pages.css / Dashboard.css), which were drawing a second rounded
+           box (lime box-shadow + 8px radius + padding) INSIDE this field - the
+           "inner border" the owner reported. Zero every box-defining property with
+           !important so no global rule can reintroduce an inner box. */
+        .vl-live-search-input{flex:1 1 auto;min-width:0;height:auto;font:inherit;font-size:17px;color:#1a1a1a;background:transparent !important;border:0 !important;outline:0 !important;box-shadow:none !important;border-radius:0 !important;padding:0 !important}
+        .vl-live-search-input:focus,.vl-live-search-input:focus-visible{box-shadow:none !important;border:0 !important;outline:0 !important}
+        .vl-live-search-input::placeholder{color:rgba(0,0,0,.44)}
         .vl-live-search-results{position:absolute;top:calc(100% + 6px);inset-inline:0;z-index:5;margin:0;padding:0;list-style:none;overflow:hidden;border:1px solid var(--hair);border-radius:var(--r-field);background:var(--paper)}
         .vl-live-search-option{display:block;min-height:52px;padding:10px 14px;cursor:pointer}
         .vl-live-search-option + .vl-live-search-option{border-top:1px solid var(--hair)}
