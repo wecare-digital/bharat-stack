@@ -194,9 +194,23 @@ const VayuLokLive: React.FC = () => {
       return mapHost.current;
     };
 
+    // loading=async deliberately decouples Maps API readiness from the script
+    // element's load event. Poll the namespace instead, so a newly injected loader,
+    // an already-existing loader, and client-side route transitions all converge on
+    // the same readiness path.
+    const waitForMaps = async () => {
+      for ( let i = 0; i < 50; i++ ) {
+        if ( cancelled ) return null;
+        const g = w.google?.maps;
+        if ( g ) return g;
+        await new Promise( r => setTimeout( r, 100 ) );
+      }
+      return w.google?.maps || null;
+    };
+
     const init = async () => {
-      const g = w.google?.maps;
-      if ( !g ) return;
+      const g = await waitForMaps();
+      if ( cancelled || !g ) return;
       const host = await waitForHost();
       if ( cancelled || !host ) return;
 
@@ -271,19 +285,16 @@ const VayuLokLive: React.FC = () => {
     // init is async (it awaits importLibrary); wrap so no unhandled promise floats.
     const runInit = () => { void init(); };
 
-    // If the loader is already present (namespace or script tag), call init
-    // DIRECTLY - the script's 'load' event has already fired and will not fire
-    // again, so relying on the listener would leave the map unbuilt. init() awaits
-    // importLibrary itself, so it is safe to call before the libraries finish.
+    // Do not use the script element's 'load' event as the readiness signal.
+    // With Google's loading=async mode, API readiness is intentionally decoupled
+    // from that event. runInit() waits for google.maps and then importLibrary().
     if ( w.google?.maps ) { runInit(); return () => { cancelled = true; }; }
 
     const ID = 'gmaps-js';
     const existing = document.getElementById( ID );
     if ( existing ) {
-      existing.addEventListener( 'load', runInit );
-      // Also call directly in case 'load' already fired for this existing tag.
       runInit();
-      return () => { cancelled = true; existing.removeEventListener( 'load', runInit ); };
+      return () => { cancelled = true; };
     }
 
     const script = document.createElement( 'script' );
@@ -291,8 +302,10 @@ const VayuLokLive: React.FC = () => {
     script.async = true;
     // Places library requested so client-side India-scoped autocomplete can run.
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent( MAPS_KEY )}&libraries=places&loading=async`;
-    script.addEventListener( 'load', runInit );
     document.head.appendChild( script );
+    // Start the same namespace-readiness path immediately; it will resolve once
+    // the async loader exposes google.maps, without depending on a DOM load event.
+    runInit();
     return () => { cancelled = true; };
   }, [] );
 
