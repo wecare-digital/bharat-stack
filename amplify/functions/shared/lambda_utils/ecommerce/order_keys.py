@@ -1328,7 +1328,8 @@ def record_cart_narrow_basket(table: Any,
 
 def _claim_basket_slot(table: Any, key_attr: str, key: str, kind: str, *,
                        customer_id: str, wix_cart_id: str, payment_attempt_id: str,
-                       prior_payment_attempt_id: str, now: Optional[int]) -> bool:
+                       prior_payment_attempt_id: str, request_key: str,
+                       now: Optional[int]) -> bool:
     """Take the per-basket create slot BEFORE the provider create. True if won.
 
     ONE conditional `put_item`, which REPLACES the item. Never an `update_item`: under an update
@@ -1365,6 +1366,12 @@ def _claim_basket_slot(table: Any, key_attr: str, key: str, kind: str, *,
         "customerId": customer_id,
         "wixCartId": wix_cart_id,
         "paymentAttemptId": payment_attempt_id,
+        # Carried so the guard's same-request-key resume exemption can recognise the claimer's
+        # OWN later click. Without it a retry on the same key reads its own claim as a foreign
+        # in-flight attempt and is refused for the whole settling window -- which would make the
+        # resume exit unreachable and the payable-modal choke point inert on that path. It
+        # changes no horizon: the discrimination is the ABSENCE of `recordedAt`, not this field.
+        "requestKey": str(request_key or ""),
         "claimStage": CART_CLAIM_STAGE_CREATED,
         "claimedAt": moment,
     }
@@ -1389,25 +1396,26 @@ def _claim_basket_slot(table: Any, key_attr: str, key: str, kind: str, *,
 
 def claim_cart_basket(table: Any, *, customer_id: str, wix_cart_id: str, basket_hash: str,
                       payment_attempt_id: str, prior_payment_attempt_id: str = "",
-                      now: Optional[int] = None, key_attr: str = "orderId") -> bool:
+                      request_key: str = "", now: Optional[int] = None,
+                      key_attr: str = "orderId") -> bool:
     """Take the fine per-basket create slot. True if won. See `_claim_basket_slot`."""
     return _claim_basket_slot(
         table, key_attr, _cart_basket_key(customer_id, wix_cart_id, basket_hash),
         CART_BASKET_KIND, customer_id=customer_id, wix_cart_id=wix_cart_id,
         payment_attempt_id=payment_attempt_id,
-        prior_payment_attempt_id=prior_payment_attempt_id, now=now)
+        prior_payment_attempt_id=prior_payment_attempt_id, request_key=request_key, now=now)
 
 
 def claim_cart_narrow_basket(table: Any, *, customer_id: str, wix_cart_id: str,
                              narrow_hash: str, payment_attempt_id: str,
-                             prior_payment_attempt_id: str = "",
+                             prior_payment_attempt_id: str = "", request_key: str = "",
                              now: Optional[int] = None, key_attr: str = "orderId") -> bool:
     """The same claim on the NARROW slot. Both delegate to one private `_claim_basket_slot`."""
     return _claim_basket_slot(
         table, key_attr, _cart_narrow_basket_key(customer_id, wix_cart_id, narrow_hash),
         CART_NARROW_BASKET_KIND, customer_id=customer_id, wix_cart_id=wix_cart_id,
         payment_attempt_id=payment_attempt_id,
-        prior_payment_attempt_id=prior_payment_attempt_id, now=now)
+        prior_payment_attempt_id=prior_payment_attempt_id, request_key=request_key, now=now)
 
 
 # ── Section 5 blog contributions (BLOG_CONTRIBUTION) ────────────────────────────

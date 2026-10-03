@@ -85,24 +85,24 @@ def _resolve(token: str, names: Dict[str, str]) -> str:
     return token
 
 
-def _split_top_level_or(text: str) -> List[str]:
-    """`text` split on ` OR ` at parenthesis depth zero. One element when there is no top-level OR.
+def _split_top_level(text: str, operator: str) -> List[str]:
+    """`text` split on ` AND ` / ` OR ` at parenthesis depth zero. One element when none is found.
 
-    Depth-aware so `a OR (b AND c)` yields two alternatives while `(a OR b) AND c` yields one,
-    which is the whole difference between the two and the only thing a naive `split(" OR ")`
-    gets wrong.
+    Depth-aware, which is the whole difference between `a OR (b AND c)` -- two alternatives -- and
+    `(a OR b) AND c` -- one -- and the only thing a naive `split()` gets wrong.
     """
     parts, depth, start, index = [], 0, 0, 0
     upper = text.upper()
+    width = len(operator)
     while index < len(text):
         character = text[index]
         if character == "(":
             depth += 1
         elif character == ")":
             depth -= 1
-        elif depth == 0 and upper.startswith(" OR ", index):
+        elif depth == 0 and upper.startswith(operator, index):
             parts.append(text[start:index])
-            index += 4
+            index += width
             start = index
             continue
         index += 1
@@ -138,17 +138,35 @@ def _evaluate_condition(condition: Optional[str], row: Optional[Dict[str, Any]],
     """
     if not condition:
         return True
+    return _evaluate_expression(" ".join(str(condition).split()), row, values, names)
 
-    text = _strip_outer_parens(" ".join(str(condition).split()))
-    alternatives = _split_top_level_or(text)
+
+def _evaluate_expression(text: str, row: Optional[Dict[str, Any]],
+                         values: Dict[str, Any], names: Dict[str, str]) -> bool:
+    """Recursive descent over OR, then AND, then parentheses, then one predicate.
+
+    Recursive rather than a flat scan because the shapes that matter here are NESTED:
+    `attribute_exists(orderId) AND (attribute_not_exists(createClaimedAt) OR createClaimedAt <
+    :stale)` is the create-right claim, and a top-level split on ` OR ` finds nothing in it. OR
+    binds loosest, so it is split first; the leaf case has no operator and no parentheses left
+    and is exactly one predicate.
+    """
+    text = text.strip()
+    alternatives = _split_top_level(text, " OR ")
     if len(alternatives) > 1:
-        return any(_evaluate_condition(alternative, row, values, names)
-                   for alternative in alternatives)
-    if text != " ".join(str(condition).split()):
-        # The outer parentheses were stripped, so re-enter on the reduced expression rather than
-        # letting the leftover check below trip over a form it has already handled.
-        return _evaluate_condition(text, row, values, names)
+        return any(_evaluate_expression(part, row, values, names) for part in alternatives)
+    terms = _split_top_level(text, " AND ")
+    if len(terms) > 1:
+        return all(_evaluate_expression(part, row, values, names) for part in terms)
+    unwrapped = _strip_outer_parens(text)
+    if unwrapped != text:
+        return _evaluate_expression(unwrapped, row, values, names)
+    return _evaluate_predicate(text, row, values, names)
 
+
+def _evaluate_predicate(text: str, row: Optional[Dict[str, Any]],
+                        values: Dict[str, Any], names: Dict[str, str]) -> bool:
+    """One predicate, with no operator and no parentheses left to resolve."""
     consumed = text
     result = True
 

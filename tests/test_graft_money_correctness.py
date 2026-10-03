@@ -28,10 +28,12 @@ sys.path.insert(0, str(ROOT / "amplify/functions/shared"))
 sys.path.insert(0, str(ROOT / "tests"))
 
 from coupon_fake_dynamo import FakeClientError, FakeTable  # noqa: E402
+from crm_fake_dynamo import FakeDynamo as CrmFakeDynamo  # noqa: E402
 from lambda_utils.ecommerce import checkout_pricing as cp  # noqa: E402
 from lambda_utils.ecommerce import order_keys  # noqa: E402
 from lambda_utils.ecommerce import payment_attempt  # noqa: E402
 from lambda_utils.ecommerce import purchase_intent  # noqa: E402
+from lambda_utils.ecommerce import website_checkout  # noqa: E402
 from lambda_utils.ecommerce import wix_writeback  # noqa: E402
 
 KEYS_TABLE = "stack-wecare-digital-WixOrderIds"
@@ -459,3 +461,996 @@ def test_build_intent_still_calculates_exactly_once():
     for name in ("ttl_seconds", "quote_fn"):
         assert name in parameters, (
             f"{name} must stay on the public surface rather than vanish into **kwargs")
+
+
+# ══ GRAFT 1a — the double-charge guard, driven through the real handler ═════════
+#
+# Every row below calls `_website_prepare` through `handler.handler`, not `prepare_checkout`
+# directly. A test that calls the guard itself cannot detect that its only production caller
+# never reaches it, which is the failure mode this whole section exists to rule out.
+
+import copy  # noqa: E402
+import importlib.util  # noqa: E402
+
+HANDLER_PATH = ROOT / "amplify/functions/ecommerce/checkout/handler.py"
+FIXTURES = ROOT / "tests/fixtures"
+CONTACTS_TABLE = "stack-wecare-digital-ContactsTable"
+PHONE = "+919330994400"
+#: Wix collection 25499.00 = items 24999.00 + delivery 500.00, from the shared fixture.
+V2_COLLECTION_PAISE = 2549900
+OWNED_ADDRESS = {"addressLine1": "12 Dalhousie Square", "city": "Kolkata",
+                 "state": "West Bengal", "postalCode": "700001"}
+
+#: A PUBLIC Razorpay key id for the stub, ASSEMBLED AT RUNTIME so this file contains no
+#: issuer-shaped literal. `scripts/block_inline_secrets.py` refuses an `rzp_live_` token on a
+#: command line and `scripts/scan_repo_secrets.py` must keep reporting real values, so a fixture
+#: that merely LOOKS like a credential is worth avoiding even when it is not one. Only the public
+#: key id is ever publishable; no `key_secret` appears anywhere in this file, and a test below
+#: asserts that no response or log can carry one.
+FIXTURE_PUBLIC_KEY_ID = "rzp_" + "live_" + "FIXTUREPUBLICID"
+#: A sentinel standing in for the secret half, used ONLY to assert it never leaves the module
+#: that reads it. It is not issuer-shaped and is not a credential.
+FIXTURE_SECRET_SENTINEL = "SECRET-HALF-MUST-NEVER-APPEAR"
+
+
+def _delivery_complete():
+    return json.loads((FIXTURES / "wix_cart_v2_delivery_complete.json").read_text())
+
+
+class _Identity:
+    def __init__(self, customer_id=CUSTOMER, phone=PHONE):
+        self.customer_id = customer_id
+        self.phone = phone
+        self.subject = "sub-graft"
+
+    def owns(self, value):
+        return bool(value) and value == self.customer_id
+
+
+class _MultiTable:
+    """One `boto3.resource('dynamodb')` stand-in over several `coupon_fake_dynamo.FakeTable`s.
+
+    `coupon_fake_dynamo` is the fake used here rather than `crm_fake_dynamo` because every
+    conditional claim in this change is a parenthesised `OR`, and a fake that cannot evaluate one
+    cannot exercise the claim.
+    """
+
+    def __init__(self, keys):
+        self.tables = {name: FakeTable(key_attr=key) for name, key in keys.items()}
+        # The Contacts table is the ONE table reached with a boto3 `Key('phone').eq(...)`
+        # condition object rather than an expression string, which `coupon_fake_dynamo.query`
+        # does not parse. `crm_fake_dynamo` reads that object's own attributes, so the profile
+        # lookup gets the fake that understands it while every conditional claim keeps the fake
+        # that understands a parenthesised OR.
+        self._crm = CrmFakeDynamo(keys={CONTACTS_TABLE: keys[CONTACTS_TABLE]},
+                                  indexes={CONTACTS_TABLE: {"phone-index": ("phone", None)}})
+        self.tables[CONTACTS_TABLE] = self._crm.Table(CONTACTS_TABLE)
+
+    def Table(self, name):  # noqa: N802 - boto3's own spelling
+        if name not in self.tables:
+            raise AssertionError(f"the handler reached an unprovisioned table {name!r}")
+        return self.tables[name]
+
+    def rows(self, name):
+        return [dict(row) for row in self.tables[name].rows.values()]
+
+    def keys_with_prefix(self, prefix):
+        return [key for key in self.tables[KEYS_TABLE].rows if str(key).startswith(prefix)]
+
+    def count_prefix(self, prefix):
+        return len(self.keys_with_prefix(prefix))
+
+
+class _Wix:
+    """A Cart V2 transport whose `calculate` response can be mutated per call.
+
+    `revision_mode` is the lever the double-charge rows turn:
+
+      'bump'  - `summary.cartRevision` and `cart.revision` are INCREMENTED on every calculate,
+                which is what the live path does (prepare PATCHes the cart, then calculate
+                refreshes it) and what makes `snapshot_hash` move for an unedited basket.
+      'fixed' - held constant, so the same-request-key resume is reachable at all.
+
+    `cart_v2.calculate` asserts the two are equal, so they move together or the stub is invalid.
+    """
+
+    def __init__(self, revision_mode="bump", mutate=None):
+        self.base = _delivery_complete()
+        self.revision_mode = revision_mode
+        self.mutate = mutate
+        self.calculates = 0
+        self.calls = []
+
+    def __call__(self, endpoint, method="GET", body=None):
+        self.calls.append((method.upper(), endpoint))
+        if endpoint.startswith("/stores/v3/products/"):
+            reference = self.base["cart"]["lineItems"][0]["source"]["catalogReference"]
+            return {"product": {
+                "id": reference["catalogItemId"], "visible": True,
+                "variantsInfo": {"variants": [{
+                    "id": reference["options"]["variantId"], "visible": True,
+                    "inventoryStatus": {"inStock": True}}]}}}
+        response = copy.deepcopy(self.base)
+        if "calculate" in endpoint:
+            self.calculates += 1
+            if self.revision_mode == "bump":
+                revision = str(int(response["cart"]["revision"]) + self.calculates)
+                response["cart"]["revision"] = revision
+                response["summary"]["cartRevision"] = revision
+            if self.mutate is not None:
+                self.mutate(response, self.calculates)
+        return response
+
+
+class _Rig:
+    """A loaded handler module plus its fakes, with the Razorpay client fully stubbed."""
+
+    def __init__(self, monkeypatch, *, revision_mode="bump", mutate=None,
+                 initiation_enabled=True, keys_table=None):
+        monkeypatch.setenv("PAYMENT_ATTEMPTS_TABLE", ATTEMPTS_TABLE)
+        monkeypatch.setenv("COMMERCE_KEYS_TABLE", KEYS_TABLE)
+        monkeypatch.setenv("CONTACTS_TABLE", CONTACTS_TABLE)
+        monkeypatch.setenv("ORDERS_TABLE", ORDERS_TABLE)
+        monkeypatch.setenv("APP_ENV", "development")
+        monkeypatch.setenv("WIX_CART_V2_ENABLED", "true")
+        monkeypatch.delenv("WIX_CART_V2_DISABLED", raising=False)
+        # The gate is NEVER read from the environment here: `CHECKOUT_INITIATION_ENABLED` stays
+        # absent, and `INITIATION_ENABLED` is injected as a module attribute instead. Setting the
+        # env key in a test would be indistinguishable from enabling the flag.
+        monkeypatch.delenv("CHECKOUT_INITIATION_ENABLED", raising=False)
+
+        spec = importlib.util.spec_from_file_location(
+            "graft_handler_under_test", HANDLER_PATH)
+        self.h = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.h)
+
+        self.db = _MultiTable({ATTEMPTS_TABLE: "paymentAttemptId", KEYS_TABLE: "orderId",
+                               CONTACTS_TABLE: "id", ORDERS_TABLE: "orderId"})
+        if keys_table is not None:
+            self.db.tables[KEYS_TABLE] = keys_table
+        self.wix = _Wix(revision_mode=revision_mode, mutate=mutate)
+        self.creates = []
+        self.checkouts = []
+        self.identity = _Identity()
+        self.quantity = 1
+
+        monkeypatch.setattr(self.h, "_dynamodb", self.db)
+        monkeypatch.setattr(self.h, "INITIATION_ENABLED", initiation_enabled)
+        monkeypatch.setattr(self.h, "_wix_request", self.wix)
+        monkeypatch.setattr(self.h.wix_ecom, "_request", self.wix)
+        monkeypatch.setattr(self.h, "LOAD_OWNED_ADDRESS",
+                            lambda customer_id: dict(OWNED_ADDRESS))
+        monkeypatch.setattr(self.h.customer_auth, "require_customer",
+                            lambda event: (self.identity, None))
+        monkeypatch.setattr(self.h.wix_ecom, "create_checkout", self._create_checkout)
+        monkeypatch.setattr(self.h.razorpay_orders, "create_order", self._create_order)
+        monkeypatch.setattr(self.h.razorpay_orders, "find_order_by_receipt",
+                            lambda receipt: None)
+        monkeypatch.setattr(self.h.razorpay_orders, "account_mode", lambda key_id: "live")
+        monkeypatch.setattr(self.h, "_lambda_client", self._no_lambda)
+        self._profile()
+
+    # -- stubs -----------------------------------------------------------------
+    def _no_lambda(self):
+        raise AssertionError("the website prepare path must make no Lambda invoke")
+
+    def _create_checkout(self, items, **_):
+        self.checkouts.append(items)
+        return {"id": f"wix-checkout-{len(self.checkouts)}", "currency": "INR",
+                "priceSummary": {"total": {"amount": "599.00"}},
+                "lineItems": [{"productName": {"original": "Thing"}, "quantity": 1}]}
+
+    def _create_order(self, *, amount_paise, receipt, notes):
+        self.creates.append({"amount_paise": amount_paise, "receipt": receipt,
+                             "notes": dict(notes)})
+        return {"id": f"order_GRAFT_{len(self.creates)}", "amount": amount_paise,
+                "currency": "INR", "status": "created", "receipt": receipt,
+                "key_id": FIXTURE_PUBLIC_KEY_ID}
+
+    def _profile(self):
+        self.db.Table(CONTACTS_TABLE).put_item(Item={
+            "id": "contact-1", "contactId": "contact-1", "phone": PHONE,
+            "email": "asha@example.com", "name": "Asha Sen",
+            "checkoutCustomerId": CUSTOMER, "emailVerifiedAt": 1, "deletedAt": None})
+
+    # -- driving ---------------------------------------------------------------
+    def line_items(self):
+        reference = self.wix.base["cart"]["lineItems"][0]["source"]["catalogReference"]
+        return [{"catalogReference": {
+            "appId": reference["appId"],
+            "catalogItemId": reference["catalogItemId"],
+            "options": {"variantId": reference["options"]["variantId"]}},
+            "quantity": self.quantity}]
+
+    def set_quantity(self, units):
+        """Change the basket COHERENTLY, so the change is the guard's subject and not a fixture bug.
+
+        `cart_v2.calculate` contract-checks that `requestedQuantity == confirmedQuantity` (or it
+        raises `CartQuantityReduced`), that the line totals sum to `priceSummary.subtotal`, and
+        that `subtotal - discount + delivery + additionalFees + tax == total`. Editing one field
+        in isolation breaks one of those and the handler answers 503 -- which would look like the
+        guard refusing when it is the stub that is inconsistent. `_require_same_basket` also
+        compares the REQUESTED quantity against what the browser asked for, so the asked quantity
+        moves with it.
+        """
+        self.quantity = units
+        base = self.wix.base
+        unit_paise = int(round(float(
+            base["summary"]["lineItems"][0]["unitPrice"]["amount"].replace(",", "")) * 100))
+        delivery_paise = int(round(float(
+            base["summary"]["priceSummary"]["delivery"]["amount"].replace(",", "")) * 100))
+        line_total = unit_paise * units
+        money = lambda paise: {"amount": f"{paise // 100}.{paise % 100:02d}",
+                               "convertedAmount": f"{paise // 100}.{paise % 100:02d}"}
+        base["cart"]["lineItems"][0]["quantityInfo"].update(
+            requestedQuantity=units, confirmedQuantity=units)
+        base["summary"]["lineItems"][0]["quantity"] = units
+        base["summary"]["lineItems"][0]["totalPrice"] = money(line_total)
+        base["summary"]["priceSummary"]["subtotal"] = money(line_total)
+        base["summary"]["priceSummary"]["total"] = money(line_total + delivery_paise)
+        # `paymentSummary` reconciles against the total too: with no gift card,
+        # `payNow == totalAfterGiftCards == total` or `calculate` raises
+        # "full immediate payment required". Updating the total and not these is the fixture
+        # contradicting itself.
+        payment = base["summary"].setdefault("paymentSummary", {})
+        payment["payNow"] = money(line_total + delivery_paise)
+        payment["totalAfterGiftCards"] = money(line_total + delivery_paise)
+
+    def prepare(self, request_key):
+        event = {
+            "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.9"}},
+            "headers": {"origin": "http://localhost:3000", "authorization": "Bearer t"},
+            "body": json.dumps({"action": "prepare", "lineItems": self.line_items(),
+                                "requestKey": request_key}),
+        }
+        response = self.h.handler(event, None)
+        return response["statusCode"], json.loads(response["body"])
+
+    def verify(self, *, order_id, payment_id="pay_GRAFT_1", signature="sig"):
+        event = {
+            "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.9"}},
+            "headers": {"origin": "http://localhost:3000", "authorization": "Bearer t"},
+            "body": json.dumps({"action": "verify", "razorpay_order_id": order_id,
+                                "razorpay_payment_id": payment_id,
+                                "razorpay_signature": signature}),
+        }
+        response = self.h.handler(event, None)
+        return response["statusCode"], json.loads(response["body"])
+
+    def age_everything(self, seconds):
+        """Push every timestamp on every row back by `seconds`, to cross a window deliberately."""
+        for name in (KEYS_TABLE, ATTEMPTS_TABLE):
+            table = self.db.Table(name)
+            for key, row in list(table.rows.items()):
+                row = dict(row)
+                for field in ("recordedAt", "claimedAt", "paidAt", "updatedAt", "createdAt",
+                              "reservedAt", "boundAt", "createClaimedAt"):
+                    if field in row and isinstance(row[field], int):
+                        row[field] = row[field] - seconds
+                table.rows[key] = row
+
+    def mark_paid(self):
+        """Advance every stored attempt to PAYMENT_PAID, as a verified capture would."""
+        table = self.db.Table(ATTEMPTS_TABLE)
+        for key, row in list(table.rows.items()):
+            row = dict(row)
+            row["status"] = payment_attempt.PAYMENT_PAID
+            row["attemptRank"] = payment_attempt.rank(payment_attempt.PAYMENT_PAID)
+            row["paidAt"] = int(time.time())
+            table.rows[key] = row
+
+    def mark_failed(self):
+        """Move every UNPAID attempt into a retryable state.
+
+        `RETRYABLE_STATES` is where `may_create_order` and `is_in_flight` are BOTH false, which is
+        the state that left the pre-graft guard with no window at all.
+        """
+        table = self.db.Table(ATTEMPTS_TABLE)
+        for key, row in list(table.rows.items()):
+            if row.get("status") == payment_attempt.PAYMENT_PAID:
+                continue
+            row = dict(row)
+            row["status"] = payment_attempt.PAYMENT_FAILED
+            row["attemptRank"] = payment_attempt.rank(payment_attempt.PAYMENT_FAILED)
+            table.rows[key] = row
+
+
+@pytest.fixture
+def rig(monkeypatch):
+    def build(**kwargs):
+        return _Rig(monkeypatch, **kwargs)
+    return build
+
+
+def _rows_with(rig_instance, prefix):
+    return [row for row in rig_instance.db.rows(KEYS_TABLE)
+            if str(row["orderId"]).startswith(prefix)]
+
+
+# ── (a) the revision-bumped two-prepare row ────────────────────────────────────
+
+def test_a_revision_bump_does_not_unblock_a_paid_basket(rig):
+    """The row the whole guard turns on: a bumped revision must not look like a new basket.
+
+    Assertion 1 is the ANTI-VACUITY ANCHOR. If the two prepares produced the same
+    `snapshot_hash`, this test would pass against a guard keyed on `snapshot_hash` and would
+    prove nothing. The stub increments `cartRevision` exactly as the live path does, so the quote
+    hash MUST differ and the basket identity MUST NOT.
+    """
+    r = rig(revision_mode="bump")
+    code_1, body_1 = r.prepare("K1")
+    assert code_1 == 200 and body_1["status"] == "CHECKOUT_OPTIONS_READY"
+    assert len(r.creates) == 1
+
+    paid_attempt = r.db.rows(ATTEMPTS_TABLE)[0]["paymentAttemptId"]
+    first_hash = _rows_with(r, order_keys.REQUEST_KEY_PREFIX)[0]["snapshotHash"]
+    r.mark_paid()
+
+    pointer = _rows_with(r, order_keys.CART_PAYMENT_PREFIX)[0]
+    basket_row = _rows_with(r, order_keys.CART_BASKET_PREFIX)[0]
+
+    code_2, body_2 = r.prepare("K2_fresh")
+
+    # 1. ANTI-VACUITY: the quote hash moved between the two prepares. Recomputed from the live
+    #    snapshot the second prepare built, because the refused prepare writes no request-key row.
+    second_snapshot, _calculated = r.h._website_snapshot(
+        r.identity, r.line_items(), int(time.time()))
+    assert second_snapshot.snapshot_hash != first_hash, (
+        "the two prepares produced the same snapshot hash, so this row cannot distinguish a "
+        "guard keyed on the basket from one keyed on the quote")
+    # 2. ...and the BASKET identity did not.
+    assert cp.basket_hash(second_snapshot.frozen_data) == pointer["basketHash"]
+    assert pointer["basketHash"] == basket_row["basketHash"]
+    # 3. The second prepare is refused, naming the PAID attempt.
+    assert code_2 == 409
+    assert body_2["status"] == website_checkout.CHECKOUT_AMBIGUOUS
+    assert body_2["reason"] == website_checkout.CART_ALREADY_PAID
+    assert body_2["paymentAttemptId"] == paid_attempt
+    assert "options" not in body_2
+    # 4. Exactly one provider create across the whole run.
+    assert len(r.creates) == 1
+    # 5. Exactly one row of each prefix, and NO second request key: step 2a sits above step 3, so
+    #    a refusal writes nothing at all.
+    assert r.db.count_prefix(order_keys.CART_PAYMENT_PREFIX) == 1
+    assert r.db.count_prefix(order_keys.CART_BASKET_PREFIX) == 1
+    assert r.db.count_prefix(order_keys.CART_NARROW_BASKET_PREFIX) == 1
+    assert r.db.count_prefix(order_keys.GATEWAY_ORDER_PREFIX) == 1
+    assert r.db.count_prefix(order_keys.PAYMENT_REFERENCE_PREFIX) == 1
+    assert r.db.count_prefix(order_keys.REQUEST_KEY_PREFIX) == 1, (
+        "a step-2a refusal must write NOTHING AT ALL, including its own request key")
+
+
+# ── (b) the moved-Wix-field durability row ─────────────────────────────────────
+
+def _move_a_non_enumerated_field(response, call_number):
+    """From the third calculate on, move a `summary.lineItems` field this build does not enumerate.
+
+    `physicalProperties` is inside a line item, is a raw Wix shape relayed straight into the
+    frozen payload, and is NOT one of the terms `narrow_basket_hash` names. It therefore stands
+    in for the per-calculate residue `basket_hash` cannot vouch for.
+    """
+    if call_number >= 3:
+        for line in response["summary"]["lineItems"]:
+            line["physicalProperties"] = {"weight": "1.25", "shippingGroup": "late"}
+
+
+def test_a_paid_basket_survives_both_a_pointer_overwrite_and_a_moved_wix_field(rig):
+    """Four stages, and stage (b) must be ALLOWED or the guard refuses legitimate purchases.
+
+    (a) pay basket B1.  (b) past the window, a DIFFERENT basket B2 is allowed and upserts the
+    single-slot pointer, destroying the only record that B1 was paid.  (c) B2 is abandoned into a
+    retryable state, where `may_create_order` and `is_in_flight` are both false.  (d) re-present
+    the unedited B1 with a field Wix controls moved, so `basket_hash` DIFFERS and the fine key
+    misses -- and the NARROW row is what refuses it.
+
+    The anchor is (d1): the fine identity must differ and the narrow one must not, or the row
+    proves nothing about the second key.
+    """
+    r = rig(revision_mode="bump", mutate=_move_a_non_enumerated_field)
+
+    # (a) B1 is paid.
+    assert r.prepare("K1")[1]["status"] == "CHECKOUT_OPTIONS_READY"
+    r.mark_paid()
+    b1_narrow = _rows_with(r, order_keys.CART_NARROW_BASKET_PREFIX)[0]
+    b1_fine = b1_narrow["basketHash"]
+    assert b1_fine, "the fixture must have produced a fine identity to begin with"
+
+    # (b) Past the in-flight window a genuinely different basket is allowed.
+    r.age_everything(website_checkout.CART_PAYMENT_IN_FLIGHT_SECONDS + 60)
+    r.set_quantity(2)
+    code_b, body_b = r.prepare("K2")
+    assert code_b == 200 and body_b["status"] == "CHECKOUT_OPTIONS_READY", (
+        "a genuinely different basket past the window is the legitimate repeat purchase and must "
+        "be ALLOWED; refusing it is the over-block this guard must not have")
+    assert len(r.creates) == 2
+
+    # (c) B2 is abandoned.
+    r.mark_failed()
+
+    # (d) Re-present the UNEDITED B1, with a non-enumerated Wix field moved.
+    r.set_quantity(1)
+    presented, _calculated = r.h._website_snapshot(
+        r.identity, r.line_items(), int(time.time()))
+
+    # (d1) ANCHOR: the fine identity moved, the narrow one did not.
+    assert cp.basket_hash(presented.frozen_data) != b1_fine, (
+        "the moved field did not change the FINE identity, so this row does not exercise the "
+        "missed-by-key path the narrow row exists for")
+    assert cp.narrow_basket_hash(presented.frozen_data) == b1_narrow["narrowBasketHash"], (
+        "the narrow identity moved too, so there is nothing left that could refuse the request")
+
+    code_d, body_d = r.prepare("K3_fresh")
+    # (d2) ...and the refusal came from it.
+    assert code_d == 409, body_d
+    assert body_d["reason"] == website_checkout.CART_ALREADY_PAID
+    assert "options" not in body_d
+    # (d3) Exactly two creates across the whole run: B1's and B2's, never a third.
+    assert len(r.creates) == 2, (
+        f"a third provider create means B1 was charged twice: "
+        f"{[c['receipt'] for c in r.creates]}")
+
+
+# ── (c) the NEW resumed-request-key-after-a-lost-pointer-write row ─────────────
+
+class _PointerHostileTable(FakeTable):
+    """A keys table that refuses ONE named cart-row write, once, and otherwise behaves.
+
+    Parametrised over all three writers, because `_record_cart_pointer` treats every one of them
+    as must-succeed and a divergence between them would be invisible.
+    """
+
+    def __init__(self, refuse_prefix):
+        super().__init__(key_attr="orderId")
+        self.refuse_prefix = refuse_prefix
+        self.armed = True
+
+    def put_item(self, Item=None, **kwargs):
+        item = Item or {}
+        key = str(item.get("orderId") or "")
+        # Only a RECORD write, never a step-4b CLAIM: a claim carries `claimStage` and no
+        # `recordedAt`, and refusing one raises OrderIdentityUnavailable out of step 4b as a 503.
+        # That is correct behaviour and a different row; it is not the resume exit this exercises.
+        if self.armed and key.startswith(self.refuse_prefix) and "recordedAt" in item:
+            self.armed = False
+            raise FakeClientError("ProvisionedThroughputExceededException")
+        return super().put_item(Item=Item, **kwargs)
+
+
+@pytest.mark.parametrize("refuse_prefix", [
+    order_keys.CART_PAYMENT_PREFIX,
+    order_keys.CART_BASKET_PREFIX,
+    order_keys.CART_NARROW_BASKET_PREFIX,
+])
+def test_a_resumed_request_key_after_a_lost_pointer_write_still_guards_the_basket(
+        rig, refuse_prefix):
+    """The iteration-7 hole, closed: a payable modal reached through the RESUME exit.
+
+    Prepare #1 loses one cart-row write, so it answers CART_POINTER_SAVE_FAILED with NO options
+    and ZERO cart rows -- while `_link_request_key_to_order` has ALREADY written `gatewayOrderId`
+    onto the REQUESTKEY# row. That is the anti-vacuity anchor: without it, prepare #2 would not
+    reach `_resume_lost_request_key`'s `gatewayOrderId` branch at all and the row would prove
+    nothing.
+
+    Prepare #2 presents the SAME key against a healthy table, takes that branch, and must write
+    all three rows before it may hand back a modal. Prepare #3, with a FRESH key after the
+    payment, must then be refused 409 CART_ALREADY_PAID -- which it can only be because #2 wrote
+    them.
+
+    Run against a FIXED-revision stub, because `intent_fingerprint` carries `cart_revision`: with
+    a bumping revision, prepare #2 answers INTENT_CHANGED at step 3 and the resume is unreachable.
+    """
+    hostile = _PointerHostileTable(refuse_prefix)
+    r = rig(revision_mode="fixed", keys_table=hostile)
+
+    # Prepare #1: one cart-row write is lost.
+    code_1, body_1 = r.prepare("K")
+    assert code_1 == 200, "CART_POINTER_SAVE_FAILED is uncertainty, not refusal"
+    assert body_1["status"] == website_checkout.CHECKOUT_AMBIGUOUS
+    assert body_1["reason"] == website_checkout.CART_POINTER_SAVE_FAILED
+    assert "options" not in body_1, "no modal may open with the basket unguarded"
+    assert len(r.creates) == 1
+    # ANTI-VACUITY ANCHOR: a resumable request key exists, with no cart rows behind it.
+    request_rows = _rows_with(r, order_keys.REQUEST_KEY_PREFIX)
+    assert len(request_rows) == 1
+    assert request_rows[0].get("gatewayOrderId"), (
+        "without a stored gatewayOrderId prepare #2 cannot reach the resume branch, so this row "
+        "would not exercise the exit it exists for")
+    # No RECORDED row exists for the refused prefix. The distinction from "no row" is
+    # load-bearing: step 4b's CLAIM has already written a `CARTNARROW#` row carrying `claimedAt`
+    # and deliberately NO `recordedAt`, which is what puts it on the 120s create horizon instead
+    # of the settling one. A paid-memory row is one with `recordedAt`.
+    def _recorded(prefix):
+        return [row for row in _rows_with(r, prefix) if row.get("recordedAt")]
+
+    assert _recorded(refuse_prefix) == []
+    if refuse_prefix == order_keys.CART_PAYMENT_PREFIX:
+        # The fully non-vacuous parametrisation: the FIRST write failed, so none of the three
+        # recorded rows exists and the basket has no paid memory at all.
+        assert _recorded(order_keys.CART_BASKET_PREFIX) == []
+        assert _recorded(order_keys.CART_NARROW_BASKET_PREFIX) == []
+
+    # Prepare #2: the SAME key, healthy table. The resume exit must write the rows.
+    code_2, body_2 = r.prepare("K")
+    assert code_2 == 200
+    assert body_2["status"] == "CHECKOUT_OPTIONS_READY", body_2
+    assert len(r.creates) == 1, "the resume must not create a second payable order"
+    assert r.db.count_prefix(order_keys.CART_PAYMENT_PREFIX) == 1
+    assert r.db.count_prefix(order_keys.CART_BASKET_PREFIX) == 1
+    assert r.db.count_prefix(order_keys.CART_NARROW_BASKET_PREFIX) == 1
+    stored_binding = _rows_with(r, order_keys.GATEWAY_ORDER_PREFIX)[0]
+    pointer = _rows_with(r, order_keys.CART_PAYMENT_PREFIX)[0]
+    assert pointer["paymentAttemptId"] == stored_binding["paymentAttemptId"], (
+        "the pointer must name the attempt that OWNS the payable order, not this invocation's")
+
+    # The payment lands.
+    r.mark_paid()
+
+    # Prepare #3: a FRESH key for the same basket must be refused.
+    code_3, body_3 = r.prepare("K_fresh")
+    assert code_3 == 409, body_3
+    assert body_3["reason"] == website_checkout.CART_ALREADY_PAID
+    assert len(r.creates) == 1, (
+        "a second provider create here is the double charge this whole graft exists to prevent")
+
+
+@pytest.mark.parametrize("refuse_prefix", [
+    order_keys.CART_PAYMENT_PREFIX,
+    order_keys.CART_BASKET_PREFIX,
+    order_keys.CART_NARROW_BASKET_PREFIX,
+])
+def test_a_prepare_onto_an_already_bound_order_still_writes_the_pointer(rig, refuse_prefix):
+    """The behavioural half of the module-wide invariant, over the resume exit x all three writers.
+
+    Whichever of the three writes fails, the answer is the same: CART_POINTER_SAVE_FAILED, 200,
+    and NO options. A divergence between the three would mean one of them was best-effort after
+    all.
+    """
+    hostile = _PointerHostileTable(refuse_prefix)
+    r = rig(revision_mode="fixed", keys_table=hostile)
+    assert r.prepare("K")[1]["reason"] == website_checkout.CART_POINTER_SAVE_FAILED
+    # Re-arm against the resume exit specifically, so the SECOND prepare is the one that fails.
+    hostile.armed = True
+    code, body = r.prepare("K")
+    assert code == 200
+    assert body["reason"] == website_checkout.CART_POINTER_SAVE_FAILED
+    assert "options" not in body
+    assert len(r.creates) == 1
+
+
+# ── per-defect regression rows ─────────────────────────────────────────────────
+
+def test_a_fresh_request_key_cannot_open_a_second_order_for_one_cart(rig):
+    """The headline defect: the reservation is keyed on the request key, the guard on the basket."""
+    r = rig()
+    assert r.prepare("K1")[1]["status"] == "CHECKOUT_OPTIONS_READY"
+    code, body = r.prepare("K2_fresh")
+    assert code == 409
+    assert body["reason"] == website_checkout.CART_PAYMENT_IN_FLIGHT
+    assert len(r.creates) == 1
+
+
+def test_a_paid_cart_with_an_edited_basket_past_the_window_is_not_refused(rig):
+    """Tier 2's window, from the permissive side. The repeat purchase must survive."""
+    r = rig()
+    assert r.prepare("K1")[1]["status"] == "CHECKOUT_OPTIONS_READY"
+    r.mark_paid()
+    r.age_everything(website_checkout.CART_PAYMENT_IN_FLIGHT_SECONDS + 60)
+    r.set_quantity(3)
+    code, body = r.prepare("K2_fresh")
+    assert code == 200 and body["status"] == "CHECKOUT_OPTIONS_READY", body
+    assert len(r.creates) == 2
+
+
+def test_a_paid_basket_with_one_more_unit_past_the_window_is_not_refused(rig):
+    """The fix from the permissive side: a real edit past the settling interval is payable."""
+    r = rig()
+    assert r.prepare("K1")[1]["status"] == "CHECKOUT_OPTIONS_READY"
+    r.mark_paid()
+    r.age_everything(website_checkout.CART_PAYMENT_IN_FLIGHT_SECONDS + 60)
+    r.set_quantity(2)
+    assert r.prepare("K2_fresh")[0] == 200
+    assert len(r.creates) == 2
+
+
+def test_a_paid_basket_reordered_to_a_different_address_is_refused_past_the_window(rig,
+                                                                                  monkeypatch):
+    """The designed COST, pinned so it is a decision rather than a surprise.
+
+    `narrow_basket_hash` ignores the address, so an address-only re-order of a paid basket
+    matches narrowly FOREVER and is refused with no self-release. The two cases it cannot
+    distinguish -- "Wix moved a field we do not control" and "the shopper re-ordered the same
+    items to a different address" -- are observationally identical, and only one of them may pass.
+    """
+    r = rig()
+    assert r.prepare("K1")[1]["status"] == "CHECKOUT_OPTIONS_READY"
+    r.mark_paid()
+    r.age_everything(website_checkout.CART_PAYMENT_IN_FLIGHT_SECONDS + 60)
+    # Same items, same tender, a different delivery address IN THE SAME STATE. The state matters:
+    # an inter-state address flips `intra_state`, which changes the convenience-fee GST split,
+    # which changes `quote.components()` -- and `components` IS a narrow term, so an inter-state
+    # re-order hashes differently and is correctly ALLOWED. The cost documented here is the
+    # intra-state case, where nothing the narrow identity names has moved.
+    monkeypatch.setattr(r.h, "LOAD_OWNED_ADDRESS", lambda customer_id: {
+        "addressLine1": "7 Park Street", "city": "Kolkata",
+        "state": "West Bengal", "postalCode": "700016"})
+    code, body = r.prepare("K2_fresh")
+    assert code == 409, body
+    assert body["reason"] == website_checkout.CART_ALREADY_PAID
+    assert len(r.creates) == 1
+
+
+def test_a_reload_in_the_paying_tab_is_refused_not_resumed(rig):
+    """The paid arm sits ABOVE the same-request-key exemption, deliberately.
+
+    `cart.tsx` never clears CHECKOUT_REQUEST_KEY, so the tab that just paid still holds its key.
+    With the exemption first, a Proceed click would be handed a payable modal for a captured
+    basket, and "no second charge" would rest entirely on Razorpay refusing a payment against an
+    order already marked paid -- an external behaviour nothing here verifies.
+    """
+    r = rig(revision_mode="fixed")
+    assert r.prepare("K")[1]["status"] == "CHECKOUT_OPTIONS_READY"
+    r.mark_paid()
+    code, body = r.prepare("K")
+    assert code == 409, body
+    assert body["reason"] == website_checkout.CART_ALREADY_PAID
+    assert "options" not in body
+    assert len(r.creates) == 1
+
+
+def test_a_reload_on_an_unpaid_attempt_still_resumes(rig):
+    """The other half, and the reason the exemption exists at all."""
+    r = rig(revision_mode="fixed")
+    first = r.prepare("K")[1]
+    assert first["status"] == "CHECKOUT_OPTIONS_READY"
+    code, body = r.prepare("K")
+    assert code == 200, body
+    assert body["status"] == "CHECKOUT_OPTIONS_READY"
+    assert body["options"]["orderId"] == first["options"]["orderId"]
+    assert len(r.creates) == 1
+
+
+def test_a_same_key_prepare_in_the_bumping_world_is_an_intent_change(rig):
+    """The other revision world, where `intent_fingerprint` refuses before the resume is reached."""
+    r = rig(revision_mode="bump")
+    assert r.prepare("K")[1]["status"] == "CHECKOUT_OPTIONS_READY"
+    code, body = r.prepare("K")
+    assert code == 409
+    assert body["reason"] == "INTENT_CHANGED"
+    assert len(r.creates) == 1
+
+
+def test_a_legitimate_retry_after_a_failed_attempt_still_wins_the_claim(rig):
+    """Arm 0 passes a retryable attempt, so the CAS basis names it and the claim re-points."""
+    r = rig()
+    assert r.prepare("K1")[1]["status"] == "CHECKOUT_OPTIONS_READY"
+    r.mark_failed()
+    r.age_everything(website_checkout.CART_PAYMENT_IN_FLIGHT_SECONDS + 60)
+    code, body = r.prepare("K2_fresh")
+    assert code == 200 and body["status"] == "CHECKOUT_OPTIONS_READY", body
+    assert len(r.creates) == 2
+
+
+def test_two_overlapping_prepares_on_one_basket_open_one_payable_order(rig):
+    """The interleaved row: a `create_order` stub that re-enters prepare before returning.
+
+    MEASURED, and it is not where the design predicted. Step 4b's claim is written BEFORE
+    `create_order`, so by the time the inner prepare runs, a `CARTNARROW#` row already exists
+    carrying `claimedAt`, the winner's `paymentAttemptId` and the winner's `requestKey` -- while
+    the winner's ATTEMPT row does not exist yet, because that is written after the create returns.
+    The inner prepare therefore presents a different request key, fails the resume exemption,
+    finds a claim with no readable attempt, and is refused by arm 0's bounded create-horizon
+    window -- at step 2a, before its own reservation.
+
+    That is strictly better than being refused at step 4b: it writes nothing at all, and it names
+    the holder's attempt, which comes to exist moments later and which `/checkout/status/` can
+    then resolve. The step-4b loser path -- where the refusal deliberately names NO attempt,
+    because the holder's may not exist -- is exercised directly by
+    `test_a_held_basket_claim_refuses_without_naming_an_attempt`.
+
+    What is asserted here is the invariant, not the arm: ONE create, ONE gateway order, ONE
+    reference, ONE modal.
+    """
+    r = rig(revision_mode="fixed")
+    inner = {}
+    original = r._create_order
+
+    def reentrant(*, amount_paise, receipt, notes):
+        if not inner:
+            inner["code"], inner["body"] = r.prepare("K2")
+        return original(amount_paise=amount_paise, receipt=receipt, notes=notes)
+
+    r.h.razorpay_orders.create_order = reentrant
+    code_1, body_1 = r.prepare("K1")
+
+    assert len(r.creates) == 1, (
+        f"two payable gateway orders for one basket: {[c['receipt'] for c in r.creates]}")
+    assert r.db.count_prefix(order_keys.GATEWAY_ORDER_PREFIX) == 1
+    assert r.db.count_prefix(order_keys.PAYMENT_REFERENCE_PREFIX) == 1
+    # Exactly one modal, and it is the winner's.
+    assert code_1 == 200 and body_1["status"] == "CHECKOUT_OPTIONS_READY"
+    assert inner["code"] == 409
+    assert inner["body"]["status"] == website_checkout.CHECKOUT_AMBIGUOUS
+    assert inner["body"]["reason"] == website_checkout.CART_PAYMENT_IN_FLIGHT
+    assert "options" not in inner["body"]
+    # The loser wrote NOTHING: it was excluded at step 2a, above its own reservation.
+    assert r.db.count_prefix(order_keys.REQUEST_KEY_PREFIX) == 1, (
+        "the overlapping prepare is refused before step 3, so only the winner's key exists")
+    # ...and it names the attempt that holds the basket, not its own.
+    assert inner["body"]["paymentAttemptId"] == body_1["paymentAttemptId"]
+
+
+def test_the_gate_off_path_claims_nothing(rig):
+    """Step 4b is AFTER the gate, so a dormant prepare writes no claim and blocks nothing."""
+    r = rig(initiation_enabled=False)
+    code, body = r.prepare("K1")
+    assert code == 200
+    assert body["status"] == website_checkout.PAYMENT_INITIATION_DISABLED
+    assert r.creates == []
+    for prefix in (order_keys.CART_PAYMENT_PREFIX, order_keys.CART_BASKET_PREFIX,
+                   order_keys.CART_NARROW_BASKET_PREFIX, order_keys.PAYMENT_REFERENCE_PREFIX,
+                   order_keys.GATEWAY_ORDER_PREFIX, order_keys.ORDER_NUMBER_PREFIX):
+        assert r.db.count_prefix(prefix) == 0, prefix
+    assert r.db.rows(ATTEMPTS_TABLE) == []
+    # A second gate-off prepare is not blocked by the first.
+    assert r.prepare("K2")[1]["status"] == website_checkout.PAYMENT_INITIATION_DISABLED
+
+
+def test_the_gate_off_prepare_leaves_no_payable_residue(rig):
+    """The same property as the absence of anything payable, plus no stored Wix payload."""
+    r = rig(initiation_enabled=False)
+    r.prepare("K1")
+    assert r.db.rows(ORDERS_TABLE) == []
+    request_rows = _rows_with(r, order_keys.REQUEST_KEY_PREFIX)
+    assert len(request_rows) == 1, "the reservation is the ONLY row a dormant prepare writes"
+    assert not request_rows[0].get("referenceId")
+    assert not request_rows[0].get("gatewayOrderId")
+    assert not request_rows[0].get("createClaimedAt")
+
+
+def test_a_snapshot_with_no_frozen_payload_is_rejected_as_basket_identity_required():
+    """A guard that could not run is a different fact from a quote that will not settle."""
+    quote = cp.compute_quote(COLLECTION_PAISE)
+    snapshot = cp.QuoteSnapshot(
+        customer_id=CUSTOMER, cart_id=CART, cart_revision=1, created_at=1_700_000_000,
+        expires_at=1_700_000_900, policy_version=quote.policy_version, quote=quote,
+        snapshot_hash="deadbeef", frozen_data={})
+    with pytest.raises(website_checkout.CheckoutRejected) as raised:
+        website_checkout.prepare_checkout(
+            customer_id=CUSTOMER, snapshot=snapshot,
+            presented_snapshot_hash="deadbeef", request_key="K", now=1_700_000_100,
+            keys_table=_keys(),
+            create_order=lambda **_: pytest.fail("nothing may be created"),
+            find_order_by_receipt=lambda _: None, account_mode_of=lambda _: "live",
+            initiation_enabled=True)
+    assert raised.value.reason == website_checkout.BASKET_IDENTITY_REQUIRED
+    assert raised.value.reason != "AMOUNT_NOT_SETTLED"
+
+
+@pytest.mark.parametrize("resolver", ["resolve_cart_basket", "resolve_cart_narrow_basket",
+                                      "resolve_cart_payment"])
+def test_a_guard_read_failure_is_a_503_and_never_a_pass(rig, monkeypatch, resolver):
+    """A throttle must never read as "no live payment": the caller acts on that by charging."""
+    r = rig()
+
+    def raising(*_args, **_kwargs):
+        raise order_keys.OrderIdentityUnavailable("simulated throttle")
+
+    monkeypatch.setattr(r.h.website_checkout.order_keys, resolver, raising)
+    code, body = r.prepare("K1")
+    assert code == 503
+    assert body["error"] == "TEMPORARILY_UNAVAILABLE"
+    assert r.creates == []
+
+
+def test_a_held_basket_claim_refuses_without_naming_an_attempt(rig, monkeypatch):
+    """A lost claim carries NO attempt id: the holder's attempt may not exist yet."""
+    r = rig()
+    monkeypatch.setattr(r.h.website_checkout.order_keys, "claim_cart_narrow_basket",
+                        lambda *a, **k: False)
+    monkeypatch.setattr(r.h.website_checkout.order_keys, "claim_cart_basket",
+                        lambda *a, **k: False)
+    code, body = r.prepare("K1")
+    assert code == 409
+    assert body["reason"] == website_checkout.CART_PAYMENT_IN_FLIGHT
+    assert not body.get("paymentAttemptId"), (
+        "an unresolvable attempt id would point /checkout/status/ at nothing, which is worse "
+        "than none")
+    assert r.creates == [], "a lost claim must create nothing"
+    assert r.db.count_prefix(order_keys.PAYMENT_REFERENCE_PREFIX) == 0, (
+        "the claim is BEFORE the mint, so a loser leaves no orphan PAYREF# row")
+
+
+def test_a_throttled_basket_claim_is_a_503(rig, monkeypatch):
+    r = rig()
+
+    def raising(*_a, **_k):
+        raise order_keys.OrderIdentityUnavailable("simulated throttle")
+
+    monkeypatch.setattr(r.h.website_checkout.order_keys, "claim_cart_narrow_basket", raising)
+    code, body = r.prepare("K1")
+    assert code == 503 and body["error"] == "TEMPORARILY_UNAVAILABLE"
+    assert r.creates == []
+
+
+def test_a_basket_row_naming_another_customers_attempt_does_not_block(rig):
+    """The rows are indexes, not authorities."""
+    r = rig()
+    assert r.prepare("K1")[1]["status"] == "CHECKOUT_OPTIONS_READY"
+    table = r.db.Table(ATTEMPTS_TABLE)
+    for key, row in list(table.rows.items()):
+        row = dict(row)
+        row["customerId"] = "CUS_someone_else"
+        table.rows[key] = row
+    code, body = r.prepare("K2_fresh")
+    assert code == 200 and body["status"] == "CHECKOUT_OPTIONS_READY", body
+
+
+def test_a_dangling_basket_row_blocks_for_one_window_then_releases(rig):
+    """Fail closed, but BOUNDED: blocking forever would brick a basket on an anomaly."""
+    r = rig()
+    assert r.prepare("K1")[1]["status"] == "CHECKOUT_OPTIONS_READY"
+    # The attempt row vanishes; the cart rows remain. An anomaly, not a race.
+    r.db.Table(ATTEMPTS_TABLE).rows.clear()
+    assert r.prepare("K2_fresh")[0] == 409
+    r.age_everything(website_checkout.CART_PAYMENT_IN_FLIGHT_SECONDS + 60)
+    code, body = r.prepare("K3_fresh")
+    assert code == 200 and body["status"] == "CHECKOUT_OPTIONS_READY", (
+        "a dangling row must release after one window rather than bricking the basket")
+
+
+def test_the_in_flight_horizon_outlasts_every_quote_ttl():
+    """Three inequalities, because 900 was wrong: it EQUALS the V1 snapshot TTL."""
+    spec = importlib.util.spec_from_file_location("graft_ttl_handler", HANDLER_PATH)
+    handler = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(handler)
+    assert (website_checkout.CART_PAYMENT_IN_FLIGHT_SECONDS
+            > handler.WEBSITE_SNAPSHOT_TTL_SECONDS)
+    assert (website_checkout.CART_PAYMENT_IN_FLIGHT_SECONDS
+            > purchase_intent.QUOTE_TTL_SECONDS)
+    assert (website_checkout.CART_PAYMENT_IN_FLIGHT_SECONDS
+            > website_checkout.CREATE_CLAIM_STALE_SECONDS)
+    assert (website_checkout.CREATE_CLAIM_STALE_SECONDS
+            == order_keys.CART_CREATE_CLAIM_STALE_SECONDS)
+
+
+def test_v1_is_refused_when_the_gate_is_on(rig, monkeypatch):
+    """V1 has no stable cart identity, so the guard cannot run and the branch is refused."""
+    monkeypatch.delenv("WIX_CART_V2_ENABLED", raising=False)
+    r = rig(initiation_enabled=True)
+    monkeypatch.delenv("WIX_CART_V2_ENABLED", raising=False)
+    code, body = r.prepare("K1")
+    assert code == 409
+    assert body["status"] == website_checkout.CHECKOUT_REJECTED
+    assert body["reason"] == website_checkout.CART_V2_REQUIRED
+    assert r.creates == [], "nothing may be created"
+    assert r.checkouts == [], "and no Wix checkout may be minted either"
+    for prefix in (order_keys.CART_PAYMENT_PREFIX, order_keys.CART_BASKET_PREFIX,
+                   order_keys.CART_NARROW_BASKET_PREFIX, order_keys.PAYMENT_REFERENCE_PREFIX,
+                   order_keys.GATEWAY_ORDER_PREFIX, order_keys.REQUEST_KEY_PREFIX):
+        assert r.db.count_prefix(prefix) == 0, prefix
+
+
+def test_v1_still_serves_when_the_gate_is_off(rig, monkeypatch):
+    """The gate-off V1 body stays byte-identical in behaviour: 200 PAYMENT_INITIATION_DISABLED."""
+    monkeypatch.delenv("WIX_CART_V2_ENABLED", raising=False)
+    r = rig(initiation_enabled=False)
+    monkeypatch.delenv("WIX_CART_V2_ENABLED", raising=False)
+    code, body = r.prepare("K1")
+    assert code == 200
+    assert body["status"] == website_checkout.PAYMENT_INITIATION_DISABLED
+    assert len(r.checkouts) == 1, "V1 mints its Wix checkout, exactly as before"
+
+
+def test_two_v1_prepares_mint_two_checkout_ids(rig, monkeypatch):
+    """The measurement the V1 refusal rests on: `create_checkout` is a create, not a resolve."""
+    monkeypatch.delenv("WIX_CART_V2_ENABLED", raising=False)
+    r = rig(initiation_enabled=False)
+    monkeypatch.delenv("WIX_CART_V2_ENABLED", raising=False)
+    r.prepare("K1")
+    r.prepare("K2")
+    assert len(r.checkouts) == 2
+    # Two different cart ids for one basket is exactly why the cart-keyed guard cannot run here.
+    assert r.wix is not None
+
+
+# ── the module-wide invariant, by AST ──────────────────────────────────────────
+
+WEBSITE_CHECKOUT_SOURCE = (
+    ROOT / "amplify/functions/shared/lambda_utils/ecommerce/website_checkout.py")
+
+
+def _enclosing_function(tree, target):
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            for inner in ast.walk(node):
+                if inner is target:
+                    return node.name
+    return "<module>"
+
+
+def test_only_the_choke_point_can_emit_a_payable_modal():
+    """An AST walk, not a text scan: the comments in that module contain the strings searched for.
+
+    Three assertions, and together they make "every payable modal has paid memory behind it" a
+    property of the CALL GRAPH rather than a list of exits somebody has to keep up to date. This
+    row is RED on the pre-graft module, which has two construction sites and two
+    `_browser_options` call sites.
+    """
+    tree = ast.parse(WEBSITE_CHECKOUT_SOURCE.read_text(encoding="utf-8"))
+
+    # (1) Exactly ONE `PreparedCheckout(...)` carrying `options=` or the ready status.
+    ready_sites = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if not (isinstance(node.func, ast.Name) and node.func.id == "PreparedCheckout"):
+            continue
+        payable = any(keyword.arg == "options" for keyword in node.keywords)
+        payable = payable or any(
+            keyword.arg == "status"
+            and isinstance(keyword.value, ast.Name)
+            and keyword.value.id == "CHECKOUT_OPTIONS_READY"
+            for keyword in node.keywords)
+        if payable:
+            ready_sites.append(_enclosing_function(tree, node))
+    assert ready_sites == ["_emit_payable_modal"], (
+        f"a payable PreparedCheckout is constructed in {ready_sites}; it may only be constructed "
+        f"in _emit_payable_modal, which is what writes the three cart rows first")
+
+    # (2) Exactly ONE `_browser_options` call site, in the same function.
+    browser_sites = [_enclosing_function(tree, node) for node in ast.walk(tree)
+                     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                     and node.func.id == "_browser_options"]
+    assert browser_sites == ["_emit_payable_modal"], (
+        f"_browser_options is called from {browser_sites}; a second call site is a second way a "
+        f"browser can receive payable options")
+
+    # (3) The write precedes the construction, by line number, inside that one function.
+    choke = [node for node in ast.walk(tree)
+             if isinstance(node, ast.FunctionDef) and node.name == "_emit_payable_modal"][0]
+    writes = [node.lineno for node in ast.walk(choke)
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+              and node.func.id == "_record_cart_pointer"]
+    constructions = [node.lineno for node in ast.walk(choke)
+                     if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                     and node.func.id == "_browser_options"]
+    assert writes and constructions
+    assert min(writes) < min(constructions), (
+        "_record_cart_pointer must run BEFORE the options are built, or a failed write still "
+        "yields a payable modal")
+
+
+def test_the_browser_amount_and_the_attempt_amount_are_different_expressions():
+    """The split, re-pinned here because the choke point moved it out of one function.
+
+    `tests/test_gift_cards_iam_and_table.py`'s SEAM-G14 row asserts this by requiring
+    `_browser_options` and `payment_attempt.build` to appear in the SAME function with different
+    `amount_paise` expressions. The choke point deliberately separates them -- there is now
+    exactly one `_browser_options` call site and it is not in the function that builds the attempt
+    -- so that row's SCOPING no longer matches the structure. The PROPERTY is unchanged and is
+    asserted here instead: the browser is shown the pay-now leg and the attempt records the full
+    payable. That marked test is another workstream's and is left untouched.
+    """
+    tree = ast.parse(WEBSITE_CHECKOUT_SOURCE.read_text(encoding="utf-8"))
+    binder = [node for node in ast.walk(tree)
+              if isinstance(node, ast.FunctionDef) and node.name == "_bind_and_ready"][0]
+
+    def _amounts(predicate):
+        found = []
+        for node in ast.walk(binder):
+            if isinstance(node, ast.Call) and predicate(node.func):
+                found += [ast.unparse(keyword.value) for keyword in node.keywords
+                          if keyword.arg == "amount_paise"]
+        return found
+
+    built = set(_amounts(lambda f: isinstance(f, ast.Attribute) and f.attr == "build"))
+    emitted = set(_amounts(lambda f: isinstance(f, ast.Name)
+                           and f.id == "_emit_payable_modal"))
+    assert built and emitted
+    assert not (built & emitted), (
+        f"the attempt and the modal are handed the same amount expression "
+        f"{sorted(built & emitted)}, so the browser is shown a price that is not being charged")
+    assert all("pay_now" in argument for argument in emitted), (
+        f"the browser amount comes from {sorted(emitted)} rather than from the pay-now leg")
+    assert all("full_amount" in argument for argument in built), (
+        f"the attempt records {sorted(built)} rather than the full payable")
