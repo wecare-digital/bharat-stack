@@ -239,8 +239,11 @@ const BlogSubscribe: React.FC = () => {
                     placeholder="Code"
                     disabled={ phoneStep === 'verifying' }
                   />
-                  <button type="button" onClick={ verifyPhone } disabled={ phoneStep === 'verifying' }>
-                    { phoneStep === 'verifying' ? 'Checking…' : 'Verify WhatsApp OTP' }
+                  <button type="button" onClick={ verifyPhone } disabled={ phoneStep === 'verifying' || phoneStep === 'sending' }>
+                    { phoneStep === 'verifying' ? 'Checking…' : 'Confirm WhatsApp code' }
+                  </button>
+                  <button type="button" onClick={ requestPhone } disabled={ phoneStep === 'verifying' || phoneStep === 'sending' || !phoneValid }>
+                    { phoneStep === 'sending' ? 'Sending…' : 'Resend OTP on WhatsApp' }
                   </button>
                 </>
               ) : phoneStep === 'verified' ? (
@@ -277,8 +280,11 @@ const BlogSubscribe: React.FC = () => {
                     placeholder="Code"
                     disabled={ emailStep === 'verifying' }
                   />
-                  <button type="button" onClick={ verifyEmail } disabled={ emailStep === 'verifying' }>
-                    { emailStep === 'verifying' ? 'Checking…' : 'Verify email code' }
+                  <button type="button" onClick={ verifyEmail } disabled={ emailStep === 'verifying' || emailStep === 'sending' }>
+                    { emailStep === 'verifying' ? 'Checking…' : 'Confirm email code' }
+                  </button>
+                  <button type="button" onClick={ requestEmail } disabled={ emailStep === 'verifying' || emailStep === 'sending' || !emailValid }>
+                    { emailStep === 'sending' ? 'Sending…' : 'Resend verification code by email' }
                   </button>
                 </>
               ) : emailStep === 'verified' ? (
