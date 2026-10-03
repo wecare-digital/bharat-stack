@@ -141,38 +141,37 @@ const VayuLokPage: React.FC = () => {
           </div>
 
           <h1 className="vl-head">
-            Bharat{ ' ' }
-            <span
-              className="vl-mark"
-              style={ { background: cycleWords[ cycleIndex ].tint } }
-            >
-              <i
-                className="vl-mark-dot"
-                style={ { background: cycleWords[ cycleIndex ].dot } }
-                aria-hidden="true"
-              />
+            <span className="vl-head-line vl-head-line-one">
+              <span>Bharat</span>{ ' ' }
               <span
-                className="vl-cycle"
-                style={ cycleW ? { width: `${cycleW}px` } : undefined }
+                className="vl-mark"
+                style={ { background: cycleWords[ cycleIndex ].tint } }
               >
-                {/* The rotation is visual only, so screen readers get the full list
-                    once and every animated copy is hidden from them. */}
-                <span className="vl-sr-only">{ cycleWords.map( c => c.word ).join( ', ' ) }</span>
-                { cycleWords.map( ( c, i ) => (
-                  <span
-                    key={ c.word }
-                    ref={ el => { wordRefs.current[ i ] = el; } }
-                    className={ `vl-cyc-word ${i === cycleIndex ? 'on' : ''}`.trim() }
+                <i
+                  className="vl-mark-dot"
+                  style={ { background: cycleWords[ cycleIndex ].dot } }
+                  aria-hidden="true"
+                />
+                <span
+                  className="vl-cycle"
+                  style={ cycleW ? { width: `${cycleW}px` } : undefined }
+                >
+                  <span className="vl-sr-only">{ cycleWords.map( c => c.word ).join( ', ' ) }</span>
+                  { cycleWords.map( ( c, i ) => (
+                    <span
+                      key={ c.word }
+                      ref={ el => { wordRefs.current[ i ] = el; } }
+                      className={ `vl-cyc-word ${i === cycleIndex ? 'on' : ''}`.trim() }
                       data-wc-translate="true"
-                    aria-hidden="true"
-                  >{ c.word }</span>
-                ) ) }
+                      aria-hidden="true"
+                    >{ c.word }</span>
+                  ) ) }
+                </span>
               </span>
-            </span>{ ' ' }
-            {/* "Intelligence" IS WRAPPED SO IT CAN BE PUT ON ITS OWN LINE BELOW 560px.
-                See the .vl-head-tail rule for the measurements - this span exists only to
-                give that media query something to target. */}
-            <span className="vl-head-tail">Intelligence</span>
+            </span>
+            <span className="vl-head-line vl-head-line-two">
+              <span className="vl-head-tail">Intelligence</span>
+            </span>
           </h1>
         </div>
       </main>
@@ -204,7 +203,7 @@ const VayuLokPage: React.FC = () => {
         /* No flex gap: the only gap in the page is under the badge and .vl-eyebrow
            owns it. A column gap would apply to nothing and quietly mislead whoever
            adds the second element. */
-        .vl-layout{width:100%;max-width:1300px;margin:0 auto;padding:80px 24px 40px;box-sizing:border-box}
+        .vl-layout{width:100%;max-width:1300px;margin:0 auto;padding:80px 24px 48px;box-sizing:border-box}
 
         /* Spacing only. The badge paints itself inside BrandBadge. */
         .vl-eyebrow{margin:0 0 20px}
@@ -219,6 +218,10 @@ const VayuLokPage: React.FC = () => {
              every size, and it lets both media-query overrides go - restating it per breakpoint
              is what caused the spread. index.tsx fixed this; these three copies had not. */
           letter-spacing:-0.04em;color:rgba(0,0,0,.95);margin:0;max-width:900px}
+        .vl-head-line{display:block}
+        .vl-head-line-one{display:flex;align-items:baseline;gap:.14em;white-space:nowrap;width:max-content;max-width:100%}
+        .vl-head-line-two{display:block;margin-top:.08em}
+        .vl-head-tail{display:inline-block;white-space:nowrap}
 
         /* Rotating pill. Same geometry, easing and timings as .hero-mark on the
            Grahak OS page - em-based so it tracks the clamp() headline at every width. */
@@ -293,50 +296,13 @@ const VayuLokPage: React.FC = () => {
 
         @media(max-width:767px){
           .vl-shell{padding-top:96px}
-          .vl-layout{padding:48px 20px 64px}
+          .vl-layout{padding:48px 16px 32px}
           .vl-head{line-height:1.1}
         }
-        @media(max-width:480px){
-          .vl-layout{padding:40px 16px 56px}
-        }
-
-        /* THE HEADLINE MUST NOT CHANGE HEIGHT WHEN THE PILL CHANGES WORD.
-           The pill animates to each word's measured width, and the words here span
-           "Air" to "Heatmap" - 70px to 225px at 1280, a 155px spread. With the pill inline
-           between "Bharat" and "Intelligence", that spread moves the line break, so the h1
-           grew and everything below it jumped. Measured across 18 viewports, the h1 had
-           TWO different heights at these widths:
-             320px        87 / 126px  (delta 39px)
-             450-520px    47 /  87px  (delta 40px)
-           and a single stable height everywhere else. Note this is not one contiguous band:
-           340-430px was already stable at 87px, and 560px and up are stable at 47px.
-           Putting "Intelligence" on its own line below 560px makes the headline two lines
-           for EVERY word across the whole 320-559 range - "Bharat <pill>" fits on one line
-           even at 320px with the widest word - which removes both jumps with one rule and
-           leaves 560px and above exactly as it was. That last part is the point: at 560+
-           the headline is a single line for every word, and forcing a break there would be
-           a visual change to a layout that measures correctly.
-           Re-measure with node tools/browser/animcheck.js after touching the word list;
-           adding a longer word than "Heatmap" can move the 560px threshold.
-           (No backticks in this comment on purpose - it sits inside a style jsx template
-           literal, where one stray backtick ends the literal and fails the build with a
-           misleading "Expected '</', got 'ident'" pointing at the JSX below.) */
-        @media(max-width:559px){
-          .vl-head-tail{display:block}
-        }
-        /* AT 339px AND BELOW THE PILL NEEDS ITS OWN LINE AS WELL.
-           The rule above alone fixed 450-520px but left 320px still jumping 87/126px,
-           because at 288px of usable width and a 36px font "Bharat <Heatmap>" does not fit
-           on one line while "Bharat <Air>" does - so the first line broke for the long
-           words only. Dropping the pill to its own line makes the headline three lines for
-           every word at this size: "Bharat" / pill / "Intelligence".
-           Scoped to 339px rather than folded into the 559px rule above on purpose: from
-           340px up the two-line form already measures a constant height for every word, and
-           forcing a third line there would be a change with no defect behind it.
-           width:fit-content is required alongside display:block, or the tinted pill
-           stretches to the full column width. */
-        @media(max-width:339px){
-          .vl-mark{display:block;width:fit-content}
+        @media(max-width:359px){
+          .vl-head{font-size:clamp(31px,9vw,36px)}
+          .vl-head-line-one{gap:.1em;transform-origin:left center}
+          .vl-mark{padding-inline:.18em .24em}
         }
 
         /* The rotation itself is already disabled in JS; this settles the pill into
