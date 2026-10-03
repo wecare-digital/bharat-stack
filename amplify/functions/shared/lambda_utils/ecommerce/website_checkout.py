@@ -640,7 +640,10 @@ def _record_cart_pointer(keys_table, *, customer_id, snapshot, attempt_id,
                          request_key, gateway_order_id) -> Optional[PreparedCheckout]:
     """Assert ALL THREE cart rows, or return the refusal that must be answered instead of options.
 
-    `None` means "written, carry on". Three writes, not one, and none is best-effort:
+    `None` means "written, carry on", and it is returned on exactly one path: all three writes
+    (two, when there is no narrow identity) succeeded. Every other outcome -- an unwritable row
+    OR an identity too empty to compose a key from -- is a `CART_POINTER_SAVE_FAILED` refusal.
+    Three writes, not one, and none is best-effort:
 
       * `CARTPAYMENT#<sub>#<cart>`         — which attempt is LIVE on this cart (one slot,
         upserted, correctly last-writer-wins);
@@ -663,7 +666,24 @@ def _record_cart_pointer(keys_table, *, customer_id, snapshot, attempt_id,
     """
     wix_cart_id = snapshot.cart_id
     if not customer_id or not wix_cart_id:
-        return None
+        # A REFUSAL, not a silent pass. Either identity empty means the three keys cannot be
+        # composed, so there is no basket to guard and the modal must not open.
+        #
+        # Unreachable today, and the refusal is here precisely so the invariant does not depend
+        # on that remaining true: `build_snapshot` derives `frozen_data['cart']['id']` from the
+        # same `cart_id` it puts on `QuoteSnapshot.cart_id`, and step 2a converts a cartless
+        # payload into `CheckoutRejected(BASKET_IDENTITY_REQUIRED)` before anything is created,
+        # while `customer_id` comes from `customer_auth.require_customer`. Returning `None` here
+        # meant "written, carry on" and made the choke point's guarantee rest on a precondition
+        # two modules away.
+        #
+        # Same reason and same vocabulary as the write-failure arm below: the basket is
+        # unguarded, so NO options are exposed, the modal never opens, and the unused Razorpay
+        # order expires.
+        logger.error(json.dumps({"event": "website_checkout_cart_pointer_identity_missing"}))
+        return PreparedCheckout(status=CHECKOUT_AMBIGUOUS, payment_attempt_id=attempt_id,
+                                gateway_order_id=gateway_order_id,
+                                reason=CART_POINTER_SAVE_FAILED)
     try:
         presented_basket = basket_hash(snapshot.frozen_data)
         presented_narrow = narrow_basket_hash(snapshot.frozen_data)
@@ -954,6 +974,20 @@ def prepare_checkout(*,
     # 5. Mint the reference, then take the create right. Both AFTER the gate, so a gate-off
     #    prepare mints no reference and leaves no payable residue, and both BEFORE the external
     #    call, so nothing is created without a reference the webhook can reconcile on.
+    #
+    #    THE MINT CANNOT MOVE BELOW THE CREATE RIGHT, and the residue that follows is accepted
+    #    rather than overlooked. `_reference_and_create_right` claims the right and writes the
+    #    reference onto the REQUESTKEY# row in ONE conditional round trip -- that single trip is
+    #    what makes the right and the reference agree -- so it has to be handed a value, which
+    #    means the value exists before the right is known.
+    #
+    #    Consequence: a same-key click that won step 3's reservation but LOSES the create right
+    #    has already minted and durably reserved a `PAYREF#` row that `if_not_exists` cannot
+    #    undo. That row is abandoned, not dangerous: no gateway order is created for it, no
+    #    `providerOrderId` is ever linked to it, and the webhook resolves on
+    #    `notes.referenceId`, which only ever carries the WINNER's reference. It is garbage, and
+    #    the loser correlates on the winner's stored reference below.
+    #    `test_a_lost_create_right_correlates_on_the_stored_reference` pins both halves.
     if not reference_id and allocate_reference is not None:
         reference_id = str(allocate_reference(attempt_id, pay_now_paise,
                                               gift_card_redeem_paise) or "")
