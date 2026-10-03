@@ -1,0 +1,323 @@
+import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { SITE_ORIGIN } from '../config/share';
+
+/**
+ * THE LIVE VAYULOK CONTENT, IN ISOLATION - the behaviour that is verifiable WITHOUT a browser,
+ * a real Google key, or a *.wecare.digital origin.
+ *
+ * WHY THIS FILE EXISTS, AND WHY IT IMPORTS THE MODULE DYNAMICALLY
+ * --------------------------------------------------------------
+ * src/components/VayuLokLive.tsx reads the key ONCE, at module-evaluation time:
+ *
+ *     const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
+ *
+ * A top-level `import` would freeze that read at whatever the env was when the suite was first
+ * loaded, so the key-absent and key-present cases could not both be exercised from one file. Each
+ * case therefore stubs the env var FIRST, calls vi.resetModules(), and then `await import(...)`s a
+ * fresh module instance so the module-scope read sees the stubbed value. This mirrors how the
+ * component actually behaves in a build: the value is fixed when the chunk is evaluated.
+ *
+ * These are NOT static-value assertions. Every case drives the component's real effects - script
+ * injection, fetch, the Google Maps stubs, the layer-control click - and would FAIL if the
+ * degradation guard, the one-script-tag guard, or the on-user-action heatmap were reverted.
+ */
+
+const DUMMY_KEY = 'test-browser-key-not-a-real-credential';
+
+// A minimal window.google.maps stub. It records what the component constructs and pushes, so the
+// tests can assert on the real options the component passes rather than on duplicated literals.
+interface MapsRecorder {
+  mapOpts: Record<string, unknown> | null;
+  overlayPushes: unknown[];
+  overlayClears: number;
+  imageMapTypeOpts: Record<string, unknown>[];
+  geocodeCalls: Record<string, unknown>[];
+  textSearchCalls: Record<string, unknown>[];
+}
+
+function installGoogleMaps(): MapsRecorder {
+  const rec: MapsRecorder = {
+    mapOpts: null,
+    overlayPushes: [],
+    overlayClears: 0,
+    imageMapTypeOpts: [],
+    geocodeCalls: [],
+    textSearchCalls: [],
+  };
+
+  const overlayMapTypes = {
+    clear: () => { rec.overlayClears += 1; },
+    push: ( t: unknown ) => { rec.overlayPushes.push( t ); },
+  };
+
+  class FakeMap {
+    overlayMapTypes = overlayMapTypes;
+    constructor( _el: HTMLElement, opts: Record<string, unknown> ) { rec.mapOpts = opts; }
+    setCenter() { /* no-op */ }
+  }
+  class FakeMarker {
+    constructor( _opts: Record<string, unknown> ) { /* no-op */ }
+    setPosition() { /* no-op */ }
+    setTitle() { /* no-op */ }
+  }
+  class FakeGeocoder {
+    geocode( req: Record<string, unknown> ) { rec.geocodeCalls.push( req ); }
+  }
+  class FakeImageMapType {
+    constructor( opts: Record<string, unknown> ) { rec.imageMapTypeOpts.push( opts ); }
+  }
+  class FakePlacesService {
+    constructor( _attr: HTMLElement ) { /* no-op */ }
+    textSearch( req: Record<string, unknown> ) { rec.textSearchCalls.push( req ); }
+  }
+
+  ( window as unknown as { google: unknown } ).google = {
+    maps: {
+      Map: FakeMap,
+      Marker: FakeMarker,
+      Geocoder: FakeGeocoder,
+      ImageMapType: FakeImageMapType,
+      LatLng: class { constructor( _a: number, _b: number ) { /* no-op */ } },
+      places: {
+        PlacesService: FakePlacesService,
+        PlacesServiceStatus: { OK: 'OK' },
+      },
+    },
+  };
+
+  return rec;
+}
+
+function clearGoogleMaps() {
+  delete ( window as unknown as { google?: unknown } ).google;
+}
+
+function removeScript() {
+  document.getElementById( 'gmaps-js' )?.remove();
+}
+
+// Load a FRESH module instance after the env var has been stubbed, so the module-scope key read
+// picks up the stubbed value.
+async function loadComponent() {
+  vi.resetModules();
+  const mod = await import( '../components/VayuLokLive' );
+  return mod.default;
+}
+
+afterEach( () => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  removeScript();
+  clearGoogleMaps();
+  document.body.innerHTML = '';
+} );
+
+describe( 'VayuLokLive - honest degradation when the key is absent', () => {
+  beforeEach( () => {
+    // Explicitly unset so the module-scope read resolves to ''.
+    vi.stubEnv( 'NEXT_PUBLIC_GOOGLE_MAPS_KEY', '' );
+  } );
+
+  it( 'appends no Maps script, fires zero fetches, shows no spinner/placeholder, still renders', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal( 'fetch', fetchSpy );
+    const VayuLokLive = await loadComponent();
+
+    const { container } = render( <VayuLokLive /> );
+    // Let any effects run; with no key they must early-return before touching the DOM/network.
+    await act( async () => { await Promise.resolve(); } );
+
+    // (a) No Maps JS script was injected.
+    expect( document.getElementById( 'gmaps-js' ) ).toBeNull();
+    // (b) The network was never touched - this is the assertion that fails if the component ever
+    // fetches unconditionally instead of behind the key guard.
+    expect( fetchSpy ).not.toHaveBeenCalled();
+    // (c) Degradation is SILENT: no spinner, and no live-metric element rendered with a "--"/"—"
+    // placeholder standing in for a value that never arrived. The map canvas and every live figure
+    // are simply absent rather than shown empty. (textContent is not scanned for "--" because the
+    // styled-jsx CSS custom properties legitimately contain "--".)
+    expect( container.querySelector( '[role="progressbar"]' ) ).toBeNull();
+    expect( container.querySelector( '.vl-live-map-canvas' ) ).toBeNull();
+    expect( container.querySelector( '[class*="vl-live-metric"]' ) ).toBeNull();
+    // No visible text node that is just a dash placeholder.
+    const visibleText = Array.from( container.querySelectorAll( '.vl-live-left *' ) )
+      .map( n => ( n.childNodes.length === 1 && n.firstChild?.nodeType === 3 ? n.textContent || '' : '' ) );
+    expect( visibleText.some( t => t.trim() === '--' || t.trim() === '\u2014' ) ).toBe( false );
+    // (d) The shell still renders - the section and its (visually hidden) heading are present.
+    expect( container.querySelector( 'section.vl-live' ) ).not.toBeNull();
+    expect( screen.getByText( 'Live air quality and weather' ) ).toBeInTheDocument();
+  } );
+
+  it( 'still renders the reusable Subscribe / Contribute / Share blocks with no key', async () => {
+    vi.stubGlobal( 'fetch', vi.fn() );
+    const VayuLokLive = await loadComponent();
+    const { container } = render( <VayuLokLive /> );
+    await act( async () => { await Promise.resolve(); } );
+
+    // The map and its search are gated on the key, but the shell content is not.
+    expect( container.querySelector( '.vl-live-map-canvas' ) ).toBeNull();
+    const wa = screen.getByRole( 'link', { name: 'Subscribe on WhatsApp' } );
+    expect( wa.getAttribute( 'href' ) ).toBe( 'https://wa.me/message/BEA3HNW3LNM3A1' );
+  } );
+} );
+
+describe( 'VayuLokLive - Maps script injection guard (key present)', () => {
+  beforeEach( () => {
+    vi.stubEnv( 'NEXT_PUBLIC_GOOGLE_MAPS_KEY', DUMMY_KEY );
+    // No window.google yet, so the component must inject the script itself.
+    clearGoogleMaps();
+  } );
+
+  it( 'injects exactly one #gmaps-js and does not append a second on remount', async () => {
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( { ok: false, json: async () => ( {} ) } ) );
+    const VayuLokLive = await loadComponent();
+
+    const first = render( <VayuLokLive /> );
+    await act( async () => { await Promise.resolve(); } );
+
+    const scripts = () => document.querySelectorAll( 'script#gmaps-js' );
+    expect( scripts() ).toHaveLength( 1 );
+
+    const script = document.getElementById( 'gmaps-js' ) as HTMLScriptElement;
+    // The host and the async loader flag are asserted; the KEY VALUE is deliberately NOT asserted.
+    expect( script.src ).toContain( 'maps.googleapis.com/maps/api/js' );
+    expect( script.src ).toContain( 'loading=async' );
+
+    // Unmount and mount a second instance: the one-script-tag guard must reuse the existing tag.
+    first.unmount();
+    render( <VayuLokLive /> );
+    await act( async () => { await Promise.resolve(); } );
+    expect( scripts() ).toHaveLength( 1 );
+  } );
+} );
+
+describe( 'VayuLokLive - map wiring, heatmap on user action, India scoping (key + google stub)', () => {
+  let rec: MapsRecorder;
+
+  beforeEach( () => {
+    vi.stubEnv( 'NEXT_PUBLIC_GOOGLE_MAPS_KEY', DUMMY_KEY );
+    // Pre-install the Maps stub so the init runs synchronously (no script load needed) and the
+    // map/overlay effects can be exercised.
+    rec = installGoogleMaps();
+  } );
+
+  it( 'does NOT request a heatmap overlay on load, and only pushes one after a layer click', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue( { ok: false, json: async () => ( {} ) } );
+    vi.stubGlobal( 'fetch', fetchSpy );
+    const VayuLokLive = await loadComponent();
+
+    render( <VayuLokLive /> );
+    // Wait for the map to initialise (mapReady flips via requestAnimationFrame).
+    await waitFor( () => expect( rec.mapOpts ).not.toBeNull() );
+
+    // On load: no overlay pushed, and no ImageMapType (hence no heatmapTiles getTileUrl) created.
+    expect( rec.overlayPushes ).toHaveLength( 0 );
+    expect( rec.imageMapTypeOpts ).toHaveLength( 0 );
+    // No fetch has hit the airquality heatmapTiles endpoint either.
+    const hitHeatmapTiles = () => fetchSpy.mock.calls.some(
+      c => String( c[ 0 ] ).includes( 'airquality.googleapis.com' ) && String( c[ 0 ] ).includes( 'heatmapTiles' )
+    );
+    expect( hitHeatmapTiles() ).toBe( false );
+
+    // Press the AQI layer control.
+    fireEvent.click( screen.getByRole( 'button', { name: 'AQI' } ) );
+
+    // NOW an overlay is pushed and an ImageMapType is created, deferred to the click.
+    await waitFor( () => expect( rec.overlayPushes ).toHaveLength( 1 ) );
+    expect( rec.imageMapTypeOpts ).toHaveLength( 1 );
+
+    // The overlay's tile URL points at the air-quality heatmapTiles SKU (built lazily per tile),
+    // and uses a VALID Air Quality API mapType. The AQI layer must use the universal UAQI scale
+    // (not US_AQI) so the heatmap matches the India-CPCB legend/panels on the page. The mapType
+    // sits in the path segment immediately before /heatmapTiles/.
+    const getTileUrl = rec.imageMapTypeOpts[ 0 ].getTileUrl as ( c: { x: number; y: number }, z: number ) => string;
+    const url = getTileUrl( { x: 1, y: 2 }, 3 );
+    expect( url ).toContain( 'airquality.googleapis.com' );
+    expect( url ).toContain( 'heatmapTiles' );
+    const aqiType = url.match( /\/mapTypes\/([^/]+)\/heatmapTiles\// )?.[ 1 ];
+    expect( aqiType ).toBe( 'UAQI_RED_GREEN' );
+    expect( aqiType ).not.toBe( 'US_AQI' );
+
+    // Switching to the PM2.5 layer must use a VALID PM2.5 mapType. PM25_HEATMAP is not in the
+    // API enum and would 400/render nothing; PM25_INDIGO_PERSIAN is the correct token.
+    fireEvent.click( screen.getByRole( 'button', { name: 'PM2.5' } ) );
+    await waitFor( () => expect( rec.imageMapTypeOpts ).toHaveLength( 2 ) );
+    const getPm25TileUrl = rec.imageMapTypeOpts[ 1 ].getTileUrl as ( c: { x: number; y: number }, z: number ) => string;
+    const pm25Type = getPm25TileUrl( { x: 1, y: 2 }, 3 ).match( /\/mapTypes\/([^/]+)\/heatmapTiles\// )?.[ 1 ];
+    expect( pm25Type ).toBe( 'PM25_INDIGO_PERSIAN' );
+    expect( pm25Type ).not.toBe( 'PM25_HEATMAP' );
+  } );
+
+  it( 'builds the map restricted to India and searches India-scoped (not duplicated literals)', async () => {
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( { ok: false, json: async () => ( {} ) } ) );
+    const VayuLokLive = await loadComponent();
+
+    render( <VayuLokLive /> );
+    await waitFor( () => expect( rec.mapOpts ).not.toBeNull() );
+
+    // The real options the component passed to google.maps.Map: an India latLngBounds restriction.
+    const restriction = rec.mapOpts!.restriction as { latLngBounds: { north: number; south: number; east: number; west: number } };
+    const b = restriction.latLngBounds;
+    // India's extent: north of the equator, east of the prime meridian, spanning roughly 6-38N /
+    // 68-98E. Asserted as a plausibility envelope, not a copy of the literal, so the test tracks the
+    // component's constant without re-stating it.
+    expect( b.south ).toBeGreaterThan( 0 );
+    expect( b.south ).toBeLessThan( b.north );
+    expect( b.west ).toBeGreaterThan( 60 );
+    expect( b.west ).toBeLessThan( b.east );
+    expect( b.north ).toBeLessThan( 40 );
+    expect( b.east ).toBeLessThan( 100 );
+
+    // The default centre sits inside the restriction bounds (so the map opens on India).
+    const centre = rec.mapOpts!.center as { lat: number; lng: number };
+    expect( centre.lat ).toBeGreaterThan( b.south );
+    expect( centre.lat ).toBeLessThan( b.north );
+    expect( centre.lng ).toBeGreaterThan( b.west );
+    expect( centre.lng ).toBeLessThan( b.east );
+
+    // Search is India-scoped: typing drives a Places textSearch with region 'in', or the Geocoder
+    // fallback with componentRestrictions country 'in'. The PlacesService stub is present, so the
+    // textSearch path runs here.
+    const input = screen.getByRole( 'combobox' );
+    fireEvent.change( input, { target: { value: 'Mumbai' } } );
+    await waitFor( () => expect( rec.textSearchCalls.length ).toBeGreaterThan( 0 ) );
+    expect( rec.textSearchCalls[ 0 ].region ).toBe( 'in' );
+    const loc = rec.textSearchCalls[ 0 ].locationRestriction as { north: number; south: number };
+    expect( loc.south ).toBeGreaterThan( 0 );
+    expect( loc.north ).toBeLessThan( 40 );
+  } );
+} );
+
+describe( 'VayuLokLive - reuse and the exact Subscribe URL (key present)', () => {
+  beforeEach( () => {
+    vi.stubEnv( 'NEXT_PUBLIC_GOOGLE_MAPS_KEY', DUMMY_KEY );
+    installGoogleMaps();
+  } );
+
+  it( 'renders the exact wa.me subscribe anchor and the Contribute + Share blocks', async () => {
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( { ok: false, json: async () => ( {} ) } ) );
+    const VayuLokLive = await loadComponent();
+
+    const { container } = render( <VayuLokLive /> );
+    await act( async () => { await Promise.resolve(); } );
+
+    // SUBSCRIBE: the exact URL from the user instruction, opening in a new tab, with noopener.
+    const wa = screen.getByRole( 'link', { name: 'Subscribe on WhatsApp' } );
+    expect( wa.getAttribute( 'href' ) ).toBe( 'https://wa.me/message/BEA3HNW3LNM3A1' );
+    expect( wa.getAttribute( 'target' ) ).toBe( '_blank' );
+    expect( wa.getAttribute( 'rel' ) ).toContain( 'noopener' );
+
+    // CONTRIBUTE: BlogContribution renders its "Contribute" heading and submit button.
+    expect( screen.getByRole( 'heading', { name: 'Contribute' } ) ).toBeInTheDocument();
+    expect( screen.getByRole( 'button', { name: 'Contribute' } ) ).toBeInTheDocument();
+
+    // SHARE: ShareLinks renders the canonical /vayulok/ WhatsApp share control. Its accessible
+    // name ('Share this page on WhatsApp') is distinct from the Subscribe anchor above.
+    const share = screen.getByRole( 'link', { name: 'Share this page on WhatsApp' } );
+    expect( share.getAttribute( 'href' ) ).toContain( encodeURIComponent( `${SITE_ORIGIN}/vayulok/` ) );
+    expect( container.querySelector( '.share-row' ) ).not.toBeNull();
+  } );
+} );

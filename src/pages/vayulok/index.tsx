@@ -57,6 +57,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import PageMeta from '../../components/PageMeta';
 import BrandBadge from '../../components/BrandBadge';
+import VayuLokLive from '../../components/VayuLokLive';
 
 const VayuLokPage: React.FC = () => {
   // Order is hue rhythm as much as grouping. Air + Pollen are what is in the air,
@@ -175,6 +176,15 @@ const VayuLokPage: React.FC = () => {
           </h1>
         </div>
       </main>
+
+      {/* LIVE CONTENT, APPENDED BELOW THE HERO. The rotating-word hero above is working
+          shipped UI and is KEPT unchanged; the live-wired VayuLok content (the Google map,
+          live air quality / weather / solar / pollen, Subscribe / Contribute / Share) is
+          rendered under it, exactly as the mock documents its block "FOR INSERTION ...
+          IMMEDIATELY AFTER THAT PAGE'S EXISTING TOP SECTION". VayuLokLive is self-styling
+          (styled-jsx under a vl-live- scope) and degrades honestly to the content shell with
+          no map and no live panels when NEXT_PUBLIC_GOOGLE_MAPS_KEY is unset. */}
+      <VayuLokLive />
 
       <style jsx>{`
         /* Header is fixed at 108px, 96px under 767px - the same offsets the home
