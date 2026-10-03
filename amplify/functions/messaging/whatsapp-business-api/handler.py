@@ -590,11 +590,21 @@ def _update_commerce_settings(phone_id: str, body: Dict) -> Dict:
 def _list_catalog_products(catalog_id: str, params: Dict) -> Dict:
     """List products in a Meta commerce catalog (for the admin product browser).
     GET /wa-business/catalog-products?catalogId=<id>&search=<q>&limit=<n>
-    Returns normalized products: retailer_id, name, price, availability, image_url."""
+    Returns normalized products: id, retailer_id, name, price, availability, image_url.
+
+    `id` is the Meta product id and is required by the update and delete paths, which
+    address a product as POST/DELETE /{product_id}. It used to be omitted here, so the
+    admin UI had to re-resolve it through a second endpoint that is not routed at all
+    (/catalog/products returns 404), which left delete permanently broken. Carrying the
+    id on the list row removes that round trip.
+
+    `description` is here for the same reason: the admin edit form loads its fields from
+    this row, and without it the description input opened blank over a stored value the
+    user could not see."""
     if not catalog_id:
         return _resp(400, {'error': 'catalogId is required'})
     limit = str(params.get('limit', '100'))
-    fields = 'name,retailer_id,price,currency,availability,image_url,url'
+    fields = 'id,name,retailer_id,price,currency,availability,description,image_url,url'
     gp: Dict = {'fields': fields, 'limit': limit}
     search = params.get('search')
     if search:
@@ -605,11 +615,13 @@ def _list_catalog_products(catalog_id: str, params: Dict) -> Dict:
     products = []
     for it in result.get('data', []):
         products.append({
+            'id': it.get('id', ''),
             'retailerId': it.get('retailer_id', ''),
             'name': it.get('name', ''),
             'price': it.get('price', ''),
             'currency': it.get('currency', 'INR'),
             'availability': it.get('availability', ''),
+            'description': it.get('description', ''),
             'imageUrl': it.get('image_url', ''),
             'url': it.get('url', ''),
         })
@@ -667,6 +679,52 @@ def _create_catalog_product(body: Dict) -> Dict:
             fetch_status = chk.get('image_fetch_status', '')
     return _resp(200, {'success': True, 'productId': product_id,
                        'retailerId': retailer_id, 'imageFetchStatus': fetch_status})
+
+
+def _update_catalog_product(product_id: str, body: Dict) -> Dict:
+    """Update fields on an existing Meta catalog product.
+    PUT /wa-business/catalog-products?productId=<id>   (productId may also be in the body)
+    Body: { productId, name?, price (rupees)?, currency?, availability?, description?,
+            imageUrl?/image_url?, url? }
+
+    Graph addresses a product edit as POST /{product_id} and accepts only the keys
+    filtered for below; anything else is dropped rather than sent, so a stray field
+    cannot fail the whole call.
+
+    Price is accepted in RUPEES from the UI and converted with the same
+    int(round(rupees * 100)) used by _create_catalog_product, so create and update share
+    one unit contract. They must not diverge: the UI posts the same Number(form.price)
+    to both, and a mismatch here would silently rewrite a price by a factor of 100."""
+    if not product_id:
+        return _resp(400, {'error': 'productId is required'})
+    payload: Dict = {}
+    if body.get('name'):
+        payload['name'] = str(body['name']).strip()[:200]
+    if body.get('price') is not None and body.get('price') != '':
+        try:
+            price_rupees = float(body['price'])
+        except (TypeError, ValueError):
+            return _resp(400, {'error': 'price must be a number'})
+        if price_rupees <= 0:
+            return _resp(400, {'error': 'price must be greater than 0'})
+        payload['price'] = int(round(price_rupees * 100))   # rupees -> paise (minor unit)
+        payload['currency'] = (body.get('currency') or 'INR').upper()
+    if body.get('availability'):
+        payload['availability'] = str(body['availability'])
+    if body.get('description'):
+        payload['description'] = str(body['description'])[:1000]
+    image_url = body.get('imageUrl') or body.get('image_url')
+    if image_url:
+        payload['image_url'] = str(image_url)
+    if body.get('url'):
+        payload['url'] = str(body['url'])
+    if not payload:
+        return _resp(400, {'error': 'No updatable fields provided'})
+    result = _graph_api(product_id, method='POST', payload=payload)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'productId': product_id,
+                       'updated': sorted(payload.keys())})
 
 
 def _delete_catalog_product(product_id: str) -> Dict:
@@ -5878,9 +5936,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _list_catalog_products(params.get('catalogId') or params.get('catalog_id'), params)
             elif method == 'POST':
                 return _create_catalog_product(body)
+            elif method == 'PUT':
+                return _update_catalog_product(params.get('productId') or params.get('product_id') or body.get('productId') or '', body)
             elif method == 'DELETE':
                 return _delete_catalog_product(params.get('productId') or params.get('product_id') or body.get('productId') or '')
-            return _resp(405, {'error': 'GET/POST/DELETE only'})
+            return _resp(405, {'error': 'GET/POST/PUT/DELETE only'})
 
         elif '/catalog-feed/fetch' in path:
             if method == 'POST':

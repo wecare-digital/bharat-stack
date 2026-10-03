@@ -5361,6 +5361,29 @@ export async function createCatalogProduct (
   return { success: true, productId: data.productId, imageFetchStatus: data.imageFetchStatus };
 }
 
+/**
+ * Update fields on an existing Meta catalog product.
+ * `price` is sent in RUPEES, exactly as createCatalogProduct does — the handler owns the
+ * rupees -> paise conversion for both, so the two paths share one unit contract.
+ * `imageUrl` is mapped to `image_url` because that is the key Graph accepts on a product
+ * edit; the handler filters to name/price/currency/availability/description/image_url/url.
+ * It is a partial update: an `undefined` field is dropped by JSON.stringify, the handler
+ * never sets the key, and Graph keeps the stored value. Callers rely on that to leave a
+ * field they did not touch alone — notably `price`, which must not be re-sent on an edit
+ * that did not change it.
+ */
+export async function updateCatalogProduct (
+  productId: string,
+  updates: { name?: string; price?: number; currency?: string; availability?: string; description?: string; imageUrl?: string; url?: string }
+): Promise<boolean> {
+  const { imageUrl, ...rest } = updates;
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/catalog-products`, {
+    method: 'PUT',
+    body: JSON.stringify( { productId, ...rest, ...( imageUrl ? { image_url: imageUrl } : {} ) } ),
+  } );
+  return data?.success === true;
+}
+
 export async function deleteCatalogProduct ( productId: string ): Promise<boolean> {
   const data = await apiCall<any>( `${WA_BIZ_BASE}/catalog-products?productId=${encodeURIComponent( productId )}`, { method: 'DELETE' } );
   return data?.success === true;
