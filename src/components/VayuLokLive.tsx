@@ -2096,7 +2096,7 @@ const VayuLokLive: React.FC = () => {
               the mock's Rs50/Rs200/Rs400 are NOT shipped and changing those is out of scope
               here, so this renders the shipped presets. src/config/contribution.ts unchanged. */}
           <section className="vl-live-section">
-            <BlogContribution postId="vayulok" slug="vayulok" />
+            <BlogContribution postId="vayulok" slug="vayulok" embedded />
           </section>
 
           {/* SHARE - reuse the shipped component with the canonical /vayulok/ url. */}
@@ -2333,7 +2333,11 @@ const VayuLokLive: React.FC = () => {
         .vl-live [hidden]{display:none !important}
 
         .vl-live-wrap{width:100%;max-width:1300px;margin:0 auto;padding:0 24px}
-        .vl-live-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+        .vl-live-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;font-size:40px;font-weight:700;line-height:1.08}
+        /* In VayuLok, Contribute is a full section, so its h2 uses the Home section rung rather
+           than BlogContribution's quiet eyebrow treatment. Scoped here so blog-post embeds keep
+           their intentionally quieter hierarchy. */
+        .vl-live :global(.bc-title){font-size:40px;font-weight:700;line-height:1.08;letter-spacing:-1.2px;text-transform:none;color:rgba(0,0,0,.95);margin:0 0 14px}
 
         /* Type ladder MEASURED from the live home page (wecare.digital): Inter,
            text #1a1a1a; h2 40px/700/-1.2px; eyebrow 12px/700/0.72px-tracking
