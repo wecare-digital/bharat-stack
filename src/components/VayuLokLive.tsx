@@ -519,11 +519,31 @@ const VayuLokLive: React.FC = () => {
      library loaded, else Geocoding with components=country:in. Client-side only. */
   const runSearch = useCallback( ( text: string ) => {
     if ( !MAPS_KEY || !text.trim() ) { setResults( [] ); setOpen( false ); return; }
+
+    const w = window as unknown as {
+      google?: { maps?: {
+        places?: { PlacesService?: new ( el: HTMLElement ) => unknown; PlacesServiceStatus?: { OK?: string } };
+        Geocoder?: new () => unknown;
+      } };
+    };
+    const gmaps = w.google?.maps;
+
+    // SEARCH MUST NOT DEPEND ON THE MAP. placesSvc/geocoder used to be created only
+    // inside the map's init(); if the map failed to build, search silently did
+    // nothing (no request fired). Create our own service lazily from the loaded
+    // Maps library so search works whenever google.maps.places is available,
+    // regardless of the map. A detached div is a valid PlacesService attribution node.
+    if ( !placesSvc.current && gmaps?.places?.PlacesService ) {
+      try { placesSvc.current = new gmaps.places.PlacesService( document.createElement( 'div' ) ); } catch { /* fall through to geocoder */ }
+    }
+    if ( !geocoder.current && gmaps?.Geocoder ) {
+      try { geocoder.current = new gmaps.Geocoder(); } catch { /* no geocoder */ }
+    }
+
     const svc = placesSvc.current as {
       textSearch?: ( req: Record<string, unknown>, cb: ( r: unknown[] | null, status: string ) => void ) => void;
     } | null;
-    const w = window as unknown as { google?: { maps?: { places?: { PlacesServiceStatus?: { OK?: string } } } } };
-    const OK = w.google?.maps?.places?.PlacesServiceStatus?.OK || 'OK';
+    const OK = gmaps?.places?.PlacesServiceStatus?.OK || 'OK';
 
     if ( svc?.textSearch ) {
       svc.textSearch(
