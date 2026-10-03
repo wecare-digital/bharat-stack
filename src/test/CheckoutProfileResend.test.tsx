@@ -87,7 +87,7 @@ afterEach( () => {
 } );
 
 describe( 'the resend control in the sent arm', () => {
-  it( 'appears beside Verify, disabled, counting down from 60', async () => {
+  it( 'appears beside Confirm, disabled, counting down from 60', async () => {
     vi.useFakeTimers();
     stubRequests( [ { ok: true } ] );
     mount();
@@ -96,7 +96,7 @@ describe( 'the resend control in the sent arm', () => {
     await flush();
 
     expect( screen.getByLabelText( 'Email verification code' ) ).toBeInTheDocument();
-    expect( screen.getByRole( 'button', { name: 'Verify email code' } ) ).toBeInTheDocument();
+    expect( screen.getByRole( 'button', { name: 'Confirm email code' } ) ).toBeInTheDocument();
     expect( resendControl() ).toBeDisabled();
     expect( resendControl() ).toHaveTextContent( 'Resend email code 60s' );
     expect( screen.getByText( 'Another code can be requested in 60s.' ) ).toBeInTheDocument();
