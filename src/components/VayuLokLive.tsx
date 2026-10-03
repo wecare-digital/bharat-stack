@@ -942,7 +942,7 @@ const VayuLokLive: React.FC = () => {
           ...( Number.isFinite( rain ) ? { rainProb: Math.round( rain ) } : {} ),
           ...( typeof row?.weatherCondition?.description?.text === 'string' ? { condition: row.weatherCondition.description.text } : {} ),
         };
-      } ).filter( row => Number.isFinite( row.time ) );
+      } ).filter( ( row: WeatherHistoryPoint ) => Number.isFinite( row.time ) );
       forecastStore.weatherHistory = rows;
       setWeatherHistory( rows );
     };
