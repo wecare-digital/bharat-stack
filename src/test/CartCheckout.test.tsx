@@ -2,27 +2,53 @@ import React from 'react';
 import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import fs from 'fs';
 import path from 'path';
 
 import * as cart from '../lib/cart';
 import type { ShopProduct } from '../content/shop';
+import type { StoredAddress } from '../components/AddressFields';
 import * as customerAuth from '../lib/customerAuth';
 
+/**
+ * THE SHARED CheckoutProfile DOUBLE.
+ *
+ * Three things changed here when the cart page became status-first, and each one is load-bearing:
+ *
+ *   1. `onReady` now hands back the WHOLE `CheckoutProfileValue` - `firstName`, `lastName`,
+ *      `addressComplete` and a real `address`. The page derives the editor state from
+ *      `deriveStatus('PROFILE_READY', next.addressComplete)`, so a payload missing
+ *      `addressComplete` derives `'required'` and every flow in this file would stop at the
+ *      editor instead of reaching `prepare`.
+ *   2. It reports the MODE it was mounted in, as `data-mode`. The page mounts a fresh editor per
+ *      affordance, and "the editor opened in address mode" is the assertion several cases below
+ *      need. The real fields behind each mode are pinned in `CheckoutProfile.test.tsx` and
+ *      `AddressFields` - this double only has to prove WHICH editor the page asked for.
+ *   3. It offers a second save, `Save without an address`, which returns `addressComplete:false`.
+ *      That is the save the page must answer by KEEPING an address form mounted, and there is no
+ *      other way to reach it from a double whose only save is a complete one.
+ *
+ * The fixtures are referenced from inside the click handlers, never at factory-evaluation time:
+ * `vi.mock` is hoisted above the module body, so a reference evaluated as the factory runs would
+ * hit the temporal dead zone.
+ */
 vi.mock( '../components/CheckoutProfile', () => ( {
-  default: ( { onReady }: { onReady: ( value: Record<string, string> ) => void } ) => (
-    <button
-      type="button"
-      onClick={ () => onReady( {
-        contactId: 'contact-1',
-        name: 'Asha Sen',
-        email: 'asha@example.com',
-        phone: '+919330994400',
-      } ) }
-    >
-      Complete checkout details
-    </button>
+  default: ( { mode, onReady }: {
+    mode?: string;
+    onReady: ( value: Record<string, unknown> ) => void;
+  } ) => (
+    <div data-testid="checkout-profile" data-mode={ mode || 'create' }>
+      <button type="button" onClick={ () => onReady( { ...SAVED_PROFILE } ) }>
+        Complete checkout details
+      </button>
+      <button
+        type="button"
+        onClick={ () => onReady( { ...SAVED_PROFILE, addressComplete: false, address: null } ) }
+      >
+        Save without an address
+      </button>
+    </div>
   ),
 } ) );
 
@@ -41,6 +67,9 @@ import CheckoutStatus, { viewFor } from '../pages/checkout/status';
  *   3. a PAYMENT_INITIATION_DISABLED response reaches the honest outcome and renders no pay button;
  *   4. proceeding with no session routes to sign-in and never calls the create endpoint;
  *   plus a 409 readiness-blocked mapping to the "no charge was made" copy.
+ *
+ * ...and, since the page became status-first, a fifth: the readiness question is asked BEFORE
+ * anything is rendered, and a failed answer never blocks a payable customer.
  */
 
 const PRODUCT: ShopProduct = {
@@ -67,6 +96,47 @@ const OTHER: ShopProduct = {
   body: [ 'A shirt.' ],
 };
 
+/** A real nine-key StoredAddress, including the server-composed `fullAddress` the card renders. */
+const ADDRESS_FIXTURE: StoredAddress = {
+  addressLine1: '12 MG Road',
+  addressLine2: 'Flat 3B',
+  locality: '',
+  city: 'Bengaluru',
+  state: 'Karnataka',
+  postalCode: '560001',
+  country: 'India',
+  countryCode: 'IN',
+  fullAddress: '12 MG Road, Flat 3B, Bengaluru, Karnataka, 560001, India',
+};
+
+/** What a completed save hands back - the shape `CheckoutProfileValue` promises. */
+const SAVED_PROFILE = {
+  contactId: 'contact-1',
+  name: 'Asha Sen',
+  firstName: 'Asha',
+  lastName: 'Sen',
+  email: 'asha@example.com',
+  phone: '+919330994400',
+  addressComplete: true,
+  address: ADDRESS_FIXTURE,
+};
+
+/** The `action:'profile'` reply for a customer who can pay right now: all ten keys. */
+const PROFILE_READY = {
+  status: 'PROFILE_READY',
+  ...SAVED_PROFILE,
+  emailVerified: true,
+};
+
+/** The whole of the no-usable-profile reply. One key, and nothing else is present. */
+const PROFILE_REQUIRED = { status: 'PROFILE_REQUIRED' };
+
+const PREPARE_URL = '/ecommerce/prepare-checkout';
+const VERIFY_URL = '/ecommerce/verify-callback';
+
+/** The page's own post-save retry wait. Kept in step with cart.tsx's POST_SAVE_RETRY_MS. */
+const RETRY_WAIT_MS = 1200;
+
 /** Capture where the page tries to navigate, without jsdom's "not implemented" throw. */
 let navigatedTo: string;
 
@@ -86,9 +156,116 @@ beforeEach( () => {
 } );
 
 afterEach( () => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 } );
+
+function signedIn ( accessToken = 'tok-123' ): void {
+  vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
+    accessToken, expiresAt: Date.now() + 3_600_000,
+  } );
+}
+
+/** One scripted reply: a response spec, or an Error to reject with. */
+type StubReply = { ok?: boolean; status?: number; body?: unknown } | Error;
+
+function resolveReply ( spec: StubReply ): Promise<unknown> {
+  if ( spec instanceof Error ) return Promise.reject( spec );
+  return Promise.resolve( {
+    ok: spec.ok === undefined ? true : spec.ok,
+    status: spec.status === undefined ? 200 : spec.status,
+    json: async () => ( spec.body === undefined ? {} : spec.body ),
+  } );
+}
+
+/**
+ * ONE fetch double, dispatching on the request URL **plus** `body.action`, never on ordering.
+ *
+ * WHY THIS REPLACED `mockResolvedValueOnce` CHAINS. The page now asks the readiness question on
+ * mount, so a queue of positional replies hands the `action:'profile'` call whatever was meant for
+ * `prepare`, and every subsequent reply lands one place late. Dispatching on what was ASKED is
+ * order-independent: it survives the mount call, the post-save retry, and any call a later change
+ * adds. A single spec is sticky (it answers every matching request); an array is a script, with
+ * the last entry answering every request after it.
+ *
+ * `profile` defaults to PROFILE_REQUIRED - the first-time shopper every pre-existing case in this
+ * file describes - so a case only names it when its own subject is the readiness answer.
+ */
+function stubFetch ( routes: {
+  profile?: StubReply | StubReply[];
+  prepare?: StubReply | StubReply[];
+  verify?: StubReply | StubReply[];
+} = {} ) {
+  const queues: Record<string, StubReply[]> = {
+    profile: toQueue( routes.profile, { body: PROFILE_REQUIRED } ),
+    prepare: toQueue( routes.prepare, undefined ),
+    verify: toQueue( routes.verify, undefined ),
+  };
+
+  function toQueue ( spec: StubReply | StubReply[] | undefined, fallback: StubReply | undefined ): StubReply[] {
+    if ( spec === undefined ) return fallback === undefined ? [] : [ fallback ];
+    return Array.isArray( spec ) ? [ ...spec ] : [ spec ];
+  }
+
+  function next ( name: string ): StubReply {
+    const queue = queues[ name ];
+    if ( !queue || queue.length === 0 )
+    {
+      throw new Error( `CartCheckout stub: no '${ name }' reply configured` );
+    }
+    return queue.length === 1 ? queue[ 0 ] : ( queue.shift() as StubReply );
+  }
+
+  const fetchMock = vi.fn( ( url: string, init?: { body?: string } ) => {
+    const target = String( url );
+    let action = '';
+    try { action = String( JSON.parse( String( init?.body || '{}' ) ).action || '' ); }
+    catch { action = ''; }
+    if ( target.includes( VERIFY_URL ) ) return resolveReply( next( 'verify' ) );
+    if ( target.includes( PREPARE_URL ) )
+    {
+      return resolveReply( next( action === 'profile' ? 'profile' : 'prepare' ) );
+    }
+    throw new Error( `CartCheckout stub: unexpected request to ${ target }` );
+  } );
+  vi.stubGlobal( 'fetch', fetchMock );
+  return fetchMock;
+}
+
+type RecordedCall = { url: string; init: any; body: any };
+
+/**
+ * The requests that went to one endpoint, optionally narrowed to one action, with their bodies
+ * already parsed. Asserting on WHICH calls happened rather than on WHERE they sat is what lets the
+ * mount-time readiness call and the post-save retry exist without rewriting every expectation.
+ */
+function callsTo ( fetchMock: any, fragment: string, action?: string ): RecordedCall[] {
+  return ( fetchMock.mock.calls as any[][] )
+    .map( ( call ) => {
+      let body: any = {};
+      try { body = JSON.parse( String( call[ 1 ]?.body || '{}' ) ); }
+      catch { body = {}; }
+      return { url: String( call[ 0 ] ), init: call[ 1 ], body };
+    } )
+    .filter( ( recorded ) => recorded.url.includes( fragment )
+      && ( action === undefined || String( recorded.body.action || '' ) === action ) );
+}
+
+/**
+ * Settle the promise chains a click sets off, without `waitFor`.
+ *
+ * Used ONLY by the fake-timer cases: `waitFor` and `findBy*` poll on the very timer those tests
+ * control, so they cannot make progress. This is the flush `CheckoutProfileResend.test.tsx` and
+ * `VayuLokLive.test.tsx` use for the same reason.
+ */
+async function flush ( rounds = 8 ): Promise<void> {
+  for ( let i = 0; i < rounds; i += 1 )
+  {
+    // eslint-disable-next-line no-await-in-loop
+    await act( async () => { await Promise.resolve(); } );
+  }
+}
 
 async function proceedPastProfile (): Promise<void> {
   fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
@@ -204,49 +381,43 @@ describe( 'the cart page proceed flow', () => {
 
     await waitFor( () => expect( navigatedTo ).toContain( '/account/sign-in' ) );
     expect( navigatedTo ).toContain( 'return=/cart/' );
-    // The auth gate must short-circuit BEFORE any create request.
+    // The auth gate must short-circuit BEFORE any create request - and the mount-time readiness
+    // call must not fire for a visitor who has no session to ask about.
     expect( fetchMock ).not.toHaveBeenCalled();
   } );
 
   it( 'sends { action:prepare, lineItems, requestKey } with a Bearer token and no money', async () => {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
-      accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
-    } );
-    const fetchMock = vi.fn().mockResolvedValue( {
-      ok: true,
-      status: 200,
-      json: async () => ( {
+    signedIn( 'tok-123' );
+    const fetchMock = stubFetch( {
+      prepare: { body: {
         status: 'PAYMENT_INITIATION_DISABLED', paymentAttemptId: 'att-1', currency: 'INR',
-      } ),
+      } },
     } );
-    vi.stubGlobal( 'fetch', fetchMock );
     cart.addItem( PRODUCT, 2 );
 
     render( <Cart /> );
     await proceedPastProfile();
 
-    await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 1 ) );
-    const [ url, init ] = fetchMock.mock.calls[ 0 ];
-    expect( String( url ) ).toContain( '/ecommerce/prepare-checkout' );
-    expect( ( init.headers as Record<string, string> ).Authorization ).toBe( 'Bearer tok-123' );
-    const body = JSON.parse( init.body as string );
-    expect( body.action ).toBe( 'prepare' );
-    expect( typeof body.requestKey ).toBe( 'string' );
-    expect( body.requestKey.length ).toBeGreaterThan( 8 );
-    expect( body.lineItems ).toEqual( [ { catalogReference: { appId: '215238eb-22a5-4c36-9e7b-e7c08025e04e', catalogItemId: 'wix-abc-123' }, quantity: 2 } ] );
+    await waitFor( () => expect( callsTo( fetchMock, PREPARE_URL, 'prepare' ) ).toHaveLength( 1 ) );
+    const [ prepare ] = callsTo( fetchMock, PREPARE_URL, 'prepare' );
+    expect( prepare.url ).toContain( PREPARE_URL );
+    expect( ( prepare.init.headers as Record<string, string> ).Authorization ).toBe( 'Bearer tok-123' );
+    expect( prepare.body.action ).toBe( 'prepare' );
+    expect( typeof prepare.body.requestKey ).toBe( 'string' );
+    expect( prepare.body.requestKey.length ).toBeGreaterThan( 8 );
+    expect( prepare.body.lineItems ).toEqual( [ { catalogReference: { appId: '215238eb-22a5-4c36-9e7b-e7c08025e04e', catalogItemId: 'wix-abc-123' }, quantity: 2 } ] );
     // No financial figure on the wire.
-    expect( init.body as string ).not.toMatch( /price|amount|currency|formattedPrice/i );
+    expect( prepare.init.body as string ).not.toMatch( /price|amount|currency|formattedPrice/i );
+    // And the readiness question carried no address, no phone and no body beyond the action.
+    const [ status ] = callsTo( fetchMock, PREPARE_URL, 'profile' );
+    expect( status.body ).toEqual( { action: 'profile' } );
   } );
 
   it( 'answers PAYMENT_INITIATION_DISABLED inline, keeps the cart, and offers no pay button', async () => {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
-      accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
+    signedIn();
+    stubFetch( {
+      prepare: { body: { status: 'PAYMENT_INITIATION_DISABLED', paymentAttemptId: 'att-9' } },
     } );
-    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
-      ok: true,
-      status: 200,
-      json: async () => ( { status: 'PAYMENT_INITIATION_DISABLED', paymentAttemptId: 'att-9' } ),
-    } ) );
     cart.addItem( PRODUCT, 1 );
 
     const { container } = render( <Cart /> );
@@ -281,9 +452,7 @@ describe( 'the cart page proceed flow', () => {
   } );
 
   it( 'opens Razorpay with server options and verifies the returned callback before navigation', async () => {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
-      accessToken: 'fixture-session', expiresAt: Date.now() + 3_600_000,
-    } );
+    signedIn( 'fixture-session' );
 
     let receivedOptions: any = null;
     const open = vi.fn();
@@ -298,35 +467,24 @@ describe( 'the cart page proceed flow', () => {
       value: FakeRazorpay,
     } );
 
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce( {
-        ok: true,
-        status: 200,
-        json: async () => ( {
-          status: 'CHECKOUT_OPTIONS_READY',
-          paymentAttemptId: 'att-web-1',
-          options: {
-            keyId: 'fixture-publishable-id',
-            orderId: 'order-fixture-1',
-            amountPaise: 121481,
-            currency: 'INR',
-            prefill: {
-              name: 'Asha Sen',
-              email: 'asha@example.com',
-              contact: '+919330994400',
-            },
+    const fetchMock = stubFetch( {
+      prepare: { body: {
+        status: 'CHECKOUT_OPTIONS_READY',
+        paymentAttemptId: 'att-web-1',
+        options: {
+          keyId: 'fixture-publishable-id',
+          orderId: 'order-fixture-1',
+          amountPaise: 121481,
+          currency: 'INR',
+          prefill: {
+            name: 'Asha Sen',
+            email: 'asha@example.com',
+            contact: '+919330994400',
           },
-        } ),
-      } )
-      .mockResolvedValueOnce( {
-        ok: true,
-        status: 200,
-        json: async () => ( {
-          status: 'VERIFIED_PAID',
-          paymentAttemptId: 'att-web-1',
-        } ),
-      } );
-    vi.stubGlobal( 'fetch', fetchMock );
+        },
+      } },
+      verify: { body: { status: 'VERIFIED_PAID', paymentAttemptId: 'att-web-1' } },
+    } );
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
@@ -339,11 +497,11 @@ describe( 'the cart page proceed flow', () => {
     expect( receivedOptions.prefill.email ).toBe( 'asha@example.com' );
     expect( receivedOptions ).not.toHaveProperty( 'key_secret' );
 
-    const prepareBody = JSON.parse( fetchMock.mock.calls[ 0 ][ 1 ].body );
-    expect( prepareBody.action ).toBe( 'prepare' );
-    expect( prepareBody ).not.toHaveProperty( 'amountPaise' );
-    expect( prepareBody ).not.toHaveProperty( 'currency' );
-    expect( typeof prepareBody.requestKey ).toBe( 'string' );
+    const [ prepare ] = callsTo( fetchMock, PREPARE_URL, 'prepare' );
+    expect( prepare.body.action ).toBe( 'prepare' );
+    expect( prepare.body ).not.toHaveProperty( 'amountPaise' );
+    expect( prepare.body ).not.toHaveProperty( 'currency' );
+    expect( typeof prepare.body.requestKey ).toBe( 'string' );
 
     await receivedOptions.handler( {
       razorpay_payment_id: 'payment-fixture-1',
@@ -351,9 +509,9 @@ describe( 'the cart page proceed flow', () => {
       razorpay_signature: 'signature-fixture',
     } );
 
-    await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
-    const verifyBody = JSON.parse( fetchMock.mock.calls[ 1 ][ 1 ].body );
-    expect( verifyBody ).toEqual( {
+    await waitFor( () => expect( callsTo( fetchMock, VERIFY_URL ) ).toHaveLength( 1 ) );
+    const [ verify ] = callsTo( fetchMock, VERIFY_URL );
+    expect( verify.body ).toEqual( {
       action: 'verify',
       razorpay_payment_id: 'payment-fixture-1',
       razorpay_order_id: 'order-fixture-1',
@@ -364,14 +522,8 @@ describe( 'the cart page proceed flow', () => {
   } );
 
   it( 'routes PAYMENT_REQUEST_SENT to the hosted status screen', async () => {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
-      accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
-    } );
-    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
-      ok: true,
-      status: 200,
-      json: async () => ( { status: 'PAYMENT_REQUEST_SENT', paymentAttemptId: 'att-5' } ),
-    } ) );
+    signedIn();
+    stubFetch( { prepare: { body: { status: 'PAYMENT_REQUEST_SENT', paymentAttemptId: 'att-5' } } } );
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
@@ -381,13 +533,12 @@ describe( 'the cart page proceed flow', () => {
   } );
 
   it.each( [ 'network', 'server' ] )( 'preserves the cart and makes no charge claim after a %s failure', async failure => {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
-      accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
+    signedIn();
+    stubFetch( {
+      prepare: failure === 'network'
+        ? new TypeError( 'response lost' )
+        : { ok: false, status: 500, body: {} },
     } );
-    const fetchMock = failure === 'network'
-      ? vi.fn().mockRejectedValue( new TypeError( 'response lost' ) )
-      : vi.fn().mockResolvedValue( { ok: false, status: 500, json: async () => ( {} ) } );
-    vi.stubGlobal( 'fetch', fetchMock );
     cart.addItem( PRODUCT, 1 );
     const { container } = render( <Cart /> );
     await proceedPastProfile();
@@ -398,17 +549,13 @@ describe( 'the cart page proceed flow', () => {
   } );
 
   it( 'shows "no charge was made" on a 409 readiness block, staying on the page', async () => {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
-      accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
-    } );
-    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
-      ok: false,
-      status: 409,
-      json: async () => ( {
+    signedIn();
+    stubFetch( {
+      prepare: { ok: false, status: 409, body: {
         status: 'payment_unavailable', readiness: 'CONFIGURATION_UNVERIFIED',
         message: 'Payments are temporarily unavailable. No charge was made.',
-      } ),
-    } ) );
+      } },
+    } );
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
@@ -428,14 +575,10 @@ describe( 'the cart page proceed flow', () => {
   } );
 
   it( 'offers a retry with no charge on a 502 SEND_FAILED', async () => {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
-      accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
+    signedIn();
+    stubFetch( {
+      prepare: { ok: false, status: 502, body: { status: 'SEND_FAILED', paymentAttemptId: 'att-2' } },
     } );
-    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
-      ok: false,
-      status: 502,
-      json: async () => ( { status: 'SEND_FAILED', paymentAttemptId: 'att-2' } ),
-    } ) );
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
@@ -444,12 +587,8 @@ describe( 'the cart page proceed flow', () => {
   } );
 
   it( 'sends a 401 back to sign-in', async () => {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
-      accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
-    } );
-    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
-      ok: false, status: 401, json: async () => ( {} ),
-    } ) );
+    signedIn();
+    stubFetch( { prepare: { ok: false, status: 401, body: {} } } );
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
@@ -462,6 +601,266 @@ describe( 'the cart page proceed flow', () => {
     render( <Cart /> );
     expect( await screen.findByText( 'Your cart is empty.' ) ).toBeTruthy();
     expect( screen.queryByRole( 'button', { name: 'Proceed' } ) ).toBeNull();
+  } );
+} );
+
+/**
+ * THE READINESS QUESTION, ASKED FIRST.
+ *
+ * The page used to decide whether to show the checkout form from `profile`, a piece of state that
+ * is null on every arrival - so a customer who had already saved their details was shown the form
+ * again, every time. It now asks the server (`action:'profile'`) on mount and again on the click,
+ * and renders the form only when the answer says something is missing.
+ *
+ * The cases here are about the ANSWER, including the answers that never arrive. The one that
+ * matters most is the failure: a readiness read that rejects or 500s must cost one wasted
+ * `prepare` call and nothing else. The server's own 409 arms are the authority on readiness, and
+ * handing a transient DynamoDB blip the power to stop a payable customer is the exact failure this
+ * work removes.
+ */
+describe( 'the cart page asks the readiness question before rendering anything', () => {
+  it( 'renders NO checkout form for a ready profile and goes straight to prepare', async () => {
+    signedIn();
+    const fetchMock = stubFetch( {
+      profile: { body: PROFILE_READY },
+      prepare: { body: { status: 'PAYMENT_INITIATION_DISABLED', paymentAttemptId: 'att-ready' } },
+    } );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+
+    // The identity card is the page's own signal that the answer landed and said "payable now".
+    expect( await screen.findByText( 'Ready to pay' ) ).toBeTruthy();
+    expect( screen.queryByTestId( 'checkout-profile' ) ).toBeNull();
+    // The Deliver line is the server's composed string, verbatim.
+    expect( screen.getByText( ADDRESS_FIXTURE.fullAddress ) ).toBeTruthy();
+
+    fireEvent.click( await screen.findByRole( 'button', { name: /Pay securely/ } ) );
+    await waitFor( () => expect( callsTo( fetchMock, PREPARE_URL, 'prepare' ) ).toHaveLength( 1 ) );
+    // Still no form: a returning customer never meets one.
+    expect( screen.queryByTestId( 'checkout-profile' ) ).toBeNull();
+  } );
+
+  it.each( [
+    [ 'rejects', new TypeError( 'readiness lost' ) as StubReply ],
+    [ 'answers 500', { ok: false, status: 500, body: {} } as StubReply ],
+    [ 'answers an unrecognised status', { body: { status: 'SOMETHING_NEW' } } as StubReply ],
+  ] )( 'still issues the prepare POST and renders no editor when the status call %s', async ( _label, reply ) => {
+    // THE HIGH-1 CASE. `deriveStatus` answers 'unknown' for all three, and 'unknown' falls THROUGH
+    // to prepare. Blocking here would mean one failed read costs a sale.
+    signedIn();
+    const fetchMock = stubFetch( {
+      profile: reply,
+      prepare: { body: { status: 'PAYMENT_INITIATION_DISABLED', paymentAttemptId: 'att-blip' } },
+    } );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
+
+    await waitFor( () => expect( callsTo( fetchMock, PREPARE_URL, 'prepare' ) ).toHaveLength( 1 ) );
+    expect( screen.queryByTestId( 'checkout-profile' ) ).toBeNull();
+    // Nor did it invent an error for the customer out of a failure that was ours.
+    expect( screen.queryByText( /Add your delivery address to continue\./ ) ).toBeNull();
+  } );
+
+  it( 'renders the address FORM, not just a notice, for PROFILE_READY with no usable address', async () => {
+    // THE TOKEN HOIST. The editor is gated on `showProfile && checkoutAccessToken`, and the token
+    // starts empty - so before the hoist this arm asked for an address above no form at all.
+    signedIn();
+    stubFetch( {
+      profile: { body: { ...PROFILE_READY, addressComplete: false, address: null } },
+    } );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    fireEvent.click( await screen.findByRole( 'button', { name: /Pay securely/ } ) );
+
+    const editor = await screen.findByTestId( 'checkout-profile' );
+    expect( editor.getAttribute( 'data-mode' ) ).toBe( 'address' );
+    expect( await screen.findByText( 'Add your delivery address to continue.' ) ).toBeTruthy();
+    // 'required' is not 'ready', so the identity card with an empty Deliver row never appears.
+    expect( screen.queryByText( 'Ready to pay' ) ).toBeNull();
+  } );
+
+  it( 'leaves an address form mounted when a save comes back without a usable address', async () => {
+    // THE onReady FIX. Closing the editor and then asking for an address is a dead end, and it is
+    // reachable: a stored address that stopped mapping, or a backend that wrote one it cannot
+    // re-validate. The assertion is on the FORM, not on the copy.
+    signedIn();
+    stubFetch();
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Proceed' } ) );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Save without an address' } ) );
+
+    const editor = await screen.findByTestId( 'checkout-profile' );
+    expect( editor.getAttribute( 'data-mode' ) ).toBe( 'address' );
+  } );
+
+  it( 'does not re-open the editor on a second click after a completed save', async () => {
+    signedIn();
+    const fetchMock = stubFetch( {
+      prepare: { body: { status: 'PAYMENT_INITIATION_DISABLED', paymentAttemptId: 'att-twice' } },
+    } );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    await proceedPastProfile();
+    await waitFor( () => expect( callsTo( fetchMock, PREPARE_URL, 'prepare' ) ).toHaveLength( 1 ) );
+
+    fireEvent.click( await screen.findByRole( 'button', { name: /Try again/ } ) );
+    await waitFor( () => expect( callsTo( fetchMock, PREPARE_URL, 'prepare' ) ).toHaveLength( 2 ) );
+    expect( screen.queryByTestId( 'checkout-profile' ) ).toBeNull();
+  } );
+
+  it( 'retries prepare EXACTLY once when a readiness refusal lands right after a save', async () => {
+    /*
+     * `_checkout_profile` and `_load_owned_address` both read `phone-index`, a GLOBAL secondary
+     * index, which cannot be read strongly consistent - so a prepare issued seconds after a save
+     * can legitimately see the pre-save row. Without this, the customer most likely to be told
+     * "confirm your delivery address" is the first-timer who just typed one in.
+     *
+     * Fake timers, and therefore no `waitFor`/`findBy`: those poll on the very timer this test
+     * controls. `flush` settles the promise chains instead.
+     */
+    vi.useFakeTimers();
+    signedIn();
+    const fetchMock = stubFetch( {
+      prepare: [
+        { ok: false, status: 409, body: { error: 'DELIVERY_DETAILS_REQUIRED' } },
+        { body: { status: 'PAYMENT_INITIATION_DISABLED', paymentAttemptId: 'att-retry' } },
+      ],
+    } );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    await flush();
+    fireEvent.click( screen.getByRole( 'button', { name: 'Proceed' } ) );
+    await flush();
+    fireEvent.click( screen.getByRole( 'button', { name: 'Complete checkout details' } ) );
+    await flush();
+    fireEvent.click( screen.getByRole( 'button', { name: /Pay securely/ } ) );
+    await flush();
+
+    // One refusal so far, and nothing has been asked of the customer.
+    expect( callsTo( fetchMock, PREPARE_URL, 'prepare' ) ).toHaveLength( 1 );
+    expect( screen.queryByTestId( 'checkout-profile' ) ).toBeNull();
+
+    await act( async () => { vi.advanceTimersByTime( RETRY_WAIT_MS ); } );
+    await flush();
+
+    expect( callsTo( fetchMock, PREPARE_URL, 'prepare' ) ).toHaveLength( 2 );
+    // The second answer was the good one, so the editor never opened.
+    expect( screen.queryByTestId( 'checkout-profile' ) ).toBeNull();
+  } );
+
+  it( 'opens the address editor when the SECOND prepare refuses too, and stops retrying', async () => {
+    vi.useFakeTimers();
+    signedIn();
+    const fetchMock = stubFetch( {
+      prepare: { ok: false, status: 409, body: { error: 'DELIVERY_DETAILS_REQUIRED' } },
+    } );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    await flush();
+    fireEvent.click( screen.getByRole( 'button', { name: 'Proceed' } ) );
+    await flush();
+    fireEvent.click( screen.getByRole( 'button', { name: 'Complete checkout details' } ) );
+    await flush();
+    fireEvent.click( screen.getByRole( 'button', { name: /Pay securely/ } ) );
+    await flush();
+
+    await act( async () => { vi.advanceTimersByTime( RETRY_WAIT_MS ); } );
+    await flush();
+
+    expect( callsTo( fetchMock, PREPARE_URL, 'prepare' ) ).toHaveLength( 2 );
+    const editor = screen.getByTestId( 'checkout-profile' );
+    expect( editor.getAttribute( 'data-mode' ) ).toBe( 'address' );
+
+    // The ref was cleared BEFORE the retry, so a third prepare cannot be waiting on a timer.
+    await act( async () => { vi.advanceTimersByTime( RETRY_WAIT_MS * 3 ); } );
+    await flush();
+    expect( callsTo( fetchMock, PREPARE_URL, 'prepare' ) ).toHaveLength( 2 );
+  } );
+
+  it( 'opens address mode immediately for DELIVERY_DETAILS_REQUIRED with no preceding save', async () => {
+    signedIn();
+    const fetchMock = stubFetch( {
+      profile: { body: PROFILE_READY },
+      prepare: { ok: false, status: 409, body: { error: 'DELIVERY_DETAILS_REQUIRED' } },
+    } );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    expect( await screen.findByText( 'Ready to pay' ) ).toBeTruthy();
+    fireEvent.click( await screen.findByRole( 'button', { name: /Pay securely/ } ) );
+
+    const editor = await screen.findByTestId( 'checkout-profile' );
+    expect( editor.getAttribute( 'data-mode' ) ).toBe( 'address' );
+    expect( await screen.findByText( 'Confirm your delivery address to continue.' ) ).toBeTruthy();
+    // Nothing was saved in this page's lifetime, so there is no stale read to wait out: ONE call.
+    expect( callsTo( fetchMock, PREPARE_URL, 'prepare' ) ).toHaveLength( 1 );
+  } );
+
+  it( 'blocks payment and keeps the cart on DELIVERY_METHOD_UNAVAILABLE', async () => {
+    // NOT THE CUSTOMER'S MISTAKE: the address is known-good and the store has no delivery method
+    // for it. So no editor opens, the cart survives, and the copy says nothing was charged.
+    signedIn();
+    stubFetch( {
+      profile: { body: PROFILE_READY },
+      prepare: { ok: false, status: 409, body: { error: 'DELIVERY_METHOD_UNAVAILABLE' } },
+    } );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    expect( await screen.findByText( 'Ready to pay' ) ).toBeTruthy();
+    fireEvent.click( await screen.findByRole( 'button', { name: /Pay securely/ } ) );
+
+    expect( await screen.findByText(
+      'We could not get a delivery option for this address. Nothing was charged.',
+    ) ).toBeTruthy();
+    expect( screen.queryByTestId( 'checkout-profile' ) ).toBeNull();
+    expect( cart.readCart() ).toHaveLength( 1 );
+    expect( navigatedTo ).toBe( '' );
+    expect( await screen.findByRole( 'button', { name: /Try again/ } ) ).toBeTruthy();
+  } );
+
+  it( 'opens the creation flow, with the token set, when the server refuses with PROFILE_REQUIRED', async () => {
+    signedIn();
+    stubFetch( {
+      profile: { body: PROFILE_READY },
+      prepare: { ok: false, status: 409, body: {
+        error: 'PROFILE_REQUIRED', message: 'Checkout profile is required.',
+      } },
+    } );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    expect( await screen.findByText( 'Ready to pay' ) ).toBeTruthy();
+    fireEvent.click( await screen.findByRole( 'button', { name: /Pay securely/ } ) );
+
+    const editor = await screen.findByTestId( 'checkout-profile' );
+    expect( editor.getAttribute( 'data-mode' ) ).toBe( 'create' );
+    expect( await screen.findByText( 'Verify and save your checkout details again.' ) ).toBeTruthy();
+    // The server is later and better informed, so it also withdraws the identity card.
+    expect( screen.queryByText( 'Ready to pay' ) ).toBeNull();
+  } );
+
+  it( 'wires the identity card affordances to the matching editor mode', async () => {
+    signedIn();
+    stubFetch( { profile: { body: PROFILE_READY } } );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    fireEvent.click( await screen.findByRole( 'button', { name: 'Edit address' } ) );
+    expect( ( await screen.findByTestId( 'checkout-profile' ) ).getAttribute( 'data-mode' ) ).toBe( 'address' );
+    // The card stays, with its buttons disabled, so a second affordance cannot swap the mode out
+    // from under a half-typed edit.
+    expect( screen.getByText( 'Ready to pay' ) ).toBeTruthy();
+    expect( ( screen.getByRole( 'button', { name: 'Edit name' } ) as HTMLButtonElement ).disabled ).toBe( true );
   } );
 } );
 
@@ -492,12 +891,8 @@ describe( 'the initiation-failure sentence is pinned to its evidence', () => {
     {
       window.localStorage.clear();
       navigatedTo = '';
-      vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
-        accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
-      } );
-      vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
-        ok: refusal.ok, status: refusal.status, json: async () => refusal.body,
-      } ) );
+      signedIn();
+      stubFetch( { prepare: refusal } );
       cart.addItem( PRODUCT, 1 );
 
       const { unmount } = render( <Cart /> );
@@ -512,13 +907,8 @@ describe( 'the initiation-failure sentence is pinned to its evidence', () => {
   } );
 
   it( 'is absent from the in-flight handoff, which claims nothing either way', async () => {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
-      accessToken: 'tok-123', expiresAt: Date.now() + 3_600_000,
-    } );
-    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
-      ok: true, status: 200,
-      json: async () => ( { status: 'PAYMENT_REQUEST_SENT', paymentAttemptId: 'att-5' } ),
-    } ) );
+    signedIn();
+    stubFetch( { prepare: { body: { status: 'PAYMENT_REQUEST_SENT', paymentAttemptId: 'att-5' } } } );
     cart.addItem( PRODUCT, 1 );
 
     const { container } = render( <Cart /> );
@@ -622,28 +1012,19 @@ describe( 'the payment rail latches once it has returned a result', () => {
     },
   };
 
-  function signedIn () {
-    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
-      accessToken: 'fixture-session', expiresAt: Date.now() + 3_600_000,
-    } );
-  }
-
   it( 'the full stubbed rail: cart -> profile -> prepare -> modal -> verify -> one order', async () => {
-    signedIn();
+    signedIn( 'fixture-session' );
     const razorpay = fakeRazorpay();
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce( { ok: true, status: 200, json: async () => READY_OPTIONS } )
-      .mockResolvedValueOnce( {
-        ok: true, status: 200,
-        json: async () => ( {
-          status: 'VERIFIED_PAID', paymentAttemptId: 'att-latch-1',
-          orderNumber: 'WD-ORD-A1B2C3D4',
-        } ),
-      } );
-    vi.stubGlobal( 'fetch', fetchMock );
+    const fetchMock = stubFetch( {
+      prepare: { body: READY_OPTIONS },
+      verify: { body: {
+        status: 'VERIFIED_PAID', paymentAttemptId: 'att-latch-1',
+        orderNumber: 'WD-ORD-A1B2C3D4',
+      } },
+    } );
     cart.addItem( PRODUCT, 1 );
 
-    const { container } = render( <Cart /> );
+    render( <Cart /> );
     await proceedPastProfile();
 
     // The modal payload, asserted as an allow-list rather than a spot check.
@@ -665,11 +1046,8 @@ describe( 'the payment rail latches once it has returned a result', () => {
       razorpay_order_id: 'order-latch-1',
       razorpay_signature: 'sig-latch-1',
     } );
-    await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
-    expect( String( fetchMock.mock.calls[ 1 ][ 0 ] ) ).toContain( '/ecommerce/verify-callback' );
-    const verifyBodies = fetchMock.mock.calls
-      .map( ( call: any[] ) => JSON.parse( call[ 1 ].body ) )
-      .filter( ( body: any ) => body.action === 'verify' );
+    await waitFor( () => expect( callsTo( fetchMock, VERIFY_URL ) ).toHaveLength( 1 ) );
+    const verifyBodies = callsTo( fetchMock, VERIFY_URL, 'verify' );
     expect( verifyBodies ).toHaveLength( 1 );
 
     // ...and one navigation to the status page for that one attempt.
@@ -677,15 +1055,12 @@ describe( 'the payment rail latches once it has returned a result', () => {
   } );
 
   it( 'latches on a VERIFIED_PAID return, so the CTA cannot re-enter the rail', async () => {
-    signedIn();
+    signedIn( 'fixture-session' );
     const razorpay = fakeRazorpay();
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce( { ok: true, status: 200, json: async () => READY_OPTIONS } )
-      .mockResolvedValueOnce( {
-        ok: true, status: 200,
-        json: async () => ( { status: 'VERIFIED_PAID', paymentAttemptId: 'att-latch-1' } ),
-      } );
-    vi.stubGlobal( 'fetch', fetchMock );
+    const fetchMock = stubFetch( {
+      prepare: { body: READY_OPTIONS },
+      verify: { body: { status: 'VERIFIED_PAID', paymentAttemptId: 'att-latch-1' } },
+    } );
     cart.addItem( PRODUCT, 1 );
 
     const { container } = render( <Cart /> );
@@ -697,7 +1072,7 @@ describe( 'the payment rail latches once it has returned a result', () => {
       razorpay_order_id: 'order-latch-1',
       razorpay_signature: 'sig-latch-1',
     } );
-    await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
+    await waitFor( () => expect( callsTo( fetchMock, VERIFY_URL ) ).toHaveLength( 1 ) );
 
     // The pill is either gone (replaced by the orders link) or disabled. Asserted as the
     // DISJUNCTION, so it passes under both mechanisms and cannot be satisfied by a live button.
@@ -711,14 +1086,14 @@ describe( 'the payment rail latches once it has returned a result', () => {
   } );
 
   it( 'latches on a LOST verify response, which is the case money may have moved in', async () => {
-    signedIn();
+    signedIn( 'fixture-session' );
     const razorpay = fakeRazorpay();
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce( { ok: true, status: 200, json: async () => READY_OPTIONS } )
-      // The verify request THROWS. Nothing came back to read, so a live CTA here is the worst
-      // possible affordance: the payment may well have succeeded.
-      .mockRejectedValueOnce( new Error( 'network' ) );
-    vi.stubGlobal( 'fetch', fetchMock );
+    // The verify request THROWS. Nothing came back to read, so a live CTA here is the worst
+    // possible affordance: the payment may well have succeeded.
+    stubFetch( {
+      prepare: { body: READY_OPTIONS },
+      verify: new Error( 'network' ),
+    } );
     cart.addItem( PRODUCT, 1 );
 
     const { container } = render( <Cart /> );
@@ -744,15 +1119,12 @@ describe( 'the payment rail latches once it has returned a result', () => {
   } );
 
   it( 'latches on a non-VERIFIED_PAID verdict too, because the money is still unknown', async () => {
-    signedIn();
+    signedIn( 'fixture-session' );
     const razorpay = fakeRazorpay();
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce( { ok: true, status: 200, json: async () => READY_OPTIONS } )
-      .mockResolvedValueOnce( {
-        ok: true, status: 200,
-        json: async () => ( { status: 'NOT_CAPTURED', paymentAttemptId: 'att-latch-1' } ),
-      } );
-    vi.stubGlobal( 'fetch', fetchMock );
+    const fetchMock = stubFetch( {
+      prepare: { body: READY_OPTIONS },
+      verify: { body: { status: 'NOT_CAPTURED', paymentAttemptId: 'att-latch-1' } },
+    } );
     cart.addItem( PRODUCT, 1 );
 
     const { container } = render( <Cart /> );
@@ -763,7 +1135,7 @@ describe( 'the payment rail latches once it has returned a result', () => {
       razorpay_order_id: 'order-latch-1',
       razorpay_signature: 'sig-latch-1',
     } );
-    await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
+    await waitFor( () => expect( callsTo( fetchMock, VERIFY_URL ) ).toHaveLength( 1 ) );
 
     const pill = pillButton( container );
     expect( pill === null || pill.disabled ).toBe( true );
@@ -771,11 +1143,9 @@ describe( 'the payment rail latches once it has returned a result', () => {
   } );
 
   it( 'does NOT latch on a dismissed modal, because nothing came back to verify', async () => {
-    signedIn();
+    signedIn( 'fixture-session' );
     const razorpay = fakeRazorpay();
-    const fetchMock = vi.fn()
-      .mockResolvedValue( { ok: true, status: 200, json: async () => READY_OPTIONS } );
-    vi.stubGlobal( 'fetch', fetchMock );
+    stubFetch( { prepare: { body: READY_OPTIONS } } );
     cart.addItem( PRODUCT, 1 );
 
     const { container } = render( <Cart /> );
@@ -792,11 +1162,9 @@ describe( 'the payment rail latches once it has returned a result', () => {
   } );
 
   it( 'registers payment.failed and does not latch on it either', async () => {
-    signedIn();
+    signedIn( 'fixture-session' );
     const razorpay = fakeRazorpay();
-    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
-      ok: true, status: 200, json: async () => READY_OPTIONS,
-    } ) );
+    stubFetch( { prepare: { body: READY_OPTIONS } } );
     cart.addItem( PRODUCT, 1 );
 
     const { container } = render( <Cart /> );
@@ -810,14 +1178,13 @@ describe( 'the payment rail latches once it has returned a result', () => {
   } );
 
   it( 'an ambiguous refusal WITH an attempt id goes to the status page', async () => {
-    signedIn();
-    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
-      ok: false, status: 409,
-      json: async () => ( {
+    signedIn( 'fixture-session' );
+    stubFetch( {
+      prepare: { ok: false, status: 409, body: {
         status: 'CHECKOUT_AMBIGUOUS', reason: 'CART_ALREADY_PAID',
         paymentAttemptId: 'att-blocked-1',
-      } ),
-    } ) );
+      } },
+    } );
     cart.addItem( PRODUCT, 1 );
 
     render( <Cart /> );
@@ -826,13 +1193,12 @@ describe( 'the payment rail latches once it has returned a result', () => {
   } );
 
   it( 'an ambiguous refusal with NO attempt id claims nothing about a charge', async () => {
-    signedIn();
-    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
-      ok: false, status: 409,
-      json: async () => ( {
+    signedIn( 'fixture-session' );
+    stubFetch( {
+      prepare: { ok: false, status: 409, body: {
         status: 'CHECKOUT_AMBIGUOUS', reason: 'CART_PAYMENT_IN_FLIGHT',
-      } ),
-    } ) );
+      } },
+    } );
     cart.addItem( PRODUCT, 1 );
 
     const { container } = render( <Cart /> );
@@ -859,5 +1225,23 @@ describe( 'the payment rail latches once it has returned a result', () => {
       path.resolve( __dirname, '../pages/cart.tsx' ), 'utf8' );
     expect( source ).not.toMatch( /retriedIntent/ );
     expect( source.match( /INTENT_CHANGED/g ) || [] ).toHaveLength( 0 );
+  } );
+
+  it( 'branches the readiness decision on a local, never on the profileStatus state', () => {
+    /*
+     * A SOURCE PIN, because this is the one property no render can observe.
+     *
+     * `setProfileStatus` cannot change the `useState` value captured in `proceed`'s closure, so
+     * branching on `profileStatus` after setting it means the 'ready' arm is never taken on a
+     * first click. The fix is a local `let status` assigned from `deriveStatus`'s RETURN value,
+     * and the status-failure cases above prove the behaviour - this proves the mechanism, so a
+     * future edit cannot quietly reintroduce the stale read while the tests still pass.
+     */
+    const source = fs.readFileSync( path.resolve( __dirname, '../pages/cart.tsx' ), 'utf8' );
+    expect( source ).toMatch( /let status = profileStatus;/ );
+    expect( source ).toMatch( /if \( status === 'required' \)/ );
+    // The branch must never test the state directly.
+    expect( source ).not.toMatch( /if \( profileStatus === 'required' \)/ );
+    expect( source.match( /postPrepare\( session, lineItems \)/g ) || [] ).toHaveLength( 2 );
   } );
 } );
