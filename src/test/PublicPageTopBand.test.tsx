@@ -332,7 +332,7 @@ describe( 'no red anywhere on these pages, on owner instruction', () => {
 
     render( <SignIn /> );
     fireEvent.change( screen.getByLabelText( 'WhatsApp number' ), { target: { value: '1' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Send OTP on WhatsApp' } ) );
 
     // An alert, not a colour. A reader who cannot see the tint still gets the interruption.
     const alert = await screen.findByRole( 'alert' );
@@ -420,13 +420,13 @@ describe( 'the country code is a segment of the one divided field, on owner inst
    * rather than merely unused - see the note in sign-in.tsx's MSG.
    */
   const sendCode = (): void => {
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Send OTP on WhatsApp' } ) );
   };
   const typeNumber = ( value: string ): void => {
     fireEvent.change( screen.getByLabelText( 'WhatsApp number' ), { target: { value } } );
   };
   const pickCode = ( value: string ): void => {
-    fireEvent.change( screen.getByLabelText( 'Country code' ), { target: { value } } );
+    fireEvent.change( screen.getByLabelText( 'Calling code' ), { target: { value } } );
   };
 
   it( 'is one divided field: a code segment and a number segment, with no native validation', () => {
@@ -457,7 +457,7 @@ describe( 'the country code is a segment of the one divided field, on owner inst
     expect( field.getAttribute( 'autocomplete' ) ).toBe( 'tel-national' );
 
     // The code segment is back, and it is a real <select> with a visible default - not a guess.
-    const code = screen.getByLabelText( 'Country code' ) as HTMLSelectElement;
+    const code = screen.getByLabelText( 'Calling code' ) as HTMLSelectElement;
     expect( code.tagName ).toBe( 'SELECT' );
     expect( code.value ).toBe( '+91' );
 
@@ -590,6 +590,6 @@ describe( 'the country code is a segment of the one divided field, on owner inst
     // The hint stays in the description list alongside the error, so it is not lost.
     expect( field.getAttribute( 'aria-describedby' ) ).toBe( 'si-hint si-error' );
     // BOTH segments are marked, because the field is wrong as a whole rather than one half of it.
-    expect( screen.getByLabelText( 'Country code' ).getAttribute( 'aria-invalid' ) ).toBe( 'true' );
+    expect( screen.getByLabelText( 'Calling code' ).getAttribute( 'aria-invalid' ) ).toBe( 'true' );
   } );
 } );
