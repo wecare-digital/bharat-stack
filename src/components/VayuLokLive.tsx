@@ -1831,7 +1831,7 @@ const VayuLokLive: React.FC = () => {
           ) }
 
           {/* SUBSCRIBE - the shipped WhatsApp anchor, verbatim URL from the user instruction. */}
-          <section className="vl-live-section" aria-label="Subscribe on WhatsApp">
+          <section className="vl-live-section vl-live-section-tail" aria-label="Subscribe on WhatsApp">
             <a
               className="vl-live-wa-subscribe"
               href="https://wa.me/message/BEA3HNW3LNM3A1"
@@ -1850,12 +1850,12 @@ const VayuLokLive: React.FC = () => {
               src/config/contribution.ts (CONTRIBUTION_PRESETS_PAISE [20000,40000,60000]);
               the mock's Rs50/Rs200/Rs400 are NOT shipped and changing those is out of scope
               here, so this renders the shipped presets. src/config/contribution.ts unchanged. */}
-          <section className="vl-live-section">
-            <BlogContribution postId="vayulok" slug="vayulok" />
+          <section className="vl-live-section vl-live-section-tail">
+            <BlogContribution postId="vayulok" slug="vayulok" embedded />
           </section>
 
           {/* SHARE - reuse the shipped component with the canonical /vayulok/ url. */}
-          <section className="vl-live-section">
+          <section className="vl-live-section vl-live-section-tail">
             <ShareLinks url={ `${SITE_ORIGIN}/vayulok/` } title="VayuLok — Bharat air and weather intelligence" />
           </section>
         </div>
@@ -1901,23 +1901,14 @@ const VayuLokLive: React.FC = () => {
                     className="vl-live-layer"
                     type="button"
                     aria-pressed={ layer === 'AQI' }
-                    onClick={ () => setLayer( l => ( l === 'AQI' ? null : 'AQI' ) ) }
+                    onClick={ () => setLayer( 'AQI' ) }
                   >AQI</button>
                   <button
                     className="vl-live-layer"
                     type="button"
                     aria-pressed={ layer === 'PM25' }
-                    onClick={ () => setLayer( l => ( l === 'PM25' ? null : 'PM25' ) ) }
+                    onClick={ () => setLayer( 'PM25' ) }
                   >PM2.5</button>
-                </div>
-              ) }
-
-              { mapReady && (
-                <div className="vl-live-map-legend">
-                  <p className="vl-live-label">AQI heatmap</p>
-                  <div className="vl-live-scale" aria-hidden="true" />
-                  <div className="vl-live-scale-ends"><span>Good</span><span>Severe</span></div>
-                  <p className="vl-live-scale-mid">Good · Satisfactory · Moderate · Poor · Very Poor · Severe</p>
                 </div>
               ) }
 
@@ -1993,6 +1984,16 @@ const VayuLokLive: React.FC = () => {
                         <div key="prev-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ Math.round( p.value ) }</span><p className="vl-live-preview-cat">{ p.unit }</p></div>
                       ) ) }
                     </div>
+                    { layer && (
+                      <div className="vl-live-preview-scale" aria-label={ layer === 'AQI' ? 'AQI heatmap scale' : 'PM2.5 heatmap scale' }>
+                        <p className="vl-live-label">{ layer === 'AQI' ? 'AQI heatmap' : 'PM2.5 heatmap' }</p>
+                        <div className="vl-live-scale" aria-hidden="true" />
+                        <div className="vl-live-scale-ends">
+                          <span>{ layer === 'AQI' ? 'Good' : 'Lower' }</span>
+                          <span>{ layer === 'AQI' ? 'Severe' : 'Higher' }</span>
+                        </div>
+                      </div>
+                    ) }
                   </div>
                 ) }
             </div>
@@ -2049,9 +2050,10 @@ const VayuLokLive: React.FC = () => {
         .vl-live-right{min-width:0}
 
         .vl-live-left > .vl-live-section{margin-top:44px;padding-top:24px;border-top:1px solid var(--hair)}
+        .vl-live-left > .vl-live-section.vl-live-section-tail{padding-top:0;border-top:0}
 
         .vl-live-map-sticky{display:flex;flex-direction:column;gap:10px}
-        .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid var(--hair);border-radius:18px;background:var(--ground);box-shadow:0 8px 28px rgba(26,58,42,.08)}
+        .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid rgba(209,244,112,.92);border-radius:14px;background:var(--ground);box-shadow:none}
         .vl-live-map-fallback{
           position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;gap:14px;
           width:100%;height:100%;padding:24px;border:0;border-radius:inherit;overflow:hidden;
@@ -2154,22 +2156,21 @@ const VayuLokLive: React.FC = () => {
         .vl-live-layer:focus-visible{outline:3px solid var(--green);outline-offset:3px}
         .vl-live-layer[aria-pressed="true"]{border-color:var(--green);background:var(--lime)}
 
-        .vl-live-map-legend{position:absolute;top:16px;right:16px;z-index:4;width:224px;padding:16px;border:1px solid var(--hair);border-radius:14px;background:var(--paper);box-shadow:0 6px 20px rgba(26,58,42,.12)}
-        .vl-live-scale{height:10px;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--aqi-good) 0%,var(--aqi-sat) 22%,var(--aqi-mod) 48%,var(--aqi-poor) 74%,var(--aqi-worst) 100%)}
-        .vl-live-scale-ends{display:flex;justify-content:space-between;margin-top:8px;gap:8px}
-        .vl-live-scale-ends span{font-size:12px;font-weight:700;color:var(--green)}
-        .vl-live-scale-mid{margin:8px 0 0;font-size:12px;line-height:1.4;color:var(--ink-muted)}
+        .vl-live-scale{height:8px;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--aqi-good) 0%,var(--aqi-sat) 22%,var(--aqi-mod) 48%,var(--aqi-poor) 74%,var(--aqi-worst) 100%)}
+        .vl-live-scale-ends{display:flex;justify-content:space-between;margin-top:6px;gap:8px}
+        .vl-live-scale-ends span{font-size:11px;font-weight:700;color:var(--green)}
 
-        /* Keep the preview above Google's bottom legal/attribution area. */
-        .vl-live-map-preview{position:absolute;left:16px;bottom:76px;z-index:4;width:320px;padding:0 16px 16px;border:1px solid var(--hair);border-radius:16px;background:var(--paper);box-shadow:0 6px 20px rgba(26,58,42,.12);overflow:hidden}
-        .vl-live-place-photos{display:flex;gap:0;overflow-x:auto;margin:0 -16px;scroll-snap-type:x mandatory;scrollbar-width:none}
+        /* One map information card only. It lives in the top-right so Google's
+           required attribution/legal strip at the bottom remains completely clear. */
+        .vl-live-map-preview{position:absolute;top:16px;right:16px;left:auto;bottom:auto;z-index:4;width:296px;padding:0 14px 14px;border:1px solid rgba(209,244,112,.92);border-radius:14px;background:rgba(255,255,255,.97);box-shadow:none;overflow:hidden}
+        .vl-live-place-photos{display:flex;gap:0;overflow-x:auto;margin:0 -14px;scroll-snap-type:x mandatory;scrollbar-width:none}
         .vl-live-place-photos::-webkit-scrollbar{display:none}
-        .vl-live-place-photo{position:relative;flex:0 0 100%;width:100%;height:132px;margin:0;scroll-snap-align:start;background:#eef3ef}
-        .vl-live-place-photo img{display:block;width:100%;height:132px;object-fit:cover}
+        .vl-live-place-photo{position:relative;flex:0 0 100%;width:100%;height:104px;margin:0;scroll-snap-align:start;background:#eef3ef}
+        .vl-live-place-photo img{display:block;width:100%;height:104px;object-fit:cover}
         .vl-live-place-photo figcaption{position:absolute;left:8px;bottom:7px;max-width:calc(100% - 16px);padding:4px 6px;border-radius:6px;background:rgba(0,0,0,.62);font-size:9px;line-height:1.25;color:#fff}
         .vl-live-place-photo figcaption a,.vl-live-place-photo figcaption span{color:#fff}
         .vl-live-place-photo figcaption a+span,.vl-live-place-photo figcaption a+a,.vl-live-place-photo figcaption span+a,.vl-live-place-photo figcaption span+span{margin-left:5px}
-        .vl-live-place-photo-fallback{height:112px;margin:0 -16px 14px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(209,244,112,.5),rgba(26,58,42,.08)),#eef3ef}
+        .vl-live-place-photo-fallback{height:88px;margin:0 -14px 12px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(209,244,112,.5),rgba(26,58,42,.08)),#eef3ef}
         .vl-live-place-photo-fallback span{width:26px;height:26px;border:7px solid var(--green);border-radius:50% 50% 50% 0;background:var(--lime);transform:rotate(-45deg)}
         .vl-live-photo-dots{display:flex;justify-content:center;gap:5px;margin:7px 0 12px}
         .vl-live-photo-dots i{width:5px;height:5px;border-radius:50%;background:#cfd6d0}
@@ -2184,6 +2185,8 @@ const VayuLokLive: React.FC = () => {
         .vl-live-preview-metrics .vl-live-label{margin-bottom:4px}
         .vl-live-preview-metrics .vl-live-metric-md{font-size:17px}
         .vl-live-preview-cat{margin:4px 0 0;font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--ink-muted)}
+        .vl-live-preview-scale{margin-top:12px;padding-top:12px;border-top:1px solid var(--hair)}
+        .vl-live-preview-scale .vl-live-label{margin-bottom:7px}
 
         .vl-live-best-outside{display:grid;gap:10px;padding:24px;border-radius:18px;background:var(--green);color:#fff}
         .vl-live-best-outside .vl-live-metric-lg,.vl-live-best-outside .vl-live-body{color:#fff}
@@ -2279,9 +2282,7 @@ const VayuLokLive: React.FC = () => {
         .vl-live-wa-subscribe:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
 
         @media(max-width:1023px){
-          .vl-live-map-legend{top:12px;right:12px;width:168px;padding:12px}
-          .vl-live-map-legend .vl-live-scale-mid{display:none}
-          .vl-live-map-preview{left:12px;bottom:72px;width:244px;padding:0 14px 14px}
+          .vl-live-map-preview{top:12px;right:12px;left:auto;bottom:auto;width:280px;padding:0 14px 14px}
         }
         @media(max-width:767px){
           .vl-live{padding-bottom:48px}
@@ -2294,8 +2295,7 @@ const VayuLokLive: React.FC = () => {
           .vl-live-section{padding-top:0}
           .vl-live-block{padding-block:36px}
           .vl-live-map-controls{top:12px;left:12px}
-          .vl-live-map-legend{width:136px}
-          .vl-live-map-preview{width:min(244px,calc(100% - 24px))}
+          .vl-live-map-preview{top:70px;right:12px;left:12px;width:auto}
           .vl-live-map-preview .vl-live-card-h{font-size:17px}
         }
         @media(prefers-reduced-motion:reduce){
