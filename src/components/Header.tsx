@@ -100,26 +100,10 @@ interface NavColumn {
 const COLUMNS: NavColumn[] = [
   {
     sections: [
-      // HOME AND SHOP, in the unlabelled group at the top of the menu, because they are the
-      // two whole-site destinations rather than members of a category. Shop is not a row
-      // under Products: that group is the eleven brand pages, each explaining one service,
-      // and the catalogue is the priced list of what can actually be bought - filing it
-      // among them would read as a twelfth brand.
-      //
-      // IT HAD TO BE TYPED HERE. Only the Products rows are mapped from a content module;
-      // every other row in this file is written out, so src/content/shop.ts alone gives the
-      // catalogue pages and a sitemap entry but no way to reach them from the menu. Vault's
-      // note further down records the same trap.
-      //
-      // `match` is '/shop' and isActive is exact equality against router.pathname, so this
-      // row lights up on /shop/ and NOT on the seven /shop/<slug>/ pages - whose pathname is
-      // the pattern '/shop/[slug]'. That is the existing behaviour for every dynamic route
-      // here rather than a gap: no row lights up on a blog post either. Adding prefix
-      // matching for one row would make this menu answer "which page am I on" two different
-      // ways depending on the row.
+      // HOME, in the unlabelled group at the top of the menu, because it is the one
+      // whole-site destination rather than a member of a category.
       { heading: '', links: [
         { label: 'Home', href: '/', match: '/' },
-        { label: 'Shop', href: '/shop/', match: '/shop' },
       ] },
       {
         heading: 'Products',
