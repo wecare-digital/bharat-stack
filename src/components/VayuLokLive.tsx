@@ -1528,57 +1528,107 @@ const VayuLokLive: React.FC = () => {
           </div>
           ) }
 
-          {/* CONDITIONS - rail of live weather/air facts; omit any that did not arrive. */}
-          { ( weather || air ) && (
+          { combinedHours.length > 0 && (
             <div className="vl-live-block">
-              <h3 className="vl-live-h2" id="vl-live-facts">Conditions</h3>
-              <div className="vl-live-rail" aria-labelledby="vl-live-facts">
-                { Number.isFinite( weather?.humidity ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Humidity</p><span className="vl-live-metric-md">{ weather!.humidity }%</span></div>
-                ) }
-                { Number.isFinite( weather?.windSpeed ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Wind speed</p><span className="vl-live-metric-md">{ weather!.windSpeed } { weather!.windUnit || 'km/h' }</span></div>
-                ) }
-                { weather?.windDir && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Wind direction</p><span className="vl-live-metric-md">{ weather.windDir }</span></div>
-                ) }
-                { Number.isFinite( weather?.temp ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Temperature</p><span className="vl-live-metric-md">{ weather!.temp }°</span></div>
-                ) }
-                { Number.isFinite( weather?.windGust ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Wind gust</p><span className="vl-live-metric-md">{ weather!.windGust } km/h</span></div>
-                ) }
-                { Number.isFinite( weather?.rainMm ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Rainfall</p><span className="vl-live-metric-md">{ weather!.rainMm } mm</span></div>
-                ) }
-                { Number.isFinite( weather?.rainProb ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Rain chance</p><span className="vl-live-metric-md">{ weather!.rainProb }%</span></div>
-                ) }
-                { Number.isFinite( weather?.uv ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">UV index</p><span className="vl-live-metric-md">{ weather!.uv }</span></div>
-                ) }
-                { Number.isFinite( weather?.visibilityKm ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Visibility</p><span className="vl-live-metric-md">{ weather!.visibilityKm } km</span></div>
-                ) }
-                { Number.isFinite( weather?.cloudCover ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Cloud cover</p><span className="vl-live-metric-md">{ weather!.cloudCover }%</span></div>
-                ) }
-                { Number.isFinite( weather?.pressureHpa ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Pressure</p><span className="vl-live-metric-md">{ weather!.pressureHpa } hPa</span></div>
-                ) }
-                { Number.isFinite( weather?.dewPoint ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Dew point</p><span className="vl-live-metric-md">{ weather!.dewPoint }°</span></div>
-                ) }
-                { Number.isFinite( weather?.heatIndex ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Heat index</p><span className="vl-live-metric-md">{ weather!.heatIndex }°</span></div>
-                ) }
-                { Number.isFinite( weather?.wetBulb ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Wet bulb</p><span className="vl-live-metric-md">{ weather!.wetBulb }°</span></div>
-                ) }
-                { air && air.pollutants.filter( p => p.code === 'pm25' ).map( p => (
-                  <div className="vl-live-fact" key="cond-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ Math.round( p.value ) } { p.unit }</span></div>
+              <h3 className="vl-live-h2">Next 24 hours</h3>
+              <div className="vl-live-hour-rail" aria-label="Next 24 hours">
+                { combinedHours.map( ( h, i ) => (
+                  <article className="vl-live-hour-card" key={ h.time }>
+                    <time>{ hourLabel( h.time ) }</time>
+                    { h.icon && <img src={ h.icon + '.svg' } alt="" loading="lazy" /> }
+                    <strong>{ Number.isFinite( h.temp ) ? h.temp + '°' : '—' }</strong>
+                    <span>{ Number.isFinite( h.rainProb ) ? h.rainProb + '% rain' : 'No rain data' }</span>
+                    <span>{ h.air ? 'AQI ' + h.air.aqi : 'AQI —' }</span>
+                    { i === 0 && <em>Next</em> }
+                  </article>
                 ) ) }
               </div>
+            </div>
+          ) }
+
+          {/* WEATHER SIGNALS - continuous, separator-led flow inspired by Home.
+              No card grid: each topic owns one horizontal band and shares the same
+              typographic rhythm as the surrounding page. */}
+          { ( weather || air ) && (
+            <div className="vl-live-block vl-live-signal-stack" aria-label="Current weather signals">
+              { weather && (
+                <>
+                  <section className="vl-live-signal" aria-labelledby="vl-live-temperature">
+                    <div className="vl-live-signal-head">
+                      <div>
+                        <p className="vl-live-eyebrow">Temperature</p>
+                        <h3 className="vl-live-h2" id="vl-live-temperature">
+                          { Number.isFinite( weather.temp ) ? weather.temp + '°' : 'Current temperature' }
+                        </h3>
+                      </div>
+                      { weather.condition && <p className="vl-live-signal-summary">{ weather.condition }</p> }
+                    </div>
+                    <div className="vl-live-signal-facts">
+                      { Number.isFinite( weather.feelsLike ) && <div><p className="vl-live-label">Feels like</p><strong>{ weather.feelsLike }°</strong></div> }
+                      { Number.isFinite( weather.humidity ) && <div><p className="vl-live-label">Humidity</p><strong>{ weather.humidity }%</strong></div> }
+                      { Number.isFinite( weather.dewPoint ) && <div><p className="vl-live-label">Dew point</p><strong>{ weather.dewPoint }°</strong></div> }
+                      { Number.isFinite( weather.heatIndex ) && <div><p className="vl-live-label">Heat index</p><strong>{ weather.heatIndex }°</strong></div> }
+                      { Number.isFinite( weather.wetBulb ) && <div><p className="vl-live-label">Wet bulb</p><strong>{ weather.wetBulb }°</strong></div> }
+                    </div>
+                  </section>
+
+                  <section className="vl-live-signal" aria-labelledby="vl-live-precipitation">
+                    <div className="vl-live-signal-head">
+                      <div>
+                        <p className="vl-live-eyebrow">Precipitation</p>
+                        <h3 className="vl-live-h2" id="vl-live-precipitation">
+                          { Number.isFinite( weather.rainProb ) ? weather.rainProb + '% chance' : 'Rain outlook' }
+                        </h3>
+                      </div>
+                    </div>
+                    <div className="vl-live-signal-facts">
+                      { Number.isFinite( weather.rainMm ) && <div><p className="vl-live-label">Rainfall</p><strong>{ weather.rainMm } mm</strong></div> }
+                      { Number.isFinite( weather.rainProb ) && <div><p className="vl-live-label">Rain chance</p><strong>{ weather.rainProb }%</strong></div> }
+                      { Number.isFinite( weather.stormProb ) && <div><p className="vl-live-label">Storm chance</p><strong>{ weather.stormProb }%</strong></div> }
+                      { Number.isFinite( weather.cloudCover ) && <div><p className="vl-live-label">Cloud cover</p><strong>{ weather.cloudCover }%</strong></div> }
+                    </div>
+                  </section>
+
+                  <section className="vl-live-signal" aria-labelledby="vl-live-uv">
+                    <div className="vl-live-signal-head">
+                      <div>
+                        <p className="vl-live-eyebrow">UV &amp; visibility</p>
+                        <h3 className="vl-live-h2" id="vl-live-uv">
+                          { Number.isFinite( weather.uv ) ? 'UV ' + weather.uv : 'Outdoor conditions' }
+                        </h3>
+                      </div>
+                    </div>
+                    <div className="vl-live-signal-facts">
+                      { Number.isFinite( weather.uv ) && <div><p className="vl-live-label">UV index</p><strong>{ weather.uv }</strong></div> }
+                      { Number.isFinite( weather.visibilityKm ) && <div><p className="vl-live-label">Visibility</p><strong>{ weather.visibilityKm } km</strong></div> }
+                      { Number.isFinite( weather.windSpeed ) && <div><p className="vl-live-label">Wind</p><strong>{ weather.windSpeed } { weather.windUnit || 'km/h' }</strong></div> }
+                      { weather.windDir && <div><p className="vl-live-label">Direction</p><strong>{ weather.windDir }</strong></div> }
+                      { Number.isFinite( weather.windGust ) && <div><p className="vl-live-label">Gust</p><strong>{ weather.windGust } km/h</strong></div> }
+                      { Number.isFinite( weather.pressureHpa ) && <div><p className="vl-live-label">Pressure</p><strong>{ weather.pressureHpa } hPa</strong></div> }
+                    </div>
+                  </section>
+                </>
+              ) }
+
+              { air && (
+                <section className="vl-live-signal" aria-labelledby="vl-live-air-signal">
+                  <div className="vl-live-signal-head">
+                    <div>
+                      <p className="vl-live-eyebrow">Air quality</p>
+                      <h3 className="vl-live-h2" id="vl-live-air-signal">AQI { air.aqi } · { air.word }</h3>
+                    </div>
+                    { air.dominant && <p className="vl-live-signal-summary">Dominant pollutant { air.dominant }</p> }
+                  </div>
+                  <div className="vl-live-signal-facts">
+                    { air.pollutants.filter( p => p.code === 'pm25' ).map( p => (
+                      <div key="signal-pm25"><p className="vl-live-label">PM2.5</p><strong>{ Math.round( p.value ) } { p.unit }</strong></div>
+                    ) ) }
+                    { air.pollutants.filter( p => p.code !== 'pm25' ).slice( 0, 3 ).map( p => (
+                      <div key={ 'signal-' + p.code }><p className="vl-live-label">{ p.label }</p><strong>{ Math.round( p.value ) } { p.unit }</strong></div>
+                    ) ) }
+                  </div>
+                </section>
+              ) }
             </div>
           ) }
 
@@ -1601,24 +1651,6 @@ const VayuLokLive: React.FC = () => {
                   <p className="vl-live-body">{ bestOutside.note }</p>
                 </div>
                 <p className="vl-live-small">Calculated from the upcoming Google Weather and Air Quality forecasts.</p>
-              </div>
-            </div>
-          ) }
-
-          { combinedHours.length > 0 && (
-            <div className="vl-live-block">
-              <h3 className="vl-live-h2">Next 24 hours</h3>
-              <div className="vl-live-hour-rail" aria-label="Next 24 hours">
-                { combinedHours.map( ( h, i ) => (
-                  <article className="vl-live-hour-card" key={ h.time }>
-                    <time>{ hourLabel( h.time ) }</time>
-                    { h.icon && <img src={ h.icon + '.svg' } alt="" loading="lazy" /> }
-                    <strong>{ Number.isFinite( h.temp ) ? h.temp + '°' : '—' }</strong>
-                    <span>{ Number.isFinite( h.rainProb ) ? h.rainProb + '% rain' : 'No rain data' }</span>
-                    <span>{ h.air ? 'AQI ' + h.air.aqi : 'AQI —' }</span>
-                    { i === 0 && <em>Next</em> }
-                  </article>
-                ) ) }
               </div>
             </div>
           ) }
@@ -2185,11 +2217,33 @@ const VayuLokLive: React.FC = () => {
         .vl-live-preview-metrics .vl-live-metric-md{font-size:17px}
         .vl-live-preview-cat{margin:4px 0 0;font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--ink-muted)}
 
+        /* Continuous weather workspace: typography + hairlines instead of repeated cards. */
+        .vl-live-signal-stack{padding-top:0;padding-bottom:0}
+        .vl-live-signal{padding:34px 0;border-top:1px solid var(--hair)}
+        .vl-live-signal:last-child{border-bottom:1px solid var(--hair)}
+        .vl-live-signal-head{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:end}
+        .vl-live-signal-head .vl-live-eyebrow{margin-bottom:10px}
+        .vl-live-signal-head .vl-live-h2{margin-bottom:0}
+        .vl-live-signal-summary{margin:0;max-width:34ch;font-size:14px;line-height:1.45;color:var(--ink-muted)}
+        .vl-live-signal-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:24px;border-top:1px solid var(--hair)}
+        .vl-live-signal-facts>div{padding:16px 14px 0 0}
+        .vl-live-signal-facts>div:nth-child(even){padding-left:14px;border-left:1px solid var(--hair)}
+        .vl-live-signal-facts strong{font-size:17px;line-height:1.25;color:#1a1a1a}
+        @container vllive (min-width:620px){
+          .vl-live-signal-head{grid-template-columns:minmax(0,1fr) minmax(180px,.45fr);gap:24px}
+          .vl-live-signal-summary{text-align:right;justify-self:end}
+          .vl-live-signal-facts{grid-template-columns:repeat(4,minmax(0,1fr))}
+          .vl-live-signal-facts>div{padding:16px 16px 0}
+          .vl-live-signal-facts>div:first-child{padding-left:0}
+          .vl-live-signal-facts>div+div{border-left:1px solid var(--hair)}
+        }
+
         .vl-live-best-outside{display:grid;gap:10px;padding:24px;border:2px solid var(--lime);border-radius:14px;background:var(--lime-tint);color:var(--ink-base)}
         .vl-live-best-outside .vl-live-metric-lg,.vl-live-best-outside .vl-live-body{color:var(--ink-head)}
         .vl-live-best-outside .vl-live-small{color:var(--ink-muted)}
-        .vl-live-hour-rail,.vl-live-day-rail{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;padding:2px 0 8px;scrollbar-width:thin}
-        .vl-live-hour-card{position:relative;flex:0 0 112px;min-height:144px;padding:14px;border:1px solid var(--hair);border-radius:14px;background:#fff;scroll-snap-align:start}
+        .vl-live-hour-rail,.vl-live-day-rail{display:flex;gap:0;overflow-x:auto;scroll-snap-type:x proximity;padding:0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);scrollbar-width:thin}
+        .vl-live-hour-card{position:relative;flex:0 0 112px;min-height:144px;padding:14px 14px 14px 0;border:0;border-radius:0;background:transparent;scroll-snap-align:start}
+        .vl-live-hour-card+.vl-live-hour-card{padding-left:14px;border-left:1px solid var(--hair)}
         .vl-live-hour-card time,.vl-live-hour-card span{display:block;font-size:12px;line-height:1.35;color:var(--ink-muted)}
         .vl-live-hour-card strong{display:block;margin:9px 0;font-size:19px;color:var(--green)}
         .vl-live-hour-card img{display:block;width:30px;height:30px;margin-top:8px}
@@ -2211,10 +2265,11 @@ const VayuLokLive: React.FC = () => {
         .vl-live-weather-grid>div{padding:16px 14px 16px 0;border-bottom:1px solid var(--hair)}
         .vl-live-weather-grid>div:nth-child(even){padding-left:14px;border-left:1px solid var(--hair)}
         .vl-live-weather-grid strong{font-size:15px;color:#1a1a1a}
-        .vl-live-sunline{display:grid;grid-template-columns:1fr 1fr;margin-top:18px;border:1px solid var(--hair);border-radius:14px;overflow:hidden}
+        .vl-live-sunline{display:grid;grid-template-columns:1fr 1fr;margin-top:18px;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);border-radius:0;overflow:hidden}
         .vl-live-sunline>div{padding:16px}
         .vl-live-sunline>div+div{border-left:1px solid var(--hair)}
-        .vl-live-day-card{flex:0 0 112px;min-height:150px;padding:14px;border:1px solid var(--hair);border-radius:14px;background:#fff;scroll-snap-align:start;text-align:center}
+        .vl-live-day-card{flex:0 0 112px;min-height:150px;padding:14px 14px 14px 0;border:0;border-radius:0;background:transparent;scroll-snap-align:start;text-align:left}
+        .vl-live-day-card+.vl-live-day-card{padding-left:14px;border-left:1px solid var(--hair)}
         .vl-live-day-card>span,.vl-live-day-card>b{display:block;margin-top:5px;font-size:12px;color:var(--ink-muted)}
         .vl-live-day-card>b{font-size:14px;color:#1a1a1a}
         .vl-live-day-card img{width:34px;height:34px;margin:8px auto 2px}
@@ -2224,8 +2279,10 @@ const VayuLokLive: React.FC = () => {
         .vl-live-alert strong{display:block;color:#6e4a18}
         .vl-live-alert p{margin:6px 0 0;font-size:13px;line-height:1.45;color:#5f4a2b}
         .vl-live-alert span{display:block;margin-top:6px;font-size:11px;color:#7f6845}
-        .vl-live-pollen-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-        .vl-live-pollen-card{padding:14px;border:1px solid var(--hair);border-radius:14px;background:#fff}
+        .vl-live-pollen-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+        .vl-live-pollen-card{padding:16px 14px 16px 0;border:0;border-radius:0;background:transparent}
+        .vl-live-pollen-card:nth-child(even){padding-left:14px;border-left:1px solid var(--hair)}
+        .vl-live-pollen-card:nth-child(n+3){border-top:1px solid var(--hair)}
         .vl-live-pollen-card strong{display:block;font-size:15px;color:#1a1a1a}
         .vl-live-pollen-card span{display:block;margin-top:5px;font-size:12px;color:var(--ink-muted)}
 
