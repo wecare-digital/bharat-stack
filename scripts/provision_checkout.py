@@ -1030,7 +1030,7 @@ def verify(members: dict | None = None, source_note: str = "") -> int:
     # action=create performs a live Wix write and writes an attempt row before refusing. No money
     # moves and no gateway order is created, but "the gate is off" stops meaning "inert" — and an
     # operator who set those values expecting inertness deserves a non-zero exit, not a note.
-    if not readiness_empty:
+    if not readiness_empty and initiation not in ("1", "true", "yes", "on"):
         problems.append(
             "readiness inputs are SET while CHECKOUT_INITIATION_ENABLED is off: every "
             "authenticated action=create now reaches wix_ecom.create_checkout (a live Wix write) "
