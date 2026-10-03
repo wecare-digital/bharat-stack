@@ -686,13 +686,16 @@ charged Wix's raw `priceSummary.total`. V2 charges `quote.total_payable_paise` �
 fee GST — which is the contract §8 of the handler's docstring always specified and which no code path
 honoured. Inert today: `CHECKOUT_INITIATION_ENABLED` is unset, so nothing is charged.
 
-**Remaining seam, named exactly as asked:**
-`amplify/functions/ecommerce/checkout/handler.py` → `LOAD_OWNED_ADDRESS` (module-level, currently
-`None`). It needs `(customer_id) -> dict | None` returning an `identity.address`-shaped record for
-the authenticated customer. This function's environment carries only `PAYMENT_ATTEMPTS_TABLE` and
-`COMMERCE_KEYS_TABLE` — there is no customers table — so wiring the profile read needs a table grant
-plus the read itself. **While it is `None` the V2 path returns `409 DELIVERY_DETAILS_REQUIRED`**,
-which is deliberate: an honest refusal, never a placeholder address.
+**That seam is now wired.** `amplify/functions/ecommerce/checkout/handler.py` →
+`LOAD_OWNED_ADDRESS` is `_load_owned_address`, signature `(identity) -> dict | None`, which reads
+`checkoutDeliveryAddress` off the authenticated session's CRM contact row via the existing
+`phone-index` query — the same row `auth/customer-profile` writes, found under the same
+`normalize_phone_preserving_country` key. No table grant or env key was needed: `CONTACTS_TABLE`
+was already read by `_checkout_profile` and the `dynamodb:Query` grant on
+`ContactsTable/index/phone-index` already existed. The claim above that this function's
+environment carried only `PAYMENT_ATTEMPTS_TABLE` and `COMMERCE_KEYS_TABLE` was false. The V2 path
+now returns `409 DELIVERY_DETAILS_REQUIRED` only when the customer has saved no usable address,
+which remains an honest refusal and never a placeholder address.
 
 **Frontend follow-up, also named:** `src/lib/cart.ts` carries catalogue references and quantities
 only and has no delivery-address or delivery-method selection state, and `src/` is not an owned path
@@ -831,7 +834,7 @@ fix, and finding WIX-V2-005 is right that only CI makes these independent.
 | Item | Owner action | Date |
 |---|---|---|
 | Six V2 request shapes unverified live | one authorized Calculate Cart with a real address | before deploy |
-| `LOAD_OWNED_ADDRESS` is `None`, so the V2 path cannot price | **owner decision first**: where the delivery address comes from. This function's environment carries only `PAYMENT_ATTEMPTS_TABLE` and `COMMERCE_KEYS_TABLE`, so wiring it needs a customer-profile source, an IAM grant and an env key. Not inventable here — §3 names it as a product decision nobody has made | before the V2 path can price |
+| ~~`LOAD_OWNED_ADDRESS` is `None`, so the V2 path cannot price~~ | **CLOSED.** The seam reads `checkoutDeliveryAddress` off the authenticated session's CRM contact row; the owner decision on the address source is recorded in the Phase 1 checkout-identity design §12.1. No IAM grant or env key was required | done |
 | No address/method selection UI | `src/lib/cart.ts` — not an owned path | before customer use |
 | `WIX_CART_V2_ENABLED` absent on every function | setting it is the deliberate operator action that makes V2 serve. Nothing in this commit sets it, and doing so is a standing refusal for the agent | owner only, at deploy |
 | Deploy: `wecare-wix-store`, `wecare-checkout` | `update-function-code`, publish, move `live` alias | owner only |

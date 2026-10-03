@@ -225,13 +225,16 @@ export const WIX_ECOM_ORDERS: VendorVersion = {
  * longer true. `lagExpiresOn` is well inside the 2027-02-01 removal of Cart and Checkout V1, so
  * the justification cannot quietly outlive the thing it is waiting on.
  *
- * The two open items are NOT version lag, and are tracked in
+ * The remaining open item is NOT version lag, and is tracked in
  * `docs/execution/wix-cart-v2-migration-20261001.md` §10 rather than averaged into this row:
  *   - six V2 request shapes (set/remove-delivery-method, refresh, estimate, add/remove-coupon)
- *     are convention-derived and unverified against a live call — a deploy gate;
- *   - `checkout/handler.py`'s `LOAD_OWNED_ADDRESS` seam is unwired, so the V2 path answers
- *     `DELIVERY_DETAILS_REQUIRED` until the customer-profile address read is wired — a feature
- *     gate, and an owner decision on where that address comes from.
+ *     are convention-derived and unverified against a live call — a deploy gate.
+ *
+ * `checkout/handler.py`'s `LOAD_OWNED_ADDRESS` seam is WIRED as of the Phase 1 checkout-identity
+ * work: it reads `checkoutDeliveryAddress` off the authenticated session's CRM contact row, which
+ * `auth/customer-profile` writes. The owner decision on where that address comes from is recorded
+ * in that phase's design §12.1, so this is no longer an open question — the V2 path answers
+ * `409 DELIVERY_DETAILS_REQUIRED` only when the customer has saved no usable address.
  */
 export const WIX_ECOM_CART: VendorVersion = {
   name: 'Wix eCommerce Cart / Checkout',

@@ -89,13 +89,20 @@ from typing import Any, Dict, Optional
 import boto3
 from boto3.dynamodb.conditions import Key
 
-from lambda_utils import customer_auth, payment_readiness
+from lambda_utils import contact_key, customer_auth, customer_session, payment_readiness
 from lambda_utils.ecommerce import (
-    cart_v2, checkout_pricing, customer_cart, finalization, gift_card_settlement,
-    order_creation, order_keys, payment_attempt, purchase_intent, website_checkout,
-    wix_writeback)
+    cart_v2, checkout_pricing, contact_address, customer_cart, finalization,
+    gift_card_settlement, order_creation, order_keys, payment_attempt, purchase_intent,
+    website_checkout, wix_address, wix_writeback)
 from lambda_utils.integrations import razorpay_orders, razorpay_verify
 from lambda_utils import wix_ecom
+# Aliased `customer_identity`, NEVER `identity`: `identity` is a parameter name in nearly every
+# function in this file (`_checkout_profile(identity)`, `_website_snapshot(identity, ...)`,
+# `_profile_status(identity, ...)`), so that alias would be shadowed locally and
+# `identity.normalize_phone_preserving_country` would resolve against a `CustomerIdentity`
+# instance and raise `AttributeError` inside `_checkout_profile`'s `except Exception: raise` --
+# a 500 on every checkout.
+from lambda_utils.identity import customer as customer_identity
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, extract_origin, options_response
 
@@ -138,23 +145,28 @@ EXPECTED_PROVIDER_MID = os.environ.get("EXPECTED_PROVIDER_MID", "")
 INITIATION_ENABLED = str(
     os.environ.get("CHECKOUT_INITIATION_ENABLED", "")).strip().lower() in ("1", "true", "yes", "on")
 
-#: Loader for the authenticated customer's OWNED delivery address, injected rather than
-#: imported.
+#: THE SEAM IS WIRED. `LOAD_OWNED_ADDRESS` is assigned just below `_load_owned_address`, which
+#: has to follow `_checkout_profile` -- `deploy_all_lambdas.py` validates every top-level import
+#: at module import, so a forward reference fails the build rather than a request.
 #:
-#: Signature: `(customer_id: str) -> dict | None`, returning a structured address in
-#: `lambda_utils.identity.address` shape, or `None` when the customer has not chosen one.
+#: Signature: `(identity: customer_auth.CustomerIdentity) -> dict | None`. Widened from
+#: `(customer_id)` because the lookup is a `phone-index` Query and the phone comes only from the
+#: proven session; an address a browser can set is an address an attacker can set.
 #:
-#: It is a seam rather than a call because this function has no customers table: its environment
-#: carries `PAYMENT_ATTEMPTS_TABLE` and `COMMERCE_KEYS_TABLE` and nothing else. Wiring the
-#: profile read is the remaining half of the producer chain, recorded in
-#: `docs/execution/wix-cart-v2-migration-20261001.md` rather than faked here.
+#: The address is loaded SERVER-SIDE from the authenticated session's CRM contact row --
+#: `checkoutDeliveryAddress`, written by `auth/customer-profile` -- not injected by a caller and
+#: never read from a request body. This function does have the contacts table: `CONTACTS_TABLE`
+#: is read above and the `dynamodb:Query` grant on `ContactsTable/index/phone-index` already
+#: exists (`scripts/provision_checkout.py`). An earlier revision of this comment claimed
+#: otherwise, and claimed the environment carried only `PAYMENT_ATTEMPTS_TABLE` and
+#: `COMMERCE_KEYS_TABLE`; both were false.
 #:
-#: While it is `None`, a Cart V2 checkout answers `DELIVERY_DETAILS_REQUIRED`. That is deliberate
-#: and it is the whole reason this is not a default value: the delivery address is the place of
-#: supply, so a placeholder would produce a real total with the wrong CGST/SGST-versus-IGST split
-#: on an invoice carrying seller GSTIN 19AAFFW7196L1Z8 -- and that total would be charged. An
-#: honest refusal is the cheaper failure.
-LOAD_OWNED_ADDRESS = None
+#: It stays a seam rather than becoming a direct call so a test can stub it, and because the
+#: refusal it guards is the expensive one: the delivery address is the place of supply, so a
+#: placeholder would produce a real total with the wrong CGST/SGST-versus-IGST split on an
+#: invoice carrying seller GSTIN 19AAFFW7196L1Z8 -- and that total would be charged. With no
+#: usable address on file a Cart V2 checkout still answers `DELIVERY_DETAILS_REQUIRED`, before
+#: any Wix call.
 
 _dynamodb = None
 _lambda = None
@@ -245,7 +257,7 @@ def _body(event: Dict[str, Any]) -> Dict[str, Any]:
 
 def _action(event: Dict[str, Any], body: Dict[str, Any]) -> str:
     explicit = str(body.get("action") or event.get("action") or "").strip().lower()
-    if explicit in ("create", "status", "prepare", "verify"):
+    if explicit in ("create", "status", "prepare", "verify", "profile"):
         return explicit
     path = str(event.get("rawPath") or event.get("path") or "").lower()
     if path.endswith("/status"):
@@ -281,6 +293,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _website_prepare(identity, body, origin)
         if action == "verify":
             return _website_verify(identity, body, origin)
+        # The readiness question. This arm is NOT optional alongside adding "profile" to
+        # `_action`'s tuple: the `return _create(...)` below is this chain's `else`, so the tuple
+        # alone would route a readiness probe into the checkout-CREATE path.
+        if action == "profile":
+            return _profile_status(identity, origin)
         return _create(identity, body, origin)
     except customer_auth.CustomerNotAuthorized:
         # Same opaque 401 as unauthenticated, so the endpoint is not an IDOR oracle.
@@ -291,17 +308,39 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return cors_response(500, {"error": "INTERNAL_ERROR"}, origin)
 
 
+def _profile_phone(identity: customer_auth.CustomerIdentity) -> str:
+    """The contact-row phone key for this session: the SAME value customer-profile writes.
+
+    The phone is the row key, so the read key and the write key have to be one string by
+    construction. `auth/customer-profile` normalises the session phone and writes the normalised
+    value; this is the other half.
+
+    On `InvalidPhoneNumber` the fallback is the raw session value, which degrades an UNPARSEABLE
+    phone to exactly today's behaviour -- a lookup that may miss -- rather than to a 500.
+    `MissingCountryCode` subclasses `InvalidPhoneNumber`, so one arm covers both. A session
+    carrying NO phone at all also keeps today's behaviour: `Key("phone").eq("")` is an invalid key
+    condition and lands in the existing `checkout_profile_lookup_failed` 500 arm below, which this
+    phase does not change. So this is not a claim that the lookup can never 500 -- only that an
+    unparseable phone is not a new way to get one.
+    """
+    try:
+        return customer_identity.normalize_phone_preserving_country(identity.phone)
+    except customer_identity.InvalidPhoneNumber:
+        return str(identity.phone or "")
+
+
 def _checkout_profile(identity: customer_auth.CustomerIdentity) -> Optional[Dict[str, Any]]:
     """The verified CRM profile for this signed-in phone, or None.
 
-    The lookup key comes from the proven session. A browser cannot choose a phone/customer id.
+    The lookup key comes from the proven session, through `_profile_phone` so it is the same
+    string `customer-profile` stored the row under. A browser cannot choose a phone/customer id.
     A row written by customer-profile carries both checkoutCustomerId and emailVerifiedAt; both
     have to match before its name/email are allowed into Razorpay prefill.
     """
     try:
         response = _table(CONTACTS_TABLE).query(
             IndexName="phone-index",
-            KeyConditionExpression=Key("phone").eq(identity.phone),
+            KeyConditionExpression=Key("phone").eq(_profile_phone(identity)),
             Limit=5,
         )
     except Exception as error:  # noqa: BLE001
@@ -321,8 +360,75 @@ def _checkout_profile(identity: customer_auth.CustomerIdentity) -> Optional[Dict
     return None
 
 
+def _load_owned_address(
+        identity: customer_auth.CustomerIdentity) -> Optional[Dict[str, Any]]:
+    """The authenticated customer's stored delivery address, or None.
+
+    `from_contact` re-validates the stored map and never raises, so a legacy or CRM-hand-edited
+    address degrades to the recoverable `409 DELIVERY_DETAILS_REQUIRED` and never to a 503 or a
+    priced cart with the wrong tax split.
+    """
+    return contact_address.from_contact(_checkout_profile(identity))
+
+
+#: See the docblock above `_dynamodb` for why this is a seam and what its signature means.
+LOAD_OWNED_ADDRESS = _load_owned_address
+
+
+def _hardened(response: Dict[str, Any]) -> Dict[str, Any]:
+    """`no-store` on a response body carrying an email and a postal address.
+
+    Mandatory, not defensive, and mirrors `auth/customer-profile`'s `_no_store`:
+    `response.cors_response` sets no `Cache-Control` at all, and Amplify serves `/api/*` through
+    a rewrite with a shared cache in front of it.
+    """
+    return dict(response) | {
+        "headers": customer_session.harden_session_headers(response.get("headers") or {})}
+
+
+def _profile_status(identity: customer_auth.CustomerIdentity, origin: str) -> Dict[str, Any]:
+    """`action:"profile"` -- can this customer pay without being asked for anything?
+
+    `200` for BOTH answers, with the state in `status`. `PROFILE_REQUIRED` is a question being
+    answered, not a refused request, and a 409 would make the browser treat a normal first-time
+    customer as an error.
+    """
+    row = _checkout_profile(identity)
+    if not row:
+        return _hardened(cors_response(200, {"status": "PROFILE_REQUIRED"}, origin))
+    address = contact_address.from_contact(row)
+    if address is None and row.get(contact_address.ATTRIBUTE) is not None:
+        # The row carries a stored delivery address the storage contract no longer accepts.
+        # Event name only -- no value, because every component of one is PII.
+        #
+        # Spelled `..._delivery_unusable` rather than the design's `..._address_unusable`:
+        # `tests/test_graft_money_correctness.py::test_no_pii_appears_in_any_log_expression`
+        # walks the AST of this file and rejects the substring "address" anywhere inside a
+        # `logger.*` call, including a string literal. That gate is a deliberate pin on this
+        # build and mirrors a CodeQL rule that failed twice, so the event name moved instead.
+        logger.info(json.dumps({"event": "checkout_stored_delivery_unusable"}))
+    first = str(row.get("firstName") or "").strip()
+    last = str(row.get("lastName") or "").strip()
+    return _hardened(cors_response(200, {
+        "status": "PROFILE_READY",
+        "contactId": contact_key.resolve(row),
+        "name": str(row.get("name") or f"{first} {last}").strip(),
+        "firstName": first,
+        "lastName": last,
+        "email": str(row.get("email") or "").strip(),
+        # From the ROW, with the session value only as a fallback: the row holds the
+        # `normalize_phone_preserving_country` output that `customer-profile` also returns, so
+        # reading `identity.phone` directly would make the identity card's Phone row change
+        # spelling after an edit.
+        "phone": str(row.get("phone") or identity.phone),
+        "emailVerified": True,          # `_checkout_profile` already required it
+        "addressComplete": address is not None,
+        "address": address,             # null when absent
+    }, origin))
+
+
 def _website_snapshot(identity: customer_auth.CustomerIdentity, line_items: list,
-                      now: int):
+                      now: int, *, profile: Optional[Dict[str, Any]] = None):
     """`(snapshot, calculated_or_None)`. `None` on the V1 branch, which has no Cart V2 result.
 
     Cart V2 uses its existing owned-cart producer and hands back the calculation it already
@@ -330,9 +436,14 @@ def _website_snapshot(identity: customer_auth.CustomerIdentity, line_items: list
     The deployed V1 branch is converted into the same immutable QuoteSnapshot using Wix's
     authoritative checkout total, then the one central convenience-fee calculator -- and is
     refused outright when the initiation gate is on, because it has no stable cart identity.
+
+    `profile` is the contact row the caller already loaded, threaded down so the happy path costs
+    no second DynamoDB Query. KEYWORD-ONLY with a `None` default, because
+    `tests/test_graft_money_correctness.py` calls this positionally as
+    `_website_snapshot(identity, line_items, now)` and must keep working unchanged.
     """
     if cart_v2.is_enabled():
-        snapshot, _items, calculated = _v2_snapshot(identity, line_items)
+        snapshot, _items, calculated = _v2_snapshot(identity, line_items, profile=profile)
         return snapshot, calculated
 
     if INITIATION_ENABLED:
@@ -411,7 +522,9 @@ def _website_prepare(identity: customer_auth.CustomerIdentity, body: Dict[str, A
     now = int(time.time())
     keys = _keys_table()
     try:
-        snapshot, calculated = _website_snapshot(identity, line_items, now)
+        # The row is already in hand from the `_checkout_profile` call above, so threading it
+        # keeps the happy path at one contacts Query.
+        snapshot, calculated = _website_snapshot(identity, line_items, now, profile=profile)
         wix_order_payload = None
         if calculated is not None:
             # Built from the SAME frozen calculation the price was quoted from, at the same
@@ -476,7 +589,22 @@ def _website_prepare(identity: customer_auth.CustomerIdentity, body: Dict[str, A
             purchased_snapshot=snapshot.frozen_data,
             wix_order_payload=wix_order_payload,
         )
+    except DeliveryMethodUnavailable:
+        # MUST stay ABOVE the parent arm below, or the subclass is swallowed by it and
+        # DELIVERY_METHOD_UNAVAILABLE never fires.
+        return cors_response(409, {"error": "DELIVERY_METHOD_UNAVAILABLE"}, origin)
     except purchase_intent.DeliveryDetailsRequired:
+        return cors_response(409, {"error": "DELIVERY_DETAILS_REQUIRED"}, origin)
+    except wix_address.UnmappableAddress:
+        # Belt and braces. `from_contact` re-validates, so the normal answer for a stored address
+        # Wix cannot map is already this 409 via the arm above; without this arm an unmappable
+        # address reaching `to_wix_address` would fall through the generic `except Exception` to
+        # `503 TEMPORARILY_UNAVAILABLE` -- a dead end, because no retry fixes it. No delivery
+        # detail in the log line: every component of one is PII, and the event name is spelled
+        # `..._delivery_unmappable` rather than the design's `..._address_unmappable` for the
+        # same AST-gate reason recorded on `checkout_stored_delivery_unusable`.
+        logger.info(json.dumps({"event": "website_checkout_delivery_unmappable",
+                                "customerIdPresent": True}))
         return cors_response(409, {"error": "DELIVERY_DETAILS_REQUIRED"}, origin)
     except website_checkout.CheckoutRejected as exc:
         return cors_response(409, {
@@ -975,7 +1103,31 @@ def _require_same_basket(cart: Dict[str, Any], requested: list) -> None:
         raise cart_v2.CartContractError("the saved cart is not the basket that was requested")
 
 
-def _v2_snapshot(identity: customer_auth.CustomerIdentity, line_items: list):
+class DeliveryMethodUnavailable(purchase_intent.DeliveryDetailsRequired):
+    """Wix priced nothing because it offered no delivery METHOD for a known-good address.
+
+    The base class is load-bearing. `_v2_snapshot`'s other caller is `_create`, the retained
+    in-WhatsApp path, whose existing first arm then still answers
+    `409 DELIVERY_DETAILS_REQUIRED` -- not `500 INTERNAL_ERROR` (a plain `Exception`) and not
+    `409 AMOUNT_NOT_SETTLED` (a plain `ValueError`, via its trailing `except ValueError`).
+    """
+
+
+def _blocking_codes(adapter, cart_id: str) -> set:
+    """Wix's own blocking-violation codes for this cart, or an empty set.
+
+    Mirrors `purchase_intent._delivery_is_missing`'s evidence rule: a failed preview is NO
+    evidence, and no evidence must not be reported to a customer as "choose an address".
+    """
+    try:
+        preview = adapter.preview(cart_id)
+    except Exception:  # noqa: BLE001
+        return set()
+    return {str(v.get("code") or "") for v in preview.get("blockingViolations") or []}
+
+
+def _v2_snapshot(identity: customer_auth.CustomerIdentity, line_items: list,
+                 *, profile: Optional[Dict[str, Any]] = None):
     """The Cart V2 price authority. Returns `(snapshot, price_free_items, calculated)`.
 
     `calculated` is the `cart_v2.calculate` result the snapshot was frozen from, returned rather
@@ -1002,12 +1154,18 @@ def _v2_snapshot(identity: customer_auth.CustomerIdentity, line_items: list):
     lets it create one only when there is none -- a retried checkout then reuses the same Wix cart
     instead of minting another.
 
-    Raises `purchase_intent.DeliveryDetailsRequired` when no owned address is on file or the cart
-    has no delivery method, which is a recoverable step in the purchase flow rather than an
-    error.
+    Raises `purchase_intent.DeliveryDetailsRequired` when no owned address is on file, and the
+    narrower `DeliveryMethodUnavailable` when Wix has a known-good address but offers no delivery
+    METHOD for it -- both recoverable steps in the purchase flow rather than errors.
+
+    `profile` is the already-loaded contact row, so the happy path adds no DynamoDB read. The
+    `loader is _load_owned_address` identity check keeps the test seam authoritative: a
+    monkeypatched loader is ALWAYS called, so no test silently bypasses its own stub.
     """
     loader = LOAD_OWNED_ADDRESS
-    owned = loader(identity.customer_id) if callable(loader) else None
+    owned = (contact_address.from_contact(profile)
+             if profile is not None and loader is _load_owned_address
+             else (loader(identity) if callable(loader) else None))
     if not owned:
         raise purchase_intent.DeliveryDetailsRequired("no owned delivery address on file")
 
@@ -1019,9 +1177,29 @@ def _v2_snapshot(identity: customer_auth.CustomerIdentity, line_items: list):
         _require_same_basket(adapter.get(cart_id), requested)
 
     prepared = purchase_intent.prepare_delivery(adapter, cart_id, owned)
-    snapshot, calculated = purchase_intent.build_intent_with_calculation(
-        adapter, customer_id=identity.customer_id, cart_id=cart_id,
-        owned_address=owned, now=int(time.time()), site=wix_ecom.WIX_SITE_ID)
+    try:
+        snapshot, calculated = purchase_intent.build_intent_with_calculation(
+            adapter, customer_id=identity.customer_id, cart_id=cart_id,
+            owned_address=owned, now=int(time.time()), site=wix_ecom.WIX_SITE_ID)
+    except purchase_intent.DeliveryDetailsRequired:
+        # `purchase_intent` collapses MISSING_DELIVERY_ADDRESS and MISSING_DELIVERY_METHOD into
+        # one refusal, and a method problem reported as a missing address tells a customer to
+        # enter an address they already saved, forever. Distinguish on Wix's own violation codes
+        # rather than inferring: a successful `set_delivery_address` does NOT rule out
+        # MISSING_DELIVERY_ADDRESS, because an address outside every shipping region still
+        # reports it.
+        #
+        # `revision` is logged as `str(...)` rather than through a numeric coercion -- Wix sends
+        # it as a decimal string, so a string needs no helper and cannot throw inside an `except`
+        # arm. A `NameError` here would be swallowed by `_website_prepare`'s generic
+        # `except Exception` and surface as the 503 dead end this work exists to prevent.
+        codes = _blocking_codes(adapter, cart_id)
+        logger.info(json.dumps({"event": "website_checkout_delivery_blocked",
+                                "cartRevision": str(prepared.get("revision") or ""),
+                                "violations": sorted(codes)}))
+        if not codes or "MISSING_DELIVERY_ADDRESS" in codes:
+            raise                       # unchanged meaning, and fail-closed on no evidence
+        raise DeliveryMethodUnavailable("wix offered no usable delivery method") from None
     # Names and quantities only, for the payment request and the receipt. Line money never
     # travels with the item list: the authoritative amount is the one computed once, above, and
     # the snapshot hash already covers the per-line figures Wix calculated.
