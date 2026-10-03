@@ -24,10 +24,10 @@ npm install --prefix tools/browser --no-audit --no-fund      # idempotent; repor
 node tools/browser/vayuloksubcheck.js
 ```
 
-**Result: `804/804 assertions passed`, process exit code `0`.** That is both twins
+**Result: `880/880 assertions passed`, process exit code `0`.** That is both twins
 (`vayulok-live-mock.html` and `vayulok-final-v3.html`) at both viewports (1280x900 and 390x844).
 `node tools/browser/vayuloksubcheck.js --json` also exits `0` and emits well-formed JSON.
-Baseline before this pass was `432/432`; the suite grew by 372 assertions.
+Baseline before this pass was `432/432`; the suite grew by 448 assertions.
 
 **`npm` is not on `$PATH` in this sandbox** — `which npm` fails; it lives at
 `~/.nvm/versions/node/v22.23.3/bin`. That cost a round; hence the export line above.
@@ -315,9 +315,12 @@ amount block records that and names both files as what a real rollout would have
 
 | Pair | Hash (both files) | |
 | --- | --- | --- |
-| `vayulok-live-mock.html` + `vayulok-final-v3.html` | `4ac8441bc0733e4cb7854bae34ff6b2625dd537a` | identical |
-| `vayulok-live-mock-1280.png` + `vayulok-final-v3-1280.png` | `2286230c591600098beba189ce0a6cab4ec71557` | identical |
-| `vayulok-live-mock-390.png` + `vayulok-final-v3-390.png` | `2637a62165c65fb10b215ea8b3db69af937fbb94` | identical |
+| `vayulok-live-mock.html` + `vayulok-final-v3.html` | `eb1406ec1b42a6675629a1afec5e740beac1fb6d` | identical |
+| `vayulok-live-mock-1280.png` + `vayulok-final-v3-1280.png` | `26b786de0b44558e2c775d4b46f6778cb0f7fdd3` | identical |
+| `vayulok-live-mock-390.png` + `vayulok-final-v3-390.png` | `ad952433711263b33a19f072068a7073174f2be5` | identical |
+
+Commit 1 (the stack and the separators, pushed separately so the owner could see it immediately)
+was `edb16b84`, at twin hash `4ac8441bc0733e4cb7854bae34ff6b2625dd537a`.
 
 Method: edit `vayulok-live-mock.html` only, then
 `cp docs/mocks/vayulok-live-mock.html docs/mocks/vayulok-final-v3.html`, then hash both.
@@ -360,26 +363,78 @@ it is not in the diff.
 
 ---
 
-## 12. STILL TO DO — the "same style everywhere" audit (deliberately a second commit)
+## 12. The "same style everywhere" role audit — the role mapping I chose
 
-The owner extended scope to *every* interactive control in the mock, each taking the shipped style
-for **its own role** (explicitly *not* flattening everything to one shape). The owner also asked
-that the Subscribe/Contribute/Share stack and the separators land **first** so the match is visible
-immediately — which is what this commit is. Remaining controls to audit role-for-role:
+The owner extended scope to *every* interactive control, each taking the shipped style for **its own
+role**, explicitly *not* flattening everything to one shape. **The full mapping, with the shipped
+source and the values taken:**
 
-- `.vl-keygate`'s **Load** button and its "Paste a Google Maps key" input (restyle only — the
-  paste-a-key behaviour must keep working; `.vl-keygate` is load-bearing for zero-network)
-- the **Clear key** control
-- the **AQI / PM2.5** layer toggles (`.vl-layer`)
-- the **"Search a city or place"** input and its results list
+| Mock control | Role | Shipped counterpart | Values taken | Changed? |
+| --- | --- | --- | --- | --- |
+| `Load` (`.vl-btn`) | ROLE 1 action | `.btn`+`.btn-lg`+`.btn-primary`, `src/styles/button.css:20,51,74` | 52px, **13px radius**, 16px/500, `#d1f470`, 2px `#1a3a2a` | **no — already exact** |
+| Maps-key input (`.vl-input`) | ROLE 3 field | `.blog-subscribe-cell>input`, `BlogSubscribe.tsx:328-330` | 52px, 10px radius, 1px `#e5e7eb`, `0 14px`, 16px | **no — already exact** |
+| Search field (`.vl-search-field`) | ROLE 3 field | same as above | 52px, 10px, 1px `#e5e7eb` | **no — already exact** |
+| Amount chips (`.vl-bc-choice-face`) | ROLE 4 chip | `.bc-choice-face`, `BlogContribution.tsx:275-280` | 999px, `8px 16px`, 2px `#e5e7eb`, 15px/700 | no — ported earlier |
+| **AQI / PM2.5 / Clear key** | **ROLE 5** | **`.category-switch a` / `.cat-here`, `BlogIndexView.tsx:470-484`** | **44px, `0 18px`, 2px `#e5e7eb`, 999px, 14px/600, `-.125px`; pressed = `#d1f470` + `#1a3a2a`; hover = lime edge + `.22` tint** | **YES — was 38px/1px/13px-700** |
+| **Chart tabs (`.vl-tab`)** | **ROLE 6** | **same as ROLE 5** | **same** | **YES — was 40px/15px-700/no border** |
+| Result rows (`.vl-search-option`) | ROLE 7 | n/a — a listbox row inside an overlay | unchanged; measured 61/62px, clears the 44px bar | no |
+| Subscribe anchor | ROLE 8 | `.blog-wa-subscribe`, `[slug].tsx:772-782` | see §2 | ported earlier |
+| Contribute pill | ROLE 9 | `.pill`/`.pill-action`, `PillButton.tsx:202-224` | see §2 | ported earlier |
+| Share circles | ROLE 10 | `.share-btn`, `ShareLinks.tsx:175-202` | see §2 | ported earlier |
 
-Canonical sources to read rather than guess: `src/styles/button.css` (note `.btn-lg` is 52px tall
-with 16px type, `.btn-sm` is 36px with 13px type, and **the 13px figure in that file is the
-BORDER-RADIUS, not a font size** — a brief has had this backwards before), `src/styles/inner-pages.css`,
-and the three shipped components.
+**ROLE 1 and ROLE 3 were audited and found ALREADY correct** — and that is now asserted
+(`AUDIT ROLE 1 …`, `AUDIT ROLE 3 …`), so "already correct" is a checked fact rather than a claim,
+and a later edit cannot drift them silently. The two ROLE 3 fields are also asserted to be the
+**same box as each other**, because two fields on one page must not be two shapes.
 
-**HAZARD, carried forward so it is not rediscovered:** the map script wires its radio group with
-`querySelectorAll('.vl-layer')`. Do **not** add `.vl-layer` to any control outside that group and do
-**not** remove it from AQI/PM2.5 — an earlier round found that giving "Clear key" that class would
-let pressing it un-press AQI and leave the map claiming no active layer. Controls sharing a row must
-share geometry.
+**`.btn`'s 13px is the BORDER-RADIUS, not a font size** (`.btn-lg` is 52px tall with 16px type,
+`.btn-sm` is 36px with 13px type). A brief describing this file has had that backwards; the harness
+comment records it so the next reader does not re-introduce the error.
+
+**Why ROLE 5 and ROLE 6 deliberately share one shape:** both rows are "pick one of these, one is
+current", which on the real site is what `.category-switch` looks like. They keep distinct role
+**numbers** (cited from outside this file, and the semantics differ — a tablist vs a map toggle
+group) but the geometry is asserted as a *comparison* between the two rows, so they cannot be
+"fixed" apart. 44px is also the WCAG 2.5.8 target floor that the old 38px tabs missed.
+
+**Rejected counterpart, recorded so it is not re-litigated:** `.ps-tab`
+(`src/styles/inner-ux.css:1792`) is the repo's only literal `role="tab"` styling and was **not**
+used. It is a dashboard control — scoped under `.layout .main-content`, 12px/500 type, 10px radius,
+1.5px edge, with `inner-pages.css:2442` overriding its active radius to 13px with `!important`.
+That is the authenticated app's dense design language; this mock is a public page.
+
+**The `.vl-tabs` inner track was removed** as part of ROLE 6. It drew one 1px hairline around the
+whole group while each tab had no border; the shipped row has no track and every pill carries its
+own 2px edge, so keeping it would have put a border around a row of bordered pills. Asserted:
+the track's computed `border-top-width` is `0px`. `margin-bottom:32px` is retained — which is also
+what `.category-switch` declares (`margin:0 0 32px`).
+
+**`--lime-tint` was deleted and then restored**, honestly: it lost its original user with the
+`.vl-subscribe` panel, then immediately gained a real one — the shipped segmented-pill hover tint at
+`BlogIndexView.tsx:478` is the same `rgba(209,244,112,.22)`. One token, one live user.
+
+### The `.vl-layer` radio-group hazard — respected and asserted
+
+The map script wires its radio group with `querySelectorAll('.vl-layer')`. **`.vl-layer` was not
+added to any control outside the group and not removed from AQI/PM2.5.** The class split is
+unchanged: `.vl-layer` is the group, `.vl-map-btn` is "Clear key" and shares **geometry only**, and
+the `[aria-pressed="true"]` rule stays on `.vl-layer` alone — "Clear key" is an action, not a state.
+Four assertions guard this and all pass: `Clear key is .vl-map-btn, not .vl-layer`;
+`Clear key is not in the layer toggle group` (group = `vl-layer-aqi, vl-layer-pm`);
+`the layer group is exactly AQI + PM2.5`; `Clear key carries no aria-pressed state`.
+
+Measured after the restyle, with the keygate scrim hidden and Clear key revealed:
+`AQI 44px 2px rgb(26,58,42) rgb(209,244,112) 14px/600 999px` (pressed),
+`PM2.5` and `Clear key` both `44px 2px rgb(229,231,235) rgb(255,255,255) 14px/600 999px`.
+The row is asserted to share one height, font, padding and vertical alignment.
+
+**`.vl-keygate`'s behaviour is untouched** — only ROLE 5's geometry moved. The paste-a-key flow,
+the scrim and the `maps.googleapis.com` host assembled from an array `join` are all as they were,
+which is what keeps the page at zero network on load.
+
+### Not changed, and why
+
+`.vl-search-option` (ROLE 7) has no shipped counterpart — it is a listbox row inside an absolutely
+positioned overlay, a pattern the public site does not have. Its 10px radius and 1px `#e5e7eb`
+border already match the ROLE 3 field it hangs from, and its lime active row is the same `#d1f470`
+"current" voice as `.cat-here`. Left alone deliberately rather than invented against.

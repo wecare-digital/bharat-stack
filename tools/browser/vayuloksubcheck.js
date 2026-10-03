@@ -969,6 +969,53 @@ const run = async ( browser, mock ) => {
         `${audit.key.h}/${audit.key.radius} vs ${audit.search.h}/${audit.search.radius}` );
     }
 
+    /* ROLE 6, the chart tabs. Same shipped pill as ROLE 5 and from the same source,
+       because both rows are "pick one of these". The .vl-tabs inner track is gone, so
+       this also asserts the track no longer draws a border around a row of bordered
+       pills. The dashboard's .ps-tab was deliberately NOT used - see the mock's rule. */
+    const tabs = await page.evaluate( () => {
+      const row = document.querySelector( '.vl-tabs' );
+      const list = Array.prototype.slice.call( document.querySelectorAll( '.vl-tab' ) );
+      return {
+        trackBorder: row ? getComputedStyle( row ).borderTopWidth : null,
+        trackPadding: row ? getComputedStyle( row ).paddingTop : null,
+        items: list.map( el => {
+          const c = getComputedStyle( el );
+          return {
+            text: el.textContent.trim(),
+            h: +el.getBoundingClientRect().height.toFixed( 1 ),
+            radius: c.borderTopLeftRadius, fontSize: c.fontSize, fontWeight: c.fontWeight,
+            borderWidth: c.borderTopWidth, borderColor: c.borderTopColor,
+            background: c.backgroundColor,
+            padding: c.paddingLeft + '/' + c.paddingRight,
+            selected: el.getAttribute( 'aria-selected' ),
+          };
+        } ),
+      };
+    } );
+    record( scope, 'ROLE 6 tabs exist', tabs.items.length >= 2, `${tabs.items.length}` );
+    if ( tabs.items.length ) {
+      record( scope, 'ROLE 6 tabs are the shipped pill (44px / 999px / 14px-600 / 2px)',
+        tabs.items.every( t => t.h === 44 && t.radius === '999px' && t.fontSize === '14px'
+          && t.fontWeight === '600' && t.borderWidth === '2px' && t.padding === '18px/18px' ),
+        tabs.items.map( t => `${t.text} ${t.h}px ${t.radius} ${t.fontSize}/${t.fontWeight} ${t.borderWidth}` ).join( ' | ' ) );
+      /* The track must no longer draw an edge around pills that have their own. */
+      record( scope, 'ROLE 6 the .vl-tabs inner track draws no border',
+        tabs.trackBorder === '0px', String( tabs.trackBorder ) );
+      const sel = tabs.items.filter( t => t.selected === 'true' );
+      const unsel = tabs.items.filter( t => t.selected !== 'true' );
+      record( scope, 'ROLE 6 exactly one tab is selected', sel.length === 1,
+        `${sel.length}: ${sel.map( t => t.text ).join( ', ' )}` );
+      record( scope, 'ROLE 6 selected tab is lime with a #1a3a2a edge',
+        sel.length === 1 && sel[ 0 ].background === 'rgb(209, 244, 112)'
+        && sel[ 0 ].borderColor === 'rgb(26, 58, 42)',
+        sel.length ? `${sel[ 0 ].background} / ${sel[ 0 ].borderColor}` : 'none' );
+      record( scope, 'ROLE 6 unselected tabs are white with #e5e7eb',
+        unsel.length > 0 && unsel.every( t => t.background === 'rgb(255, 255, 255)'
+          && t.borderColor === 'rgb(229, 231, 235)' ),
+        unsel.map( t => `${t.background} ${t.borderColor}` ).join( ', ' ) );
+    }
+
     /* ---- THE SUBSCRIBE PANEL AND HEADING ARE GONE ---------------------------
        The owner compared the mock against the live post page and found the one
        remaining mismatch here: the mock wrapped the anchor in a lime-tinted panel with
@@ -1098,6 +1145,18 @@ const run = async ( browser, mock ) => {
       record( scope, 'ROLE 5 pressed pill LOOKS different from the unpressed ones',
         pressed.length === 1 && unpressed.every( r => r.background !== pressed[ 0 ].background ),
         unpressed.map( r => r.background ).join( ', ' ) );
+      /* ROLE 5 AND ROLE 6 MUST AGREE, because they are the same shipped shape from the
+         same source. Asserted as a comparison, not against two copies of the literals,
+         so the two rows cannot be "fixed" apart later. (Declared here rather than in the
+         ROLE 6 block above because `mapRow` is initialised further down this function -
+         reading it earlier threw a temporal-dead-zone ReferenceError.) */
+      if ( tabs.items.length ) {
+        record( scope, 'ROLE 5 and ROLE 6 share the shipped pill geometry',
+          tabs.items[ 0 ].h === mapRow[ 0 ].h && tabs.items[ 0 ].radius === mapRow[ 0 ].radius
+          && tabs.items[ 0 ].fontSize === mapRow[ 0 ].fontSize
+          && tabs.items[ 0 ].fontWeight === mapRow[ 0 ].fontWeight,
+          `tab ${tabs.items[ 0 ].h}/${tabs.items[ 0 ].fontSize} vs map ${mapRow[ 0 ].h}/${mapRow[ 0 ].fontSize}` );
+      }
     }
     /* CLEAR KEY MUST NOT HAVE JOINED THE AQI/PM2.5 RADIO GROUP, which is the risk created
        by giving it the same geometry as the two pills beside it.

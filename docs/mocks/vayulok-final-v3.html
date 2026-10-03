@@ -204,7 +204,7 @@ html,body{margin:0;background:#fff}
      ROLE 3  text input      .vl-input, .vl-search-field  52px / 10px / 1px #e5e7eb
      ROLE 4  amount chip     .vl-bc-choice-face       40px / 999px / 15px-700 / 2px #e5e7eb
      ROLE 5  map control     .vl-layer, .vl-map-btn   44px / 999px / 14px-600 / 2px #e5e7eb
-     ROLE 6  tab             .vl-tab                  40px / 999px / 15px-700 / no border
+     ROLE 6  tab             .vl-tab                  44px / 999px / 14px-600 / 2px #e5e7eb (= ROLE 5)
      ROLE 7  result option   .vl-search-option        52px / no radius / 16px-600 + 13px / lime active
      ROLE 8  subscribe pill  .vl-wa-subscribe         47px measured / 999px / 17px-700 / NO border / lime
      ROLE 9  contribute pill .vl-pill + .vl-pill-action  52px / 999px / 17px-700 / 2px #1a3a2a / lime
@@ -363,10 +363,15 @@ html,body{margin:0;background:#fff}
    row at ROLE 2's 32px. */
 
 /* ROLE 6 - TAB ('Air', 'Weather'). The rule is .vl-tab, declared with the
-   detail panels further down: 40px tall, 999px, 15px/700, NO border, lime fill
-   when selected. The missing border is deliberate - the tabs sit inside
-   .vl-tabs, which draws the one hairline for the whole group, so a border per
-   tab would double it. */
+   detail panels further down. It now carries the SHIPPED segmented pill -
+   44px, 999px, 14px/600, 2px #e5e7eb, lime fill with a #1a3a2a edge when
+   selected - the same shape as ROLE 5 and from the same source,
+   BlogIndexView.tsx:470-484, because both rows play the same role.
+   PREVIOUSLY 40px / 15px-700 with NO border, because the tabs sat inside a
+   .vl-tabs track that drew one hairline for the whole group. The shipped row
+   has no track and every pill carries its own edge, so the track went with the
+   borderless tab. See the rule for the full note and for why the dashboard's
+   .ps-tab was rejected as the counterpart. */
 
 /* ============================================================================
    THE LAYOUT. ONE grid, TWO columns, spanning the WHOLE app block.
@@ -830,15 +835,41 @@ html,body{margin:0;background:#fff}
    the insight line is a hairline-divided three-up rather than three cards, and
    the chart has no frame.
    ========================================================================= */
-.vl-tabs{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--hair);border-radius:var(--r-pill);margin-bottom:32px}
+/* ROLE 6 NOW CARRIES THE SAME SHIPPED PILL AS ROLE 5, and the shared source is
+   `.category-switch :global(a)` / `.cat-here`, BlogIndexView.tsx:470-484. Both
+   rows play the same role - "pick one of these, one is current" - and on the
+   real site that is what a category switch looks like, so they deliberately
+   share geometry. The role NUMBERS stay distinct because they are cited from
+   outside this file and because the semantics differ (a tablist vs a map
+   toggle group); only the shape is shared.
+   THE INNER TRACK IS GONE. .vl-tabs used to draw one 1px hairline around the
+   group with 4px of padding, and each tab had no border of its own. The shipped
+   row has no track at all - every pill carries its own 2px edge - so keeping the
+   track would have put a border around a row of bordered pills. margin-bottom
+   stays 32px, which is also what .category-switch declares (margin:0 0 32px).
+   REJECTED ALTERNATIVE: `.ps-tab` (src/styles/inner-ux.css:1792) is the repo's
+   only literal role="tab" styling, and it is NOT used here on purpose. It is a
+   DASHBOARD control - scoped under `.layout .main-content`, 12px/500 type, a
+   10px radius and a 1.5px edge, with inner-pages.css:2442 overriding its active
+   radius to 13px with !important. That is the authenticated app's dense design
+   language; this mock is a public page, and mixing the two is how a mock stops
+   matching the site it is meant to mirror. */
+.vl-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:32px}
 .vl-tab{
-  min-height:40px;padding:0 22px;border:0;border-radius:var(--r-pill);
-  background:transparent;color:var(--green);
-  font:inherit;font-size:15px;font-weight:700;letter-spacing:-.125px;cursor:pointer;
-  transition:background-color .2s;
+  flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;padding:0 18px;
+  border:2px solid var(--hair);border-radius:var(--r-pill);
+  background:var(--paper);color:var(--green);
+  font:inherit;font-size:14px;font-weight:600;letter-spacing:-.125px;cursor:pointer;
+  transition:background-color .2s,border-color .2s,transform .2s,box-shadow .2s;
 }
-.vl-tab:focus-visible{outline:3px solid var(--green);outline-offset:2px}
-.vl-tab[aria-selected="true"]{background:var(--lime)}
+.vl-tab:hover{
+  border-color:var(--lime);background:var(--lime-tint);
+  transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12);
+}
+.vl-tab:focus-visible{outline:3px solid var(--green);outline-offset:3px}
+/* The selected tab is the shipped .cat-here: lime fill, #1a3a2a edge. */
+.vl-tab[aria-selected="true"]{background:var(--lime);border-color:var(--green)}
 /* The pollutant row carries no prose, so it survives a narrow column - but the
    four fixed tracks need ~360px before the bar gets any width, so below a
    560px container the bar drops to its own line instead of being crushed. */
@@ -1159,6 +1190,7 @@ html,body{margin:0;background:#fff}
   /* ROLE 5 took the shipped pill's 2px lift and shadow with its geometry, so it
      needs the same reset. The colour change stays: that is information. */
   .vl-layer:hover,.vl-map-btn:hover{transform:none;box-shadow:none}
+  .vl-tab:hover{transform:none;box-shadow:none}
   /* THE TIP STILL APPEARS - it is the button's label, not decoration. Only the 4px
      slide goes; the translateX is the centring, not the animation. */
   .vl-share-btn:hover .vl-share-tip,
