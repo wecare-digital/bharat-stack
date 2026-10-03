@@ -764,7 +764,7 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
         # ── SMS moved to disconnect only — no SMS on connect to avoid duplicates ──
         # SMS is sent in the terminate handler (_send_disconnect_sms) instead
         # This prevents the user from receiving 2 identical SMS per call
-        # But WhatsApp wd_menu template IS still sent on connect (not a duplicate)
+        # But the WhatsApp follow-up IS still sent on connect (not a duplicate)
         _send_call_whatsapp_notification(from_number, call_id, phone_number_id, request_id)
 
         # Auto-pickup: IVR mode only — pre_accept → send IVR menu → terminate
@@ -955,7 +955,7 @@ def _handle_cert_check(event: Dict, request_id: str) -> Dict[str, Any]:
 
 
 def _is_auto_thumb_reaction_enabled() -> bool:
-    """Whether to auto-send a 👍 reaction alongside call-related wd_menu template
+    """Whether to auto-send a 👍 reaction alongside call-related WhatsApp
     messages. Unified runtime toggle (controls call + message reactions across all
     handlers). Default: True. Toggle via SystemConfig id='whatsapp_auto_thumb'."""
     try:
@@ -1008,11 +1008,48 @@ def _react_thumbs_up(meta_id: str, to_phone: str, message_id: str,
         return False
 
 
+def _send_menu_placeholder_text(meta_id: str, to_phone: str,
+                                request_id: str = '') -> str:
+    """Send MENU_PLACEHOLDER_TEXT as a plain WhatsApp text from meta_id.
+
+    This is a TEXT send, so it needs an open 24-hour customer-service window.
+    The WhatsApp menu template this replaced was deleted at Meta, and a template
+    was what allowed a post-call message outside that window, so a follow-up to
+    someone who has never messaged the business now fails. That is expected: the
+    failure is logged and both call sites treat this send as non-blocking.
+
+    Uses _meta_api_call rather than _send_via_aws on purpose — the returned
+    wamid must belong to meta_id's own conversation, which is the precondition
+    _react_thumbs_up documents. Returns the Meta message id, or '' on failure.
+    """
+    if not (meta_id and to_phone):
+        return ''
+    try:
+        result = _meta_api_call(f"{meta_id}/messages", 'POST', {
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': to_phone.lstrip('+'),
+            'type': 'text',
+            'text': {'body': MENU_PLACEHOLDER_TEXT},
+        }, phone_number_id=meta_id)
+        if isinstance(result, dict):
+            msgs = result.get('messages', [])
+            if msgs:
+                return msgs[0].get('id', '')
+        return ''
+    except Exception as e:
+        logger.warning(f"menu placeholder text send failed via {meta_id}: "
+                       f"{type(e).__name__}")
+        return ''
+
+
 def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     """
     Handle post-call actions from Asterisk AGI (SIP mode).
     Called via Lambda invoke after a WhatsApp call ends on Asterisk.
-    Sends wd_menu template from the WABA that received the call + WABA1 if different.
+    Sends the plain-text menu placeholder from the WABA that received the call
+    + WABA1 if different. Text, not a template, so it needs an open 24-hour
+    window — see _send_menu_placeholder_text.
     """
     caller_phone = event.get('callerPhone', '')
     # No default sender. This used to fall back to WABA2's phone, which meant a
@@ -1064,59 +1101,25 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     else:
         send_from = [(WABA1_META_ID, 'WABA1')]
 
-    logger.info(f"POST-CALL SIP: sending wd_menu template to {mask_phone(caller_phone or '')} via {', '.join(l for _, l in send_from)}")
-
-    VIDEO_URL = WA_TEMPLATE_VIDEO_URL
-    template_msg = {
-        'messaging_product': 'whatsapp',
-        'recipient_type': 'individual',
-        'to': caller_phone.lstrip('+'),
-        'type': 'template',
-        'template': {
-            'name': 'wd_menu',
-            'language': {'code': 'en'},
-            'components': [
-                {
-                    'type': 'header',
-                    'parameters': [
-                        {'type': 'video', 'video': {'link': VIDEO_URL}}
-                    ]
-                }
-            ]
-        },
-    }
+    logger.info(f"POST-CALL SIP: sending menu placeholder text to {mask_phone(caller_phone or '')} via {', '.join(l for _, l in send_from)}")
 
     # Send from each WABA (gated by the post-call WhatsApp toggle)
     wa_enabled = _is_postcall_wa_enabled()
     first_msg_id = ''
     for meta_id, label in (send_from if wa_enabled else []):
-        result = _meta_api_call(f"{meta_id}/messages", 'POST',
-                                template_msg, phone_number_id=meta_id)
-        msg_id = ''
-        if isinstance(result, dict):
-            msgs = result.get('messages', [])
-            if msgs:
-                msg_id = msgs[0].get('id', '')
+        msg_id = _send_menu_placeholder_text(meta_id, caller_phone, request_id)
         if msg_id:
-            logger.info(f"Post-call SIP wd_menu sent via {label}: {msg_id}")
+            logger.info(f"Post-call SIP menu placeholder sent via {label}: {msg_id}")
             # Auto 👍 from the SAME WABA that sent this message (works on both WABAs).
             _react_thumbs_up(meta_id, caller_phone, msg_id, request_id)
             if not first_msg_id:
                 first_msg_id = msg_id
         else:
-            logger.warning(f"Post-call SIP wd_menu FAILED via {label}: {result}")
+            # Most likely cause is a closed 24-hour window: this is a text send
+            # and there is no longer a template to reach outside it.
+            logger.warning(f"Post-call SIP menu placeholder FAILED via {label}")
 
     msg_id = first_msg_id
-
-    if wa_enabled and not msg_id:
-        # All template sends failed — fallback to plain text
-        logger.warning(f"Post-call SIP: all wd_menu sends failed, falling back to text")
-        aws_phone_id = _get_aws_phone_id(phone_number_id)
-        result = _send_via_aws(aws_phone_id, caller_phone, {
-            'type': 'text',
-            'text': {'body': IVR_SMS_CONTENT},
-        })
-        msg_id = result.get('messageId', '')
 
     # Store in outbound table so it shows in dashboard inbox
     if msg_id:
@@ -1134,7 +1137,7 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
                 'messageId': store_id,
                 'contactId': contact_id,
                 'contactPhone': caller_phone,
-                'content': '[wd_menu template] ' + IVR_SMS_CONTENT[:100],
+                'content': MENU_PLACEHOLDER_TEXT,
                 'channel': 'whatsapp',
                 'direction': 'outbound',
                 'status': 'sent',
@@ -1476,6 +1479,12 @@ IVR_SMS_CONTENT = (
     "We'll review it and follow up if needed."
 )
 
+# Stand-in for the WhatsApp menu, which has been deleted. Every call-related
+# WhatsApp follow-up sends this plain text instead of an interactive menu. The
+# wording is shared verbatim with the inbound handler's MENU_PLACEHOLDER_TEXT,
+# as a separate module-level copy because the two Lambdas share no module.
+MENU_PLACEHOLDER_TEXT = "We're refreshing our menu - please type *menu* and we'll help you."
+
 # Order SMS. Body must match approved DLT template wd_order character for
 # character; the key is ORDER_SMS_DLT_TEMPLATE_KEY above.
 ORDER_SMS_CONTENT = (
@@ -1506,11 +1515,11 @@ WABA2_META_ID = '1055232054343117'   # +91 99033 00044
 
 
 def _send_incoming_call_sms(caller_phone: str, call_id: str, receiving_phone_id: str, request_id: str) -> None:
-    """Send default IVR SMS + WhatsApp wd_menu when a call comes in.
+    """Send default IVR SMS + the WhatsApp menu placeholder when a call comes in.
     
     WhatsApp logic:
-    - Call on WABA1 → wd_menu from WABA1 only
-    - Call on WABA2 → wd_menu from BOTH WABA1 AND WABA2
+    - Call on WABA1 → send from WABA1 only
+    - Call on WABA2 → send from BOTH WABA1 AND WABA2
     
     All sent notifications are stored in WhatsAppOutboundTable for inbox visibility.
     """
@@ -1553,7 +1562,7 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, receiving_phone_id:
 
         _mark_sms_sent(clean_phone)
 
-        # ── WhatsApp wd_menu: depends on which WABA received the call ──
+        # ── WhatsApp follow-up: depends on which WABA received the call ──
         _send_call_whatsapp_notification(caller_phone, call_id, receiving_phone_id, request_id)
 
     except Exception as e:
@@ -1655,7 +1664,7 @@ def _is_sms_on_call_enabled() -> bool:
 
 
 def _is_postcall_wa_enabled() -> bool:
-    """Check if the post-call WhatsApp wd_menu message is enabled. Default: True."""
+    """Check if the post-call WhatsApp message is enabled. Default: True."""
     try:
         table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
         result = table.get_item(Key={'id': 'whatsapp_calling_postcall_wa'})
@@ -2007,69 +2016,6 @@ def _get_ivr_menu(phone_number_id: str) -> Dict:
         logger.debug(f'IVR menu config lookup failed for {phone_number_id}: '
                      f'{type(e).__name__}')
     return IVR_MENUS.get(phone_number_id, IVR_DEFAULT_MENU)
-
-
-def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
-    """Send wd_menu WhatsApp template to the caller after IVR audio.
-    
-    Uses wd_menu template from WABA1 (+919330994400) which has the template
-    registered with VIDEO header. Sends directly via Meta Graph API.
-    
-    Template: wd_menu (Utility, English, VIDEO header)
-    """
-    # wd_menu exists on WABA1 — send from WABA1 phone
-    VIDEO_URL = WA_TEMPLATE_VIDEO_URL
-
-    try:
-        template_msg = {
-            'messaging_product': 'whatsapp',
-            'recipient_type': 'individual',
-            'to': to_number.lstrip('+'),
-            'type': 'template',
-            'template': {
-                'name': 'wd_menu',
-                'language': {'code': 'en'},
-                'components': [
-                    {
-                        'type': 'header',
-                        'parameters': [
-                            {'type': 'video', 'video': {'link': VIDEO_URL}}
-                        ]
-                    }
-                ]
-            },
-        }
-        result = _meta_api_call(f"{WABA1_META_ID}/messages", 'POST',
-                                template_msg, phone_number_id=WABA1_META_ID)
-        msg_id = ''
-        if isinstance(result, dict):
-            msgs = result.get('messages', [])
-            if msgs:
-                msg_id = msgs[0].get('id', '')
-        logger.info(f"IVR wd_menu template sent to {mask_phone(to_number or '')}: messageId={msg_id}")
-        # Auto 👍 from WABA1 (the sender of this template).
-        if msg_id:
-            _react_thumbs_up(WABA1_META_ID, to_number, msg_id, call_id)
-    except Exception as e:
-        logger.warning(f"IVR wd_menu template failed: {e}")
-        # Fallback: send as plain text from the receiving phone
-        aws_phone_id = _get_aws_phone_id(phone_number_id)
-        fallback_text = (
-            "Thanks for contacting *WECARE.DIGITAL*! "
-            "Submit your request here: https://wecare.digital/submit-request/ "
-            "or send us a message / voice note on WhatsApp: https://wecare.digital/r/wa. "
-            "We'll review it and follow up if needed."
-        )
-        _send_via_aws(aws_phone_id, to_number, {
-            'type': 'text',
-            'text': {'body': fallback_text},
-        })
-
-    # Store IVR session in call log for tracking
-    _update_call_status(call_id, 'ivr_menu_sent', {
-        'ivrTemplate': 'wd_menu',
-        'ivrPhone': WABA1_META_ID,
-    })
 
 
 def _get_aws_phone_id(meta_phone_number_id: str) -> str:
@@ -2563,21 +2509,20 @@ def _store_notification_to_inbox(message_id: str, contact_id: str, contact_phone
 
 
 def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_phone_id: str, request_id: str) -> None:
-    """Send wd_menu WhatsApp template to the CALLER.
+    """Send the plain-text menu placeholder to the CALLER.
 
     Logic:
-    - Call on WABA1 (+919330994400) → wd_menu from WABA1 only
-    - Call on WABA2 (+919903300044) → wd_menu from BOTH WABA1 AND WABA2
+    - Call on WABA1 (+919330994400) → send from WABA1 only
+    - Call on WABA2 (+919903300044) → send from BOTH WABA1 AND WABA2
 
-    Template: wd_menu (Utility, English, VIDEO header) — APPROVED on both WABAs.
-    Video: selfservice.mp4 via CloudFront
-    Both WABAs use same token (WECARE.DIGITAL app / token1).
+    This is a TEXT send and therefore needs an open 24-hour window — see
+    _send_menu_placeholder_text. Both WABAs use the same token
+    (WECARE.DIGITAL app / token1).
 
     DELIVERY TROUBLESHOOTING:
-    - Template IS approved on both WABAs (confirmed via _check_wd_menu.py)
-    - Both WABAs use token1 (WABA2 migrated to WECARE.DIGITAL app)
+    - A closed 24-hour window is the expected failure now that the template is gone
     - If delivery fails: check Meta message status webhooks for error codes
-    - Common issues: video URL not accessible, recipient blocked business, rate limit
+    - Other causes: recipient blocked the business, rate limit
     """
     try:
         import time as _time
@@ -2590,54 +2535,21 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
         else:
             send_from = [(WABA1_META_ID, 'WABA1')]
 
-        template_msg = {
-            'messaging_product': 'whatsapp',
-            'recipient_type': 'individual',
-            'to': caller_phone.lstrip('+'),
-            'type': 'template',
-            'template': {
-                'name': 'wd_menu',
-                'language': {'code': 'en'},
-                'components': [
-                    {
-                        'type': 'header',
-                        'parameters': [
-                            {'type': 'video', 'video': {'link': WA_TEMPLATE_VIDEO_URL}}
-                        ]
-                    }
-                ]
-            },
-        }
-
         for meta_id, label in send_from:
             try:
                 # Try sending with 1 retry on failure (2s delay)
-                api_result = _meta_api_call(f"{meta_id}/messages", 'POST',
-                                            template_msg, phone_number_id=meta_id)
-                msg_id = ''
-                error_code = None
-                if isinstance(api_result, dict):
-                    msgs = api_result.get('messages', [])
-                    if msgs:
-                        msg_id = msgs[0].get('id', '')
-                    error_code = api_result.get('errorCode')
+                msg_id = _send_menu_placeholder_text(meta_id, caller_phone, request_id)
 
                 # Retry once on failure (Meta API can have transient errors)
-                if not msg_id and api_result.get('error'):
+                if not msg_id:
                     time.sleep(2)
-                    logger.info(f'{label} wd_menu retry after 2s...')
-                    api_result = _meta_api_call(f"{meta_id}/messages", 'POST',
-                                                template_msg, phone_number_id=meta_id)
-                    if isinstance(api_result, dict):
-                        msgs = api_result.get('messages', [])
-                        if msgs:
-                            msg_id = msgs[0].get('id', '')
-                        error_code = api_result.get('errorCode')
+                    logger.info(f'{label} menu placeholder retry after 2s...')
+                    msg_id = _send_menu_placeholder_text(meta_id, caller_phone, request_id)
 
                 if msg_id:
                     logger.info(json.dumps({
                         'event': 'call_wa_template_sent',
-                        'template': 'wd_menu',
+                        'messageType': 'text',
                         'waba': label,
                         'meta_phone_id': meta_id,
                         'caller': caller_phone[-4:],
@@ -2650,7 +2562,7 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
                         message_id=msg_id,
                         contact_id=contact_id,
                         contact_phone=caller_phone,
-                        content=f'[wd_menu template via {label}] Thanks for contacting WECARE.DIGITAL!',
+                        content=MENU_PLACEHOLDER_TEXT,
                         channel='whatsapp',
                         status='sent',
                         message_type='incoming_call',
@@ -2658,34 +2570,26 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
                         wamid=msg_id,
                         request_id=request_id,
                     )
-                    # Auto 👍 from the SAME WABA that sent this template (both WABAs).
+                    # Auto 👍 from the SAME WABA that sent this message (both WABAs).
                     _react_thumbs_up(meta_id, caller_phone, msg_id, request_id)
                 else:
-                    # Detailed error logging for template delivery failures
-                    error_detail = str(api_result)[:400]
-                    error_message = api_result.get('errorMessage', '')
-                    http_status = api_result.get('status', '')
                     logger.error(json.dumps({
                         'event': 'call_wa_template_FAILED',
-                        'template': 'wd_menu',
+                        'messageType': 'text',
                         'waba': label,
                         'meta_phone_id': meta_id,
                         'caller': caller_phone[-4:],
-                        'errorCode': error_code,
-                        'errorMessage': error_message,
-                        'httpStatus': http_status,
-                        'fullError': error_detail,
                         'requestId': request_id,
                         'troubleshoot': (
-                            f'wd_menu IS approved on {label}. '
-                            'Check: 1) Video URL accessible (CloudFront), '
-                            '2) Recipient not blocked this business, '
-                            '3) Rate limit not hit (1000 templates/sec), '
-                            '4) Check Meta status webhook for delivery status'
+                            'This is a plain text send and needs an open 24-hour '
+                            'window, so a caller who has never messaged the '
+                            'business cannot be reached. Also check: 1) recipient '
+                            'has not blocked this business, 2) rate limit, '
+                            '3) Meta status webhook for delivery status'
                         ),
                     }))
             except Exception as e:
-                logger.error(f'{label} wd_menu EXCEPTION: {e}', exc_info=True)
+                logger.error(f'{label} menu placeholder EXCEPTION: {e}', exc_info=True)
 
         # Log to CallNotifications table
         try:
@@ -2697,7 +2601,7 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
                 'callerPhone': caller_phone,
                 'callTime': call_time,
                 'receivingPhone': receiving_phone_id,
-                'whatsappTemplate': 'wd_menu',
+                'whatsappTemplate': 'none',
                 'whatsappWaba1': 'sent',
                 'whatsappWaba2': 'sent' if is_waba2 else 'not_applicable',
                 'smsStatus': 'sent_separately',

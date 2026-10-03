@@ -490,7 +490,7 @@ class TestAccountSettingsUpdate:
 
 
 class TestAutoThumbReaction:
-    """Test _react_thumbs_up — auto 👍 on call-related wd_menu templates, both WABAs."""
+    """Test _react_thumbs_up — auto 👍 on call-related WhatsApp messages, both WABAs."""
 
     @pytest.fixture(autouse=True)
     def setup(self):
