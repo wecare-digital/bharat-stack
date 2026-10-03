@@ -1738,7 +1738,7 @@ const VayuLokLive: React.FC = () => {
                       </div>
                     </>
                   ) }
-                  <h4 className="vl-live-minor-title">10-day outlook</h4>                  <h4 className="vl-live-minor-title">10-day outlook</h4>
+                  <h4 className="vl-live-minor-title">10-day outlook</h4>
                   <div className="vl-live-day-rail" aria-label="10-day weather outlook">
                     { weatherDaily.map( d => (
                       <article className="vl-live-day-card" key={ d.time }>
