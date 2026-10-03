@@ -851,15 +851,35 @@ const VayuLokLive: React.FC = () => {
           </section>
         </div>
 
-        {/* ===== RIGHT COLUMN: the map, and nothing else ===== */}
-        { liveActive && (
-          <div className="vl-live-right">
-            <div className="vl-live-map-sticky">
-              <div className="vl-live-map-stage">
-                <div className="vl-live-map-canvas" ref={ mapHost } role="img" aria-label={ `Map of ${place.name}` } />
+        {/* ===== RIGHT COLUMN: resilient map =====
+            The keyed Maps JS canvas is the enhanced path. A keyless Google Maps embed
+            sits underneath it until mapReady becomes true, so a rejected/delayed
+            browser key can never leave visitors staring at a blank grey panel. */}
+        <div className="vl-live-right">
+          <div className="vl-live-map-sticky">
+            <div className="vl-live-map-stage">
+              { !mapReady && (
+                <iframe
+                  className="vl-live-map-fallback"
+                  title={ `Map of ${place.name}` }
+                  src={ `https://maps.google.com/maps?q=${place.lat},${place.lng}&z=11&output=embed` }
+                  loading="lazy"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              ) }
+              { liveActive && (
+                <div
+                  className={ `vl-live-map-canvas ${mapReady ? 'is-ready' : ''}`.trim() }
+                  ref={ mapHost }
+                  role="img"
+                  aria-label={ `Map of ${place.name}` }
+                />
+              ) }
 
-                {/* Layer buttons - top-left, clear of Google's bottom-corner notices.
-                    The heatmap overlay is created ONLY when one is pressed. */}
+              {/* Heatmap controls only make sense once the Maps JS canvas exists.
+                  On the fallback map they stay hidden rather than implying a layer
+                  can be toggled when there is no ImageMapType to receive it. */}
+              { mapReady && (
                 <div className="vl-live-map-controls">
                   <button
                     className="vl-live-layer"
@@ -874,13 +894,16 @@ const VayuLokLive: React.FC = () => {
                     onClick={ () => setLayer( l => ( l === 'PM25' ? null : 'PM25' ) ) }
                   >PM2.5</button>
                 </div>
+              ) }
 
+              { mapReady && (
                 <div className="vl-live-map-legend">
                   <p className="vl-live-label">AQI heatmap</p>
                   <div className="vl-live-scale" aria-hidden="true" />
                   <div className="vl-live-scale-ends"><span>Good</span><span>Severe</span></div>
                   <p className="vl-live-scale-mid">Good · Satisfactory · Moderate · Poor · Very Poor · Severe</p>
                 </div>
+              ) }
 
                 {/* Place preview - bottom:76px, never bottom:0: Google's logo and legal
                     notices own the bottom corners. Renders live values when present. */}
@@ -901,10 +924,9 @@ const VayuLokLive: React.FC = () => {
                     </div>
                   </div>
                 ) }
-              </div>
             </div>
           </div>
-        ) }
+        </div>
       </div>
 
       <style jsx>{`
@@ -956,7 +978,9 @@ const VayuLokLive: React.FC = () => {
 
         .vl-live-map-sticky{display:flex;flex-direction:column;gap:10px}
         .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid var(--hair);border-radius:var(--r-panel);background:var(--ground)}
-        .vl-live-map-canvas{position:absolute;inset:0}
+        .vl-live-map-fallback{position:absolute;inset:0;z-index:0;width:100%;height:100%;border:0;background:var(--ground)}
+        .vl-live-map-canvas{position:absolute;inset:0;z-index:1;pointer-events:none}
+        .vl-live-map-canvas.is-ready{pointer-events:auto}
 
         @media(min-width:1024px){
           /* Two equal columns with a fixed gap so they cannot overlap. The earlier
