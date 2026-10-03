@@ -112,7 +112,8 @@ interface WeatherState {
   temp?: number;
   feelsLike?: number;
   humidity?: number;
-  windKph?: number;
+  windSpeed?: number;
+  windUnit?: string;
   windDir?: string;
   condition?: string;
 }
@@ -127,6 +128,16 @@ interface PollenRow { label: string; index: number; word: string; }
 const COMPASS = [ 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW' ];
 function windDirection( deg: number ): string {
   return COMPASS[ Math.round( deg / 45 ) % 8 ];
+}
+// Short display label for the wind-speed unit the Weather API returns on wind.speed.unit
+// (e.g. KILOMETERS_PER_HOUR, MILES_PER_HOUR). Fall back to km/h under unitsSystem=METRIC.
+function windUnitLabel( unit?: string ): string {
+  switch ( unit ) {
+    case 'MILES_PER_HOUR': return 'mph';
+    case 'METERS_PER_SECOND': return 'm/s';
+    case 'KILOMETERS_PER_HOUR': return 'km/h';
+    default: return 'km/h';
+  }
 }
 
 const VayuLokLive: React.FC = () => {
@@ -306,14 +317,18 @@ const VayuLokLive: React.FC = () => {
         const temp = d?.temperature?.degrees;
         const feels = d?.feelsLikeTemperature?.degrees;
         const humidity = d?.relativeHumidity;
-        const windKph = d?.wind?.speed?.value;
+        const windSpeed = d?.wind?.speed?.value;
+        const windUnit = d?.wind?.speed?.unit;
         const windDeg = d?.wind?.direction?.degrees;
         const condition = d?.weatherCondition?.description?.text;
         const out: WeatherState = {};
         if ( Number.isFinite( temp ) ) out.temp = Math.round( temp );
         if ( Number.isFinite( feels ) ) out.feelsLike = Math.round( feels );
         if ( Number.isFinite( humidity ) ) out.humidity = Math.round( humidity );
-        if ( Number.isFinite( windKph ) ) out.windKph = Math.round( windKph );
+        if ( Number.isFinite( windSpeed ) ) {
+          out.windSpeed = Math.round( windSpeed );
+          out.windUnit = windUnitLabel( typeof windUnit === 'string' ? windUnit : undefined );
+        }
         if ( Number.isFinite( windDeg ) ) out.windDir = windDirection( windDeg );
         if ( typeof condition === 'string' ) out.condition = condition;
         // Only keep weather if at least one field arrived.
@@ -404,7 +419,10 @@ const VayuLokLive: React.FC = () => {
     if ( !map || !w.google?.maps ) return;
     map.overlayMapTypes?.clear();
     if ( !layer ) return;
-    const mapType = layer === 'PM25' ? 'PM25_HEATMAP' : 'US_AQI';
+    // Air Quality API mapType enum values. Use the universal AQI scale (UAQI_RED_GREEN)
+    // rather than US_AQI so heatmap colours line up with the India-CPCB legend/panels on
+    // this page, and PM25_INDIGO_PERSIAN for PM2.5 (PM25_HEATMAP is not a valid enum value).
+    const mapType = layer === 'PM25' ? 'PM25_INDIGO_PERSIAN' : 'UAQI_RED_GREEN';
     const overlay = new w.google.maps.ImageMapType( {
       name: layer,
       tileSize: { width: 256, height: 256 },
@@ -604,7 +622,7 @@ const VayuLokLive: React.FC = () => {
                     <p className="vl-live-sub-fact">
                       { Number.isFinite( weather.feelsLike ) && <>Feels like { weather.feelsLike }°</> }
                       { Number.isFinite( weather.humidity ) && <> · humidity { weather.humidity }%</> }
-                      { Number.isFinite( weather.windKph ) && <> · wind { weather.windKph } km/h{ weather.windDir ? ` ${weather.windDir}` : '' }</> }
+                      { Number.isFinite( weather.windSpeed ) && <> · wind { weather.windSpeed } { weather.windUnit || 'km/h' }{ weather.windDir ? ` ${weather.windDir}` : '' }</> }
                     </p>
                   </div>
                 ) }
@@ -621,8 +639,8 @@ const VayuLokLive: React.FC = () => {
                 { Number.isFinite( weather?.humidity ) && (
                   <div className="vl-live-fact"><p className="vl-live-label">Humidity</p><span className="vl-live-metric-md">{ weather!.humidity }%</span></div>
                 ) }
-                { Number.isFinite( weather?.windKph ) && (
-                  <div className="vl-live-fact"><p className="vl-live-label">Wind speed</p><span className="vl-live-metric-md">{ weather!.windKph } km/h</span></div>
+                { Number.isFinite( weather?.windSpeed ) && (
+                  <div className="vl-live-fact"><p className="vl-live-label">Wind speed</p><span className="vl-live-metric-md">{ weather!.windSpeed } { weather!.windUnit || 'km/h' }</span></div>
                 ) }
                 { weather?.windDir && (
                   <div className="vl-live-fact"><p className="vl-live-label">Wind direction</p><span className="vl-live-metric-md">{ weather.windDir }</span></div>

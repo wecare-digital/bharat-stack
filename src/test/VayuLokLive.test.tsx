@@ -229,11 +229,26 @@ describe( 'VayuLokLive - map wiring, heatmap on user action, India scoping (key 
     await waitFor( () => expect( rec.overlayPushes ).toHaveLength( 1 ) );
     expect( rec.imageMapTypeOpts ).toHaveLength( 1 );
 
-    // The overlay's tile URL points at the air-quality heatmapTiles SKU (built lazily per tile).
+    // The overlay's tile URL points at the air-quality heatmapTiles SKU (built lazily per tile),
+    // and uses a VALID Air Quality API mapType. The AQI layer must use the universal UAQI scale
+    // (not US_AQI) so the heatmap matches the India-CPCB legend/panels on the page. The mapType
+    // sits in the path segment immediately before /heatmapTiles/.
     const getTileUrl = rec.imageMapTypeOpts[ 0 ].getTileUrl as ( c: { x: number; y: number }, z: number ) => string;
     const url = getTileUrl( { x: 1, y: 2 }, 3 );
     expect( url ).toContain( 'airquality.googleapis.com' );
     expect( url ).toContain( 'heatmapTiles' );
+    const aqiType = url.match( /\/mapTypes\/([^/]+)\/heatmapTiles\// )?.[ 1 ];
+    expect( aqiType ).toBe( 'UAQI_RED_GREEN' );
+    expect( aqiType ).not.toBe( 'US_AQI' );
+
+    // Switching to the PM2.5 layer must use a VALID PM2.5 mapType. PM25_HEATMAP is not in the
+    // API enum and would 400/render nothing; PM25_INDIGO_PERSIAN is the correct token.
+    fireEvent.click( screen.getByRole( 'button', { name: 'PM2.5' } ) );
+    await waitFor( () => expect( rec.imageMapTypeOpts ).toHaveLength( 2 ) );
+    const getPm25TileUrl = rec.imageMapTypeOpts[ 1 ].getTileUrl as ( c: { x: number; y: number }, z: number ) => string;
+    const pm25Type = getPm25TileUrl( { x: 1, y: 2 }, 3 ).match( /\/mapTypes\/([^/]+)\/heatmapTiles\// )?.[ 1 ];
+    expect( pm25Type ).toBe( 'PM25_INDIGO_PERSIAN' );
+    expect( pm25Type ).not.toBe( 'PM25_HEATMAP' );
   } );
 
   it( 'builds the map restricted to India and searches India-scoped (not duplicated literals)', async () => {
