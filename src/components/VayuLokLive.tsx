@@ -50,7 +50,7 @@ const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
 // mock's map options.
 const INDIA_BOUNDS = { north: 37.6, south: 6.4, west: 68.1, east: 97.4 };
 
-// Default place: Connaught Place, New Delhi - the mock's default centre.
+// Default place: Dawki, West Jaintia Hills, Meghalaya.
 interface PlacePhotoAttribution {
   name: string;
   uri?: string;
@@ -85,10 +85,10 @@ interface SearchResult {
 }
 
 const DEFAULT_PLACE: PlaceState = {
-  name: 'Connaught Place',
-  addr: 'New Delhi, Delhi 110001',
-  lat: 28.6139,
-  lng: 77.2090,
+  name: 'Dawki',
+  addr: 'Dawki, West Jaintia Hills, Meghalaya 793109',
+  lat: 25.18333,
+  lng: 92.01667,
   photos: [],
 };
 
@@ -363,7 +363,7 @@ function rememberPlace( place: PlaceState ) {
 }
 
 const VayuLokLive: React.FC = () => {
-  // The selected place drives every fetch. Default is Connaught Place; search updates it.
+  // The selected place drives every fetch. Default is Dawki; search updates it.
   const [ place, setPlace ] = useState<PlaceState>( DEFAULT_PLACE );
   const [ mapReady, setMapReady ] = useState( false );
   const [ mapFailed, setMapFailed ] = useState( false );
@@ -394,6 +394,7 @@ const VayuLokLive: React.FC = () => {
   const [ mapCandidateAir, setMapCandidateAir ] = useState<AirState | null>( null );
   const [ nearbyPhotos, setNearbyPhotos ] = useState<PlacePhoto[]>( [] );
   const [ streetViewReady, setStreetViewReady ] = useState( false );
+  const [ mapStreetViewReady, setMapStreetViewReady ] = useState( false );
 
   // Search combobox state.
   const [ query, setQuery ] = useState( '' );
@@ -405,6 +406,7 @@ const VayuLokLive: React.FC = () => {
   const [ layer, setLayer ] = useState<'AQI' | 'PM25' | null>( null );
 
   const mapHost = useRef<HTMLDivElement | null>( null );
+  const mapStreetViewHost = useRef<HTMLDivElement | null>( null );
   const streetViewHost = useRef<HTMLDivElement | null>( null );
   const photoRailRef = useRef<HTMLDivElement | null>( null );
   const mapRef = useRef<unknown>( null );
@@ -442,6 +444,7 @@ const VayuLokLive: React.FC = () => {
     setMapCandidateAir( null );
     setNearbyPhotos( [] );
     setStreetViewReady( false );
+    setMapStreetViewReady( false );
   }, [ place.lat, place.lng ] );
 
   useEffect( () => {
@@ -721,6 +724,56 @@ const VayuLokLive: React.FC = () => {
     runInit();
     return () => { cancelled = true; };
   }, [] );
+
+  /* ---------------------------------------------------------------------------------
+     MAP-STAGE FALLBACK. While map tiles are loading or unavailable, use a contained
+     Street View for the selected place when coverage exists. All panorama controls are
+     disabled so the fallback stays bounded inside the VayuLok map panel. */
+  useEffect( () => {
+    if ( !MAPS_KEY || typeof window === 'undefined' || mapReady ) return;
+    let cancelled = false;
+    setMapStreetViewReady( false );
+
+    const init = async () => {
+      for ( let i = 0; i < 50 && !cancelled; i++ ) {
+        const maps = ( window as any ).google?.maps;
+        const host = mapStreetViewHost.current;
+        if ( maps?.StreetViewService && maps?.StreetViewPanorama && host ) {
+          try {
+            const service = new maps.StreetViewService();
+            service.getPanorama(
+              { location: { lat: place.lat, lng: place.lng }, radius: 250, preference: 'nearest' },
+              ( data: any, status: string ) => {
+                if ( cancelled || status !== 'OK' || !data?.location?.latLng || !mapStreetViewHost.current ) return;
+                new maps.StreetViewPanorama( mapStreetViewHost.current, {
+                  position: data.location.latLng,
+                  pov: { heading: 0, pitch: 0 },
+                  zoom: 0,
+                  addressControl: false,
+                  clickToGo: false,
+                  disableDefaultUI: true,
+                  fullscreenControl: false,
+                  linksControl: false,
+                  motionTracking: false,
+                  motionTrackingControl: false,
+                  panControl: false,
+                  scrollwheel: false,
+                  showRoadLabels: false,
+                  zoomControl: false,
+                } );
+                setMapStreetViewReady( true );
+              },
+            );
+          } catch { /* styled fallback remains visible */ }
+          return;
+        }
+        await new Promise( resolve => window.setTimeout( resolve, 100 ) );
+      }
+    };
+
+    void init();
+    return () => { cancelled = true; };
+  }, [ mapReady, place.lat, place.lng ] );
 
   /* ---------------------------------------------------------------------------------
      PLACE MEDIA FALLBACK. Exact-place photos are preferred. If none are available,
@@ -1967,15 +2020,16 @@ const VayuLokLive: React.FC = () => {
             <div className="vl-live-map-stage">
               { !mapReady && (
                 <div
-                  className="vl-live-map-fallback"
+                  className={ `vl-live-map-fallback ${mapStreetViewReady ? 'has-streetview' : ''}`.trim() }
                   role="status"
-                  aria-label={ mapFailed ? `Map unavailable for ${place.name}` : `Loading map of ${place.name}` }
+                  aria-label={ mapStreetViewReady ? `Street View near ${place.name}` : mapFailed ? `Map unavailable for ${place.name}` : `Loading map of ${place.name}` }
                 >
-                  <span className="vl-live-map-fallback-pin" aria-hidden="true" />
+                  <div ref={ mapStreetViewHost } className="vl-live-map-streetview-host" aria-hidden={ !mapStreetViewReady } />
+                  { !mapStreetViewReady && <span className="vl-live-map-fallback-pin" aria-hidden="true" /> }
                   <div className="vl-live-map-fallback-copy">
                     <p className="vl-live-map-fallback-place">{ place.name }</p>
-                    <p className="vl-live-map-fallback-status">{ mapFailed ? 'Map temporarily unavailable.' : 'Loading live map…' }</p>
-                    { mapFailed && (
+                    <p className="vl-live-map-fallback-status">{ mapStreetViewReady ? 'Street View nearby · loading map…' : mapFailed ? 'Map temporarily unavailable.' : 'Loading live map…' }</p>
+                    { mapFailed && !mapStreetViewReady && (
                       <button className="vl-live-map-retry" type="button" onClick={ () => window.location.reload() }>Retry map</button>
                     ) }
                   </div>
@@ -2018,7 +2072,6 @@ const VayuLokLive: React.FC = () => {
                       <>
                         <div className="vl-live-photo-shell">
                           <div className="vl-live-photo-count" aria-label={ `${displayPhotos.length} place photos` }>
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v13H4zM7 15l3.2-3.2 2.4 2.3 2.1-2.1L18 15.5M8 9h.01" /></svg>
                             <span>{ displayPhotos.length } photos</span>
                           </div>
                           <div
@@ -2194,7 +2247,11 @@ const VayuLokLive: React.FC = () => {
             radial-gradient(circle at 78% 72%,rgba(26,58,42,.08),transparent 28%);
           background-size:36px 36px,36px 36px,100% 100%,100% 100%;
         }
-        .vl-live-map-fallback-pin{width:18px;height:18px;flex:0 0 18px;border:5px solid var(--green);border-radius:50% 50% 50% 0;background:var(--lime);transform:rotate(-45deg);box-shadow:0 4px 12px rgba(26,58,42,.18)}
+        .vl-live-map-streetview-host{position:absolute;inset:0;z-index:0;opacity:0;pointer-events:none}
+        .vl-live-map-fallback.has-streetview .vl-live-map-streetview-host{opacity:1}
+        .vl-live-map-fallback.has-streetview::after{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(17,24,20,.04),rgba(17,24,20,.22));pointer-events:none}
+        .vl-live-map-fallback.has-streetview .vl-live-map-fallback-copy{z-index:2;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.9);backdrop-filter:blur(8px)}
+.vl-live-map-fallback-pin{width:18px;height:18px;flex:0 0 18px;border:5px solid var(--green);border-radius:50% 50% 50% 0;background:var(--lime);transform:rotate(-45deg);box-shadow:0 4px 12px rgba(26,58,42,.18)}
         .vl-live-map-fallback-copy{position:relative;z-index:1}
         .vl-live-map-fallback-place{margin:0;font-size:16px;font-weight:700;line-height:1.25;color:var(--green)}
         .vl-live-map-fallback-status{margin:3px 0 0;font-size:13px;line-height:1.35;color:var(--ink-muted)}
@@ -2298,8 +2355,7 @@ const VayuLokLive: React.FC = () => {
         .vl-live-place-photos::-webkit-scrollbar{display:none}
         .vl-live-place-photo{position:relative;flex:0 0 100%;width:100%;height:210px;margin:0;scroll-snap-align:start;background:#eef3ef}
         .vl-live-place-photo img{display:block;width:100%;height:210px;object-fit:cover}
-        .vl-live-photo-count{position:absolute;top:12px;left:12px;z-index:4;display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:9px;background:rgba(17,24,20,.78);color:#fff;font-size:12px;font-weight:700;backdrop-filter:blur(6px)}
-        .vl-live-photo-count svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+        .vl-live-photo-count{position:absolute;top:12px;left:12px;z-index:4;display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;background:var(--lime);color:var(--green);font-size:10px;font-weight:800;line-height:1.1;box-shadow:0 1px 0 rgba(26,58,42,.12)}
         .vl-live-place-photo figcaption{position:absolute;left:8px;bottom:7px;max-width:calc(100% - 16px);padding:3px 5px;border-radius:6px;background:rgba(0,0,0,.58);font-size:8px;line-height:1.2;color:#fff}
         .vl-live-place-photo figcaption a,.vl-live-place-photo figcaption span{color:#fff}
         .vl-live-place-photo figcaption a+span,.vl-live-place-photo figcaption a+a,.vl-live-place-photo figcaption span+a,.vl-live-place-photo figcaption span+span{margin-left:5px}
@@ -2310,9 +2366,9 @@ const VayuLokLive: React.FC = () => {
         .vl-live-streetview .vl-live-place-photo-fallback{position:absolute;inset:0;width:100%;height:100%;margin:0;border-radius:0}
         .vl-live-media-tag{position:absolute;top:12px;left:12px;z-index:4;padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.92);font-size:10px;font-weight:700;color:var(--green);box-shadow:0 2px 8px rgba(26,58,42,.1)}
         .vl-live-place-photo-fallback span{width:26px;height:26px;border:7px solid var(--green);border-radius:50% 50% 50% 0;background:var(--lime);transform:rotate(-45deg)}
-        .vl-live-photo-tabs{display:flex;gap:5px;margin:10px 0 14px;padding:0 2px}
-        .vl-live-photo-tabs button{flex:1 1 0;height:5px;min-width:12px;padding:0;border:0;border-radius:999px;background:#e7ebe8;cursor:pointer;transition:background-color .18s ease,transform .18s ease}
-        .vl-live-photo-tabs button[aria-selected="true"]{background:var(--lime);box-shadow:0 0 0 1px rgba(26,58,42,.16);transform:scaleY(1.35)}
+        .vl-live-photo-tabs{display:flex;gap:4px;margin:7px 0 12px;padding:0 1px}
+        .vl-live-photo-tabs button{flex:1 1 0;height:2px;min-width:10px;padding:0;border:0;border-radius:999px;background:#e7ebe8;cursor:pointer;transition:background-color .18s ease,transform .18s ease}
+        .vl-live-photo-tabs button[aria-selected="true"]{background:var(--lime);box-shadow:none;transform:scaleY(1.5)}
         .vl-live-photo-tabs button:focus-visible{outline:2px solid var(--green);outline-offset:3px}
         .vl-live-map-preview-head{display:block;margin-top:2px}
         .vl-live-map-preview .vl-live-card-h{margin:0;font-size:20px;line-height:1.2;font-weight:700;letter-spacing:-.02em;color:#1a1a1a}
