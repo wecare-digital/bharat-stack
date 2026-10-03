@@ -51,11 +51,20 @@ const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
 const INDIA_BOUNDS = { north: 37.6, south: 6.4, west: 68.1, east: 97.4 };
 
 // Default place: Connaught Place, New Delhi - the mock's default centre.
-const DEFAULT_PLACE = {
+interface PlaceState {
+  name: string;
+  addr: string;
+  lat: number;
+  lng: number;
+  photoUrls?: string[];
+}
+
+const DEFAULT_PLACE: PlaceState = {
   name: 'Connaught Place',
   addr: 'New Delhi, Delhi 110001',
   lat: 28.6139,
   lng: 77.2090,
+  photoUrls: [],
 };
 
 // GEOMETRY ON THE REPO PALETTE, ported verbatim from the mock's map styles.
@@ -287,8 +296,12 @@ function bestOutsideWindow( weatherHours: WeatherHour[], airHours: AirPoint[] ):
 
 const VayuLokLive: React.FC = () => {
   // The selected place drives every fetch. Default is Connaught Place; search updates it.
-  const [ place, setPlace ] = useState( DEFAULT_PLACE );
+  const [ place, setPlace ] = useState<PlaceState>( DEFAULT_PLACE );
   const [ mapReady, setMapReady ] = useState( false );
+  const [ mapFailed, setMapFailed ] = useState( false );
+  const [ istClock, setIstClock ] = useState( istTimeLabel() );
+  const [ solarRequested, setSolarRequested ] = useState( false );
+  const [ solarLoading, setSolarLoading ] = useState( false );
 
   const [ air, setAir ] = useState<AirState | null>( null );
   const [ weather, setWeather ] = useState<WeatherState | null>( null );
@@ -304,7 +317,7 @@ const VayuLokLive: React.FC = () => {
 
   // Search combobox state.
   const [ query, setQuery ] = useState( '' );
-  const [ results, setResults ] = useState<{ name: string; addr: string; lat: number; lng: number }[]>( [] );
+  const [ results, setResults ] = useState<PlaceState[]>( [] );
   const [ open, setOpen ] = useState( false );
   const [ active, setActive ] = useState( -1 );
 
@@ -317,8 +330,21 @@ const VayuLokLive: React.FC = () => {
   const placesSvc = useRef<unknown>( null );
   const geocoder = useRef<unknown>( null );
   // Cache the last fetched values per "lat,lng" so re-selecting a place bills nothing.
-  const cache = useRef<Record<string, { air: AirState | null; weather: WeatherState | null; solar: SolarState | null; pollen: PollenRow[] | null }>>( {} );
+  const cache = useRef<Record<string, { air: AirState | null; weather: WeatherState | null; pollen: PollenRow[] | null }>>( {} );
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>( null );
+
+  useEffect( () => {
+    const tick = () => setIstClock( istTimeLabel() );
+    tick();
+    const id = window.setInterval( tick, 60_000 );
+    return () => window.clearInterval( id );
+  }, [] );
+
+  useEffect( () => {
+    setSolar( null );
+    setSolarRequested( false );
+    setSolarLoading( false );
+  }, [ place.lat, place.lng ] );
 
   /* ---------------------------------------------------------------------------------
      MAP. Fires on load WHEN a key is present. The Maps JS script is injected once per
@@ -502,15 +528,14 @@ const VayuLokLive: React.FC = () => {
       requestAnimationFrame( () => {
         setAir( cached.air );
         setWeather( cached.weather );
-        setSolar( cached.solar );
         setPollen( cached.pollen );
       } );
       return;
     }
 
     const ac = new AbortController();
-    const store: { air: AirState | null; weather: WeatherState | null; solar: SolarState | null; pollen: PollenRow[] | null } = {
-      air: null, weather: null, solar: null, pollen: null,
+    const store: { air: AirState | null; weather: WeatherState | null; pollen: PollenRow[] | null } = {
+      air: null, weather: null, pollen: null,
     };
 
     // AIR QUALITY - India SKU currentConditions:lookup, India local AQI preferred.
@@ -620,27 +645,6 @@ const VayuLokLive: React.FC = () => {
       } catch { /* silent degradation */ }
     };
 
-    // SOLAR - India SKU Building Insights only. 404/NOT_FOUND is common; degrade silently.
-    const fetchSolar = async () => {
-      try {
-        const res = await fetch(
-          `https://solar.googleapis.com/v1/buildingInsights:findClosest?key=${encodeURIComponent( MAPS_KEY )}&location.latitude=${lat}&location.longitude=${lng}`,
-          { signal: ac.signal },
-        );
-        if ( !res.ok ) return;
-        const d = await res.json();
-        const sp = d?.solarPotential;
-        if ( !sp ) return;
-        const out: SolarState = {};
-        if ( Number.isFinite( sp.maxArrayPanelsCount ) ) out.maxPanels = sp.maxArrayPanelsCount;
-        if ( Number.isFinite( sp.maxArrayAreaMeters2 ) ) out.roofAreaM2 = Math.round( sp.maxArrayAreaMeters2 );
-        if ( Number.isFinite( sp.maxSunshineHoursPerYear ) ) out.sunshineHrs = Math.round( sp.maxSunshineHoursPerYear );
-        const cfg = Array.isArray( sp.solarPanelConfigs ) ? sp.solarPanelConfigs[ sp.solarPanelConfigs.length - 1 ] : null;
-        if ( cfg && Number.isFinite( cfg.yearlyEnergyDcKwh ) ) out.yearlyKwh = Math.round( cfg.yearlyEnergyDcKwh );
-        if ( Object.keys( out ).length ) store.solar = out;
-      } catch { /* silent degradation */ }
-    };
-
     // POLLEN - forecast:lookup, one day. Degrade silently if absent.
     const fetchPollen = async () => {
       try {
@@ -675,7 +679,7 @@ const VayuLokLive: React.FC = () => {
     };
 
     ( async () => {
-      await Promise.all( [ fetchAir(), fetchWeather(), fetchSolar(), fetchPollen() ] );
+      await Promise.all( [ fetchAir(), fetchWeather(), fetchPollen() ] );
       if ( ac.signal.aborted ) return;
       cache.current[ cacheKey ] = store;
       // First setState via rAF to avoid react-hooks/set-state-in-effect.
@@ -848,6 +852,32 @@ const VayuLokLive: React.FC = () => {
     return () => ac.abort();
   }, [ place, historyRange ] );
 
+  const loadSolar = useCallback( async () => {
+    if ( !MAPS_KEY || solarLoading ) return;
+    setSolarRequested( true );
+    setSolarLoading( true );
+    try {
+      const res = await fetch(
+        `https://solar.googleapis.com/v1/buildingInsights:findClosest?key=${encodeURIComponent( MAPS_KEY )}&location.latitude=${place.lat}&location.longitude=${place.lng}`,
+      );
+      if ( !res.ok ) { setSolar( null ); return; }
+      const d = await res.json();
+      const sp = d?.solarPotential;
+      if ( !sp ) { setSolar( null ); return; }
+      const out: SolarState = {};
+      if ( Number.isFinite( sp.maxArrayPanelsCount ) ) out.maxPanels = sp.maxArrayPanelsCount;
+      if ( Number.isFinite( sp.maxArrayAreaMeters2 ) ) out.roofAreaM2 = Math.round( sp.maxArrayAreaMeters2 );
+      if ( Number.isFinite( sp.maxSunshineHoursPerYear ) ) out.sunshineHrs = Math.round( sp.maxSunshineHoursPerYear );
+      const cfg = Array.isArray( sp.solarPanelConfigs ) ? sp.solarPanelConfigs[ sp.solarPanelConfigs.length - 1 ] : null;
+      if ( cfg && Number.isFinite( cfg.yearlyEnergyDcKwh ) ) out.yearlyKwh = Math.round( cfg.yearlyEnergyDcKwh );
+      setSolar( Object.keys( out ).length ? out : null );
+    } catch {
+      setSolar( null );
+    } finally {
+      setSolarLoading( false );
+    }
+  }, [ place.lat, place.lng, solarLoading ] );
+
   /* ---------------------------------------------------------------------------------
      RECENTRE the map + move the marker when the place changes (after the map exists). */
   useEffect( () => {
@@ -928,13 +958,23 @@ const VayuLokLive: React.FC = () => {
         ( r, status ) => {
           if ( status !== OK || !Array.isArray( r ) ) { setResults( [] ); setOpen( true ); return; }
           const mapped = r.slice( 0, 6 ).map( ( p: unknown ) => {
-            const pr = p as { name?: string; formatted_address?: string; geometry?: { location?: { lat: () => number; lng: () => number } } };
+            const pr = p as {
+              name?: string;
+              formatted_address?: string;
+              geometry?: { location?: { lat: () => number; lng: () => number } };
+              photos?: { getUrl?: ( opts: Record<string, number> ) => string; html_attributions?: string[] }[];
+            };
             const loc = pr.geometry?.location;
+            const photoUrls = ( Array.isArray( pr.photos ) ? pr.photos : [] )
+              .filter( photo => !photo.html_attributions?.length && typeof photo.getUrl === 'function' )
+              .slice( 0, 6 )
+              .map( photo => photo.getUrl!( { maxWidth: 900, maxHeight: 600 } ) );
             return {
               name: pr.name || 'Place',
               addr: pr.formatted_address || '',
               lat: loc ? loc.lat() : DEFAULT_PLACE.lat,
               lng: loc ? loc.lng() : DEFAULT_PLACE.lng,
+              photoUrls,
             };
           } );
           setResults( mapped );
@@ -979,8 +1019,8 @@ const VayuLokLive: React.FC = () => {
     searchTimer.current = setTimeout( () => runSearch( v ), 300 );
   };
 
-  const choose = ( r: { name: string; addr: string; lat: number; lng: number } ) => {
-    setPlace( { name: r.name, addr: r.addr, lat: r.lat, lng: r.lng } );
+  const choose = ( r: PlaceState ) => {
+    setPlace( { name: r.name, addr: r.addr, lat: r.lat, lng: r.lng, photoUrls: r.photoUrls || [] } );
     setQuery( r.name );
     setOpen( false );
     setResults( [] );
@@ -1306,9 +1346,20 @@ const VayuLokLive: React.FC = () => {
             </section>
           ) }
 
-          {/* SOLAR - Building Insights. Section renders only when the API returned data. */}
-          { solar && ( Number.isFinite( solar.maxPanels ) || Number.isFinite( solar.roofAreaM2 ) || Number.isFinite( solar.yearlyKwh ) || Number.isFinite( solar.sunshineHrs ) ) && (
-            <section className="vl-live-section" aria-labelledby="vl-live-solar-title">
+          {/* SOLAR - expensive relative to Weather/Air, so load only after explicit user action. */}
+          <section className="vl-live-section" aria-labelledby="vl-live-solar-title">
+            <h3 className="vl-live-h2" id="vl-live-solar-title">Solar &ndash; Building Insights</h3>
+            { !solarRequested && (
+              <>
+                <p className="vl-live-small vl-live-mb16">Rooftop solar potential is loaded only when you ask for it.</p>
+                <button className="vl-live-solar-load" type="button" onClick={ () => void loadSolar() }>View solar potential</button>
+              </>
+            ) }
+            { solarLoading && <p className="vl-live-small">Loading rooftop potential…</p> }
+            { solarRequested && !solarLoading && !solar && <p className="vl-live-small">Solar building insights are not available for this location.</p> }
+            { solar && ( Number.isFinite( solar.maxPanels ) || Number.isFinite( solar.roofAreaM2 ) || Number.isFinite( solar.yearlyKwh ) || Number.isFinite( solar.sunshineHrs ) ) && (
+              <>
+
               <h3 className="vl-live-h2" id="vl-live-solar-title">Solar &ndash; Building Insights</h3>
               <p className="vl-live-small vl-live-mb16">Rooftop solar potential for this address, from the Solar API&rsquo;s building insights.</p>
               { Number.isFinite( solar.maxPanels ) && (
@@ -1323,8 +1374,9 @@ const VayuLokLive: React.FC = () => {
               { Number.isFinite( solar.yearlyKwh ) && (
                 <div className="vl-live-prow"><p className="vl-live-label">Yearly energy</p><span className="vl-live-track"><span className="vl-live-bar vl-live-bar-poor" style={ { width: '71%' } } /></span><span className="vl-live-metric-md">{ solar.yearlyKwh!.toLocaleString( 'en-IN' ) } kWh</span><span className="vl-live-prow-cat">Estimated</span></div>
               ) }
-            </section>
-          ) }
+              </>
+            ) }
+          </section>
 
           {/* POLLEN - section renders only when the forecast returned types. */}
           { pollen && pollen.length > 0 && (
@@ -1435,8 +1487,21 @@ const VayuLokLive: React.FC = () => {
                     notices own the bottom corners. Renders live values when present. */}
                 { ( air || weather ) && (
                   <div className="vl-live-map-preview">
-                    <p className="vl-live-card-h">{ place.name }</p>
-                    <p className="vl-live-small">{ place.addr }</p>
+                    { Boolean( place.photoUrls?.length ) && (
+                      <div className="vl-live-place-photos" aria-label={ `Photos of ${place.name}` }>
+                        { place.photoUrls!.map( ( src, i ) => (
+                          <img key={ src + i } src={ src } alt={ `${place.name} ${i + 1}` } loading={ i === 0 ? 'eager' : 'lazy' } />
+                        ) ) }
+                      </div>
+                    ) }
+                    <div className="vl-live-map-preview-head">
+                      <div>
+                        <p className="vl-live-card-h">{ place.name }</p>
+                        <p className="vl-live-small">{ place.addr }</p>
+                      </div>
+                      <time className="vl-live-ist" dateTime={ new Date().toISOString() }>{ istClock }</time>
+                    </div>
+                    <p className="vl-live-coords">{ place.lat.toFixed( 4 ) }, { place.lng.toFixed( 4 ) }</p>
                     <div className="vl-live-preview-metrics">
                       { Number.isFinite( weather?.temp ) && (
                         <div><p className="vl-live-label">Temp</p><span className="vl-live-metric-md">{ weather!.temp }°</span></div>
@@ -1461,7 +1526,7 @@ const VayuLokLive: React.FC = () => {
            selector. Design tokens are ported from docs/mocks/vayulok-live-mock.html. */
         .vl-live{
           font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-          color:#1a1a1a;-webkit-font-smoothing:antialiased;background:#fff;
+          color:#1a1a1a;-webkit-font-smoothing:antialiased;background:#fff;padding-bottom:72px;
 
           --paper:#fff;--ground:#fafafa;
           --lime:#d1f470;--lime-tint:rgba(209,244,112,.22);--lime-solid:#f5fde0;
@@ -1606,7 +1671,13 @@ const VayuLokLive: React.FC = () => {
         /* bottom:16px (was 76px): the 60px clearance existed to keep off Google's
            bottom-corner attribution, which is hidden for this test. Rounded + soft
            shadow for a cleaner card. RESTORE bottom:76px when attribution returns. */
-        .vl-live-map-preview{position:absolute;left:16px;bottom:16px;z-index:4;width:296px;padding:18px;border:1px solid var(--hair);border-radius:16px;background:var(--paper);box-shadow:0 6px 20px rgba(26,58,42,.12)}
+        .vl-live-map-preview{position:absolute;left:16px;bottom:76px;z-index:4;width:320px;padding:0 16px 16px;border:1px solid var(--hair);border-radius:16px;background:var(--paper);box-shadow:0 6px 20px rgba(26,58,42,.12);overflow:hidden}
+        .vl-live-place-photos{display:flex;gap:6px;overflow-x:auto;margin:0 -16px 14px;scroll-snap-type:x mandatory;scrollbar-width:none}
+        .vl-live-place-photos::-webkit-scrollbar{display:none}
+        .vl-live-place-photos img{flex:0 0 100%;width:100%;height:128px;object-fit:cover;scroll-snap-align:start}
+        .vl-live-map-preview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+        .vl-live-ist{flex:0 0 auto;font-size:11px;font-weight:700;color:var(--green);white-space:nowrap}
+        .vl-live-coords{margin:5px 0 0;font-size:10px;color:var(--ink-muted);font-variant-numeric:tabular-nums}
         .vl-live-preview-metrics{display:grid;grid-template-columns:repeat(3,1fr);margin-top:14px;border-top:1px solid var(--hair)}
         .vl-live-preview-metrics>div{padding:12px 0 0}
         .vl-live-preview-metrics>div+div{padding-left:14px;border-left:1px solid var(--hair)}
@@ -1698,6 +1769,9 @@ const VayuLokLive: React.FC = () => {
 
         .vl-live-section{padding-top:0}
 
+        .vl-live-solar-load{min-height:42px;padding:0 16px;border:1px solid var(--green);border-radius:999px;background:var(--green);color:#fff;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+        .vl-live-solar-load:hover{background:#214934}
+
         /* SUBSCRIBE - the shipped .blog-wa-subscribe pill (ROLE 8). */
         .vl-live-wa-subscribe{display:inline-flex;align-items:center;gap:10px;padding:12px 20px;border-radius:999px;background:var(--lime);color:var(--green);font-weight:700;font-size:17px;text-decoration:none;transition:transform .2s,box-shadow .2s}
         .vl-live-wa-subscribe svg{flex:0 0 auto}
@@ -1707,9 +1781,10 @@ const VayuLokLive: React.FC = () => {
         @media(max-width:1023px){
           .vl-live-map-legend{top:12px;right:12px;width:168px;padding:12px}
           .vl-live-map-legend .vl-live-scale-mid{display:none}
-          .vl-live-map-preview{left:12px;bottom:12px;width:216px;padding:14px}
+          .vl-live-map-preview{left:12px;bottom:72px;width:244px;padding:0 14px 14px}
         }
         @media(max-width:767px){
+          .vl-live{padding-bottom:48px}
           .vl-live-wrap{padding-inline:16px}
           .vl-live-insight-grid{grid-template-columns:1fr}
           .vl-live-insight-grid>div+div{border-left:0;border-top:1px solid var(--hair)}
@@ -1720,7 +1795,7 @@ const VayuLokLive: React.FC = () => {
           .vl-live-block{padding-block:36px}
           .vl-live-map-controls{top:12px;left:12px}
           .vl-live-map-legend{width:136px}
-          .vl-live-map-preview{width:190px}
+          .vl-live-map-preview{width:min(244px,calc(100% - 24px))}
           .vl-live-map-preview .vl-live-card-h{font-size:17px}
         }
         @media(prefers-reduced-motion:reduce){
