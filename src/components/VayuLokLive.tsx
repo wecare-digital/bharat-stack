@@ -51,12 +51,37 @@ const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
 const INDIA_BOUNDS = { north: 37.6, south: 6.4, west: 68.1, east: 97.4 };
 
 // Default place: Connaught Place, New Delhi - the mock's default centre.
+interface PlacePhotoAttribution {
+  name: string;
+  uri?: string;
+}
+interface PlacePhoto {
+  url: string;
+  attributions: PlacePhotoAttribution[];
+}
 interface PlaceState {
   name: string;
   addr: string;
   lat: number;
   lng: number;
-  photoUrls?: string[];
+  photos?: PlacePhoto[];
+}
+interface SearchResult {
+  name: string;
+  addr: string;
+  place?: PlaceState;
+  prediction?: {
+    toPlace?: () => {
+      fetchFields?: ( req: { fields: string[] } ) => Promise<void>;
+      displayName?: string;
+      formattedAddress?: string;
+      location?: { lat?: () => number; lng?: () => number };
+      photos?: {
+        getURI?: ( opts: { maxWidth?: number; maxHeight?: number } ) => string;
+        authorAttributions?: { displayName?: string; uri?: string }[];
+      }[];
+    };
+  };
 }
 
 const DEFAULT_PLACE: PlaceState = {
@@ -64,7 +89,7 @@ const DEFAULT_PLACE: PlaceState = {
   addr: 'New Delhi, Delhi 110001',
   lat: 28.6139,
   lng: 77.2090,
-  photoUrls: [],
+  photos: [],
 };
 
 // GEOMETRY ON THE REPO PALETTE, ported verbatim from the mock's map styles.
@@ -261,7 +286,7 @@ function hourLabel( ms: number ): string {
 }
 
 function istTimeLabel(): string {
-  return new Intl.DateTimeFormat( 'en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' } ).format( new Date() ) + ' IST';
+  return 'IST · ' + new Intl.DateTimeFormat( 'en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' } ).format( new Date() );
 }
 
 function bestOutsideWindow( weatherHours: WeatherHour[], airHours: AirPoint[] ): { label: string; note: string } | null {
@@ -311,7 +336,10 @@ function rememberPlace( place: PlaceState ) {
   try {
     const key = `${place.lat.toFixed( 4 )},${place.lng.toFixed( 4 )}`;
     const rows = recentPlaces().filter( p => `${p.lat.toFixed( 4 )},${p.lng.toFixed( 4 )}` !== key );
-    rows.unshift( { ...place, photoUrls: place.photoUrls?.slice( 0, 6 ) || [] } );
+    // Do not persist Google photo URIs. Maps Platform photo URLs must be obtained
+    // from a fresh Place object, and any supplied author attribution must travel
+    // with the displayed photo.
+    rows.unshift( { name: place.name, addr: place.addr, lat: place.lat, lng: place.lng, photos: [] } );
     window.localStorage.setItem( RECENT_PLACES_KEY, JSON.stringify( rows.slice( 0, 5 ) ) );
   } catch { /* storage can be unavailable */ }
 }
@@ -322,6 +350,8 @@ const VayuLokLive: React.FC = () => {
   const [ mapReady, setMapReady ] = useState( false );
   const [ mapFailed, setMapFailed ] = useState( false );
   const [ istClock, setIstClock ] = useState( istTimeLabel() );
+  const [ photoIndex, setPhotoIndex ] = useState( 0 );
+  const [ searchStatus, setSearchStatus ] = useState<'idle' | 'searching' | 'no-results' | 'unavailable'>( 'idle' );
   const [ solarRequested, setSolarRequested ] = useState( false );
   const [ solarLoading, setSolarLoading ] = useState( false );
 
@@ -339,7 +369,7 @@ const VayuLokLive: React.FC = () => {
 
   // Search combobox state.
   const [ query, setQuery ] = useState( '' );
-  const [ results, setResults ] = useState<PlaceState[]>( [] );
+  const [ results, setResults ] = useState<SearchResult[]>( [] );
   const [ open, setOpen ] = useState( false );
   const [ active, setActive ] = useState( -1 );
 
@@ -349,7 +379,8 @@ const VayuLokLive: React.FC = () => {
   const mapHost = useRef<HTMLDivElement | null>( null );
   const mapRef = useRef<unknown>( null );
   const markerRef = useRef<unknown>( null );
-  const placesSvc = useRef<unknown>( null );
+  const placesLibRef = useRef<Record<string, unknown> | null>( null );
+  const autocompleteTokenRef = useRef<unknown>( null );
   const geocoder = useRef<unknown>( null );
   // Cache the last fetched values per "lat,lng" so re-selecting a place bills nothing.
   const cache = useRef<Record<string, { air: AirState | null; weather: WeatherState | null; pollen: PollenRow[] | null }>>( {} );
@@ -366,6 +397,7 @@ const VayuLokLive: React.FC = () => {
     setSolar( null );
     setSolarRequested( false );
     setSolarLoading( false );
+    setPhotoIndex( 0 );
   }, [ place.lat, place.lng ] );
 
   useEffect( () => {
@@ -431,7 +463,7 @@ const VayuLokLive: React.FC = () => {
         Map: new ( el: HTMLElement, opts: Record<string, unknown> ) => unknown;
         Marker: new ( opts: Record<string, unknown> ) => unknown;
         Geocoder: new () => unknown;
-        places?: { PlacesService: new ( attr: HTMLElement ) => unknown };
+        places?: Record<string, unknown>;
       };
       // Import each library INDEPENDENTLY. A Promise.all here meant that if any one
       // import rejected (e.g. 'marker' under a loader that bundles it differently),
@@ -488,9 +520,7 @@ const VayuLokLive: React.FC = () => {
       }
 
       if ( maps.Geocoder ) geocoder.current = new maps.Geocoder();
-      if ( maps.places?.PlacesService ) {
-        placesSvc.current = new maps.places.PlacesService( host );
-      }
+      placesLibRef.current = placesLib || maps.places || null;
 
       const interactiveMap = map as {
         addListener?: ( eventName: string, handler: ( event?: any ) => void ) => { remove?: () => void };
@@ -970,133 +1000,184 @@ const VayuLokLive: React.FC = () => {
   }, [ layer ] );
 
   /* ---------------------------------------------------------------------------------
-     SEARCH - debounced (~300ms), India-scoped. Prefer Places Autocomplete when the
-     library loaded, else Geocoding with components=country:in. Client-side only. */
-  const runSearch = useCallback( ( text: string ) => {
-    if ( !MAPS_KEY || !text.trim() ) { setResults( [] ); setOpen( false ); return; }
-
-    const w = window as unknown as {
-      google?: { maps?: {
-        places?: { PlacesService?: new ( el: HTMLElement ) => unknown; PlacesServiceStatus?: { OK?: string } };
-        Geocoder?: new () => unknown;
-      } };
-    };
-    const gmaps = w.google?.maps;
-
-    // SEARCH MUST NOT DEPEND ON THE MAP. placesSvc/geocoder used to be created only
-    // inside the map's init(); if the map failed to build, search silently did
-    // nothing (no request fired). Create our own service lazily from the loaded
-    // Maps library so search works whenever google.maps.places is available,
-    // regardless of the map. A detached div is a valid PlacesService attribution node.
-    if ( !placesSvc.current && gmaps?.places?.PlacesService ) {
-      try { placesSvc.current = new gmaps.places.PlacesService( document.createElement( 'div' ) ); } catch { /* fall through to geocoder */ }
-    }
-    if ( !geocoder.current && gmaps?.Geocoder ) {
-      try { geocoder.current = new gmaps.Geocoder(); } catch { /* no geocoder */ }
-    }
-
-    const svc = placesSvc.current as {
-      textSearch?: ( req: Record<string, unknown>, cb: ( r: unknown[] | null, status: string ) => void ) => void;
-    } | null;
-    const OK = gmaps?.places?.PlacesServiceStatus?.OK || 'OK';
-
-    if ( svc?.textSearch ) {
-      svc.textSearch(
-        {
-          query: text,
-          region: 'in',
-          locationRestriction: {
-            north: INDIA_BOUNDS.north, south: INDIA_BOUNDS.south,
-            east: INDIA_BOUNDS.east, west: INDIA_BOUNDS.west,
-          },
-        },
-        ( r, status ) => {
-          if ( status !== OK || !Array.isArray( r ) ) { setResults( [] ); setOpen( true ); return; }
-          const mapped = r.slice( 0, 6 ).map( ( p: unknown ) => {
-            const pr = p as {
-              name?: string;
-              formatted_address?: string;
-              geometry?: { location?: { lat: () => number; lng: () => number } };
-              photos?: { getUrl?: ( opts: Record<string, number> ) => string; html_attributions?: string[] }[];
-            };
-            const loc = pr.geometry?.location;
-            const photoUrls = ( Array.isArray( pr.photos ) ? pr.photos : [] )
-              .filter( photo => !photo.html_attributions?.length && typeof photo.getUrl === 'function' )
-              .slice( 0, 6 )
-              .map( photo => photo.getUrl!( { maxWidth: 900, maxHeight: 600 } ) );
-            return {
-              name: pr.name || 'Place',
-              addr: pr.formatted_address || '',
-              lat: loc ? loc.lat() : DEFAULT_PLACE.lat,
-              lng: loc ? loc.lng() : DEFAULT_PLACE.lng,
-              photoUrls,
-            };
-          } );
-          setResults( mapped );
-          setActive( mapped.length ? 0 : -1 );
-          setOpen( true );
-        },
-      );
-      return;
-    }
-
-    // Fallback: Geocoding restricted to India.
-    const gc = geocoder.current as {
-      geocode?: ( req: Record<string, unknown>, cb: ( r: unknown[] | null, status: string ) => void ) => void;
-    } | null;
-    if ( gc?.geocode ) {
-      gc.geocode(
-        { address: text, componentRestrictions: { country: 'in' }, region: 'in' },
-        ( r, status ) => {
-          if ( status !== 'OK' || !Array.isArray( r ) ) { setResults( [] ); setOpen( true ); return; }
-          const mapped = r.slice( 0, 6 ).map( ( p: unknown ) => {
-            const pr = p as { formatted_address?: string; geometry?: { location?: { lat: () => number; lng: () => number } } };
-            const loc = pr.geometry?.location;
-            return {
-              name: pr.formatted_address?.split( ',' )[ 0 ] || 'Place',
-              addr: pr.formatted_address || '',
-              lat: loc ? loc.lat() : DEFAULT_PLACE.lat,
-              lng: loc ? loc.lng() : DEFAULT_PLACE.lng,
-            };
-          } );
-          setResults( mapped );
-          setActive( mapped.length ? 0 : -1 );
-          setOpen( true );
-        },
-      );
+     SEARCH - modern Places Autocomplete Data API with one session token per query/
+     selection session. This avoids legacy Text Search on every keystroke and keeps
+     results hard-restricted to India. Geocoding remains only as an unavailable-Places
+     fallback. */
+  const ensurePlacesLibrary = useCallback( async (): Promise<Record<string, unknown> | null> => {
+    if ( placesLibRef.current ) return placesLibRef.current;
+    const w = window as unknown as { google?: { maps?: { importLibrary?: ( name: string ) => Promise<Record<string, unknown>>; places?: Record<string, unknown> } } };
+    try {
+      const lib = w.google?.maps?.importLibrary
+        ? await w.google.maps.importLibrary( 'places' )
+        : w.google?.maps?.places || null;
+      placesLibRef.current = lib || null;
+      return placesLibRef.current;
+    } catch {
+      return null;
     }
   }, [] );
+
+  const runSearch = useCallback( async ( text: string ) => {
+    if ( !MAPS_KEY || !text.trim() ) {
+      setResults( [] );
+      setOpen( false );
+      setSearchStatus( 'idle' );
+      return;
+    }
+    setSearchStatus( 'searching' );
+    const lib = await ensurePlacesLibrary();
+    const Auto = lib?.AutocompleteSuggestion as {
+      fetchAutocompleteSuggestions?: ( req: Record<string, unknown> ) => Promise<{ suggestions?: unknown[] }>;
+    } | undefined;
+    const Token = lib?.AutocompleteSessionToken as ( new () => unknown ) | undefined;
+
+    if ( Auto?.fetchAutocompleteSuggestions && Token ) {
+      try {
+        if ( !autocompleteTokenRef.current ) autocompleteTokenRef.current = new Token();
+        const out = await Auto.fetchAutocompleteSuggestions( {
+          input: text,
+          includedRegionCodes: [ 'in' ],
+          region: 'in',
+          locationRestriction: INDIA_BOUNDS,
+          sessionToken: autocompleteTokenRef.current,
+        } );
+        const mapped: SearchResult[] = ( Array.isArray( out?.suggestions ) ? out.suggestions : [] )
+          .map( suggestion => {
+            const prediction = ( suggestion as { placePrediction?: any } )?.placePrediction;
+            if ( !prediction ) return null;
+            const name = prediction.mainText?.text
+              || prediction.mainText?.toString?.()
+              || prediction.text?.toString?.()
+              || 'Place';
+            const addr = prediction.secondaryText?.text
+              || prediction.secondaryText?.toString?.()
+              || '';
+            return { name: String( name ), addr: String( addr ), prediction };
+          } )
+          .filter( Boolean )
+          .slice( 0, 6 ) as SearchResult[];
+        setResults( mapped );
+        setActive( mapped.length ? 0 : -1 );
+        setOpen( true );
+        setSearchStatus( mapped.length ? 'idle' : 'no-results' );
+        return;
+      } catch {
+        autocompleteTokenRef.current = null;
+      }
+    }
+
+    // Fallback for a partial Maps load: Geocoding is still India restricted.
+    const w = window as unknown as { google?: { maps?: { Geocoder?: new () => unknown } } };
+    if ( !geocoder.current && w.google?.maps?.Geocoder ) {
+      try { geocoder.current = new w.google.maps.Geocoder(); } catch { /* no geocoder */ }
+    }
+    const gc = geocoder.current as {
+      geocode?: ( req: Record<string, unknown>, cb: ( rows: unknown[] | null, status: string ) => void ) => void;
+    } | null;
+    if ( !gc?.geocode ) {
+      setResults( [] );
+      setOpen( true );
+      setSearchStatus( 'unavailable' );
+      return;
+    }
+    gc.geocode(
+      { address: text, componentRestrictions: { country: 'in' }, region: 'in' },
+      ( rows, status ) => {
+        if ( status !== 'OK' || !Array.isArray( rows ) ) {
+          setResults( [] );
+          setOpen( true );
+          setSearchStatus( status === 'ZERO_RESULTS' ? 'no-results' : 'unavailable' );
+          return;
+        }
+        const mapped: SearchResult[] = rows.slice( 0, 6 ).map( ( row: unknown ) => {
+          const pr = row as { formatted_address?: string; geometry?: { location?: { lat: () => number; lng: () => number } } };
+          const loc = pr.geometry?.location;
+          const place: PlaceState = {
+            name: pr.formatted_address?.split( ',' )[ 0 ] || 'Place',
+            addr: pr.formatted_address || '',
+            lat: loc ? loc.lat() : DEFAULT_PLACE.lat,
+            lng: loc ? loc.lng() : DEFAULT_PLACE.lng,
+            photos: [],
+          };
+          return { name: place.name, addr: place.addr, place };
+        } );
+        setResults( mapped );
+        setActive( mapped.length ? 0 : -1 );
+        setOpen( true );
+        setSearchStatus( mapped.length ? 'idle' : 'no-results' );
+      },
+    );
+  }, [ ensurePlacesLibrary ] );
 
   const onQueryChange = ( e: React.ChangeEvent<HTMLInputElement> ) => {
     const v = e.target.value;
     setQuery( v );
     if ( searchTimer.current ) clearTimeout( searchTimer.current );
     if ( !v.trim() ) {
-      const recent = recentPlaces();
+      autocompleteTokenRef.current = null;
+      const recent = recentPlaces().map( place => ( { name: place.name, addr: place.addr, place } ) );
       setResults( recent );
       setActive( recent.length ? 0 : -1 );
       setOpen( recent.length > 0 );
+      setSearchStatus( 'idle' );
       return;
     }
-    searchTimer.current = setTimeout( () => runSearch( v ), 300 );
+    searchTimer.current = setTimeout( () => { void runSearch( v ); }, 300 );
   };
 
-  const choose = ( r: PlaceState ) => {
-    const next = { name: r.name, addr: r.addr, lat: r.lat, lng: r.lng, photoUrls: r.photoUrls || [] };
+  const choose = useCallback( async ( r: SearchResult ) => {
+    let next = r.place;
+    if ( !next && r.prediction?.toPlace ) {
+      try {
+        const googlePlace = r.prediction.toPlace();
+        await googlePlace.fetchFields?.( { fields: [ 'displayName', 'formattedAddress', 'location', 'photos' ] } );
+        const lat = googlePlace.location?.lat?.();
+        const lng = googlePlace.location?.lng?.();
+        if ( Number.isFinite( lat ) && Number.isFinite( lng ) ) {
+          const photos: PlacePhoto[] = ( Array.isArray( googlePlace.photos ) ? googlePlace.photos : [] )
+            .slice( 0, 8 )
+            .map( photo => ( {
+              url: photo.getURI?.( { maxWidth: 900, maxHeight: 600 } ) || '',
+              attributions: ( Array.isArray( photo.authorAttributions ) ? photo.authorAttributions : [] )
+                .map( a => ( { name: String( a.displayName || 'Photo contributor' ), uri: a.uri } ) ),
+            } ) )
+            .filter( p => Boolean( p.url ) );
+          next = {
+            name: googlePlace.displayName || r.name,
+            addr: googlePlace.formattedAddress || r.addr,
+            lat: lat as number,
+            lng: lng as number,
+            photos,
+          };
+        }
+      } catch {
+        setSearchStatus( 'unavailable' );
+      } finally {
+        // Place.fetchFields concludes the billing session; never reuse its token.
+        autocompleteTokenRef.current = null;
+      }
+    }
+    if ( !next ) return;
     rememberPlace( next );
     setPlace( next );
-    setQuery( r.name );
+    setQuery( next.name );
     setOpen( false );
     setResults( [] );
     setActive( -1 );
-  };
+    setSearchStatus( 'idle' );
+  }, [] );
 
   const onKeyDown = ( e: React.KeyboardEvent<HTMLInputElement> ) => {
+    if ( e.key === 'Escape' ) {
+      setOpen( false );
+      setSearchStatus( 'idle' );
+      return;
+    }
     if ( !open || !results.length ) return;
     if ( e.key === 'ArrowDown' ) { e.preventDefault(); setActive( i => Math.min( i + 1, results.length - 1 ) ); }
     else if ( e.key === 'ArrowUp' ) { e.preventDefault(); setActive( i => Math.max( i - 1, 0 ) ); }
-    else if ( e.key === 'Enter' ) { e.preventDefault(); if ( active >= 0 ) choose( results[ active ] ); }
-    else if ( e.key === 'Escape' ) { setOpen( false ); }
+    else if ( e.key === 'Enter' ) { e.preventDefault(); if ( active >= 0 ) void choose( results[ active ] ); }
   };
 
   useEffect( () => () => { if ( searchTimer.current ) clearTimeout( searchTimer.current ); }, [] );
@@ -1147,10 +1228,11 @@ const VayuLokLive: React.FC = () => {
                     onChange={ onQueryChange }
                     onFocus={ () => {
                       if ( query.trim() ) return;
-                      const recent = recentPlaces();
+                      const recent = recentPlaces().map( place => ( { name: place.name, addr: place.addr, place } ) );
                       setResults( recent );
                       setActive( recent.length ? 0 : -1 );
                       setOpen( recent.length > 0 );
+                      setSearchStatus( 'idle' );
                     } }
                     onKeyDown={ onKeyDown }
                   />
@@ -1168,13 +1250,21 @@ const VayuLokLive: React.FC = () => {
                       className="vl-live-search-option"
                       role="option"
                       aria-selected={ i === active }
-                      onMouseDown={ e => { e.preventDefault(); choose( r ); } }
+                      onMouseDown={ e => { e.preventDefault(); void choose( r ); } }
                     >
                       <span className="vl-live-search-option-name">{ r.name }</span>
                       { r.addr && <span className="vl-live-search-option-addr">{ r.addr }</span> }
                     </li>
                   ) ) }
                 </ul>
+                { searchStatus === 'searching' && <p className="vl-live-search-status" role="status">Searching India…</p> }
+                { searchStatus === 'no-results' && <p className="vl-live-search-status" role="status">Place not found in India.</p> }
+                { searchStatus === 'unavailable' && (
+                  <p className="vl-live-search-status vl-live-search-status-error" role="status">
+                    Place search is temporarily unavailable. <button type="button" onClick={ () => { if ( query.trim() ) void runSearch( query ); } }>Retry</button>
+                  </p>
+                ) }
+              </div>                </ul>
               </div>
             </div>
           ) }
@@ -1185,7 +1275,7 @@ const VayuLokLive: React.FC = () => {
               they actually arrived. */}
           { liveActive && (
           <div className="vl-live-block">
-            <p className="vl-live-place">{ place.name }</p>
+            <p className="vl-live-place" id="vl-live-now-place">{ place.name }</p>
             <p className="vl-live-place-addr">{ place.addr }</p>
 
             { ( air || weather ) && (
@@ -1561,11 +1651,38 @@ const VayuLokLive: React.FC = () => {
                     notices own the bottom corners. Renders live values when present. */}
                 { ( air || weather ) && (
                   <div className="vl-live-map-preview">
-                    { Boolean( place.photoUrls?.length ) && (
-                      <div className="vl-live-place-photos" aria-label={ `Photos of ${place.name}` }>
-                        { place.photoUrls!.map( ( src, i ) => (
-                          <img key={ src + i } src={ src } alt={ `${place.name} ${i + 1}` } loading={ i === 0 ? 'eager' : 'lazy' } />
-                        ) ) }
+                    { place.photos?.length ? (
+                      <>
+                        <div
+                          className="vl-live-place-photos"
+                          aria-label={ `Photos of ${place.name}` }
+                          onScroll={ e => {
+                            const el = e.currentTarget;
+                            if ( el.clientWidth ) setPhotoIndex( Math.max( 0, Math.min( place.photos!.length - 1, Math.round( el.scrollLeft / el.clientWidth ) ) ) );
+                          } }
+                        >
+                          { place.photos.map( ( photo, i ) => (
+                            <figure className="vl-live-place-photo" key={ photo.url + i }>
+                              <img src={ photo.url } alt={ `${place.name} ${i + 1}` } loading={ i === 0 ? 'eager' : 'lazy' } />
+                              { photo.attributions.length > 0 && (
+                                <figcaption>
+                                  { photo.attributions.map( ( a, j ) => a.uri ? (
+                                    <a key={ a.name + j } href={ a.uri } target="_blank" rel="noopener noreferrer">{ a.name }</a>
+                                  ) : <span key={ a.name + j }>{ a.name }</span> ) }
+                                </figcaption>
+                              ) }
+                            </figure>
+                          ) ) }
+                        </div>
+                        { place.photos.length > 1 && (
+                          <div className="vl-live-photo-dots" aria-label={ `Photo ${photoIndex + 1} of ${place.photos.length}` }>
+                            { place.photos.map( ( _, i ) => <i key={ i } className={ i === photoIndex ? 'is-active' : '' } aria-hidden="true" /> ) }
+                          </div>
+                        ) }
+                      </>
+                    ) : (
+                      <div className="vl-live-place-photo-fallback" role="img" aria-label={ `VayuLok place preview for ${place.name}` }>
+                        <span aria-hidden="true" />
                       </div>
                     ) }
                     <div className="vl-live-map-preview-head">
@@ -1576,6 +1693,11 @@ const VayuLokLive: React.FC = () => {
                       <time className="vl-live-ist" dateTime={ new Date().toISOString() }>{ istClock }</time>
                     </div>
                     <p className="vl-live-coords">{ place.lat.toFixed( 4 ) }, { place.lng.toFixed( 4 ) }</p>
+                    <button
+                      className="vl-live-view-details"
+                      type="button"
+                      onClick={ () => document.getElementById( 'vl-live-now-place' )?.scrollIntoView( { behavior: 'smooth', block: 'start' } ) }
+                    >View details</button>
                     <div className="vl-live-preview-metrics">
                       { Number.isFinite( weather?.temp ) && (
                         <div><p className="vl-live-label">Temp</p><span className="vl-live-metric-md">{ weather!.temp }°</span></div>
@@ -1704,6 +1826,9 @@ const VayuLokLive: React.FC = () => {
         .vl-live-search-option[aria-selected="true"]{background:var(--lime)}
         .vl-live-search-option-name{display:block;font-size:16px;font-weight:600;line-height:1.3;color:var(--ink-strong)}
         .vl-live-search-option-addr{display:block;margin-top:2px;font-size:13px;line-height:1.4;color:var(--ink-muted)}
+        .vl-live-search-status{margin:8px 2px 0;font-size:12px;line-height:1.4;color:var(--ink-muted)}
+        .vl-live-search-status-error{color:#6e4a18}
+        .vl-live-search-status button{padding:0;border:0;background:transparent;color:var(--green);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
 
         /* NOW figures - tightened to the home scale. The place name is a clean
            20px/700, the address a muted 15px (was an oversized 20px that made the
@@ -1745,12 +1870,22 @@ const VayuLokLive: React.FC = () => {
 
         /* Keep the preview above Google's bottom legal/attribution area. */
         .vl-live-map-preview{position:absolute;left:16px;bottom:76px;z-index:4;width:320px;padding:0 16px 16px;border:1px solid var(--hair);border-radius:16px;background:var(--paper);box-shadow:0 6px 20px rgba(26,58,42,.12);overflow:hidden}
-        .vl-live-place-photos{display:flex;gap:6px;overflow-x:auto;margin:0 -16px 14px;scroll-snap-type:x mandatory;scrollbar-width:none}
+        .vl-live-place-photos{display:flex;gap:0;overflow-x:auto;margin:0 -16px;scroll-snap-type:x mandatory;scrollbar-width:none}
         .vl-live-place-photos::-webkit-scrollbar{display:none}
-        .vl-live-place-photos img{flex:0 0 100%;width:100%;height:128px;object-fit:cover;scroll-snap-align:start}
+        .vl-live-place-photo{position:relative;flex:0 0 100%;width:100%;height:132px;margin:0;scroll-snap-align:start;background:#eef3ef}
+        .vl-live-place-photo img{display:block;width:100%;height:132px;object-fit:cover}
+        .vl-live-place-photo figcaption{position:absolute;left:8px;bottom:7px;max-width:calc(100% - 16px);padding:4px 6px;border-radius:6px;background:rgba(0,0,0,.62);font-size:9px;line-height:1.25;color:#fff}
+        .vl-live-place-photo figcaption a,.vl-live-place-photo figcaption span{color:#fff}
+        .vl-live-place-photo figcaption a+span,.vl-live-place-photo figcaption a+a,.vl-live-place-photo figcaption span+a,.vl-live-place-photo figcaption span+span{margin-left:5px}
+        .vl-live-place-photo-fallback{height:112px;margin:0 -16px 14px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(209,244,112,.5),rgba(26,58,42,.08)),#eef3ef}
+        .vl-live-place-photo-fallback span{width:26px;height:26px;border:7px solid var(--green);border-radius:50% 50% 50% 0;background:var(--lime);transform:rotate(-45deg)}
+        .vl-live-photo-dots{display:flex;justify-content:center;gap:5px;margin:7px 0 12px}
+        .vl-live-photo-dots i{width:5px;height:5px;border-radius:50%;background:#cfd6d0}
+        .vl-live-photo-dots i.is-active{background:var(--green);transform:scale(1.25)}
         .vl-live-map-preview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
         .vl-live-ist{flex:0 0 auto;font-size:11px;font-weight:700;color:var(--green);white-space:nowrap}
         .vl-live-coords{margin:5px 0 0;font-size:10px;color:var(--ink-muted);font-variant-numeric:tabular-nums}
+        .vl-live-view-details{margin-top:8px;padding:0;border:0;background:transparent;color:var(--green);font:inherit;font-size:12px;font-weight:700;text-decoration:underline;cursor:pointer}
         .vl-live-preview-metrics{display:grid;grid-template-columns:repeat(3,1fr);margin-top:14px;border-top:1px solid var(--hair)}
         .vl-live-preview-metrics>div{padding:12px 0 0}
         .vl-live-preview-metrics>div+div{padding-left:14px;border-left:1px solid var(--hair)}
