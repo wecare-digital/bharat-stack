@@ -2389,6 +2389,27 @@ const VayuLokLive: React.FC = () => {
         .vl-live-view-details:hover{transform:translateY(-1px)}
         .vl-live-view-details:focus-visible{outline:3px solid var(--green);outline-offset:2px}
 
+        /* Continuous weather workspace: typography + hairlines instead of repeated cards. */
+        .vl-live-signal-stack{padding-top:0;padding-bottom:0}
+        .vl-live-signal{padding:34px 0;border-top:1px solid var(--hair)}
+        .vl-live-signal:last-child{border-bottom:1px solid var(--hair)}
+        .vl-live-signal-head{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:end}
+        .vl-live-signal-head .vl-live-eyebrow{margin-bottom:10px}
+        .vl-live-signal-head .vl-live-h2{margin-bottom:0}
+        .vl-live-signal-summary{margin:0;max-width:34ch;font-size:14px;line-height:1.45;color:var(--ink-muted)}
+        .vl-live-signal-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:24px;border-top:1px solid var(--hair)}
+        .vl-live-signal-facts>div{padding:16px 14px 0 0}
+        .vl-live-signal-facts>div:nth-child(even){padding-left:14px;border-left:1px solid var(--hair)}
+        .vl-live-signal-facts strong{font-size:17px;line-height:1.25;color:#1a1a1a}
+        @container vllive (min-width:620px){
+          .vl-live-signal-head{grid-template-columns:minmax(0,1fr) minmax(180px,.45fr);gap:24px}
+          .vl-live-signal-summary{text-align:right;justify-self:end}
+          .vl-live-signal-facts{grid-template-columns:repeat(4,minmax(0,1fr))}
+          .vl-live-signal-facts>div{padding:16px 16px 0}
+          .vl-live-signal-facts>div:first-child{padding-left:0}
+          .vl-live-signal-facts>div+div{border-left:1px solid var(--hair)}
+        }
+
         .vl-live-best-outside{display:grid;gap:10px;padding:24px;border:2px solid var(--lime);border-radius:14px;background:var(--lime-tint);color:var(--ink-base)}
         .vl-live-best-outside .vl-live-metric-lg,.vl-live-best-outside .vl-live-body{color:var(--ink-head)}
         .vl-live-best-outside .vl-live-small{color:var(--ink-muted)}
@@ -2478,8 +2499,6 @@ const VayuLokLive: React.FC = () => {
         .vl-live-wa-subscribe:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
 
         @media(max-width:1023px){
-          .vl-live-map-legend{top:12px;right:12px;width:168px;padding:12px}
-          .vl-live-map-legend .vl-live-scale-mid{display:none}
           .vl-live-map-preview{top:12px;right:12px;left:auto;bottom:auto;width:min(360px,calc(100% - 24px));padding:0 14px 14px}
         }
         @media(max-width:767px){
@@ -2494,7 +2513,6 @@ const VayuLokLive: React.FC = () => {
           .vl-live-block{padding-block:32px}
           .vl-live-left > .vl-live-section{margin-top:64px}
           .vl-live-map-controls{top:12px;left:12px}
-          .vl-live-map-legend{width:136px}
           .vl-live-map-preview{width:calc(100% - 24px);max-width:360px}
           .vl-live-map-preview .vl-live-card-h{font-size:17px}
         }
