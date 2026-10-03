@@ -619,9 +619,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         otp_button_type = body.get('otpButtonType', 'copy_code')  # 'url' or 'copy_code'
 
         # Standard template media header support (IMAGE / VIDEO / DOCUMENT headers).
-        # Templates like wecare_pdf (DOCUMENT), wd_order/wd_menu (VIDEO) require a
+        # Templates like wecare_pdf (DOCUMENT) and wd_order (VIDEO) require a
         # header parameter at SEND time — the approval-time example handle is not
         # reusable. The inbox TemplateSender supplies a public link here.
+        # (The wd_menu VIDEO template was the other example here; it was deleted
+        # at Meta on 2026-10-02, so naming it as a live template was misleading.)
         template_header_media = body.get('headerMedia') or body.get('templateHeaderMedia')
         template_header_type = (body.get('headerType') or body.get('templateHeaderType') or '').lower()
         template_header_filename = body.get('headerFilename') or body.get('templateHeaderFilename')

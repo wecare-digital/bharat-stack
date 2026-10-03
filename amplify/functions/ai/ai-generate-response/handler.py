@@ -295,23 +295,30 @@ DEFAULT_BOT_FLOW = {
     #     'showSubMenu', which only `_process_ai_automation` renders — and that
     #     function has no caller.
     #
-    # Their real cost was the row ids. 19 of them were absent from the inbound
-    # handler's MENU_TO_KEYWORD, and three more mapped to None, so any handset
-    # still holding one of these lists got silence on a tap. Those ids are now
-    # all registered in MENU_TO_KEYWORD and point at real actions.
+    # Their real cost was the row ids: 19 of them were absent from the inbound
+    # handler's keyword dispatch table and three more mapped to None, so any
+    # handset still holding one of these lists got silence on a tap.
     #
-    # There is ONE menu, it lives in inbound-whatsapp-handler as
-    # DEFAULT_ONE_MENU, and it is overridable from SystemConfigTable
-    # 'welcome_message_config'. Do not reintroduce a menu definition here.
-    # 'showMainMenu' below is still the correct signal — the inbound handler
-    # resolves it to the one menu.
+    # ── UPDATED 2026-10-02: there is no menu left to point at ────────────────
+    # Every WhatsApp menu was deleted on the owner's instruction. The inbound
+    # handler no longer defines DEFAULT_ONE_MENU, DEFAULT_MAIN_MENU, the
+    # self-service / Bharat Stack submenus, the language picker, the
+    # MENU_TO_KEYWORD dispatch table or _send_interactive_list, and
+    # `_process_ai_automation` — the only thing that ever rendered a
+    # 'showMainMenu' / 'showSubMenu' / 'showLanguagePicker' flowAction — now
+    # returns None as its first statement. So those three signals are still
+    # emitted below but NOTHING consumes them: they reach no customer.
+    #
+    # Do not reintroduce a menu definition here. When a replacement menu is
+    # built it belongs in the inbound handler, behind _send_menu_placeholder,
+    # and these signals need a renderer again before they mean anything.
 
     # -- Menu Responses --
     'menuResponses': {
-        # These two used to open sub-menus. With one menu there is nothing to
-        # open, so they return to it. The 'show_sub_menu' branch in
-        # _handle_bot_flow is retained for a config-supplied 'subMenus', but no
-        # default reaches it.
+        # These two used to open sub-menus. No menu exists to open or return
+        # to, so the signal is inert (see the note above). The 'show_sub_menu'
+        # branch in _handle_bot_flow is retained for a config-supplied
+        # 'subMenus', but no default reaches it.
         'menu_store': {
             'text': '',
             'action': 'show_main_menu',
