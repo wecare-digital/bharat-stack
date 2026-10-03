@@ -153,6 +153,12 @@ def _checkout_policy() -> dict:
                                  "stack-wecare-digital-CouponsTable"),
         "GIFT_CARDS_TABLE": getattr(checkout, "GIFT_CARDS_TABLE",
                                     "stack-wecare-digital-GiftCardsTable"),
+        "RAZORPAY_API_SECRET": getattr(checkout, "RAZORPAY_API_SECRET",
+                                       "wecare/razorpay/api"),
+        "ORDERS_TABLE": getattr(checkout, "ORDERS_TABLE",
+                                "stack-wecare-digital-OrderTable"),
+        "CONTACTS_TABLE": getattr(checkout, "CONTACTS_TABLE",
+                                  "stack-wecare-digital-ContactsTable"),
     }
     try:
         return eval(body, {"__builtins__": {}}, namespace)  # noqa: S307 - our own source
@@ -172,6 +178,12 @@ def _checkout_simulated_tables() -> list:
                                  "stack-wecare-digital-CouponsTable"),
         "GIFT_CARDS_TABLE": getattr(checkout, "GIFT_CARDS_TABLE",
                                     "stack-wecare-digital-GiftCardsTable"),
+        "RAZORPAY_API_SECRET": getattr(checkout, "RAZORPAY_API_SECRET",
+                                       "wecare/razorpay/api"),
+        "ORDERS_TABLE": getattr(checkout, "ORDERS_TABLE",
+                                "stack-wecare-digital-OrderTable"),
+        "CONTACTS_TABLE": getattr(checkout, "CONTACTS_TABLE",
+                                  "stack-wecare-digital-ContactsTable"),
     }
     try:
         return eval("[" + body + "]", {"__builtins__": {}}, namespace)  # noqa: S307

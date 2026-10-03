@@ -12,7 +12,8 @@ shape, the tests fail here until this fake is taught it. That is the intended co
 
 Supported, and only this
 ------------------------
-    condition   attribute_exists(X) | attribute_not_exists(X) | X = :v | X <> :v , joined by AND
+    condition   attribute_exists(X) | attribute_not_exists(X) | X = :v | X <> :v
+                | X <= :v | X < :v | X >= :v | X > :v , joined by AND and OR, with parentheses
     update      SET a = :v, b = if_not_exists(b, :v2) [REMOVE c, d] [ADD n :delta]
     delete      delete_item(Key), optional ConditionExpression in the same form as above
     query       one index, partition key .eq(value), optional range sort from the
@@ -59,6 +60,11 @@ _EQUALITY = re.compile(r"([#\w]+)\s*=\s*(:[\w]+)")
 #: `attr <> :v` — matched BEFORE equality so the `=` inside `<>` is not mistaken for one. Used by
 #: conditional settlements that must only write a row still in a given state (e.g. not-already-paid).
 _INEQUALITY = re.compile(r"([#\w]+)\s*<>\s*(:[\w]+)")
+#: Ordered comparison, matched AFTER `<>` and BEFORE `=` so neither steals the other's operator.
+#: `payment_attempt.condition_expression()` is `attribute_not_exists(attemptRank) OR attemptRank
+#: <= :rank`, the monotonic rank guard, so without this the fake cannot evaluate the one condition
+#: that stops a late webhook moving an attempt backwards.
+_COMPARISON = re.compile(r"([#\w]+)\s*(<=|>=|<|>)\s*(:[\w]+)")
 _SET_CLAUSE = re.compile(r"\bSET\b(.*?)(?:\bREMOVE\b|\bADD\b|$)",
                         re.IGNORECASE | re.DOTALL)
 _REMOVE_CLAUSE = re.compile(r"\bREMOVE\b(.*?)(?:\bSET\b|\bADD\b|$)",
@@ -79,15 +85,69 @@ def _resolve(token: str, names: Dict[str, str]) -> str:
     return token
 
 
+def _split_top_level_or(text: str) -> List[str]:
+    """`text` split on ` OR ` at parenthesis depth zero. One element when there is no top-level OR.
+
+    Depth-aware so `a OR (b AND c)` yields two alternatives while `(a OR b) AND c` yields one,
+    which is the whole difference between the two and the only thing a naive `split(" OR ")`
+    gets wrong.
+    """
+    parts, depth, start, index = [], 0, 0, 0
+    upper = text.upper()
+    while index < len(text):
+        character = text[index]
+        if character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+        elif depth == 0 and upper.startswith(" OR ", index):
+            parts.append(text[start:index])
+            index += 4
+            start = index
+            continue
+        index += 1
+    parts.append(text[start:])
+    return parts
+
+
+def _strip_outer_parens(text: str) -> str:
+    """`(a AND b)` -> `a AND b`, only when the outermost pair really wraps the whole expression."""
+    stripped = text.strip()
+    while stripped.startswith("(") and stripped.endswith(")"):
+        depth = 0
+        for position, character in enumerate(stripped):
+            if character == "(":
+                depth += 1
+            elif character == ")":
+                depth -= 1
+                if depth == 0 and position != len(stripped) - 1:
+                    return stripped
+        stripped = stripped[1:-1].strip()
+    return stripped
+
+
 def _evaluate_condition(condition: Optional[str], row: Optional[Dict[str, Any]],
                         values: Dict[str, Any], names: Dict[str, str]) -> bool:
-    """True when the condition holds. Raises if the expression is not understood."""
+    """True when the condition holds. Raises if the expression is not understood.
+
+    `OR` is evaluated rather than refused. `payment_attempt.condition_expression()` is
+    `attribute_not_exists(attemptRank) OR attemptRank <= :rank` — the monotonic rank guard that
+    stops a late webhook moving an attempt backwards — so a fake that cannot read an `OR` cannot
+    exercise the one condition the payment path most depends on. `coupon_fake_dynamo` already
+    parses them; this teaches the same shape here rather than weakening the production condition.
+    """
     if not condition:
         return True
 
-    text = " ".join(str(condition).split())
-    if " OR " in text.upper():
-        raise AssertionError("this fake does not implement OR; teach it before using one")
+    text = _strip_outer_parens(" ".join(str(condition).split()))
+    alternatives = _split_top_level_or(text)
+    if len(alternatives) > 1:
+        return any(_evaluate_condition(alternative, row, values, names)
+                   for alternative in alternatives)
+    if text != " ".join(str(condition).split()):
+        # The outer parentheses were stripped, so re-enter on the reduced expression rather than
+        # letting the leftover check below trip over a form it has already handled.
+        return _evaluate_condition(text, row, values, names)
 
     consumed = text
     result = True
@@ -113,6 +173,23 @@ def _evaluate_condition(condition: Optional[str], row: Optional[Dict[str, Any]],
         # satisfies "not equal to :v". Mirror that: absence -> condition fails.
         if row is None or attr not in row or row.get(attr) == expected:
             result = False
+        consumed = consumed.replace(match.group(0), "", 1)
+
+    # Ordered comparison, before equality for the same reason `<>` is: `<=` contains no `=` that
+    # `_EQUALITY` can reach, but `>=` does, and consuming it here keeps the two from overlapping.
+    for match in _COMPARISON.finditer(text):
+        attr = _resolve(match.group(1), names)
+        operator = match.group(2)
+        expected = values[match.group(3)]
+        # DynamoDB's ordered comparisons are false when the attribute is absent.
+        if row is None or attr not in row:
+            result = False
+        else:
+            actual = row.get(attr)
+            holds = {"<=": actual <= expected, "<": actual < expected,
+                     ">=": actual >= expected, ">": actual > expected}[operator]
+            if not holds:
+                result = False
         consumed = consumed.replace(match.group(0), "", 1)
 
     for match in _EQUALITY.finditer(text):
