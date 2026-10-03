@@ -101,6 +101,15 @@ def _nested_literal(source: str, name: str):
     raise AssertionError(f'{name} not found in source')
 
 
+def _flow_keywords(wa):
+    """Every keyword that resolves to a flow, lowercased."""
+    out = {}
+    for key, trigger in wa.DEFAULT_FLOW_TRIGGERS.items():
+        for keyword in trigger.get('keywords', []):
+            out[keyword.lower()] = key
+    return out
+
+
 def _function(tree, name):
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == name:
@@ -199,6 +208,49 @@ class TestATappedRowStillAnswers:
         assert '_send_menu_placeholder' in body
         assert 'list_reply_received' in body, \
             'the correlation log line is the only handle on a tapped row id'
+
+
+class TestNothingBecameUnreachable:
+    """Carried forward UNCHANGED from tests/test_one_menu.py::TestNothingWasTakenAway.
+
+    This is the wipe's central safety claim: deleting every menu removed a way of
+    DISCOVERING things, not the things themselves. Each destination the menu used to
+    offer has to stay reachable by a typed keyword, and the Help reply has to keep
+    naming them, or the deletion silently took features away with it.
+
+    These assertions predate the wipe and none of them is about a menu, which is why
+    they survive it word for word.
+    """
+
+    def test_appointment_keywords_survive(self, wa):
+        """"Appointment" is out of customer-facing copy, but it stays as an inbound
+        alias: it is live in Meta's ice breakers, in a wa.me link, and in customers'
+        habits. Same precedent as Bharat Stack."""
+        keywords = wa.DEFAULT_FLOW_TRIGGERS['schedule_appointment']['keywords']
+        for required in ('appointment', 'schedule appointment', 'book appointment'):
+            assert required in keywords
+        for added in ('book a visit', 'visit'):
+            assert added in keywords
+
+    def test_dropped_rows_are_still_reachable_by_keyword(self, wa, handler_source):
+        """Every destination the deleted menus listed answers to a typed keyword."""
+        flow_keywords = _flow_keywords(wa)
+        assert 'leave review' in flow_keywords
+        assert 'order notes' in flow_keywords
+        for name, keyword in (('MY_ID_KEYWORDS', 'my id'),
+                              ('STORE_KEYWORDS', 'store'),
+                              ('GIFT_KEYWORDS', 'gift card'),
+                              ('BHARAT_KEYWORDS', 'bharat stack'),
+                              ('ABOUT_KEYWORDS', 'about')):
+            assert keyword in _nested_literal(handler_source, name)
+
+    def test_help_reply_names_the_dropped_rows(self, handler_source):
+        """With no menu left, the Help reply is the ONLY place a customer is told
+        these keywords exist."""
+        body = handler_source.split('def _send_help_about', 1)[1].split('\ndef ', 1)[0]
+        for mention in ('*my id*', '*store*', '*gift card*', '*order notes*',
+                        '*review*', '*bharat stack*'):
+            assert mention in body, f'{mention} is not discoverable anywhere'
 
 
 class TestTheRivalMenuIsGone:
