@@ -85,34 +85,10 @@ def _docstring_ids(tree: ast.Module) -> set:
 
 
 def _checkout_policy() -> dict:
-    """`provision_checkout.py`'s inline policy document, evaluated without calling AWS.
-
-    The same idiom `tests/test_provision_checkout_contract.py` uses: the literal interpolates
-    the region, the account and five constants, so it is evaluated against a namespace holding
-    exactly those.
-    """
-    source = CHECKOUT_SCRIPT.read_text(encoding="utf-8")
-    body = source.split("least_privilege = ")[1].split("\n    iam().put_role_policy")[0]
+    """Current checkout inline policy, from the provisioner's single policy builder."""
     checkout = _load(CHECKOUT_SCRIPT, "provision_checkout")
-    namespace = {
-        "REGION": checkout.REGION, "acct": "775261844268",
-        "WIX_API_KEY_SECRET": checkout.WIX_API_KEY_SECRET,
-        "PAYMENT_ATTEMPTS_TABLE": checkout.PAYMENT_ATTEMPTS_TABLE,
-        "COMMERCE_KEYS_TABLE": checkout.COMMERCE_KEYS_TABLE,
-        "SENDER_FUNCTION": checkout.SENDER_FUNCTION,
-        "LIVE_ALIAS": checkout.LIVE_ALIAS,
-        "COUPONS_TABLE": getattr(checkout, "COUPONS_TABLE", "stack-wecare-digital-CouponsTable"),
-        "GIFT_CARDS_TABLE": getattr(checkout, "GIFT_CARDS_TABLE",
-                                    "stack-wecare-digital-GiftCardsTable"),
-        "CONTACTS_TABLE": getattr(checkout, "CONTACTS_TABLE",
-                                  "stack-wecare-digital-ContactsTable"),
-        "RAZORPAY_API_SECRET": getattr(checkout, "RAZORPAY_API_SECRET",
-                                       "wecare/razorpay/api"),
-        "ORDERS_TABLE": getattr(checkout, "ORDERS_TABLE",
-                                "stack-wecare-digital-OrderTable"),
-    }
     try:
-        return eval(body, {"__builtins__": {}}, namespace)  # noqa: S307 - our own source
+        return checkout.expected_role_policy("775261844268")
     finally:
         sys.modules.pop("provision_checkout", None)
 
@@ -144,23 +120,11 @@ def _checkout_simulated_tables() -> list:
 
 # ── 52 / 52a / 52b: SEAM-C3b, landed ──────────────────────────────────────────
 
-def test_the_checkout_role_gains_only_the_coupons_table():
-    """`wecare-checkout-role` is a PER-FUNCTION role, not the shared fleet role, which is why
-    option (a) - extending it additively - is compatible with section 6's objection to widening
-    a shared role. `commit_redemption` runs inside the finalization path, not inside
-    `wecare-coupons`, so without this statement it cannot write at all."""
+def test_checkout_role_does_not_gain_the_custom_coupons_table():
+    """Website coupons are Wix-authoritative; checkout must not depend on the legacy custom store."""
     policy = _checkout_policy()
-    coupon_statements = [s for s in policy["Statement"]
-                         if any(COUPONS_TABLE_ARN in r for r in s.get("Resource", []))]
-    assert coupon_statements, "no statement names the coupons table"
-    for statement in coupon_statements:
-        actions = set(statement["Action"])
-        assert actions == {"dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
-                           "dynamodb:DeleteItem"}
-        assert "dynamodb:Scan" not in actions
-        assert "dynamodb:*" not in actions
-        for resource in statement["Resource"]:
-            assert not resource.endswith("*"), f"{resource} is a wildcard over the tables"
+    resources = [r for s in policy["Statement"] for r in s.get("Resource", [])]
+    assert COUPONS_TABLE_ARN not in resources
 
 
 def test_the_iam_simulation_covers_every_action_the_policy_grants():

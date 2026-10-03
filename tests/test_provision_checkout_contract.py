@@ -231,24 +231,8 @@ def test_route_creation_never_deletes_or_retargets(provisioner):
 # ── IAM: least privilege, and what it deliberately omits ──────────────────────
 
 def _policy(provisioner) -> dict:
-    """The inline policy document as the script writes it, without calling AWS."""
-    source = SCRIPT.read_text(encoding="utf-8")
-    body = source.split("least_privilege = ")[1].split("\n    iam().put_role_policy")[0]
-    # The literal interpolates REGION, the account and eight constants.
-    namespace = {
-        "REGION": provisioner.REGION, "acct": "775261844268",
-        "WIX_API_KEY_SECRET": provisioner.WIX_API_KEY_SECRET,
-        "RAZORPAY_API_SECRET": provisioner.RAZORPAY_API_SECRET,
-        "CONTACTS_TABLE": provisioner.CONTACTS_TABLE,
-        "PAYMENT_ATTEMPTS_TABLE": provisioner.PAYMENT_ATTEMPTS_TABLE,
-        "COMMERCE_KEYS_TABLE": provisioner.COMMERCE_KEYS_TABLE,
-        "COUPONS_TABLE": provisioner.COUPONS_TABLE,
-        "GIFT_CARDS_TABLE": provisioner.GIFT_CARDS_TABLE,
-        "ORDERS_TABLE": provisioner.ORDERS_TABLE,
-        "SENDER_FUNCTION": provisioner.SENDER_FUNCTION,
-        "LIVE_ALIAS": provisioner.LIVE_ALIAS,
-    }
-    return eval(body, {"__builtins__": {}}, namespace)  # noqa: S307 - our own source
+    """The inline policy document exactly as the provisioner intends to reconcile it."""
+    return provisioner.expected_role_policy("775261844268")
 
 
 def test_the_role_reads_only_the_two_canonical_provider_secrets(provisioner):
@@ -274,50 +258,70 @@ def test_the_environment_holds_secret_names_not_values(provisioner):
     assert env["ORDERS_TABLE"] == "stack-wecare-digital-OrderTable"
 
 
-def test_the_role_cannot_delete_a_payment_attempt(provisioner):
-    """A failed attempt is the evidence that no charge became an order. Deleting one destroys
-    the only record that the amount was refused.
+def test_readiness_set_message_is_only_for_gate_off(provisioner):
+    """Do not report the gate as OFF when CHECKOUT_INITIATION_ENABLED is actually truthy."""
+    body = SCRIPT.read_text(encoding="utf-8").split("def verify(")[1].split("\ndef ")[0]
+    assert 'if not readiness_empty and initiation not in ("1", "true", "yes", "on"):' in body
 
-    STRENGTHENED, not weakened. This used to assert `dynamodb:DeleteItem` appeared in no statement
-    at all, which was the right assertion while the role named two tables and is the wrong one now
-    that it also names the coupon and gift-card stores: a redemption DELETES the hold row that
-    reserved the code, and a reservation that outlives its order locks the code out of every later
-    cart. A blanket ban would have had to be deleted to let that grant land - and deleting it is
-    exactly how the payment-attempt protection would have been lost silently.
 
-    So the assertion moves from "no statement grants DeleteItem" to "no statement granting
-    DeleteItem names either evidence table", which is the property that was always meant and is
-    narrower than the old one: it survives any number of future tables being added, and it fails
-    the moment one of these two is folded into a statement that carries DeleteItem.
+def test_the_role_cannot_delete_checkout_evidence(provisioner):
+    """Payment attempts, commerce-key reservations and internal orders are evidence.
+
+    None may be deleted by checkout. The Wix-native coupon/gift-card path has no custom hold table
+    in this role, so there is no legitimate DeleteItem grant here at all.
     """
     statements = _policy(provisioner)["Statement"]
     evidence = {
         "arn:aws:dynamodb:us-east-1:775261844268:table/"
         "stack-wecare-digital-PaymentAttemptsTable",
         "arn:aws:dynamodb:us-east-1:775261844268:table/stack-wecare-digital-WixOrderIds",
+        "arn:aws:dynamodb:us-east-1:775261844268:table/stack-wecare-digital-OrderTable",
     }
     for statement in statements:
-        if "dynamodb:DeleteItem" not in statement.get("Action", []):
-            continue
-        named = evidence & set(statement.get("Resource", []))
-        assert not named, (
-            f"statement {statement.get('Sid')!r} grants DeleteItem on {sorted(named)}: a failed "
-            f"attempt is the evidence that no charge became an order, and a Wix order-id "
-            f"reservation is not ours to delete")
+        assert "dynamodb:DeleteItem" not in statement.get("Action", []), (
+            f"statement {statement.get('Sid')!r} grants DeleteItem on checkout evidence")
+
+    resources = {
+        resource
+        for statement in statements
+        for resource in statement.get("Resource", [])
+    }
+    assert evidence <= resources, "all three checkout evidence tables must remain explicitly named"
 
     actions = {a for s in statements for a in s["Action"]}
     assert actions >= {"dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"}
 
 
-def test_the_role_names_only_the_known_tables_and_contact_index(provisioner):
-    """Five writable tables plus the one read-only Contacts phone index. Still an EXACT list:
-    the interesting failure is a table nobody here decided to add.
+def test_existing_role_is_reconciled_instead_of_short_circuited(provisioner):
+    """The live failure mode: an old role exists, but its inline policy is behind the code."""
+    import ast
+    source = SCRIPT.read_text(encoding="utf-8")
+    body = source.split("def ensure_role")[1].split("\ndef ")[0]
+    tree = ast.parse("def ensure_role" + body)
 
-    The sixth entry is the OrderTable, and it is here because `finalization.accept_paid` now has
-    production callers in the browser legs -- the internal order record is what makes a verified
-    capture into exactly one order. It is granted GetItem/PutItem/UpdateItem and deliberately not
-    DeleteItem, which `test_the_role_cannot_delete_a_payment_attempt` and the provisioner's own
-    `_EXPECTED_DENY` both pin.
+    put_calls = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "put_role_policy"
+    ]
+    assert put_calls, "an existing checkout role is never reconciled"
+
+    early_exists_returns = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Return)
+        and isinstance(n.value, ast.Constant)
+        and n.value.value == "exists"
+    ]
+    assert not early_exists_returns, "ensure_role still returns before repairing inline-policy drift"
+
+
+def test_the_role_names_only_the_checkout_tables_and_contact_index(provisioner):
+    """Checkout owns three writable tables plus the read-only Contacts phone index.
+
+    Coupons and gift cards are Wix-authoritative for the website path. Their legacy custom tables
+    belong to separate functions/roles and must not be granted to checkout merely to satisfy a
+    historical verifier.
     """
     tables = [r for s in _policy(provisioner)["Statement"]
               for r in s["Resource"] if ":table/" in r]
@@ -325,10 +329,9 @@ def test_the_role_names_only_the_known_tables_and_contact_index(provisioner):
     assert sorted(tables) == sorted([
         prefix + "PaymentAttemptsTable",
         prefix + "WixOrderIds",
-        prefix + "CouponsTable",
-        prefix + "GiftCardsTable",
         prefix + "OrderTable",
         prefix + "ContactsTable/index/phone-index"])
+    assert not any("CouponsTable" in table or "GiftCardsTable" in table for table in tables)
     for table in tables:
         assert not table.endswith("*"), f"{table} is a wildcard over the fleet's tables"
 
@@ -397,11 +400,10 @@ def test_the_grant_report_only_simulates(provisioner):
 class _FakeIam:
     """Just enough IAM to drive `report_required_grants` without touching an account.
 
-    `simulate_principal_policy` returns one `EvaluationResult` PER (action, resource) pair carrying
-    `EvalResourceName`, because that is what the real API returns and what the verdict loop now
-    keys on. An earlier shape of this fake returned one result per action with no resource name,
-    which was indistinguishable from the real thing only while every action had the same answer on
-    every table - and `DeleteItem` no longer does.
+    The real IAM API returns one `EvaluationResult` per ACTION when multiple resources are
+    simulated, with the per-resource decisions nested under `ResourceSpecificResults`. The fake
+    deliberately models that shape so a verifier that reads only top-level `EvalResourceName`
+    fails this suite instead of failing only in production.
 
     The default is "allowed unless the pair is one `_EXPECTED_DENY` withholds", so the baseline
     fake models a CORRECTLY provisioned role. `decisions` overrides by action or by (action, table
@@ -434,11 +436,22 @@ class _FakeIam:
         if self.simulate_error:
             raise self.simulate_error
         return {"EvaluationResults": [
-            {"EvalActionName": action,
-             "EvalResourceName": arn,
-             "EvalDecision": self._decision(action, arn)}
+            {
+                "EvalActionName": action,
+                "EvalDecision": "implicitDeny",
+                "EvalResourceName":
+                    "arn:aws:dynamodb:${Region}:${Account}:${ResourceType}/${ResourcePath}",
+                "ResourceSpecificResults": [
+                    {
+                        "EvalResourceName": arn,
+                        "EvalResourceDecision": self._decision(action, arn),
+                    }
+                    for arn in kwargs["ResourceArns"]
+                ],
+            }
             for action in kwargs["ActionNames"]
-            for arn in kwargs["ResourceArns"]]}
+        ]}
+
 
 
 def _client_error(code: str):
@@ -527,48 +540,43 @@ def test_a_denied_action_the_inline_policy_grants_is_a_problem(grant_report):
 # ── the verdict is keyed on the PAIR, because one action now has two right answers ──
 
 def test_the_verdict_is_keyed_on_the_action_and_the_resource(provisioner):
-    """The structural half of the change, asserted rather than inspected.
-
-    `DeleteItem` is granted on the coupon and gift-card tables and withheld on the payment-attempt
-    and reservation tables. Under the old per-action key those two facts aggregated to
-    `{"allowed", "implicitDeny"}`, which is not `{"allowed"}` - so a role provisioned exactly as
-    this script writes it would have been reported as a problem, and the operator's only way out
-    would have been to widen the role until the gate went quiet.
-    """
+    """AWS nests the real per-resource decisions; the provisioner must retain that pair key."""
     assert "dynamodb:DeleteItem" in provisioner._SIMULATED_ACTIONS
     assert provisioner._EXPECTED_DENY == {
         ("dynamodb:DeleteItem", provisioner.PAYMENT_ATTEMPTS_TABLE),
         ("dynamodb:DeleteItem", provisioner.COMMERCE_KEYS_TABLE),
-        # The OrderTable joins them for the same reason, and WITHOUT this pair `--verify` reports
-        # a false "GRANTED BY THE INLINE POLICY BUT DENIED IN SIMULATION" and exits non-zero on a
-        # correctly provisioned role.
         ("dynamodb:DeleteItem", provisioner.ORDERS_TABLE)}
 
     body = SCRIPT.read_text(encoding="utf-8") \
         .split("def report_required_grants")[1].split("\ndef ")[0]
-    assert "EvalResourceName" in body, "the verdict is still keyed on the action alone"
+    assert "ResourceSpecificResults" in body
+    assert "EvalResourceDecision" in body
     assert "_EXPECTED_DENY" in body
 
 
-def test_a_correctly_provisioned_role_passes_with_delete_item_split_two_ways(grant_report):
-    """The regression the pair key exists to prevent: allowed on two tables, denied on two, and
-    the report is clean. Nothing in `_CLEAN_MEMBERS` opens a transaction, so ConditionCheckItem
-    being denied everywhere is also correct."""
-    fake = _FakeIam(decisions={"dynamodb:ConditionCheckItem": "implicitDeny"})
+def test_a_correctly_provisioned_role_passes_with_delete_item_withheld_everywhere(grant_report):
+    """All checkout-owned rows are evidence; DeleteItem is correctly denied on all three tables."""
+    fake = _FakeIam(decisions={
+        "dynamodb:ConditionCheckItem": "implicitDeny",
+        "dynamodb:DeleteItem": "implicitDeny",
+    })
     assert grant_report(fake, _CLEAN_MEMBERS) == []
 
 
 def test_delete_item_becoming_allowed_on_an_evidence_table_is_reported(grant_report):
-    """The other direction, and the reason `_EXPECTED_DENY` is a measured expectation rather than a
-    suppression. A role widened until `DeleteItem` is allowed everywhere must FAIL - under a
-    per-action aggregate that widening is indistinguishable from the coupon grant."""
-    fake = _FakeIam(decisions={"dynamodb:ConditionCheckItem": "implicitDeny"},
-                    expected_deny=frozenset())
+    """Widening DeleteItem on any checkout-owned table is a verifier failure."""
+    fake = _FakeIam(
+        decisions={
+            "dynamodb:ConditionCheckItem": "implicitDeny",
+            "dynamodb:DeleteItem": "allowed",
+        },
+        expected_deny=frozenset(),
+    )
+    # Override the fake's baseline so its explicit action decision is returned for every resource.
     problems = grant_report(fake, _CLEAN_MEMBERS)
     assert any("dynamodb:DeleteItem" in p and "PaymentAttemptsTable" in p for p in problems)
     assert any("dynamodb:DeleteItem" in p and "WixOrderIds" in p for p in problems)
-    assert not any("CouponsTable" in p or "GiftCardsTable" in p for p in problems), \
-        "DeleteItem is GRANTED on the redemption tables; reporting it there is the false positive"
+    assert any("dynamodb:DeleteItem" in p and "OrderTable" in p for p in problems)
 
 
 def test_verify_adds_the_grant_report_to_its_own_problem_list(provisioner):
