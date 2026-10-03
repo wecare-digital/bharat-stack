@@ -908,6 +908,67 @@ const run = async ( browser, mock ) => {
       shared.panelControls.length === 1 && shared.panelControls[ 0 ] === 'vl-sub-wa',
       shared.panelControls.join( ', ' ) || 'NONE FOUND - probe may be blind' );
 
+    /* ---- THE ROLE AUDIT: every control against its SHIPPED counterpart -------
+       The owner's standing complaint is "the buttons are not matching", extended to the
+       whole mock. The rule is role-for-role, NOT one shape for everything: the site
+       renders contribution chips and CTAs as full pills while button.css declares a 13px
+       radius for .btn, so flattening every control to one radius would be a new defect
+       rather than a fix.
+       The three blocks below assert the controls that were audited and found ALREADY
+       correct, so "already correct" is a checked fact rather than a claim - and so that a
+       later edit cannot drift them without failing.
+         ROLE 1 .vl-btn        = .btn + .btn-lg + .btn-primary   src/styles/button.css:20,51,74
+         ROLE 3 .vl-input      = .blog-subscribe-cell>input      BlogSubscribe.tsx:328-330
+         ROLE 3 .vl-search-*   = the same ROLE 3 box
+       NOTE ON button.css: the 13px figure there is the BORDER-RADIUS, not a font size, and
+       a brief describing this file has had that the wrong way round. .btn-lg is 52px tall
+       with 16px type; .btn-sm is 36px with 13px type. */
+    const audit = await page.evaluate( () => {
+      const read = sel => {
+        const el = document.querySelector( sel );
+        if ( !el ) return null;
+        const c = getComputedStyle( el );
+        return {
+          h: +el.getBoundingClientRect().height.toFixed( 1 ),
+          radius: c.borderTopLeftRadius, fontSize: c.fontSize, fontWeight: c.fontWeight,
+          borderWidth: c.borderTopWidth, borderColor: c.borderTopColor,
+          background: c.backgroundColor, color: c.color,
+          padding: c.paddingLeft + '/' + c.paddingRight,
+        };
+      };
+      return { load: read( '#vl-keyload' ), key: read( '#vl-keyinput' ), search: read( '.vl-search-field' ) };
+    } );
+    /* ROLE 1, the keygate's Load - the ONLY remaining .vl-btn, and .vl-keygate is left
+       behaviourally untouched because it is load-bearing for zero-network. */
+    if ( audit.load ) {
+      record( scope, 'AUDIT ROLE 1 Load = .btn-lg 52px / 13px radius / 16px-500',
+        audit.load.h === 52 && audit.load.radius === '13px'
+        && audit.load.fontSize === '16px' && audit.load.fontWeight === '500',
+        `${audit.load.h}px ${audit.load.radius} ${audit.load.fontSize}/${audit.load.fontWeight}` );
+      record( scope, 'AUDIT ROLE 1 Load = .btn-primary lime + 2px #1a3a2a',
+        audit.load.background === 'rgb(209, 244, 112)' && audit.load.borderWidth === '2px'
+        && audit.load.borderColor === 'rgb(26, 58, 42)',
+        `${audit.load.background} ${audit.load.borderWidth} ${audit.load.borderColor}` );
+    } else {
+      record( scope, 'AUDIT ROLE 1 Load button is measurable', false, '#vl-keyload missing' );
+    }
+    /* ROLE 3, the "Paste a Google Maps key" input and the place-search field. Both are the
+       shipped 52px / 10px / 1px #e5e7eb / 16px box, and they are asserted to be the SAME
+       box as each other - two fields on one page must not be two shapes. */
+    for ( const [ label, m ] of [ [ 'Maps-key input', audit.key ], [ 'search field', audit.search ] ] ) {
+      if ( !m ) { record( scope, `AUDIT ROLE 3 ${label} is measurable`, false, 'missing' ); continue; }
+      record( scope, `AUDIT ROLE 3 ${label} = 52px / 10px / 1px #e5e7eb`,
+        m.h === 52 && m.radius === '10px' && m.borderWidth === '1px'
+        && m.borderColor === 'rgb(229, 231, 235)',
+        `${m.h}px ${m.radius} ${m.borderWidth} ${m.borderColor}` );
+    }
+    if ( audit.key && audit.search ) {
+      record( scope, 'AUDIT both ROLE 3 fields are the SAME box',
+        audit.key.h === audit.search.h && audit.key.radius === audit.search.radius
+        && audit.key.borderWidth === audit.search.borderWidth,
+        `${audit.key.h}/${audit.key.radius} vs ${audit.search.h}/${audit.search.radius}` );
+    }
+
     /* ---- THE SUBSCRIBE PANEL AND HEADING ARE GONE ---------------------------
        The owner compared the mock against the live post page and found the one
        remaining mismatch here: the mock wrapped the anchor in a lime-tinted panel with
@@ -992,6 +1053,9 @@ const run = async ( browser, mock ) => {
           top: +r.top.toFixed( 1 ), bottom: +r.bottom.toFixed( 1 ),
           fontSize: c.fontSize, fontWeight: c.fontWeight,
           padding: c.paddingLeft + '/' + c.paddingRight, radius: c.borderTopLeftRadius,
+          borderWidth: c.borderTopWidth, borderColor: c.borderTopColor,
+          background: c.backgroundColor,
+          pressed: el.getAttribute( 'aria-pressed' ),
         };
       } );
       if ( clear ) clear.setAttribute( 'hidden', '' );
@@ -1006,8 +1070,34 @@ const run = async ( browser, mock ) => {
       record( scope, 'map row shares one padding', u( 'padding' ).length === 1, u( 'padding' ).join( ', ' ) );
       record( scope, 'map row is vertically flush', u( 'top' ).length === 1 && u( 'bottom' ).length === 1,
         `tops ${u( 'top' ).join( ', ' )}` );
-      record( scope, 'map row is 38px (ROLE 5)', mapRow.every( r => r.h === 38 ),
+      /* ROLE 5 NOW CARRIES THE SHIPPED SEGMENTED-PILL GEOMETRY, taken from
+         `.category-switch :global(a)` / `.cat-here` at BlogIndexView.tsx:470-476 - the
+         site's own "pick one of these" row, which is the role this row plays. It was
+         38px/1px/13px-700, invented here. Each property is asserted against the shipped
+         value, and 44px is also the WCAG 2.5.8 floor the old 38px missed. */
+      record( scope, 'ROLE 5 map row is 44px (shipped pill height)', mapRow.every( r => r.h === 44 ),
         mapRow.map( r => `${r.text} ${r.h}` ).join( ', ' ) );
+      record( scope, 'ROLE 5 font is 14px/600', mapRow.every( r => r.fontSize === '14px' && r.fontWeight === '600' ),
+        u( 'fontSize' ).join( ', ' ) + ' / ' + u( 'fontWeight' ).join( ', ' ) );
+      record( scope, 'ROLE 5 radius is 999px', mapRow.every( r => r.radius === '999px' ), u( 'radius' ).join( ', ' ) );
+      record( scope, 'ROLE 5 padding is 18px', mapRow.every( r => r.padding === '18px/18px' ), u( 'padding' ).join( ', ' ) );
+      record( scope, 'ROLE 5 border is 2px #e5e7eb at rest',
+        mapRow.filter( r => r.pressed !== 'true' ).every( r => r.borderWidth === '2px' && r.borderColor === 'rgb(229, 231, 235)' ),
+        mapRow.map( r => `${r.text} ${r.borderWidth} ${r.borderColor}` ).join( ', ' ) );
+      /* THE PRESSED PILL IS THE SHIPPED .cat-here: lime fill, #1a3a2a edge - and it is
+         asserted as a DIFFERENCE from the unpressed ones too, so "all three look the
+         same" cannot pass. */
+      const pressed = mapRow.filter( r => r.pressed === 'true' );
+      const unpressed = mapRow.filter( r => r.pressed !== 'true' );
+      record( scope, 'ROLE 5 exactly one pill is pressed', pressed.length === 1,
+        `${pressed.length}: ${pressed.map( r => r.text ).join( ', ' )}` );
+      record( scope, 'ROLE 5 pressed pill is lime with a #1a3a2a edge',
+        pressed.length === 1 && pressed[ 0 ].background === 'rgb(209, 244, 112)'
+        && pressed[ 0 ].borderColor === 'rgb(26, 58, 42)',
+        pressed.length ? `${pressed[ 0 ].background} / ${pressed[ 0 ].borderColor}` : 'none' );
+      record( scope, 'ROLE 5 pressed pill LOOKS different from the unpressed ones',
+        pressed.length === 1 && unpressed.every( r => r.background !== pressed[ 0 ].background ),
+        unpressed.map( r => r.background ).join( ', ' ) );
     }
     /* CLEAR KEY MUST NOT HAVE JOINED THE AQI/PM2.5 RADIO GROUP, which is the risk created
        by giving it the same geometry as the two pills beside it.
