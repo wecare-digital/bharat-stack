@@ -174,16 +174,51 @@ const VayuLokLive: React.FC = () => {
      Guarded by `if(!MAPS_KEY) return;` so no key means no script and no map. */
   useEffect( () => {
     if ( !MAPS_KEY || typeof window === 'undefined' ) return;
-    const w = window as unknown as { google?: { maps?: Record<string, unknown> } };
+    const w = window as unknown as {
+      google?: { maps?: Record<string, unknown> & {
+        importLibrary?: ( name: string ) => Promise<Record<string, unknown>>;
+      } };
+    };
 
-    const init = () => {
-      const maps = w.google?.maps as undefined | {
+    const init = async () => {
+      const g = w.google?.maps;
+      if ( !mapHost.current || !g ) return;
+
+      // WITH loading=async, the google.maps NAMESPACE exists on script load but its
+      // constructors (Map, Marker, ...) are NOT populated until the relevant library
+      // is imported. Calling `new google.maps.Map()` directly throws
+      // "Map is not a constructor". The modern loader requires importLibrary().
+      // We await the maps/marker/places libraries, then construct. Fall back to the
+      // legacy namespace for any older loader that already populated it.
+      type MapsCtors = {
         Map: new ( el: HTMLElement, opts: Record<string, unknown> ) => unknown;
         Marker: new ( opts: Record<string, unknown> ) => unknown;
         Geocoder: new () => unknown;
         places?: { PlacesService: new ( attr: HTMLElement ) => unknown };
       };
-      if ( !mapHost.current || !maps ) return;
+      let maps: MapsCtors;
+      try {
+        if ( typeof g.importLibrary === 'function' ) {
+          const [ mapsLib, markerLib, placesLib ] = await Promise.all( [
+            g.importLibrary( 'maps' ),
+            g.importLibrary( 'marker' ),
+            g.importLibrary( 'places' ),
+          ] );
+          maps = {
+            Map: ( mapsLib as { Map: MapsCtors['Map'] } ).Map,
+            Marker: ( markerLib as { Marker?: MapsCtors['Marker'] } ).Marker
+              || ( g as unknown as MapsCtors ).Marker,
+            Geocoder: ( g as unknown as MapsCtors ).Geocoder,
+            places: ( placesLib as unknown as MapsCtors['places'] )
+              || ( g as unknown as MapsCtors ).places,
+          };
+        } else {
+          maps = g as unknown as MapsCtors;
+        }
+      } catch {
+        return; // silent degradation: no map rather than a crash
+      }
+      if ( !maps.Map || !mapHost.current ) return;
 
       const map = new maps.Map( mapHost.current, {
         center: { lat: DEFAULT_PLACE.lat, lng: DEFAULT_PLACE.lng },
@@ -197,11 +232,13 @@ const VayuLokLive: React.FC = () => {
       } );
       mapRef.current = map;
 
-      markerRef.current = new maps.Marker( {
-        position: { lat: DEFAULT_PLACE.lat, lng: DEFAULT_PLACE.lng },
-        map,
-        title: DEFAULT_PLACE.name,
-      } );
+      if ( maps.Marker ) {
+        markerRef.current = new maps.Marker( {
+          position: { lat: DEFAULT_PLACE.lat, lng: DEFAULT_PLACE.lng },
+          map,
+          title: DEFAULT_PLACE.name,
+        } );
+      }
 
       if ( maps.Geocoder ) geocoder.current = new maps.Geocoder();
       if ( maps.places?.PlacesService ) {
@@ -212,18 +249,21 @@ const VayuLokLive: React.FC = () => {
       requestAnimationFrame( () => setMapReady( true ) );
     };
 
-    if ( w.google?.maps ) { init(); return; }
+    // init is async (it awaits importLibrary); wrap so no unhandled promise floats.
+    const runInit = () => { void init(); };
+
+    if ( w.google?.maps ) { runInit(); return; }
 
     const ID = 'gmaps-js';
     const existing = document.getElementById( ID );
-    if ( existing ) { existing.addEventListener( 'load', init ); return; }
+    if ( existing ) { existing.addEventListener( 'load', runInit ); return; }
 
     const script = document.createElement( 'script' );
     script.id = ID;
     script.async = true;
     // Places library requested so client-side India-scoped autocomplete can run.
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent( MAPS_KEY )}&libraries=places&loading=async`;
-    script.addEventListener( 'load', init );
+    script.addEventListener( 'load', runInit );
     document.head.appendChild( script );
   }, [] );
 
