@@ -212,29 +212,32 @@ const VayuLokLive: React.FC = () => {
         Geocoder: new () => unknown;
         places?: { PlacesService: new ( attr: HTMLElement ) => unknown };
       };
-      let maps: MapsCtors;
-      try {
-        if ( typeof g.importLibrary === 'function' ) {
-          const [ mapsLib, markerLib, placesLib ] = await Promise.all( [
-            g.importLibrary( 'maps' ),
-            g.importLibrary( 'marker' ),
-            g.importLibrary( 'places' ),
-          ] );
-          maps = {
-            Map: ( mapsLib as { Map: MapsCtors['Map'] } ).Map,
-            Marker: ( markerLib as { Marker?: MapsCtors['Marker'] } ).Marker
-              || ( g as unknown as MapsCtors ).Marker,
-            Geocoder: ( g as unknown as MapsCtors ).Geocoder,
-            places: ( placesLib as unknown as MapsCtors['places'] )
-              || ( g as unknown as MapsCtors ).places,
-          };
-        } else {
-          maps = g as unknown as MapsCtors;
-        }
-      } catch {
-        return; // silent degradation: no map rather than a crash
-      }
-      if ( cancelled || !maps.Map || !host ) return;
+      // Import each library INDEPENDENTLY. A Promise.all here meant that if any one
+      // import rejected (e.g. 'marker' under a loader that bundles it differently),
+      // the whole block hit the catch and the map silently never built - exactly the
+      // blank-canvas-no-error symptom. The map library is the only one that is
+      // required; marker and places are best-effort and must not block the map.
+      const imp = async ( name: string ): Promise<Record<string, unknown> | null> => {
+        try {
+          return typeof g.importLibrary === 'function' ? await g.importLibrary( name ) : null;
+        } catch { return null; }
+      };
+
+      const legacy = g as unknown as MapsCtors;
+      const mapsLib = await imp( 'maps' );
+      if ( cancelled ) return;
+      const MapCtor = ( mapsLib as { Map?: MapsCtors['Map'] } | null )?.Map || legacy.Map;
+      if ( !MapCtor || !host ) return; // no map constructor -> degrade, no crash
+
+      const markerLib = await imp( 'marker' );
+      const placesLib = await imp( 'places' );
+      const maps: MapsCtors = {
+        Map: MapCtor,
+        Marker: ( markerLib as { Marker?: MapsCtors['Marker'] } | null )?.Marker || legacy.Marker,
+        Geocoder: legacy.Geocoder,
+        places: ( placesLib as unknown as MapsCtors['places'] ) || legacy.places,
+      };
+      if ( cancelled ) return;
 
       const map = new maps.Map( host, {
         center: { lat: DEFAULT_PLACE.lat, lng: DEFAULT_PLACE.lng },
@@ -923,7 +926,11 @@ const VayuLokLive: React.FC = () => {
         .vl-live-map-canvas{position:absolute;inset:0}
 
         @media(min-width:1024px){
-          .vl-live-grid{grid-template-columns:minmax(0,49%) minmax(0,1fr);column-gap:40px;row-gap:0}
+          /* Two equal-ish columns that account for the 40px gap so they cannot
+             overlap. `1fr 1fr` with a fixed column-gap keeps the sum at 100% of the
+             track area; the earlier 49% + 1fr + 40px gap summed past 100% and the
+             right (map) column slid over the left content. */
+          .vl-live-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:40px;row-gap:0}
           .vl-live-map-sticky{position:sticky;top:96px;height:calc(100vh - 120px)}
           .vl-live-map-stage{flex:1 1 auto;min-height:0;height:auto}
         }
