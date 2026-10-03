@@ -207,7 +207,7 @@ describe( 'the built pill markup carries the scope hash its CSS requires', () =>
   run( 'scopes the sign-in pill label specifically, not just the outer control', () => {
     const html = readPage();
     // The phone phase ships in the static HTML, so "Send code" is the observable action.
-    expect( html ).toContain( 'Send code' );
+    expect( html ).toContain( 'Send OTP on WhatsApp' );
 
     /*
      * Narrowed to the LABEL's own class, so this still fails if only the OUTER control is scoped -
