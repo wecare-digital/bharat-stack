@@ -903,7 +903,7 @@ const VayuLokLive: React.FC = () => {
               ) }
               { liveActive && (
                 <div
-                  className={ `vl-live-map-canvas ${mapReady ? 'is-ready' : ''}`.trim() }
+                  className="vl-live-map-canvas"
                   ref={ mapHost }
                   role="img"
                   aria-label={ `Map of ${place.name}` }
@@ -1014,10 +1014,26 @@ const VayuLokLive: React.FC = () => {
         .vl-live-left > .vl-live-section{margin-top:44px;padding-top:24px;border-top:1px solid var(--hair)}
 
         .vl-live-map-sticky{display:flex;flex-direction:column;gap:10px}
-        .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid var(--hair);border-radius:var(--r-panel);background:var(--ground)}
+        .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid var(--hair);border-radius:16px;background:var(--ground);box-shadow:0 1px 3px rgba(26,58,42,.06)}
         .vl-live-map-fallback{position:absolute;inset:0;z-index:0;width:100%;height:100%;border:0;background:var(--ground)}
-        .vl-live-map-canvas{position:absolute;inset:0;z-index:1;opacity:0;pointer-events:none}
-        .vl-live-map-canvas.is-ready{opacity:1;pointer-events:auto}
+        /* Canvas is ALWAYS visible once mounted. It used to be opacity:0 until an
+           is-ready class landed from setMapReady(true) at the end of init(); if init
+           ever stalled, the constructed map stayed invisible and the panel looked
+           blank. Showing the canvas unconditionally means a built map is always seen;
+           the fallback iframe sits behind it (lower z-index) and is covered once the
+           real tiles paint. */
+        .vl-live-map-canvas{position:absolute;inset:0;z-index:2;opacity:1;pointer-events:auto;background:var(--ground)}
+
+        /* TESTING ONLY (2026-10-03, owner-approved): hide the Google logo + legal
+           attribution so the map reads clean for a visual test. THIS VIOLATES the
+           Google Maps Platform Terms of Service and MUST be restored before any
+           public/production use. To restore: delete this one block. The code
+           elsewhere deliberately never targeted these selectors for exactly this
+           reason - this is a temporary, clearly-fenced exception. */
+        .vl-live-map-stage .gm-style-cc,
+        .vl-live-map-stage a[href*="google"],
+        .vl-live-map-stage img[alt="Google"],
+        .vl-live-map-stage .gmnoprint{display:none !important}
 
         @media(min-width:1024px){
           /* Two equal columns with a fixed gap so they cannot overlap. The earlier
@@ -1091,13 +1107,16 @@ const VayuLokLive: React.FC = () => {
         .vl-live-layer:focus-visible{outline:3px solid var(--green);outline-offset:3px}
         .vl-live-layer[aria-pressed="true"]{border-color:var(--green);background:var(--lime)}
 
-        .vl-live-map-legend{position:absolute;top:16px;right:16px;z-index:4;width:224px;padding:16px;border:1px solid var(--hair);border-radius:var(--r-panel);background:var(--paper)}
+        .vl-live-map-legend{position:absolute;top:16px;right:16px;z-index:4;width:224px;padding:16px;border:1px solid var(--hair);border-radius:14px;background:var(--paper);box-shadow:0 6px 20px rgba(26,58,42,.12)}
         .vl-live-scale{height:10px;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--aqi-good) 0%,var(--aqi-sat) 22%,var(--aqi-mod) 48%,var(--aqi-poor) 74%,var(--aqi-worst) 100%)}
         .vl-live-scale-ends{display:flex;justify-content:space-between;margin-top:8px;gap:8px}
         .vl-live-scale-ends span{font-size:12px;font-weight:700;color:var(--green)}
         .vl-live-scale-mid{margin:8px 0 0;font-size:12px;line-height:1.4;color:var(--ink-muted)}
 
-        .vl-live-map-preview{position:absolute;left:16px;bottom:76px;z-index:4;width:296px;padding:18px;border:1px solid var(--hair);border-radius:var(--r-panel);background:var(--paper)}
+        /* bottom:16px (was 76px): the 60px clearance existed to keep off Google's
+           bottom-corner attribution, which is hidden for this test. Rounded + soft
+           shadow for a cleaner card. RESTORE bottom:76px when attribution returns. */
+        .vl-live-map-preview{position:absolute;left:16px;bottom:16px;z-index:4;width:296px;padding:18px;border:1px solid var(--hair);border-radius:16px;background:var(--paper);box-shadow:0 6px 20px rgba(26,58,42,.12)}
         .vl-live-preview-metrics{display:grid;grid-template-columns:repeat(3,1fr);margin-top:14px;border-top:1px solid var(--hair)}
         .vl-live-preview-metrics>div{padding:12px 0 0}
         .vl-live-preview-metrics>div+div{padding-left:14px;border-left:1px solid var(--hair)}
@@ -1154,7 +1173,7 @@ const VayuLokLive: React.FC = () => {
         @media(max-width:1023px){
           .vl-live-map-legend{top:12px;right:12px;width:168px;padding:12px}
           .vl-live-map-legend .vl-live-scale-mid{display:none}
-          .vl-live-map-preview{left:12px;bottom:68px;width:216px;padding:14px}
+          .vl-live-map-preview{left:12px;bottom:12px;width:216px;padding:14px}
         }
         @media(max-width:767px){
           .vl-live-wrap{padding-inline:16px}
