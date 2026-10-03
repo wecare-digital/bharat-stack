@@ -351,6 +351,136 @@ describe( 'VayuLokLive - map wiring, heatmap on user action, India scoping (key 
   } );
 } );
 
+describe( 'VayuLokLive - forecast, history and partial failure rendering', () => {
+  beforeEach( () => {
+    vi.stubEnv( 'NEXT_PUBLIC_GOOGLE_MAPS_KEY', DUMMY_KEY );
+    installGoogleMaps();
+  } );
+
+  const response = ( body: unknown, ok = true ) => Promise.resolve( {
+    ok,
+    json: async () => body,
+  } as Response );
+
+  it( 'renders 24h combined intelligence, 10-day outlook and history when Google endpoints return data', async () => {
+    const base = Date.now() + 60 * 60 * 1000;
+    const fetchSpy = vi.fn( ( input: RequestInfo | URL ) => {
+      const url = String( input );
+      if ( url.includes( 'weather.googleapis.com/v1/currentConditions' ) ) {
+        return response( {
+          currentTime: new Date().toISOString(),
+          temperature: { degrees: 30 },
+          feelsLikeTemperature: { degrees: 33 },
+          relativeHumidity: 64,
+          wind: { speed: { value: 12, unit: 'KILOMETERS_PER_HOUR' }, direction: { degrees: 90 }, gust: { value: 20 } },
+          weatherCondition: { description: { text: 'Clear' } },
+          precipitation: { probability: { percent: 20 }, qpf: { quantity: 0.4 } },
+          uvIndex: 6,
+          visibility: { distance: 8 },
+          airPressure: { meanSeaLevelMillibars: 1007 },
+          dewPoint: { degrees: 23 },
+          heatIndex: { degrees: 35 },
+          wetBulbTemperature: { degrees: 25 },
+          cloudCover: 25,
+        } );
+      }
+      if ( url.includes( 'airquality.googleapis.com/v1/currentConditions' ) ) {
+        return response( {
+          dateTime: new Date().toISOString(),
+          indexes: [ { code: 'ind_cpcb', aqi: 120, category: 'Moderate', dominantPollutant: 'pm25' } ],
+          pollutants: [ { code: 'pm25', concentration: { value: 58, units: 'MICROGRAMS_PER_CUBIC_METER' } } ],
+          healthRecommendations: { generalPopulation: 'Reduce prolonged exertion if you feel symptoms.' },
+        } );
+      }
+      if ( url.includes( 'weather.googleapis.com/v1/forecast/hours' ) ) {
+        return response( {
+          forecastHours: [ 0, 1 ].map( offset => ( {
+            interval: { startTime: new Date( base + offset * 3600000 ).toISOString() },
+            temperature: { degrees: 30 - offset },
+            precipitation: { probability: { percent: 20 + offset * 5 } },
+            uvIndex: 5,
+            weatherCondition: { description: { text: 'Clear' } },
+          } ) ),
+        } );
+      }
+      if ( url.includes( 'weather.googleapis.com/v1/forecast/days' ) ) {
+        return response( {
+          forecastDays: [ {
+            displayDate: { year: 2026, month: 10, day: 4 },
+            minTemperature: { degrees: 23 },
+            maxTemperature: { degrees: 32 },
+            daytimeForecast: { precipitation: { probability: { percent: 30 } }, weatherCondition: { description: { text: 'Partly cloudy' } } },
+            sunEvents: { sunriseTime: '2026-10-04T00:05:00Z', sunsetTime: '2026-10-04T11:45:00Z' },
+          } ],
+        } );
+      }
+      if ( url.includes( 'weather.googleapis.com/v1/history/hours' ) ) {
+        return response( {
+          historyHours: [ {
+            interval: { startTime: new Date( Date.now() - 3600000 ).toISOString() },
+            temperature: { degrees: 28 },
+            precipitation: { probability: { percent: 10 } },
+            weatherCondition: { description: { text: 'Clear' } },
+          } ],
+        } );
+      }
+      if ( url.includes( 'weather.googleapis.com/v1/publicAlerts' ) ) return response( { weatherAlerts: [] } );
+      if ( url.includes( 'airquality.googleapis.com/v1/forecast' ) ) {
+        return response( {
+          hourlyForecasts: [ 0, 1 ].map( offset => ( {
+            dateTime: new Date( base + offset * 3600000 ).toISOString(),
+            indexes: [ { code: 'ind_cpcb', aqi: 110 + offset * 4, category: 'Moderate' } ],
+            pollutants: [ { code: 'pm25', concentration: { value: 50 + offset } } ],
+          } ) ),
+        } );
+      }
+      if ( url.includes( 'airquality.googleapis.com/v1/history' ) ) {
+        return response( {
+          hoursInfo: [ {
+            dateTime: new Date( Date.now() - 3600000 ).toISOString(),
+            indexes: [ { code: 'ind_cpcb', aqi: 125, category: 'Moderate' } ],
+            pollutants: [ { code: 'pm25', concentration: { value: 60 } } ],
+          } ],
+        } );
+      }
+      if ( url.includes( 'pollen.googleapis.com' ) ) return response( { dailyInfo: [] } );
+      return response( {}, false );
+    } );
+    vi.stubGlobal( 'fetch', fetchSpy );
+    const VayuLokLive = await loadComponent();
+    render( <VayuLokLive /> );
+
+    expect( await screen.findByRole( 'heading', { name: 'Next 24 hours' } ) ).toBeInTheDocument();
+    expect( await screen.findByText( '10-day outlook' ) ).toBeInTheDocument();
+    expect( await screen.findByText( 'Past 24 hours' ) ).toBeInTheDocument();
+    expect( await screen.findByRole( 'heading', { name: 'Air intelligence' } ) ).toBeInTheDocument();
+    expect( await screen.findByText( '96-hour AQ forecast' ) ).toBeInTheDocument();
+    expect( screen.getByText( 'Best outside' ) ).toBeInTheDocument();
+  } );
+
+  it( 'keeps Weather visible when the Air current endpoint fails', async () => {
+    const fetchSpy = vi.fn( ( input: RequestInfo | URL ) => {
+      const url = String( input );
+      if ( url.includes( 'weather.googleapis.com/v1/currentConditions' ) ) {
+        return response( {
+          currentTime: new Date().toISOString(),
+          temperature: { degrees: 31 },
+          feelsLikeTemperature: { degrees: 34 },
+          weatherCondition: { description: { text: 'Sunny' } },
+        } );
+      }
+      return response( {}, false );
+    } );
+    vi.stubGlobal( 'fetch', fetchSpy );
+    const VayuLokLive = await loadComponent();
+    render( <VayuLokLive /> );
+
+    expect( await screen.findByText( '31°' ) ).toBeInTheDocument();
+    expect( screen.getByText( 'Sunny' ) ).toBeInTheDocument();
+    expect( screen.queryByText( 'Current conditions are temporarily unavailable.' ) ).toBeNull();
+  } );
+} );
+
 describe( 'VayuLokLive - failure and cost controls', () => {
   beforeEach( () => {
     vi.stubEnv( 'NEXT_PUBLIC_GOOGLE_MAPS_KEY', DUMMY_KEY );
