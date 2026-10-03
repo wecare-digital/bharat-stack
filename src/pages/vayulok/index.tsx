@@ -141,8 +141,8 @@ const VayuLokPage: React.FC = () => {
           </div>
 
           <h1 className="vl-head">
-            <span className="vl-head-line">Bharat</span>
-            <span className="vl-head-line vl-head-line-two">
+            <span className="vl-head-line vl-head-line-one">
+              <span>Bharat</span>{ ' ' }
               <span
                 className="vl-mark"
                 style={ { background: cycleWords[ cycleIndex ].tint } }
@@ -156,8 +156,6 @@ const VayuLokPage: React.FC = () => {
                   className="vl-cycle"
                   style={ cycleW ? { width: `${cycleW}px` } : undefined }
                 >
-                  {/* The rotation is visual only, so screen readers get the full list
-                      once and every animated copy is hidden from them. */}
                   <span className="vl-sr-only">{ cycleWords.map( c => c.word ).join( ', ' ) }</span>
                   { cycleWords.map( ( c, i ) => (
                     <span
@@ -169,7 +167,9 @@ const VayuLokPage: React.FC = () => {
                     >{ c.word }</span>
                   ) ) }
                 </span>
-              </span>{ ' ' }
+              </span>
+            </span>
+            <span className="vl-head-line vl-head-line-two">
               <span className="vl-head-tail">Intelligence</span>
             </span>
           </h1>
@@ -219,7 +219,8 @@ const VayuLokPage: React.FC = () => {
              is what caused the spread. index.tsx fixed this; these three copies had not. */
           letter-spacing:-0.04em;color:rgba(0,0,0,.95);margin:0;max-width:900px}
         .vl-head-line{display:block}
-        .vl-head-line-two{display:flex;align-items:baseline;gap:.14em;margin-top:.08em;white-space:nowrap;width:max-content;max-width:100%}
+        .vl-head-line-one{display:flex;align-items:baseline;gap:.14em;white-space:nowrap;width:max-content;max-width:100%}
+        .vl-head-line-two{display:block;margin-top:.08em}
         .vl-head-tail{display:inline-block;white-space:nowrap}
 
         /* Rotating pill. Same geometry, easing and timings as .hero-mark on the
@@ -302,13 +303,12 @@ const VayuLokPage: React.FC = () => {
           .vl-layout{padding:40px 16px 56px}
         }
 
-        /* The hero is intentionally two lines at every width: the product name on the
-           first line, then the rotating subject + "Intelligence" on the second. Keeping
-           this composition fixed prevents the headline from changing height as the rotating
-           word changes and mirrors the home page's deliberate block-line hero treatment. */
+        /* The hero is intentionally two lines at every width: Bharat + the rotating
+           subject pill stay together on line one, while Intelligence owns line two.
+           This composition is fixed so the rotating word never changes hero height. */
         @media(max-width:359px){
           .vl-head{font-size:clamp(31px,9vw,36px)}
-          .vl-head-line-two{gap:.1em;transform-origin:left center}
+          .vl-head-line-one{gap:.1em;transform-origin:left center}
           .vl-mark{padding-inline:.18em .24em}
         }
 
