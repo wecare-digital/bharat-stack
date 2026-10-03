@@ -258,39 +258,51 @@ def test_the_environment_holds_secret_names_not_values(provisioner):
     assert env["ORDERS_TABLE"] == "stack-wecare-digital-OrderTable"
 
 
-def test_the_role_cannot_delete_a_payment_attempt(provisioner):
-    """A failed attempt is the evidence that no charge became an order. Deleting one destroys
-    the only record that the amount was refused.
+def test_the_role_cannot_delete_checkout_evidence(provisioner):
+    """Payment attempts, commerce-key reservations and internal orders are evidence.
 
-    STRENGTHENED, not weakened. This used to assert `dynamodb:DeleteItem` appeared in no statement
-    at all, which was the right assertion while the role named two tables and is the wrong one now
-    that it also names the coupon and gift-card stores: a redemption DELETES the hold row that
-    reserved the code, and a reservation that outlives its order locks the code out of every later
-    cart. A blanket ban would have had to be deleted to let that grant land - and deleting it is
-    exactly how the payment-attempt protection would have been lost silently.
-
-    So the assertion moves from "no statement grants DeleteItem" to "no statement granting
-    DeleteItem names either evidence table", which is the property that was always meant and is
-    narrower than the old one: it survives any number of future tables being added, and it fails
-    the moment one of these two is folded into a statement that carries DeleteItem.
+    None may be deleted by checkout. The Wix-native coupon/gift-card path has no custom hold table
+    in this role, so there is no legitimate DeleteItem grant here at all.
     """
     statements = _policy(provisioner)["Statement"]
     evidence = {
         "arn:aws:dynamodb:us-east-1:775261844268:table/"
         "stack-wecare-digital-PaymentAttemptsTable",
         "arn:aws:dynamodb:us-east-1:775261844268:table/stack-wecare-digital-WixOrderIds",
+        "arn:aws:dynamodb:us-east-1:775261844268:table/stack-wecare-digital-OrderTable",
     }
     for statement in statements:
-        if "dynamodb:DeleteItem" not in statement.get("Action", []):
-            continue
-        named = evidence & set(statement.get("Resource", []))
-        assert not named, (
-            f"statement {statement.get('Sid')!r} grants DeleteItem on {sorted(named)}: a failed "
-            f"attempt is the evidence that no charge became an order, and a Wix order-id "
-            f"reservation is not ours to delete")
+        assert "dynamodb:DeleteItem" not in statement.get("Action", []), (
+            f"statement {statement.get('Sid')!r} grants DeleteItem on checkout evidence")
+        assert not (evidence & set(statement.get("Resource", []))) or             set(statement.get("Action", [])) >= {
+                "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"}
 
     actions = {a for s in statements for a in s["Action"]}
     assert actions >= {"dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"}
+
+
+def test_existing_role_is_reconciled_instead_of_short_circuited(provisioner):
+    """The live failure mode: an old role exists, but its inline policy is behind the code."""
+    import ast
+    source = SCRIPT.read_text(encoding="utf-8")
+    body = source.split("def ensure_role")[1].split("\ndef ")[0]
+    tree = ast.parse("def ensure_role" + body)
+
+    put_calls = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "put_role_policy"
+    ]
+    assert put_calls, "an existing checkout role is never reconciled"
+
+    early_exists_returns = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Return)
+        and isinstance(n.value, ast.Constant)
+        and n.value.value == "exists"
+    ]
+    assert not early_exists_returns, "ensure_role still returns before repairing inline-policy drift"
 
 
 def test_the_role_names_only_the_checkout_tables_and_contact_index(provisioner):
