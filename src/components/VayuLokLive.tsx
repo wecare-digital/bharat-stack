@@ -1353,7 +1353,7 @@ const VayuLokLive: React.FC = () => {
                 >
                   { results.map( ( r, i ) => (
                     <li
-                      key={ `${r.name}-${r.lat}-${r.lng}` }
+                      key={ `${r.name}-${r.addr}-${i}` }
                       className="vl-live-search-option"
                       role="option"
                       aria-selected={ i === active }
@@ -1371,7 +1371,6 @@ const VayuLokLive: React.FC = () => {
                     Place search is temporarily unavailable. <button type="button" onClick={ () => { if ( query.trim() ) void runSearch( query ); } }>Retry</button>
                   </p>
                 ) }
-              </div>                </ul>
               </div>
             </div>
           ) }
@@ -1679,8 +1678,6 @@ const VayuLokLive: React.FC = () => {
             { solarRequested && !solarLoading && !solar && <p className="vl-live-small">Solar building insights are not available for this location.</p> }
             { solar && ( Number.isFinite( solar.maxPanels ) || Number.isFinite( solar.roofAreaM2 ) || Number.isFinite( solar.yearlyKwh ) || Number.isFinite( solar.sunshineHrs ) ) && (
               <>
-
-              <h3 className="vl-live-h2" id="vl-live-solar-title">Solar &ndash; Building Insights</h3>
               <p className="vl-live-small vl-live-mb16">Rooftop solar potential for this address, from the Solar API&rsquo;s building insights.</p>
               { Number.isFinite( solar.maxPanels ) && (
                 <div className="vl-live-prow"><p className="vl-live-label">Max panels</p><span className="vl-live-track"><span className="vl-live-bar vl-live-bar-mod" style={ { width: '62%' } } /></span><span className="vl-live-metric-md">{ solar.maxPanels } panels</span><span className="vl-live-prow-cat">Rooftop</span></div>
