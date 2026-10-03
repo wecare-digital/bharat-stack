@@ -572,7 +572,7 @@ const VayuLokLive: React.FC = () => {
         } | null;
         gc?.geocode?.( { location: { lat, lng }, region: 'in' }, async ( rows, status ) => {
           if ( status !== 'OK' || !Array.isArray( rows ) || !rows.length ) return;
-          const first = rows[ 0 ] as { formatted_address?: string };
+          const first = rows[ 0 ] as { formatted_address?: string; place_id?: string };
           const next: PlaceState = {
             name: first.formatted_address?.split( ',' )[ 0 ] || 'Selected location',
             addr: first.formatted_address || '',
@@ -581,6 +581,41 @@ const VayuLokLive: React.FC = () => {
             photos: [],
           };
           setMapCandidate( next );
+
+          // If reverse geocoding produced a Place ID, enrich the preview with Google
+          // Places photos. Any author attribution supplied by Google is preserved and
+          // rendered with the photo below.
+          if ( first.place_id ) {
+            const lib = placesLibRef.current as {
+              Place?: new ( opts: { id: string } ) => {
+                photos?: {
+                  getURI?: ( opts: { maxWidth?: number; maxHeight?: number } ) => string;
+                  authorAttributions?: { displayName?: string; uri?: string }[];
+                }[];
+                fetchFields?: ( req: { fields: string[] } ) => Promise<void>;
+              };
+            } | null;
+            const PlaceCtor = lib?.Place;
+            if ( PlaceCtor ) {
+              try {
+                const googlePlace = new PlaceCtor( { id: first.place_id } );
+                await googlePlace.fetchFields?.( { fields: [ 'photos' ] } );
+                const photos: PlacePhoto[] = ( Array.isArray( googlePlace.photos ) ? googlePlace.photos : [] )
+                  .slice( 0, 8 )
+                  .map( photo => ( {
+                    url: photo.getURI?.( { maxWidth: 900, maxHeight: 600 } ) || '',
+                    attributions: ( Array.isArray( photo.authorAttributions ) ? photo.authorAttributions : [] )
+                      .map( a => ( { name: String( a.displayName || 'Photo contributor' ), uri: a.uri } ) ),
+                  } ) )
+                  .filter( photo => Boolean( photo.url ) );
+                if ( photos.length ) {
+                  setMapCandidate( current => current && current.lat === lat && current.lng === lng
+                    ? { ...current, photos }
+                    : current );
+                }
+              } catch { /* photo enrichment is optional */ }
+            }
+          }
           setMapCandidateWeather( null );
           setMapCandidateAir( null );
 
@@ -914,16 +949,23 @@ const VayuLokLive: React.FC = () => {
     };
 
     const loadHourly = async () => {
-      const url = 'https://weather.googleapis.com/v1/forecast/hours:lookup?key=' + encodeURIComponent( MAPS_KEY )
-        + '&location.latitude=' + lat + '&location.longitude=' + lng
-        + '&hours=24&pageSize=24&unitsSystem=METRIC&languageCode=en';
-      const data = await getJson( url );
-      if ( !data || ac.signal.aborted ) return;
-      const rows = ( Array.isArray( data.forecastHours ) ? data.forecastHours : [] )
-        .map( ( row: Record<string, any> ) => weatherHourFromApi( row ) )
-        .filter( Boolean ) as WeatherHour[];
-      forecastStore.hourly = rows;
-      setWeatherHourly( rows );
+      const rows: WeatherHour[] = [];
+      let pageToken = '';
+      for ( let page = 0; page < 2 && !ac.signal.aborted; page++ ) {
+        let url = 'https://weather.googleapis.com/v1/forecast/hours:lookup?key=' + encodeURIComponent( MAPS_KEY )
+          + '&location.latitude=' + lat + '&location.longitude=' + lng
+          + '&hours=48&pageSize=24&unitsSystem=METRIC&languageCode=en';
+        if ( pageToken ) url += '&pageToken=' + encodeURIComponent( pageToken );
+        const data = await getJson( url );
+        if ( !data || ac.signal.aborted ) break;
+        rows.push( ...( Array.isArray( data.forecastHours ) ? data.forecastHours : [] )
+          .map( ( row: Record<string, any> ) => weatherHourFromApi( row ) )
+          .filter( Boolean ) as WeatherHour[] );
+        pageToken = typeof data.nextPageToken === 'string' ? data.nextPageToken : '';
+        if ( !pageToken ) break;
+      }
+      forecastStore.hourly = rows.slice( 0, 48 );
+      setWeatherHourly( rows.slice( 0, 48 ) );
     };
 
     const loadWeatherHistory = async () => {
@@ -1680,7 +1722,23 @@ const VayuLokLive: React.FC = () => {
                     <div><p className="vl-live-label">Sunrise</p><strong>{ weatherDaily[ 0 ].sunrise ? new Intl.DateTimeFormat( 'en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' } ).format( new Date( weatherDaily[ 0 ].sunrise! ) ) : '—' }</strong></div>
                     <div><p className="vl-live-label">Sunset</p><strong>{ weatherDaily[ 0 ].sunset ? new Intl.DateTimeFormat( 'en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' } ).format( new Date( weatherDaily[ 0 ].sunset! ) ) : '—' }</strong></div>
                   </div>
-                  <h4 className="vl-live-minor-title">10-day outlook</h4>
+                  { weatherHourly.length > 24 && (
+                    <>
+                      <h4 className="vl-live-minor-title">48-hour weather</h4>
+                      <p className="vl-live-small vl-live-mb16">Hours 25–48 after the immediate 24-hour outlook.</p>
+                      <div className="vl-live-hour-rail" aria-label="Extended hourly weather forecast">
+                        { weatherHourly.slice( 24, 48 ).map( h => (
+                          <article className="vl-live-hour-card" key={ h.time }>
+                            <time>{ hourLabel( h.time ) }</time>
+                            { h.icon && <img src={ h.icon + '.svg' } alt="" loading="lazy" /> }
+                            <strong>{ Number.isFinite( h.temp ) ? h.temp + '°' : '—' }</strong>
+                            <span>{ Number.isFinite( h.rainProb ) ? h.rainProb + '% rain' : h.condition || 'Forecast' }</span>
+                          </article>
+                        ) ) }
+                      </div>
+                    </>
+                  ) }
+                  <h4 className="vl-live-minor-title">10-day outlook</h4>                  <h4 className="vl-live-minor-title">10-day outlook</h4>
                   <div className="vl-live-day-rail" aria-label="10-day weather outlook">
                     { weatherDaily.map( d => (
                       <article className="vl-live-day-card" key={ d.time }>
