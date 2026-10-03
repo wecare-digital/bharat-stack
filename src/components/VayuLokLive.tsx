@@ -408,6 +408,15 @@ const VayuLokLive: React.FC = () => {
   const geocoder = useRef<unknown>( null );
   // Cache the last fetched values per "lat,lng" so re-selecting a place bills nothing.
   const cache = useRef<Record<string, { ts: number; air: AirState | null; weather: WeatherState | null; pollen: PollenRow[] | null }>>( {} );
+  const forecastCache = useRef<Record<string, {
+    ts: number;
+    hourly: WeatherHour[];
+    daily: WeatherDay[];
+    alerts: WeatherAlertRow[];
+    airForecast: AirPoint[];
+    weatherHistory: WeatherHistoryPoint[];
+  }>>( {} );
+  const historyCache = useRef<Record<string, { ts: number; points: AirPoint[] }>>( {} );
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>( null );
 
   useEffect( () => {
@@ -868,10 +877,30 @@ const VayuLokLive: React.FC = () => {
     if ( !MAPS_KEY || typeof window === 'undefined' ) return;
     const ac = new AbortController();
     const { lat, lng } = place;
+    const forecastKey = `${lat.toFixed( 4 )},${lng.toFixed( 4 )}`;
+    const cachedForecast = forecastCache.current[ forecastKey ];
+    const FORECAST_TTL_MS = 15 * 60 * 1000;
+    if ( cachedForecast && Date.now() - cachedForecast.ts < FORECAST_TTL_MS ) {
+      setWeatherHourly( cachedForecast.hourly );
+      setWeatherDaily( cachedForecast.daily );
+      setWeatherAlerts( cachedForecast.alerts );
+      setAirForecast( cachedForecast.airForecast );
+      setWeatherHistory( cachedForecast.weatherHistory );
+      return () => ac.abort();
+    }
+
     setWeatherHourly( [] );
     setWeatherDaily( [] );
     setWeatherAlerts( [] );
     setAirForecast( [] );
+    setWeatherHistory( [] );
+    const forecastStore: {
+      hourly: WeatherHour[];
+      daily: WeatherDay[];
+      alerts: WeatherAlertRow[];
+      airForecast: AirPoint[];
+      weatherHistory: WeatherHistoryPoint[];
+    } = { hourly: [], daily: [], alerts: [], airForecast: [], weatherHistory: [] };
 
     const getJson = async ( url: string ) => {
       const res = await fetch( url, { signal: ac.signal } );
@@ -885,9 +914,11 @@ const VayuLokLive: React.FC = () => {
         + '&hours=24&pageSize=24&unitsSystem=METRIC&languageCode=en';
       const data = await getJson( url );
       if ( !data || ac.signal.aborted ) return;
-      setWeatherHourly( ( Array.isArray( data.forecastHours ) ? data.forecastHours : [] )
+      const rows = ( Array.isArray( data.forecastHours ) ? data.forecastHours : [] )
         .map( ( row: Record<string, any> ) => weatherHourFromApi( row ) )
-        .filter( Boolean ) as WeatherHour[] );
+        .filter( Boolean ) as WeatherHour[];
+      forecastStore.hourly = rows;
+      setWeatherHourly( rows );
     };
 
     const loadWeatherHistory = async () => {
@@ -907,6 +938,7 @@ const VayuLokLive: React.FC = () => {
           ...( typeof row?.weatherCondition?.description?.text === 'string' ? { condition: row.weatherCondition.description.text } : {} ),
         };
       } ).filter( row => Number.isFinite( row.time ) );
+      forecastStore.weatherHistory = rows;
       setWeatherHistory( rows );
     };
 
@@ -936,6 +968,7 @@ const VayuLokLive: React.FC = () => {
           ...( typeof row?.sunEvents?.sunsetTime === 'string' ? { sunset: row.sunEvents.sunsetTime } : {} ),
         };
       } );
+      forecastStore.daily = rows;
       setWeatherDaily( rows );
     };
 
@@ -953,6 +986,7 @@ const VayuLokLive: React.FC = () => {
         urgency: typeof a?.urgency === 'string' ? a.urgency.replaceAll( '_', ' ' ) : undefined,
         expires: typeof a?.expirationTime === 'string' ? a.expirationTime : undefined,
       } ) );
+      forecastStore.alerts = rows;
       setWeatherAlerts( rows );
     };
 
@@ -980,12 +1014,17 @@ const VayuLokLive: React.FC = () => {
       );
       if ( !res.ok || ac.signal.aborted ) return;
       const data = await res.json();
-      setAirForecast( ( Array.isArray( data.hourlyForecasts ) ? data.hourlyForecasts : [] )
+      const rows = ( Array.isArray( data.hourlyForecasts ) ? data.hourlyForecasts : [] )
         .map( ( row: Record<string, any> ) => airPointFromApi( row ) )
-        .filter( Boolean ) as AirPoint[] );
+        .filter( Boolean ) as AirPoint[];
+      forecastStore.airForecast = rows;
+      setAirForecast( rows );
     };
 
-    void Promise.allSettled( [ loadHourly(), loadDaily(), loadAlerts(), loadAirForecast(), loadWeatherHistory() ] );
+    void Promise.allSettled( [ loadHourly(), loadDaily(), loadAlerts(), loadAirForecast(), loadWeatherHistory() ] ).then( () => {
+      if ( ac.signal.aborted ) return;
+      forecastCache.current[ forecastKey ] = { ts: Date.now(), ...forecastStore };
+    } );
     return () => ac.abort();
   }, [ place ] );
 
@@ -993,6 +1032,14 @@ const VayuLokLive: React.FC = () => {
     if ( !MAPS_KEY || typeof window === 'undefined' ) return;
     const ac = new AbortController();
     const { lat, lng } = place;
+    const historyKey = `${lat.toFixed( 4 )},${lng.toFixed( 4 )}:${historyRange}`;
+    const cachedHistory = historyCache.current[ historyKey ];
+    const HISTORY_TTL_MS = historyRange === 24 ? 15 * 60 * 1000 : 60 * 60 * 1000;
+    if ( cachedHistory && Date.now() - cachedHistory.ts < HISTORY_TTL_MS ) {
+      setAirHistory( cachedHistory.points );
+      setHistoryLoading( false );
+      return () => ac.abort();
+    }
     setHistoryLoading( true );
     setAirHistory( [] );
 
@@ -1031,6 +1078,7 @@ const VayuLokLive: React.FC = () => {
       } while ( pageToken && page < 8 && !ac.signal.aborted );
       if ( !ac.signal.aborted ) {
         points.sort( ( a, b ) => a.time - b.time );
+        historyCache.current[ historyKey ] = { ts: Date.now(), points };
         setAirHistory( points );
         setHistoryLoading( false );
       }
