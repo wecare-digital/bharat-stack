@@ -2333,7 +2333,7 @@ const VayuLokLive: React.FC = () => {
         .vl-live [hidden]{display:none !important}
 
         .vl-live-wrap{width:100%;max-width:1300px;margin:0 auto;padding:0 24px}
-        .vl-live-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;font-size:40px;font-weight:700;line-height:1.08}
+        .vl-live-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;font-size:40px;font-weight:700;line-height:1.08;letter-spacing:-1.2px}
         /* In VayuLok, Contribute is a full section, so its h2 uses the Home section rung rather
            than BlogContribution's quiet eyebrow treatment. Scoped here so blog-post embeds keep
            their intentionally quieter hierarchy. */
