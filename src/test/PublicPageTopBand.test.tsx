@@ -456,9 +456,11 @@ describe( 'the country code is a segment of the one divided field, on owner inst
     // a full international number into a box that already has a code beside it.
     expect( field.getAttribute( 'autocomplete' ) ).toBe( 'tel-national' );
 
-    // The code segment is back, and it is a real <select> with a visible default - not a guess.
-    const code = screen.getByLabelText( 'Calling code' ) as HTMLSelectElement;
-    expect( code.tagName ).toBe( 'SELECT' );
+    // The code segment is a dedicated text/search input with a visible default - not a guess.
+    // PhoneField deliberately avoids a native country dropdown so the divided field stays compact
+    // and consistent in browsers/webviews while still keeping the calling code explicit.
+    const code = screen.getByLabelText( 'Calling code' ) as HTMLInputElement;
+    expect( code.tagName ).toBe( 'INPUT' );
     expect( code.value ).toBe( '+91' );
 
     /*
