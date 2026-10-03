@@ -292,8 +292,28 @@ const VayuLokLive: React.FC = () => {
         placesSvc.current = new maps.places.PlacesService( host );
       }
 
-      // First setState via requestAnimationFrame to avoid react-hooks/set-state-in-effect.
-      requestAnimationFrame( () => setMapReady( true ) );
+      // A constructed Map is not the same thing as a painted map. With an invalid or
+      // refused browser key Google can still create the map object while its tiles never
+      // arrive, which previously hid the fallback and exposed a blank panel. Only reveal
+      // the Maps JS canvas after the first visible tile batch has loaded.
+      const mapWithEvents = map as {
+        addListener?: ( eventName: string, handler: () => void ) => { remove?: () => void };
+      };
+      if ( typeof mapWithEvents.addListener === 'function' ) {
+        let painted = false;
+        mapWithEvents.addListener( 'tilesloaded', () => {
+          if ( painted || cancelled ) return;
+          painted = true;
+          requestAnimationFrame( () => {
+            if ( !cancelled ) setMapReady( true );
+          } );
+        } );
+      } else {
+        // Legacy/test doubles without Maps event support: preserve the old behavior.
+        requestAnimationFrame( () => {
+          if ( !cancelled ) setMapReady( true );
+        } );
+      }
     };
 
     // init is async (it awaits importLibrary); wrap so no unhandled promise floats.
@@ -993,8 +1013,8 @@ const VayuLokLive: React.FC = () => {
         .vl-live-map-sticky{display:flex;flex-direction:column;gap:10px}
         .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid var(--hair);border-radius:var(--r-panel);background:var(--ground)}
         .vl-live-map-fallback{position:absolute;inset:0;z-index:0;width:100%;height:100%;border:0;background:var(--ground)}
-        .vl-live-map-canvas{position:absolute;inset:0;z-index:1;pointer-events:none}
-        .vl-live-map-canvas.is-ready{pointer-events:auto}
+        .vl-live-map-canvas{position:absolute;inset:0;z-index:1;opacity:0;pointer-events:none}
+        .vl-live-map-canvas.is-ready{opacity:1;pointer-events:auto}
 
         @media(min-width:1024px){
           /* Two equal columns with a fixed gap so they cannot overlap. The earlier
