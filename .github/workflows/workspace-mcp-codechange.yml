@@ -31,7 +31,7 @@ jobs:
         run: |
           [[ "$PATCH_KEY" =~ ^workspace-mcp/patches/[a-f0-9]{64}/[a-f0-9]{64}\.patch$ ]] || exit 1
           aws s3 cp "s3://cdk-hnb659fds-assets-775261844268-us-east-1/$PATCH_KEY" supplied.patch --no-progress
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with: {name: supplied-patch, path: supplied.patch, retention-days: 7}
   test:
     needs: fetch
@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with: {ref: stack, persist-credentials: false}
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with: {name: supplied-patch}
       - uses: actions/setup-python@v7
         with: {python-version: '3.12'}
@@ -68,7 +68,7 @@ jobs:
       - uses: actions/checkout@v7
         # Only this trusted runner holds write auth; patched components are not executed.
         with: {ref: stack, persist-credentials: true}
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with: {name: supplied-patch}
       - uses: actions/setup-python@v7
         with: {python-version: '3.12'}
