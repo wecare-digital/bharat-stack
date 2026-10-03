@@ -63,7 +63,9 @@ DISPATCHED = tuple(sorted(set(re.findall(
     HANDLER.read_text()[HANDLER.read_text().index("def _execute_internal_tool"):]
     .split("\ndef _tool_search_contacts")[0]))))
 
-SENDERS = ("send_whatsapp", "send_whatsapp_buttons", "send_whatsapp_list",
+# `send_whatsapp_list` left this tuple on 2026-10-02: the tool, its dispatch
+# branch and its governance entry were all deleted with the WhatsApp menus.
+SENDERS = ("send_whatsapp", "send_whatsapp_buttons",
            "send_whatsapp_flow", "send_whatsapp_pay", "send_template",
            "send_sms", "send_email", "make_voice_call", "schedule_message")
 DESTRUCTIVE = ("delete_contact", "delete_messages", "delete_media_files",
@@ -77,7 +79,7 @@ WRITES = ("create_contact", "update_contact", "add_contact_email", "create_invoi
 def test_the_dispatch_table_was_actually_found():
     """Guards the extraction above. If the handler is restructured this list goes
     empty and every assertion below passes vacuously."""
-    assert len(DISPATCHED) == 30, DISPATCHED
+    assert len(DISPATCHED) == 29, DISPATCHED
 
 
 @pytest.mark.parametrize("name", DISPATCHED)

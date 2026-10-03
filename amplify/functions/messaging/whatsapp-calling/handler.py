@@ -1443,6 +1443,12 @@ CDN_DOMAIN = os.environ.get('CDN_DOMAIN', media_paths.CDN_DOMAIN)
 DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://wecare.digital/get/o/stream/media/ivr/incoming_welcome.ogg')
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
+# The IVR audio greeting text. Was read from the deleted IVR button menu's
+# 'greeting' key; it is a plain constant now because there is no menu to
+# configure. Markdown-free on purpose: the caller below strips formatting for
+# Polly anyway, and there are no buttons for it to introduce.
+IVR_GREETING_TEXT = "Thanks for calling WECARE.DIGITAL. How can we help you today?"
+
 s3 = boto3.client('s3', region_name=REGION)
 polly_client = boto3.client('polly', region_name=REGION)
 
@@ -1712,15 +1718,13 @@ def _mark_sms_sent(phone_digits: str) -> None:
 def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, sdp_offer: str) -> None:
     """
     IVR mode: Accept the call with SDP answer to establish WebRTC media,
-    send IVR audio greeting as WhatsApp audio message, send interactive
-    IVR menu, then terminate the call.
+    send IVR audio greeting as WhatsApp audio message, then terminate the call.
 
     WhatsApp Calling API flow (per Meta docs):
       1. pre_accept (with SDP answer) — establishes WebRTC connection, stops ringing
       2. accept (with SDP answer) — starts media flow so caller hears audio
       3. Send IVR audio greeting via WhatsApp audio message
-      4. Send interactive IVR menu buttons via WhatsApp message
-      5. Terminate call after delay — caller continues via chat
+      4. Terminate call after delay — caller continues via chat
 
     Note: WhatsApp Calling API uses WebRTC for media. To play IVR audio
     IN the call (not as a chat message), you need either:
@@ -1770,7 +1774,7 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
     if pre_result.get('error'):
         logger.error(f"IVR pre_accept failed: {json.dumps(pre_result)}")
         _update_call_status(call_id, 'ivr_failed', {'failStep': 'pre_accept', 'error': pre_result})
-        # Still send IVR menu even if pre_accept fails — caller gets chat buttons
+        # Carry on to accept anyway — the audio greeting is still worth attempting.
     else:
         _update_call_status(call_id, 'ivr_pre_accepted')
 
@@ -1807,7 +1811,7 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
         logger.info(f"IVR audio sent to {mask_phone(from_number or '')}: {audio_url}")
 
     # ── Step 4: Keep call connected briefly, then terminate ──
-    # 3s is enough for caller to hear connection tone + see IVR menu in chat
+    # 3s is enough for caller to hear the connection tone and the audio greeting
     # Reduced from 5s to minimize Lambda execution time
     time.sleep(3)
     try:
@@ -1906,118 +1910,6 @@ def _generate_sdp_answer(sdp_offer: str) -> Optional[str]:
         return None
 
 
-# ─── IVR Menu System ────────────────────────────────────────────────
-# Configurable IVR menus per phone number (tenant).
-# Each menu has a greeting text and interactive buttons.
-# Button IDs are prefixed with 'ivr_' so the inbound handler can route them.
-
-# Shared IVR menu — same config for all phones
-_SHARED_IVR_MENU = {
-    'greeting': (
-        "📞 *WECARE.DIGITAL* — Thanks for calling!\n\n"
-        "How can I help you today?"
-    ),
-    'buttons': [
-        {'id': 'ivr_callback', 'title': '📞 Request Callback'},
-        {'id': 'ivr_support', 'title': '💬 Chat Support'},
-        {'id': 'ivr_ai', 'title': '🤖 AI Assistant'},
-    ],
-    'footer': 'You can also send a voice note for instant AI help',
-}
-
-IVR_MENUS = {
-    PHONE1_META_ID: _SHARED_IVR_MENU,
-    PHONE2_META_ID: _SHARED_IVR_MENU,
-}
-
-# Default IVR menu for unknown phone numbers
-IVR_DEFAULT_MENU = {
-    'greeting': (
-        "📞 Thanks for calling!\n\n"
-        "Please select an option:"
-    ),
-    'buttons': [
-        {'id': 'ivr_support', 'title': '💬 Support'},
-        {'id': 'ivr_ai', 'title': '🤖 AI Assistant'},
-        {'id': 'ivr_callback', 'title': '📞 Callback'},
-    ],
-    'footer': 'Send a voice note for instant AI help',
-}
-
-# IVR response handlers — what to send when user taps each button
-IVR_RESPONSES = {
-    'ivr_sales': {
-        'text': (
-            "🛒 *Sales & Orders*\n\n"
-            "How can we help?\n\n"
-            "• Send your *order number* to check status\n"
-            "• Send a *product name* to browse our catalog\n"
-            "• Type *\"new order\"* to place an order\n\n"
-            "A team member will also be notified to assist you."
-        ),
-        'notify_team': True,
-        'department': 'sales',
-    },
-    'ivr_support': {
-        'text': (
-            "🔧 *Support*\n\n"
-            "Please describe your issue and we'll get back to you shortly.\n\n"
-            "You can:\n"
-            "• Type your question\n"
-            "• Send a screenshot\n"
-            "• Send a voice note\n\n"
-            "Our AI assistant will try to help immediately, "
-            "and a human agent will follow up if needed."
-        ),
-        'notify_team': True,
-        'department': 'support',
-    },
-    'ivr_ai': {
-        'text': (
-            "🤖 *AI Assistant*\n\n"
-            "I'm ready to help! You can:\n\n"
-            "• Type your question\n"
-            "• Send a *voice note* — I'll listen and reply with voice\n"
-            "• Send a *photo* — I can analyze images too\n\n"
-            "Ask me anything about our products, services, or orders."
-        ),
-        'notify_team': False,
-        'department': 'ai',
-    },
-    'ivr_callback': {
-        'text': (
-            "📞 *Callback Request*\n\n"
-            "Got it! We'll call you back as soon as possible.\n\n"
-            "If you'd like to specify a preferred time, just type it "
-            "(e.g. \"Call me at 3 PM\" or \"Tomorrow morning\")."
-        ),
-        'notify_team': True,
-        'department': 'callback',
-    },
-}
-
-
-def _get_ivr_menu(phone_number_id: str) -> Dict:
-    """Get the IVR menu config for a phone number. Falls back to default."""
-    # Check SystemConfig for custom IVR menu (allows runtime updates)
-    try:
-        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        result = table.get_item(Key={'id': f'ivr_menu_{phone_number_id}'})
-        item = result.get('Item')
-        if item and item.get('configValue'):
-            custom = json.loads(str(item['configValue']))
-            if custom.get('greeting') and custom.get('buttons'):
-                return custom
-    except Exception as e:
-        # `type(e).__name__`, not `{e}`. This `except` covers a SystemConfig
-        # get_item and a `json.loads` of whatever that row holds, so the text can
-        # be a JSONDecodeError quoting the stored document back at us. The phone
-        # number ID is a Meta resource id and stays as the correlation handle.
-        logger.debug(f'IVR menu config lookup failed for {phone_number_id}: '
-                     f'{type(e).__name__}')
-    return IVR_MENUS.get(phone_number_id, IVR_DEFAULT_MENU)
-
-
 def _get_aws_phone_id(meta_phone_number_id: str) -> str:
     """Map Meta phone_number_id to internal phone-number-id for routing."""
     META_TO_AWS = {
@@ -2105,9 +1997,7 @@ def _generate_ivr_tts_audio(phone_number_id: str, call_id: str) -> Optional[str]
     Returns a public S3 URL for the generated audio, or None on failure.
     """
     try:
-        # Get IVR greeting text for this phone number
-        menu = _get_ivr_menu(phone_number_id)
-        greeting_text = menu.get('greeting', 'Thanks for calling! Please check the menu below for options.')
+        greeting_text = IVR_GREETING_TEXT
         # Strip markdown formatting for TTS
         clean_text = greeting_text.replace('*', '').replace('📞', '').replace('\n\n', '. ').replace('\n', '. ').strip()
 

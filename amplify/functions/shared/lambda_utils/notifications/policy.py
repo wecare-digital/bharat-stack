@@ -45,10 +45,18 @@ PROVIDER_SINCH_RCS = "sinch-rcs"
 PROVIDER_AWS_RCS = "aws-end-user-messaging-rcs"
 
 # --- WhatsApp -----------------------------------------------------------------
-# WABA1 is the continuity sender. The brief is explicit that `wd_menu`'s approved
-# body contains trailing backticks, that an approved template must not be edited in
-# place, and that a clean `wd_call_followup_v1` is a separate provider task.
-WA_TEMPLATE_NAME = os.environ.get("NOTIF_WA_TEMPLATE_NAME", "wd_menu")
+# WABA1 is the continuity sender.
+#
+# There is NO default template name. This used to default to `wd_menu`, which Meta
+# deleted on 2026-10-02 along with every other WhatsApp menu; there is no approved
+# replacement yet, and a clean `wd_call_followup_v1` is a separate provider task.
+#
+# Empty means the WhatsApp channel is INELIGIBLE, not that a nameless template gets
+# sent - `decide_whatsapp` below refuses on an empty name, and `worker._send_whatsapp`
+# refuses again before invoking the sender. Both guards are needed: `outbound-whatsapp`
+# gates on `if is_template and template_name:`, so an empty name there would fall
+# through to a content send with empty content rather than failing.
+WA_TEMPLATE_NAME = os.environ.get("NOTIF_WA_TEMPLATE_NAME", "")
 WA_TEMPLATE_LANGUAGE = os.environ.get("NOTIF_WA_TEMPLATE_LANGUAGE", "en")
 
 #: Meta phone-number id -> (template object id, label). Keyed by the number that
@@ -157,6 +165,19 @@ def decide_whatsapp(destination: str, *, sender_phone_id: str = "") -> ChannelDe
                                       "registered notification sender")
 
     template_id, label = mapping
+
+    # Reported in preference to UNVERIFIED below: "no template is configured" is the
+    # more specific truth, and the verified check cannot be the thing that saves us
+    # if somebody sets NOTIF_WA_VERIFIED_SENDERS without setting a template name.
+    if not WA_TEMPLATE_NAME:
+        return ChannelDecision(
+            CHANNEL_WHATSAPP, eligible=False, provider=PROVIDER_META,
+            template_id=template_id, sender_label=label,
+            reason="INELIGIBLE_TEMPLATE_UNCONFIGURED: no WhatsApp notification "
+                   "template is configured (NOTIF_WA_TEMPLATE_NAME is unset). "
+                   "wd_menu was deleted at Meta on 2026-10-02 and has no "
+                   "approved replacement")
+
     if sender not in wa_verified_senders():
         # The brief: revalidate APPROVED before live use, and if the secondary
         # template is unavailable record SKIPPED or FAILED - do NOT send a duplicate

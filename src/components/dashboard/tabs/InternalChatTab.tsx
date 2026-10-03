@@ -103,7 +103,6 @@ const TOOLS_LIST: ToolRow[] = [
   { id: 'add_contact_email', name: 'Add Email', category: 'Contacts', cls: 'APPLY', refused: true },
   { id: 'send_whatsapp', name: 'Send WhatsApp', category: 'Messaging', cls: 'APPLY', refused: true },
   { id: 'send_whatsapp_buttons', name: 'Send Buttons', category: 'Messaging', cls: 'APPLY', refused: true },
-  { id: 'send_whatsapp_list', name: 'Send List', category: 'Messaging', cls: 'APPLY', refused: true },
   { id: 'send_whatsapp_pay', name: 'WhatsApp Pay', category: 'Messaging', cls: 'APPLY', refused: true },
   { id: 'send_whatsapp_flow', name: 'Send Flow', category: 'Messaging', cls: 'APPLY', refused: true },
   { id: 'make_voice_call', name: 'Voice Call', category: 'Messaging', cls: 'APPLY', refused: true },

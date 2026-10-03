@@ -299,134 +299,22 @@ DEFAULT_BOT_FLOW = {
     # handler's keyword dispatch table and three more mapped to None, so any
     # handset still holding one of these lists got silence on a tap.
     #
-    # ── UPDATED 2026-10-02: there is no menu left to point at ────────────────
+    # ── UPDATED 2026-10-02: there is no menu left anywhere ───────────────────
     # Every WhatsApp menu was deleted on the owner's instruction. The inbound
     # handler no longer defines DEFAULT_ONE_MENU, DEFAULT_MAIN_MENU, the
     # self-service / Bharat Stack submenus, the language picker, the
     # MENU_TO_KEYWORD dispatch table or _send_interactive_list, and
     # `_process_ai_automation` — the only thing that ever rendered a
     # 'showMainMenu' / 'showSubMenu' / 'showLanguagePicker' flowAction — now
-    # returns None as its first statement. So those three signals are still
-    # emitted below but NOTHING consumes them: they reach no customer.
+    # returns None as its first statement.
+    #
+    # So this file's menu surface went too: the 'menuResponses' row table, the
+    # 'send_whatsapp_list' tool and its dispatch, the show_main_menu /
+    # show_sub_menu / show_language_picker flow actions and the 'showMainMenu'
+    # flowAction emits. Nothing here renders, names or routes a menu any more.
     #
     # Do not reintroduce a menu definition here. When a replacement menu is
-    # built it belongs in the inbound handler, behind _send_menu_placeholder,
-    # and these signals need a renderer again before they mean anything.
-
-    # -- Menu Responses --
-    'menuResponses': {
-        # These two used to open sub-menus. No menu exists to open or return
-        # to, so the signal is inert (see the note above). The 'show_sub_menu'
-        # branch in _handle_bot_flow is retained for a config-supplied
-        # 'subMenus', but no default reaches it.
-        'menu_store': {
-            'text': '',
-            'action': 'show_main_menu',
-        },
-        'menu_self_service': {
-            'text': '',
-            'action': 'show_main_menu',
-        },
-        # Conversational flows
-        'menu_pay': {
-            'text': '',
-            'action': 'start_pay_flow',
-        },
-        'menu_subscribe': {
-            'text': '',
-            'action': 'start_subscribe_flow',
-        },
-        # Toggles
-        'menu_audio': {
-            'text': '',
-            'action': 'toggle_audio',
-        },
-        'menu_notifications': {
-            'text': '',
-            'action': 'toggle_notifications',
-        },
-        # Human handoff
-        'menu_human': {
-            'text': "?? Connecting you with a live agent... A team member will be with you shortly. ??",
-            'action': 'human_handoff',
-        },
-        # Back to main menu (from sub-menus)
-        'menu_back': {
-            'text': '',
-            'action': 'show_main_menu',
-        },
-        # Language picker
-        'menu_language': {
-            'text': '',
-            'action': 'show_language_picker',
-        },
-        # Self-service items
-        'menu_submit_request': {
-            'text': "\U0001f4cb *Submit a Request*\n\nSubmit a request - it\u2019s quick and easy. We\u2019ll review and keep you posted. \U0001f4e8",
-            'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/submit-request/'},
-        },
-        'menu_amend_request': {
-            'text': "?? *Amend a Request*\n\nNeed to modify a previous request? Update it anytime, subject to terms and approval. ???",
-            'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/request-amendment/'},
-        },
-        'menu_track_request': {
-            'text': "\U0001f50d *Track a Request*\n\nCheck your request status - see when it\u2019s received, reviewed, or completed. \U0001f4cb",
-            'cta': {'text': 'Start Now', 'url': 'https://wecare.digital/orders/'},
-        },
-        'menu_rx_slot': {
-            'text': "??? *RX Slot*\n\nSchedule a medical appointment for your MEd Tour package via BNB Club. ??",
-            'cta': {'text': 'Book Slot', 'url': 'https://wecare.digital/submit-request/'},
-        },
-        'menu_drop_docs': {
-            'text': "?? *Drop Docs*\n\nUpload supporting documents directly to your request. All uploads are secure. ??",
-            'cta': {'text': 'Upload Now', 'url': 'https://wecare.digital/drop-docs/'},
-        },
-        'menu_enterprise': {
-            'text': "?? *Enterprise Support*\n\nFor technical or business inquiries, our enterprise team is here. ??",
-            'cta': {'text': 'Get Support', 'url': 'https://wecare.digital/submit-request/'},
-        },
-        'menu_hours': {
-            'text': "\u23f0 *Business Hours*\n\nMon-Fri, 9 AM - 6 PM (IST). Our 24/7 self-service portal is always open. \U0001f310",
-            'cta': {'text': 'Self Service', 'url': 'https://wecare.digital/submit-request/'},
-        },
-        'menu_app': {
-            'text': "\U0001f4f1 *Download the App*\n\nManage services on the go - iOS and Android. Track, schedule, and more. \U0001f680",
-            'cta': {'text': 'GET APP', 'url': 'https://wecare.digital/get/'},
-        },
-        'menu_about': {
-            'text': "\U0001f30d *About Us*\n\nWECARE.DIGITAL creates helpful products for everyday life - with you at the heart.\n\nOur brands: BNB Club, Expo Week, Legal Champ, No-Fault, Ritual Guru, and Swdhya.",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital'},
-        },
-        # Store brand responses
-        'store_bnb_club': {
-            'text': "\U0001f30d *BNB Club - Travel*\n\nYour travel club for visas, corporate travel, FIT packages, and itinerary planning. \u2708\ufe0f",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/elsewhere/'},
-        },
-        'store_no_fault': {
-            'text': "\u2696\ufe0f *No Fault - ODR*\n\nFaster, lower-cost online dispute resolution. Fair, transparent, efficient. \U0001f4bc",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/clear-closure/'},
-        },
-        'store_expo_week': {
-            'text': "\U0001f3aa *Expo Week - Digital Events*\n\nVirtual travel fairs, exclusive offers, and sustainable discovery. \U0001f30d",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/expo-week/'},
-        },
-        'store_ritual_guru': {
-            'text': "\U0001f54c *Ritual Guru - Culture*\n\nTemple-grade puja kits with step-by-step guides. Global delivery. \U0001f4e6",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/ritual-guru/'},
-        },
-        'store_legal_champ': {
-            'text': "\U0001f4dc *Legal Champ - Documentation*\n\nBusiness docs, registrations, and compliance made simple. \u2705",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/dastavez/'},
-        },
-        'store_swdhya': {
-            'text': "\U0001f9d8 *Swdhya - Samvad*\n\nSelf-inquiry conversations for clarity and action. \U0001f4ac",
-            'cta': {'text': 'Explore', 'url': 'https://wecare.digital/anew/'},
-        },
-        'store_gift_card': {
-            'text': "?? *Gift Card*\n\nGive the gift of choice! Redeemable across all WECARE.DIGITAL brands. ??",
-            'cta': {'text': 'Get Gift Card', 'url': 'https://wecare.digital/perks/'},
-        },
-    },
+    # built it belongs in the inbound handler, behind _send_menu_placeholder.
 
     # -- Conversational flow prompts --
     'flows': {
@@ -964,34 +852,6 @@ RULES:
                                 'footerText': {'type': 'string', 'description': 'Optional footer text'}
                             },
                             'required': ['contactId', 'bodyText', 'buttons']
-                        }
-                    }
-                }
-            },
-            {
-                'toolSpec': {
-                    'name': 'send_whatsapp_list',
-                    'description': 'Send WhatsApp message with interactive list menu.',
-                    'inputSchema': {
-                        'json': {
-                            'type': 'object',
-                            'properties': {
-                                'contactId': {'type': 'string', 'description': 'Contact ID'},
-                                'bodyText': {'type': 'string', 'description': 'Main message text'},
-                                'buttonText': {'type': 'string', 'description': 'Button text to open list'},
-                                'sections': {
-                                    'type': 'array',
-                                    'description': 'List sections with rows',
-                                    'items': {
-                                        'type': 'object',
-                                        'properties': {
-                                            'title': {'type': 'string'},
-                                            'rows': {'type': 'array'}
-                                        }
-                                    }
-                                }
-                            },
-                            'required': ['contactId', 'bodyText', 'buttonText', 'sections']
                         }
                     }
                 }
@@ -2043,8 +1903,6 @@ def _execute_internal_tool(tool_name: str, tool_input: Dict, request_id: str) ->
             return _tool_send_whatsapp(tool_input, request_id)
         elif tool_name == 'send_whatsapp_buttons':
             return _tool_send_whatsapp_buttons(tool_input, request_id)
-        elif tool_name == 'send_whatsapp_list':
-            return _tool_send_whatsapp_list(tool_input, request_id)
         elif tool_name == 'send_whatsapp_pay':
             return _tool_send_whatsapp_pay(tool_input, request_id)
         
@@ -2361,38 +2219,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
         # -- Check if this is a language selection reply --
         lang_selection = _detect_language_selection(message_content, message_type)
         if lang_selection:
-            # Region selection (Step 1) ? return languages for that region
-            if isinstance(lang_selection, dict) and 'region' in lang_selection:
-                region_id = lang_selection['region']
-                region_languages = lang_selection['languages']
-                lp_config = _get_language_picker_config_from_db()
-                # Use DB config if available, fallback to detected
-                db_region_langs = lp_config['languagesByRegion'].get(region_id)
-                if db_region_langs:
-                    region_languages = db_region_langs
-                region_title = next(
-                    (r['title'] for r in lp_config['regionPicker'] if r['id'] == region_id),
-                    'Languages'
-                )
-                logger.info(json.dumps({
-                    'event': 'language_region_selected',
-                    'region': region_id,
-                    'phoneHash': phone_hash,
-                    'requestId': request_id
-                }))
-                return {
-                    'statusCode': 200, 'headers': headers,
-                    'body': json.dumps({
-                        'suggestedResponse': f'?? Choose your language from {region_title} ??',
-                        'showLanguagePicker': True,
-                        'languagePickerStep': 'languages',
-                        'regionId': region_id,
-                        'regionTitle': region_title,
-                        'regionLanguages': region_languages,
-                    })
-                }
-
-            # Language selection (Step 2) ? save preference
+            # A typed language command ? save the preference
             lp_config = _get_language_picker_config_from_db()
             _save_language_preference(phone_hash, lang_selection)
             confirmation = lp_config['languageConfirmations'].get(lang_selection,
@@ -3258,42 +3085,22 @@ def _retrieve_kb_context(query: str, request_id: str) -> str:
 
 def _detect_language_selection(message_content: str, message_type: str) -> Optional[Any]:
     """
-    Detect if the user's message is a language or region selection.
+    Detect whether the user TYPED a language command.
+
+    The region picker and the language picker list were both deleted with every
+    other WhatsApp menu on 2026-10-02, so the three id/title branches that only
+    ever received a list-reply payload went with them. `message_type` is kept in
+    the signature because callers pass it positionally.
     Handles:
-    - Region picker reply ID (e.g. "region_popular") ? returns dict with region languages
-    - Interactive list reply ID (e.g. "lang_hindi") ? returns language name string
-    - Interactive list reply title (e.g. "????? / Hindi")
     - Text commands like "language hindi", "lang: bengali"
     Returns:
-    - str: normalized language name (for lang_ selections)
-    - dict: {'region': region_id, 'languages': [...]} (for region_ selections)
-    - None: not a language/region selection
+    - str: normalized language name
+    - None: not a language selection
     """
     if not message_content:
         return None
 
     content_lower = message_content.strip().lower()
-
-    # -- Step 1 reply: Region selection (e.g. "region_popular") --
-    if content_lower.startswith('region_'):
-        languages = LANGUAGE_BY_REGION.get(content_lower)
-        if languages:
-            return {'region': content_lower, 'languages': languages}
-
-    # -- Step 2 reply: Language selection (e.g. "lang_hindi") --
-    if content_lower.startswith('lang_'):
-        lang = LANGUAGE_ID_MAP.get(content_lower)
-        if lang:
-            return lang
-
-    # Check interactive list reply title (e.g. "????? / Hindi" ? extract "Hindi")
-    if message_type == 'interactive':
-        if ' / ' in message_content:
-            english_part = message_content.split(' / ')[-1].strip().lower()
-            if english_part in SUPPORTED_LANGUAGES:
-                return SUPPORTED_LANGUAGES[english_part]
-        if content_lower in SUPPORTED_LANGUAGES:
-            return SUPPORTED_LANGUAGES[content_lower]
 
     # Text command: "language hindi", "lang bengali", "change language to tamil"
     lang_patterns = [
@@ -3419,9 +3226,8 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
         if content_lower in ESCAPE_WORDS:
             _clear_flow_state(phone_hash)
             return {
-                'suggestedResponse': "No worries! Back to the main menu ??",
-                'suggestion': "No worries! Back to the main menu ??",
-                'flowAction': 'showMainMenu',
+                'suggestedResponse': "No worries, that's cancelled. Just tell us what you need.",
+                'suggestion': "No worries, that's cancelled. Just tell us what you need.",
             }
 
         flow_name = flow_state.get('flow', '')
@@ -3536,13 +3342,14 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
                     'suggestion': msg,
                 }
 
-    # -- "menu" keyword trigger - show main menu on demand --
+    # -- greeting keywords. There is no menu to show on demand any more, so this
+    # -- answers with the configured welcome text and nothing else.
+    NEUTRAL_GREETING = 'Hi! Just tell us what you need and we will take it from there.'
     if content_lower in ('menu', 'main menu', 'show menu', 'hi', 'hello'):
-        greeting = flow_config.get('welcome', {}).get('text', '') if not history.get('messages') else flow_config.get('welcomeBack', {}).get('text', "Here's the menu ??")
+        greeting = flow_config.get('welcome', {}).get('text', '') if not history.get('messages') else flow_config.get('welcomeBack', {}).get('text', NEUTRAL_GREETING)
         return {
-            'suggestedResponse': greeting or "Here's the menu ??",
-            'suggestion': greeting or "Here's the menu ??",
-            'flowAction': 'showMainMenu',
+            'suggestedResponse': greeting or NEUTRAL_GREETING,
+            'suggestion': greeting or NEUTRAL_GREETING,
         }
 
     # -- Keyword-based pay flow trigger --
@@ -3561,113 +3368,12 @@ def _handle_bot_flow(message_content: str, message_type: str, flow_config: Dict,
             'paymentCustomerPhone': sender_phone,
         }
 
-    # -- Main menu / store item selected --
-    if content_lower.startswith('menu_') or content_lower.startswith('store_'):
-        menu_responses = flow_config.get('menuResponses', {})
-        item = menu_responses.get(content_lower)
-        if item:
-            action = item.get('action', '')
-
-            # Show language picker (Step 1: region picker)
-            if action == 'show_language_picker':
-                lp_config = _get_language_picker_config_from_db()
-                return {
-                    'suggestedResponse': '?? Choose your region to see available languages ??',
-                    'showLanguagePicker': True,
-                    'languagePickerStep': 'region',
-                    'regionOptions': lp_config['regionPicker'],
-                }
-
-            # Show sub-menu
-            if action == 'show_sub_menu':
-                sub_menus = flow_config.get('subMenus', {})
-                sub_menu = sub_menus.get(content_lower)
-                if sub_menu:
-                    return {
-                        'suggestedResponse': sub_menu.get('body', 'Choose an option ??'),
-                        'suggestion': sub_menu.get('body', 'Choose an option ??'),
-                        'flowAction': 'showSubMenu',
-                        'subMenuConfig': sub_menu,
-                    }
-                return None
-
-            # Back to main menu (from sub-menus)
-            if action == 'show_main_menu':
-                return {
-                    'suggestedResponse': "Here's the menu ??",
-                    'suggestion': "Here's the menu ??",
-                    'flowAction': 'showMainMenu',
-                }
-
-            # Start subscribe flow
-            if action == 'start_subscribe_flow':
-                flows_config = flow_config.get('flows', {}).get('subscribe', {})
-                prompt = flows_config.get('step_name', "What's your full name?")
-                _save_flow_state(phone_hash, 'subscribe', 'awaiting_name', {})
-                return {
-                    'suggestedResponse': prompt,
-                    'suggestion': prompt,
-                }
-
-            # Start pay flow - check for pending dues first
-            if action == 'start_pay_flow':
-                # Instant pay flow - send all pending invoices as WhatsApp Pay orders
-                return {
-                    'suggestedResponse': '',
-                    'suggestion': '',
-                    'flowAction': 'sendPendingPayments',
-                    'paymentCustomerPhone': sender_phone,
-                }
-
-            # Toggle audio
-            if action == 'toggle_audio':
-                toggles = flow_config.get('toggles', {})
-                status = 'ON' if history.get('audioEnabled', False) else 'OFF'
-                msg = toggles.get('audio_prompt', 'Reply ON or OFF.').format(status=status)
-                _save_flow_state(phone_hash, 'toggle_audio', 'awaiting_toggle', {})
-                return {
-                    'suggestedResponse': msg,
-                    'suggestion': msg,
-                }
-
-            # Toggle notifications
-            if action == 'toggle_notifications':
-                toggles = flow_config.get('toggles', {})
-                status = 'ON' if history.get('notificationsEnabled', True) else 'OFF'
-                msg = toggles.get('notifications_prompt', 'Reply ON or OFF.').format(status=status)
-                _save_flow_state(phone_hash, 'toggle_notifications', 'awaiting_toggle', {})
-                return {
-                    'suggestedResponse': msg,
-                    'suggestion': msg,
-                }
-
-            # Human handoff
-            if action == 'human_handoff':
-                _clear_flow_state(phone_hash)
-                return {
-                    'suggestedResponse': item.get('text', ''),
-                    'suggestion': item.get('text', ''),
-                    'flowAction': 'humanHandoff',
-                    'humanHandoff': True,
-                    'intent': 'human_handoff_requested',
-                }
-
-            # Default: text response + CTA + show options
-            return {
-                'suggestedResponse': item.get('text', ''),
-                'suggestion': item.get('text', ''),
-                'flowAction': 'showOptions',
-                'cta': item.get('cta'),
-            }
-        return None
-
     # -- Options: Do more --
     if content_lower == 'opt_do_more':
         do_more = flow_config.get('doMore', {})
         return {
             'suggestedResponse': do_more.get('text', ''),
             'suggestion': do_more.get('text', ''),
-            'flowAction': 'showMainMenu',
         }
 
     # -- Options: Done --
@@ -4754,74 +4460,6 @@ def _tool_send_whatsapp_buttons(params: Dict, request_id: str) -> Dict:
             'success': True,
             'messageId': result_body.get('messageId'),
             'message': 'Interactive button message sent'
-        }
-        
-    except Exception as e:
-        return {'success': False, 'error': str(e)}
-
-
-def _tool_send_whatsapp_list(params: Dict, request_id: str) -> Dict:
-    """Send WhatsApp interactive list message."""
-    contact_id = params.get('contactId')
-    body_text = params.get('bodyText')
-    button_text = params.get('buttonText')
-    sections = params.get('sections', [])
-    
-    if not all([contact_id, body_text, button_text, sections]):
-        return {'success': False, 'error': 'contactId, bodyText, buttonText, and sections are required'}
-    
-    # UUID validation
-    valid, msg = validate_contact_id(contact_id)
-    if not valid:
-        return {'success': False, 'error': msg}
-    
-    # Button text max 20 chars
-    if len(button_text) > 20:
-        return {'success': False, 'error': f'buttonText exceeds 20 char limit: "{button_text}"'}
-    
-    # Section validation (max 10 sections, each with max 10 rows)
-    if len(sections) > 10:
-        return {'success': False, 'error': f'Maximum 10 sections allowed, got {len(sections)}'}
-    
-    for i, section in enumerate(sections):
-        if not isinstance(section, dict):
-            return {'success': False, 'error': f'Section {i+1} must be an object with title and rows'}
-        rows = section.get('rows', [])
-        if not rows:
-            return {'success': False, 'error': f'Section {i+1} must have at least 1 row'}
-        if len(rows) > 10:
-            return {'success': False, 'error': f'Section {i+1} exceeds 10 row limit'}
-    
-    try:
-        interactive_payload = {
-            'type': 'list',
-            'body': {'text': body_text},
-            'action': {
-                'button': button_text,
-                'sections': sections
-            }
-        }
-        
-        payload = {
-            'body': json.dumps({
-                'contactId': contact_id,
-                'interactive': interactive_payload
-            })
-        }
-        
-        response = lambda_client.invoke(
-            FunctionName='wecare-outbound-whatsapp',
-            InvocationType='RequestResponse',
-            Payload=json.dumps(payload)
-        )
-        
-        result = json.loads(response['Payload'].read().decode('utf-8'))
-        result_body = json.loads(result.get('body', '{}'))
-        
-        return {
-            'success': True,
-            'messageId': result_body.get('messageId'),
-            'message': 'Interactive list message sent'
         }
         
     except Exception as e:

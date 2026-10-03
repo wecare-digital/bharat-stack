@@ -154,6 +154,13 @@ def _send_whatsapp(delivery: Dict[str, Any], *, request_id: str) -> Tuple[str, s
 
     sender = str(delivery.get("senderPhoneId") or "")
     template = str(delivery.get("templateName") or policy_mod.WA_TEMPLATE_NAME)
+    # Refuse rather than invoke with no template name. `outbound-whatsapp` gates on
+    # `if is_template and template_name:`, so an empty name there falls through to a
+    # content send with empty content - a send we never asked for. PERMANENT because
+    # no amount of retrying configures a template; it records FAILED and logs at
+    # error level, so it is visible rather than a silent drop.
+    if not template:
+        return PERMANENT, "", "TEMPLATE_UNCONFIGURED"
     payload = {
         "recipientPhone": delivery.get("destination", ""),
         "phoneNumberId": sender,

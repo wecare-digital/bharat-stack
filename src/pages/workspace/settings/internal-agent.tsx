@@ -53,7 +53,6 @@ const AVAILABLE_TOOLS = [
   { id: 'update_contact', name: 'Update Contact', category: 'Contact Management' },
   { id: 'send_whatsapp', name: 'Send WhatsApp Text', category: 'WhatsApp' },
   { id: 'send_whatsapp_buttons', name: 'Send Interactive Buttons', category: 'WhatsApp' },
-  { id: 'send_whatsapp_list', name: 'Send Interactive List', category: 'WhatsApp' },
   { id: 'make_voice_call', name: 'Make Voice Call (TTS)', category: 'Voice' },
   { id: 'send_sms', name: 'Send SMS', category: 'SMS' },
   { id: 'send_email', name: 'Send Email', category: 'Email' },

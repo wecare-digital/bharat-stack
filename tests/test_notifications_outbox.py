@@ -279,6 +279,19 @@ def _enabled(monkeypatch):
     yield
 
 
+def whatsapp_eligible(monkeypatch):
+    """Make the WhatsApp channel eligible.
+
+    Two conditions now, not one. `WA_TEMPLATE_NAME` defaulted to `wd_menu` until
+    2026-10-02, when Meta deleted that template along with every other WhatsApp
+    menu; the default is empty and `decide_whatsapp` refuses an empty name, so a
+    verified sender on its own is no longer enough. Patched as a module attribute
+    because the name is read once at import, which `setenv` cannot reach.
+    """
+    monkeypatch.setattr(policy_mod, "WA_TEMPLATE_NAME", "wd_call_followup_v1")
+    monkeypatch.setenv("NOTIF_WA_VERIFIED_SENDERS", PHONE1_META)
+
+
 def make_event(**overrides):
     params = {
         "DialAction": "connected", "DialALegUUID": A_LEG, "CallUUID": A_LEG,
@@ -399,7 +412,7 @@ class TestIneligibleChannels:
 
     def test_all_three_eligible_publishes_three_jobs(self, fake, monkeypatch):
         monkeypatch.setenv("SINCH_RCS_ENABLED", "true")
-        monkeypatch.setenv("NOTIF_WA_VERIFIED_SENDERS", PHONE1_META)
+        whatsapp_eligible(monkeypatch)
         event = make_event()
         result = store_mod.claim_event_and_publish(
             event, policy_mod.decide_all(event.external_party,
@@ -574,7 +587,7 @@ class TestPartialChannelFailure:
     def test_one_channel_failing_does_not_touch_another(self, fake, monkeypatch):
         """The brief: a failure on one channel must not suppress or duplicate another."""
         monkeypatch.setenv("SINCH_RCS_ENABLED", "true")
-        monkeypatch.setenv("NOTIF_WA_VERIFIED_SENDERS", PHONE1_META)
+        whatsapp_eligible(monkeypatch)
         event = make_event()
         store_mod.claim_event_and_publish(
             event, policy_mod.decide_all(event.external_party,
@@ -784,7 +797,7 @@ class TestServiceEndToEnd:
     def test_one_connected_call_produces_three_logical_deliveries(self, fake, monkeypatch):
         """The phase's headline requirement, with all three channels eligible."""
         monkeypatch.setenv("SINCH_RCS_ENABLED", "true")
-        monkeypatch.setenv("NOTIF_WA_VERIFIED_SENDERS", PHONE1_META)
+        whatsapp_eligible(monkeypatch)
         result = service_mod.handle_connected_call(connected_params(),
                                                   sender_phone_id=PHONE1_META)
         assert result["claimed"] is True
@@ -794,7 +807,7 @@ class TestServiceEndToEnd:
 
     def test_a_replayed_callback_produces_no_second_copy(self, fake, monkeypatch):
         monkeypatch.setenv("SINCH_RCS_ENABLED", "true")
-        monkeypatch.setenv("NOTIF_WA_VERIFIED_SENDERS", PHONE1_META)
+        whatsapp_eligible(monkeypatch)
         for _ in range(5):
             service_mod.handle_connected_call(connected_params(),
                                               sender_phone_id=PHONE1_META)
@@ -804,7 +817,7 @@ class TestServiceEndToEnd:
     def test_hangup_after_connected_schedules_nothing_more(self, fake, monkeypatch):
         """The brief: the connected event schedules the three deliveries; hangup must
         never schedule another copy."""
-        monkeypatch.setenv("NOTIF_WA_VERIFIED_SENDERS", PHONE1_META)
+        whatsapp_eligible(monkeypatch)
         service_mod.handle_connected_call(connected_params(), sender_phone_id=PHONE1_META)
         before = dict(fake.rows(store_mod.OUTBOX_TABLE))
         service_mod.handle_connected_call(connected_params(DialAction="hangup"),

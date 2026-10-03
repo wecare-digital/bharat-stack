@@ -1427,38 +1427,30 @@ def _process_message(
         if interactive_type == 'call_permission_reply':
             logger.info(f"Ignoring call_permission_reply from {mask_phone(sender_phone or '')} — permission auto-granted post-call")
             return  # Discard — no longer forwarded or stored
-        # IVR button responses  -  route to appropriate department/action
+        # Button reply. The IVR button menu and the follow-up button chooser are both
+        # deleted, so there is no id left to route - a tap on a button still sitting in
+        # a customer's history gets the plain-text placeholder rather than silence.
         elif interactive_type == 'button_reply':
             button_id = interactive.get('button_reply', {}).get('id', '')
-            if button_id.startswith('ivr_'):
-                _handle_ivr_response(
-                    sender_phone=sender_phone,
-                    aws_phone_number_id=aws_phone_number_id,
-                    button_id=button_id,
-                    request_id=request_id,
-                )
-                return  # Stop processing  -  IVR button handled
-            # Follow-up buttons: Explore More / Done for Now
-            if button_id == 'followup_explore':
-                _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
-                return
-            if button_id == 'followup_done':
-                _send_ai_auto_reply(contact_id,
-                    "Awesome \u2014 you\u2019re all set for now \U0001f49b\n\nType *hi* anytime to come back.",
-                    aws_phone_number_id, request_id)
-                return
-        # List reply  -  user tapped a row in an interactive list message
+            logger.info(json.dumps({
+                'event': 'button_reply_received',
+                'buttonId': button_id,
+                'contactId': mask_contact_id(contact_id),
+                'requestId': request_id,
+            }))
+            _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
+            return
+        # List reply - a tap on a row from a deleted menu still in chat history.
         elif interactive_type == 'list_reply':
             list_id = interactive.get('list_reply', {}).get('id', '')
-            if list_id:
-                _handle_list_reply(
-                    list_id=list_id,
-                    contact_id=contact_id,
-                    phone_number_id=aws_phone_number_id,
-                    sender_phone=sender_phone,
-                    request_id=request_id,
-                )
-                return  # Stop processing  -  list reply handled
+            logger.info(json.dumps({
+                'event': 'list_reply_received',
+                'listId': list_id,
+                'contactId': mask_contact_id(contact_id),
+                'requestId': request_id,
+            }))
+            _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
+            return
         # Native Flow Message reply — India Address Message submission arrives here
         # as nfm_reply with name='address_message' (also used by flow completions).
         elif interactive_type == 'nfm_reply':
@@ -1848,7 +1840,6 @@ def _process_message(
                     body_text='\U0001f4b3 Make your payment quickly and securely online.',
                     footer_text='WECARE.DIGITAL',
                 )
-                _send_followup_buttons(contact_id, aws_phone_number_id, request_id)
                 return
             # Phone 1: Step 1: Send "pulling" message immediately
             _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], aws_phone_number_id, request_id)
@@ -1957,7 +1948,6 @@ def _process_message(
             _send_cta_button(contact_id, aws_phone_number_id, 'Explore WECARE.DIGITAL', 'https://wecare.digital', request_id,
                 body_text="Explore WECARE.DIGITAL and discover services designed for everyday Bharat.",
                 footer_text='WECARE.DIGITAL')
-            _send_followup_buttons(contact_id, aws_phone_number_id, request_id)
             return
 
         # ── Ice breaker: "Selfservice" / "[retired public path]" ──
@@ -4501,128 +4491,6 @@ def _forward_call_permission_to_calling_table(sender_phone: str, receiving_phone
     pass
 
 
-def _handle_ivr_response(sender_phone: str, aws_phone_number_id: str,
-                          button_id: str, request_id: str) -> None:
-    """
-    Handle IVR button responses from the calling IVR menu.
-    Button IDs are prefixed with 'ivr_' (e.g. ivr_sales, ivr_support, ivr_ai, ivr_callback).
-    Sends the appropriate follow-up message and optionally notifies the team.
-    """
-    # IVR response definitions
-    IVR_RESPONSES = {
-        'ivr_sales': {
-            'text': (
-                "🛒 *Sales & Orders*\n\n"
-                "How can we help?\n\n"
-                "• Send your *order number* to check status\n"
-                "• Send a *product name* to browse our catalog\n"
-                "• Type *\"new order\"* to place an order\n\n"
-                "A team member will also be notified to assist you."
-            ),
-            'notify': True,
-            'dept': 'sales',
-        },
-        'ivr_support': {
-            'text': (
-                "🔧 *Support*\n\n"
-                "Please describe your issue and we'll get back to you shortly.\n\n"
-                "You can:\n"
-                "• Type your question\n"
-                "• Send a screenshot\n"
-                "• Send a voice note\n\n"
-                "Our AI assistant will try to help immediately, "
-                "and a human agent will follow up if needed."
-            ),
-            'notify': True,
-            'dept': 'support',
-        },
-        'ivr_ai': {
-            'text': (
-                "🤖 *AI Assistant*\n\n"
-                "I'm ready to help! You can:\n\n"
-                "• Type your question\n"
-                "• Send a *voice note*  -  I'll listen and reply with voice\n"
-                "• Send a *photo*  -  I can analyze images too\n\n"
-                "Ask me anything about our products, services, or orders."
-            ),
-            'notify': False,
-            'dept': 'ai',
-        },
-        'ivr_callback': {
-            'text': (
-                "📞 *Callback Request*\n\n"
-                "Got it! We'll call you back as soon as possible.\n\n"
-                "If you'd like to specify a preferred time, just type it "
-                "(e.g. \"Call me at 3 PM\" or \"Tomorrow morning\")."
-            ),
-            'notify': True,
-            'dept': 'callback',
-        },
-    }
-
-    response_config = IVR_RESPONSES.get(button_id)
-    if not response_config:
-        logger.warning(f"Unknown IVR button: {button_id}")
-        return
-
-    logger.info(json.dumps({
-        'event': 'ivr_response',
-        'senderPhone': mask_phone(sender_phone),
-        'buttonId': button_id,
-        'department': response_config['dept'],
-        'requestId': request_id,
-    }))
-
-    try:
-        # Send the follow-up message
-        if not sender_phone.startswith('+'):
-            to_number = f'+{sender_phone}'
-        else:
-            to_number = sender_phone
-
-        msg_payload = {
-            'messaging_product': 'whatsapp',
-            'to': to_number,
-            'type': 'text',
-            'text': {'body': response_config['text']},
-        }
-
-        # All phones use Direct API
-        if _is_direct_api_phone(aws_phone_number_id):
-            result = _send_direct_api_message(to_number, msg_payload)
-            if result.get('error'):
-                logger.error(f"IVR Direct API send failed for {button_id}: {result}")
-            else:
-                logger.info(f"IVR response sent via Direct API to {mask_phone(sender_phone or '')} for {button_id}")
-        else:
-            meta_pid = _get_meta_phone_id_for_direct_api(aws_phone_number_id)
-            _send_direct_api_message(sender_phone, msg_payload, meta_phone_id=meta_pid)
-            logger.info(f"IVR response sent to {mask_phone(sender_phone or '')} for {button_id}")
-
-        # Store IVR selection in SystemEvent table for tracking/analytics
-        try:
-            now = int(time.time())
-            system_events_table = dynamodb.Table(
-                os.environ.get('SYSTEM_EVENTS_TABLE', 'stack-wecare-digital-SystemEventTable')
-            )
-            system_events_table.put_item(Item={
-                'id': f"ivr_{sender_phone}_{now}",
-                'eventType': 'ivr_selection',
-                'phoneNumber': sender_phone,
-                'phoneNumberId': aws_phone_number_id,
-                'buttonId': button_id,
-                'department': response_config['dept'],
-                'notifyTeam': response_config['notify'],
-                'createdAt': Decimal(str(now)),
-                'ttl': Decimal(str(now + 90 * 24 * 60 * 60)),
-            })
-        except Exception as e:
-            logger.warning(f"Failed to store IVR event: {e}")
-
-    except Exception as e:
-        logger.error(f"Failed to send IVR response for {button_id}: {e}")
-
-
 def _send_auto_reaction(contact_id: str, whatsapp_message_id: str, 
                         phone_number_id: str, request_id: str) -> None:
     """
@@ -4902,7 +4770,6 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
                 body_text = PHONE2_BODY.get(flow_key, msg.get('body', 'Tap below to continue.'))
                 _send_cta_button(contact_id, phone_number_id, cta_text, short_url, request_id,
                     body_text=body_text, footer_text='WECARE.DIGITAL')
-                _send_followup_buttons(contact_id, phone_number_id, request_id)
                 logger.info(json.dumps({
                     'event': 'generic_flow_phone2_cta_sent',
                     'flowKey': flow_key, 'contactId': mask_contact_id(contact_id), 'shortUrl': short_url,
@@ -5043,70 +4910,6 @@ def _send_cta_button(contact_id: str, phone_number_id: str, cta_text: str, cta_u
         }))
 
 
-def _send_reply_buttons(contact_id: str, phone_number_id: str, button_config: Dict, request_id: str) -> None:
-    """
-    Send WhatsApp interactive reply buttons (max 3 buttons).
-    button_config: {header, body, footer, buttons: [{id, title}]}
-    """
-    if not contact_id or not button_config.get('buttons'):
-        return
-
-    try:
-        payload = {
-            'body': json.dumps({
-                'contactId': contact_id,
-                'phoneNumberId': phone_number_id,
-                'isInteractive': True,
-                'interactiveType': 'button',
-                'interactiveData': {
-                    'header': button_config.get('header', ''),
-                    'body': button_config.get('body', 'Please select an option'),
-                    'footer': button_config.get('footer', ''),
-                    'buttons': button_config.get('buttons', []),
-                }
-            })
-        }
-
-        response = lambda_client.invoke(
-            FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
-            InvocationType='Event',
-            Payload=json.dumps(payload)
-        )
-
-        logger.info(json.dumps({
-            'event': 'reply_buttons_sent',
-            'contactId': mask_contact_id(contact_id),
-            'buttonCount': len(button_config.get('buttons', [])),
-            'statusCode': response.get('StatusCode'),
-            'requestId': request_id
-        }))
-
-    except Exception as e:
-        logger.error(json.dumps({
-            'event': 'reply_buttons_error',
-            'contactId': mask_contact_id(contact_id),
-            'error': str(e),
-            'requestId': request_id
-        }))
-
-
-def _send_followup_buttons(contact_id: str, phone_number_id: str, request_id: str) -> None:
-    """Send 'Explore More / All Set' reply buttons after any CTA response."""
-    _send_reply_buttons(
-        contact_id=contact_id,
-        phone_number_id=phone_number_id,
-        button_config={
-            'body': "What next? \U0001f447",
-            'footer': 'WECARE.DIGITAL',
-            'buttons': [
-                {'id': 'followup_explore', 'title': '\U0001f9ed Explore More'},
-                {'id': 'followup_done', 'title': '\U0001faf6 All Set'},
-            ],
-        },
-        request_id=request_id,
-    )
-
-
 def _send_help_about(contact_id: str, phone_number_id: str, request_id: str) -> None:
     """The one menu's single Help row, and the `help & about` keyword.
 
@@ -5135,7 +4938,6 @@ def _send_help_about(contact_id: str, phone_number_id: str, request_id: str) -> 
     _send_cta_button(contact_id, phone_number_id, 'Open FAQs', 'https://wecare.digital/contact/', request_id,
         body_text=help_text,
         footer_text='WECARE.DIGITAL')
-    _send_followup_buttons(contact_id, phone_number_id, request_id)
 
 
 def _send_audio_response(contact_id: str, phone_number_id: str, text: str, language: str, request_id: str,
@@ -6580,24 +6382,6 @@ def _handle_address_submission(nfm: Dict, contact_id: str, sender_phone: str,
         logger.info(json.dumps({'event': 'address_saved', 'contactId': mask_contact_id(contact_id), 'requestId': request_id}))
     except Exception as e:
         logger.error(json.dumps({'event': 'address_submission_error', 'error': str(e), 'requestId': request_id}))
-
-
-def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
-                      sender_phone: str, request_id: str) -> None:
-    """Answer a tap on a list row that is still sitting in a customer's history.
-
-    Every menu and the whole row-id dispatch table are deleted, so there is no
-    action to route to any more: a tap gets the plain-text placeholder. The
-    five-parameter signature is unchanged because callers pass by keyword, and
-    `sender_phone` is deliberately kept unused for the same reason.
-    """
-    logger.info(json.dumps({
-        'event': 'list_reply_received',
-        'listId': list_id,
-        'contactId': mask_contact_id(contact_id),
-        'requestId': request_id,
-    }))
-    _send_menu_placeholder(contact_id, phone_number_id, request_id)
 
 
 def _get_flow_triggers_config() -> Dict:

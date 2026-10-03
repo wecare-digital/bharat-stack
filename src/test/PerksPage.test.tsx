@@ -116,14 +116,14 @@ describe( 'the /gift-card references were repaired to a real destination', () =>
     }
   } );
 
-  it( 'points the whatsapp and AI gift-card CTAs at the real /perks page (no dead anchor)', () => {
+  it( 'points the whatsapp gift-card CTA at the real /perks page (no dead anchor)', () => {
+    // The AI handler's gift-card CTA was removed on 2026-10-02 with the
+    // `menuResponses` block it lived in, so there is no AI CTA left to assert on.
+    // The AI handler stays in the dead-`/gift-card`-URL guard in the first `it`.
     const whatsapp = read( 'amplify/functions/messaging/inbound-whatsapp-handler/handler.py' );
     expect( whatsapp ).toContain( 'https://wecare.digital/perks/' );
     // The destination is the page itself, not a removed in-page anchor.
     expect( whatsapp ).not.toContain( 'wecare.digital/perks/#gift-cards' );
-    const ai = read( 'amplify/functions/ai/ai-generate-response/handler.py' );
-    expect( ai ).toContain( 'https://wecare.digital/perks/' );
-    expect( ai ).not.toContain( 'wecare.digital/perks/#gift-cards' );
   } );
 
   it( 'does not import chrome; reuses PageMeta and the shared hero', () => {

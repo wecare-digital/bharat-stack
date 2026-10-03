@@ -47,17 +47,24 @@ INBOUND_HANDLER_PATH = os.path.join(_INBOUND_DIR, 'handler.py')
 # The deleted WhatsApp template, and the sender that built it.
 DELETED_TEMPLATE = 'wd_menu'
 
-# Not menus. The IVR button menu answers an inbound CALL and was explicitly out of
-# scope for the wipe, so it is checked as a scope guard rather than as a deletion.
+# Not menus, and not deleted. These three are the call-side behaviours the wipe must
+# not touch, so they are checked as a scope guard. The five IVR BUTTON MENU names
+# that used to sit in this list moved to IVR_DELETED_NAMES below: phase 1 pinned
+# them as out of scope, phase 2 deleted them on 2026-10-02.
 IVR_KEEP_NAMES = [
+    '_react_thumbs_up',
+    '_is_auto_thumb_reaction_enabled',
+    '_is_postcall_wa_enabled',
+]
+
+# The IVR button menu, deleted 2026-10-02. The audio greeting survives as a plain
+# constant, which is why the call lifecycle is unaffected.
+IVR_DELETED_NAMES = [
     '_SHARED_IVR_MENU',
     'IVR_MENUS',
     'IVR_DEFAULT_MENU',
     'IVR_RESPONSES',
     '_get_ivr_menu',
-    '_react_thumbs_up',
-    '_is_auto_thumb_reaction_enabled',
-    '_is_postcall_wa_enabled',
 ]
 
 # The two live paths the wipe rewrote.
@@ -159,12 +166,29 @@ class TestThePlaceholderSendStaysOnMetaApi:
             f'{name} sends nothing - that is the silence the wipe forbids'
 
 
-class TestTheIvrMenuIsNotCollateral:
+class TestTheCallSideBehavioursAreNotCollateral:
     @pytest.mark.parametrize('name', IVR_KEEP_NAMES)
     def test_the_symbol_survives(self, calling, name):
         assert hasattr(calling, name), f'{name} was deleted - it is not a wiped menu'
 
-    @pytest.mark.parametrize('button', ['ivr_callback', 'ivr_support', 'ivr_ai'])
-    def test_every_ivr_button_still_has_a_reply(self, calling, button):
-        """Each button id the IVR menu renders must resolve to a response."""
-        assert button in calling.IVR_RESPONSES
+
+class TestTheIvrButtonMenuIsGone:
+    """Phase 2, 2026-10-02. The owner's instruction was that every WhatsApp menu
+    goes, including the IVR button menu this file previously protected."""
+
+    @pytest.mark.parametrize('name', IVR_DELETED_NAMES)
+    def test_the_symbol_is_deleted(self, calling, name):
+        assert not hasattr(calling, name), f'{name} is back - every menu was deleted'
+
+    def test_the_audio_greeting_survives_as_a_constant(self, calling):
+        """The greeting the Polly path speaks used to be read from the menu dict. It
+        is a module constant now, so a caller still hears words."""
+        assert isinstance(calling.IVR_GREETING_TEXT, str)
+        assert calling.IVR_GREETING_TEXT.strip()
+
+    def test_the_sms_and_audio_constants_are_untouched(self, calling):
+        """IVR_SMS_CONTENT / IVR_SMS_DLT_TEMPLATE_KEY / DEFAULT_IVR_URL are an SMS
+        body, a DLT key and an audio URL. None is a menu; all three must stay."""
+        assert calling.IVR_SMS_CONTENT.strip()
+        assert calling.IVR_SMS_DLT_TEMPLATE_KEY == 'ivr-default'
+        assert calling.DEFAULT_IVR_URL.startswith('https://')

@@ -31,8 +31,6 @@ import boto3
 import base64
 import hashlib
 import hmac
-import urllib.request
-import urllib.error
 from datetime import datetime, timezone
 from typing import Dict, Any
 from decimal import Decimal
@@ -43,7 +41,9 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 from lambda_utils.privacy import mask_contact_id  # contactId is `wa` + the customer's digits
 from lambda_utils.middleware import require_auth
 from lambda_utils import retired_store
-from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
+# Imported for its import-time validation side effect, not for a value: the
+# only read of META_API_VERSION here went with the deleted wd_menu send.
+from lambda_utils.meta_version import META_API_VERSION  # noqa: F401
 from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
@@ -52,7 +52,6 @@ logger = get_logger(__name__)
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 s3 = boto3.client('s3', region_name=AWS_REGION)
-secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 lambda_client = boto3.client('lambda', region_name=AWS_REGION)
 
 # Environment variables
@@ -350,10 +349,10 @@ def _store_to_inbox(message_id: str, contact_id: str, contact_phone: str,
 
 
 def _send_c2c_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
-    """Send WhatsApp + RCS + SMS notifications on C2C CDR events.
+    """Send RCS + SMS notifications on C2C CDR events.
 
     Sends to the CALLER (Party A) after call completes.
-    Channel priority: SMS (Airtel IQ) → RCS (Sinch rcsmenu template) → WhatsApp (wd_menu template)
+    Channel priority: SMS (AWS End User Messaging) → RCS (Sinch rcsmenu template)
     Updates CDR record with trigger metadata for dashboard display.
     """
     try:
@@ -373,7 +372,6 @@ def _send_c2c_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
         now_ts = int(time.time())
         sms_message_id = ''
         rcs_message_id = ''
-        wa_message_id = ''
         rcs_sent = False
 
         # ── 0. Send SMS via Airtel IQ (same as WhatsApp calling disconnect) ──
@@ -436,70 +434,6 @@ def _send_c2c_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
         except Exception as rcs_err:
             logger.warning(f'C2C CDR RCS notification failed (non-blocking): {rcs_err}')
 
-        # ── 2. WhatsApp wd_menu template from WABA1 (+91 93309 94400) ──
-        try:
-            meta_secret = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
-            meta_data = json.loads(meta_secret['SecretString'])
-            meta_token = meta_data.get('access_token', '').strip()
-            app_secret = meta_data.get('app_secret', '').strip()
-
-            import hmac as _hmac, hashlib as _hashlib
-            proof = _hmac.new(app_secret.encode(), meta_token.encode(), _hashlib.sha256).hexdigest()
-
-            WABA1_PHONE = '1016149501586345'
-            VIDEO_URL = 'https://wecare.digital/get/o/stream/media/m/selfservice.mp4'
-
-            template_payload = json.dumps({
-                'messaging_product': 'whatsapp',
-                'to': clean_caller,
-                'type': 'template',
-                'template': {
-                    'name': 'wd_menu',
-                    'language': {'code': 'en'},
-                    'components': [
-                        {'type': 'header', 'parameters': [
-                            {'type': 'video', 'video': {'link': VIDEO_URL}}
-                        ]}
-                    ]
-                },
-            }).encode()
-
-            url = f'https://graph.facebook.com/{META_API_VERSION}/{WABA1_PHONE}/messages?appsecret_proof={proof}'
-            req = urllib.request.Request(url, data=template_payload, headers={
-                'Authorization': f'Bearer {meta_token}',
-                'Content-Type': 'application/json',
-            }, method='POST')
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                result = json.loads(resp.read().decode())
-                wa_message_id = result.get('messages', [{}])[0].get('id', '')
-                logger.info(json.dumps({
-                    'event': 'c2c_cdr_whatsapp_template_sent',
-                    'template': 'wd_menu',
-                    'waba': 'WABA1 (+919330994400)',
-                    'phoneNumberId': WABA1_PHONE,
-                    'caller': caller,
-                    'wamid': wa_message_id,
-                    'rcs_sent': rcs_sent,
-                    'requestId': request_id,
-                }))
-                _store_to_inbox(
-                    message_id=wa_message_id,
-                    contact_id=contact_id,
-                    contact_phone=clean_caller,
-                    content='[wd_menu template] Thanks for contacting WECARE.DIGITAL!',
-                    channel='whatsapp',
-                    status='sent',
-                    message_type='cdr_c2c',
-                    phone_number_id=WABA1_PHONE,
-                    wamid=wa_message_id,
-                    request_id=request_id,
-                )
-        except urllib.error.HTTPError as e:
-            err_body = e.read().decode()[:300] if e.fp else ''
-            logger.error(f'C2C CDR WhatsApp wd_menu FAILED: HTTP {e.code} - {err_body}')
-        except Exception as e:
-            logger.error(f'C2C CDR WhatsApp wd_menu FAILED: {e}')
-
         # ── 3. Update CDR record with trigger metadata ──
         cdr_id = cdr_record.get('id', '')
         if cdr_id:
@@ -519,16 +453,6 @@ def _send_c2c_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
                     expr_values[':smsCont'] = ivr_sms_content[:200]
                     update_expr_parts.append('smsTimestamp = :smsTs')
                     expr_values[':smsTs'] = str(now_ts)
-
-                if wa_message_id:
-                    update_expr_parts.append('whatsappMessageTriggered = :waT')
-                    expr_values[':waT'] = True
-                    update_expr_parts.append('whatsappMessageId = :waId')
-                    expr_values[':waId'] = wa_message_id
-                    update_expr_parts.append('whatsappMessageContent = :waCont')
-                    expr_values[':waCont'] = '[wd_menu template] Thanks for contacting WECARE.DIGITAL!'
-                    update_expr_parts.append('whatsappMessageTimestamp = :waTs')
-                    expr_values[':waTs'] = str(now_ts)
 
                 if rcs_sent and rcs_message_id:
                     update_expr_parts.append('rcsMessageTriggered = :rcsT')
@@ -550,7 +474,6 @@ def _send_c2c_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
                         'event': 'c2c_cdr_trigger_metadata_updated',
                         'cdrId': cdr_id,
                         'sms': bool(sms_message_id),
-                        'whatsapp': bool(wa_message_id),
                         'rcs': rcs_sent,
                         'requestId': request_id,
                     }))

@@ -215,7 +215,7 @@ class TestOutboundAutoThumbReaction:
         with patch.object(self.h, '_auto_thumb_enabled', return_value=True):
             with patch.object(self.h, '_post_reaction_direct') as react:
                 with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{'id': 'wamid.TMPL'}]})):
-                    self.h._send_direct_api(self.PHONE, json.dumps({'type': 'template', 'to': '919812345678', 'template': {'name': 'wd_menu'}}))
+                    self.h._send_direct_api(self.PHONE, json.dumps({'type': 'template', 'to': '919812345678', 'template': {'name': 'some_template'}}))
                 react.assert_called_once()
                 assert react.call_args.args[4] == 'wamid.TMPL'
 

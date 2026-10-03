@@ -405,8 +405,16 @@ class TestIVRAutoPickup:
             mock_ivr.assert_not_called()
 
 
-class TestIVRMenuParity:
-    """Test that IVR menus are unified across all phones."""
+class TestTheIvrButtonMenuIsGone:
+    """The IVR button menu was deleted on 2026-10-02.
+
+    This class used to assert PARITY between the two phones' IVR button menus and
+    that every button had a reply. There is no button menu now, so those four
+    assertions were replaced by their opposite: the five symbols must be absent.
+
+    `test_all_phones_use_direct_api` is carried over word for word - it was never
+    about a menu, and the Direct API fact it pins is still true.
+    """
 
     @pytest.fixture(autouse=True)
     def setup(self):
@@ -417,42 +425,24 @@ class TestIVRMenuParity:
                 import handler
                 self.handler = handler
 
-    def test_phone1_and_phone2_ivr_menus_match(self):
-        """Phone 1 and Phone 2 IVR menus should be identical."""
-        phone1_menu = self.handler.IVR_MENUS.get(self.handler.PHONE1_META_ID, {})
-        phone2_menu = self.handler.IVR_MENUS.get(self.handler.PHONE2_META_ID, {})
-        phone1_buttons = [b['id'] for b in phone1_menu.get('buttons', [])]
-        phone2_buttons = [b['id'] for b in phone2_menu.get('buttons', [])]
-        assert phone1_buttons == phone2_buttons, (
-            f"Phone 1 buttons {phone1_buttons} differ from Phone 2 {phone2_buttons}"
-        )
+    @pytest.mark.parametrize('name', [
+        '_SHARED_IVR_MENU', 'IVR_MENUS', 'IVR_DEFAULT_MENU', 'IVR_RESPONSES',
+        '_get_ivr_menu',
+    ])
+    def test_the_menu_symbol_is_deleted(self, name):
+        assert not hasattr(self.handler, name), f'{name} is back in whatsapp-calling'
 
-    def test_ivr_menu_has_required_buttons(self):
-        """IVR menu should have callback, support, and AI buttons."""
-        menu = self.handler.IVR_MENUS.get(self.handler.PHONE1_META_ID, {})
-        button_ids = [b['id'] for b in menu.get('buttons', [])]
-        assert 'ivr_callback' in button_ids
-        assert 'ivr_support' in button_ids
-        assert 'ivr_ai' in button_ids
+    def test_the_audio_greeting_is_a_plain_constant(self):
+        """The Polly greeting used to be read out of the menu's 'greeting' key. It is
+        a module constant now, so the IVR audio still has words to say."""
+        assert isinstance(self.handler.IVR_GREETING_TEXT, str)
+        assert self.handler.IVR_GREETING_TEXT.strip()
+        assert 'menu' not in self.handler.IVR_GREETING_TEXT.lower()
 
     def test_all_phones_use_direct_api(self):
         """All phones should be in DIRECT_API_META_PHONE_IDS."""
         assert self.handler.PHONE1_META_ID in self.handler.DIRECT_API_META_PHONE_IDS
         assert self.handler.PHONE2_META_ID in self.handler.DIRECT_API_META_PHONE_IDS
-
-    def test_default_ivr_menu_has_buttons(self):
-        """Default IVR menu should have at least 2 buttons."""
-        default = self.handler.IVR_DEFAULT_MENU
-        assert len(default.get('buttons', [])) >= 2
-
-    def test_all_ivr_response_handlers_exist(self):
-        """Every button ID in IVR menus should have a response handler."""
-        all_button_ids = set()
-        for menu in self.handler.IVR_MENUS.values():
-            for btn in menu.get('buttons', []):
-                all_button_ids.add(btn['id'])
-        for btn_id in all_button_ids:
-            assert btn_id in self.handler.IVR_RESPONSES, f"Missing IVR response for {btn_id}"
 
 
 class TestAccountSettingsUpdate:

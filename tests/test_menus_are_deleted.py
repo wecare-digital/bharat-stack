@@ -58,6 +58,13 @@ DELETED_NAMES = [
     '_get_language_picker_config',
     '_get_region_language_list',
     '_send_interactive_list',
+    # Phase 2, 2026-10-02. The IVR button router, the list-reply router and the
+    # follow-up button chooser ("What next? / Explore More / All Set"): a button
+    # chooser is a navigation menu, so it went with the rest.
+    '_handle_ivr_response',
+    '_handle_list_reply',
+    '_send_reply_buttons',
+    '_send_followup_buttons',
 ]
 
 # The three trigger paths that used to open a menu. Each is a function-local set, so
@@ -195,19 +202,40 @@ class TestNobodyGetsSilence:
 
 
 class TestATappedRowStillAnswers:
-    def test_handle_list_reply_keeps_its_signature(self, handler_tree):
-        """Callers pass all five by keyword, so the signature is load-bearing even
-        though `sender_phone` is now unused."""
-        fn = _function(handler_tree, '_handle_list_reply')
-        assert [a.arg for a in fn.args.args] == [
-            'list_id', 'contact_id', 'phone_number_id', 'sender_phone', 'request_id']
+    """Phase 2 removed the two routers this class used to call into.
 
-    def test_handle_list_reply_sends_the_placeholder(self, handler_source, handler_tree):
-        fn = _function(handler_tree, '_handle_list_reply')
-        body = ast.get_source_segment(handler_source, fn)
-        assert '_send_menu_placeholder' in body
-        assert 'list_reply_received' in body, \
-            'the correlation log line is the only handle on a tapped row id'
+    `_handle_list_reply` and `_handle_ivr_response` are gone, so the answer is now
+    produced inline in the interactive dispatch block. The guarantee is unchanged
+    and is what these assertions pin: a tap on a row or a button that is still
+    sitting in a customer's chat history gets the plain-text placeholder, never
+    silence and never a NameError.
+    """
+
+    @staticmethod
+    def _interactive_dispatch(handler_source: str) -> str:
+        start = handler_source.index("if msg_type == 'interactive':")
+        end = handler_source.index("elif interactive_type == 'nfm_reply':", start)
+        return handler_source[start:end]
+
+    @pytest.mark.parametrize('reply_type', ['button_reply', 'list_reply'])
+    def test_the_dispatch_answers_with_the_placeholder(self, handler_source, reply_type):
+        block = self._interactive_dispatch(handler_source)
+        branch = block.split(f"elif interactive_type == '{reply_type}':", 1)[1]
+        branch = branch.split('elif interactive_type ==', 1)[0]
+        assert '_send_menu_placeholder' in branch, \
+            f'a tapped {reply_type} sends nothing - that is the silence this forbids'
+
+    @pytest.mark.parametrize('event', ['button_reply_received', 'list_reply_received'])
+    def test_the_correlation_log_line_survives(self, handler_source, event):
+        """The only handle on a tapped id, and the reason a stale tap is traceable."""
+        assert event in self._interactive_dispatch(handler_source)
+
+    def test_the_nfm_reply_branch_is_untouched(self, handler_source):
+        """nfm_reply carries India address submissions and post-payment flow
+        completions. It is not a menu and must still route."""
+        assert "elif interactive_type == 'nfm_reply':" in handler_source
+        assert '_handle_address_submission' in handler_source
+        assert '_handle_postpay_submission' in handler_source
 
 
 class TestNothingBecameUnreachable:

@@ -51,6 +51,11 @@ def fake(monkeypatch):
 def _env(monkeypatch):
     monkeypatch.setenv(service_mod.FLAG_ENV, "true")
     monkeypatch.setattr(suppression_mod, "CUTOVER_WATERMARK", 1, raising=False)
+    # A verified sender is no longer enough on its own: `WA_TEMPLATE_NAME` lost its
+    # `wd_menu` default on 2026-10-02 (Meta deleted that template with every other
+    # WhatsApp menu) and `decide_whatsapp` refuses an empty name. Patched as a module
+    # attribute because the name is read once at import.
+    monkeypatch.setattr(policy_mod, "WA_TEMPLATE_NAME", "wd_call_followup_v1")
     monkeypatch.setenv("NOTIF_WA_VERIFIED_SENDERS", PHONE1_META)
     monkeypatch.setenv("SINCH_RCS_ENABLED", "true")
     yield

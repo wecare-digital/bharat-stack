@@ -194,7 +194,8 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
   // IVR SMS state
   const [ smsOnCall, setSmsOnCall ] = useState( true );
-  // Post-call WhatsApp wd_menu notification toggle
+  // Post-call WhatsApp notification toggle. Sends plain text since 2026-10-02;
+  // the wd_menu video template it used to send was deleted at Meta.
   const [ postCallWa, setPostCallWa ] = useState( true );
 
   // Auto 👍 reaction toggle (all messages, templates & call notifications)
@@ -1288,8 +1289,8 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
             <div style={ { ...s.card, marginTop: '12px', border: '1px solid #e5e7eb', background: '#f9fafb' } }>
               <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } }>
                 <div>
-                  <h4 style={ { margin: 0, fontSize: '13px', color: '#0f2a1d' } }>Post-call WhatsApp message (wd_menu)</h4>
-                  <p style={ { margin: '4px 0 0', fontSize: '11px', color: '#6b7280' } }>After a call ends, send the wd_menu video template on WhatsApp with quick-reply options. Disable to skip the post-call WhatsApp follow-up.</p>
+                  <h4 style={ { margin: 0, fontSize: '13px', color: '#0f2a1d' } }>Post-call WhatsApp message</h4>
+                  <p style={ { margin: '4px 0 0', fontSize: '11px', color: '#6b7280' } }>After a call ends, send a short WhatsApp follow-up message. Disable to skip the post-call WhatsApp follow-up.</p>
                 </div>
                 <label style={ { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#374151', cursor: 'pointer', whiteSpace: 'nowrap' } }>
                   <input type="checkbox" checked={ postCallWa } onChange={ async () => {

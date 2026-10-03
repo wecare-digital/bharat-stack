@@ -369,8 +369,15 @@ class TestSendMessages:
             res = self.h._send_media_msg({'to': '919900000000', 'mediaType': 'image', 'mediaId': 'm1', 'caption': 'c'})
             assert res['statusCode'] == 200
 
-    def test_interactive_requires_object(self):
-        assert self.h._send_interactive_msg({'to': '919900000000'})['statusCode'] == 400
+    def test_the_interactive_route_is_gone_and_says_so(self):
+        """`_send_interactive_msg` was deleted on 2026-10-02 with the WhatsApp
+        menus. The route is still declared, so it must answer 410 Gone rather than
+        fall through to the 404 'Unknown send path' - the route is withdrawn, not
+        unknown, and a 404 would send a caller looking for a typo."""
+        assert not hasattr(self.h, '_send_interactive_msg')
+        res = self.h._route_send_message('/messages/send/interactive', {})
+        assert res['statusCode'] == 410
+        assert 'interactive messaging removed' in res['body']
 
     def test_flow_requires_flow_ref(self):
         assert self.h._send_flow_msg({'to': '919900000000'})['statusCode'] == 400

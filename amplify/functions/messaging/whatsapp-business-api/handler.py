@@ -22,7 +22,8 @@ Routes:
   POST      /wa-business/media/resumable/session            → Start resumable upload
   POST      /wa-business/media/resumable/{sessionId}/chunk  → Append chunk
   POST      /wa-business/media/resumable/{sessionId}/finish → Assemble + upload (handle/media)
-  POST      /wa-business/messages/send/text|template|media|interactive|flow → Send test messages
+  POST      /wa-business/messages/send/text|template|media|flow → Send test messages
+  POST      /wa-business/messages/send/interactive → REMOVED 2026-10-02, answers 410
   GET       /wa-business/webhooks      → Get webhook subscriptions
   POST      /wa-business/webhooks      → Subscribe to webhook fields
   DELETE    /wa-business/webhooks      → Unsubscribe webhook fields
@@ -1972,7 +1973,7 @@ def _resumable_finish(session_id: str, body: Dict) -> Dict:
 #   POST /wa-business/messages/send/text        → text
 #   POST /wa-business/messages/send/template    → template (incl. flow template)
 #   POST /wa-business/messages/send/media       → image/video/document/audio/sticker
-#   POST /wa-business/messages/send/interactive → list/button/product/catalog (pass-through)
+#   POST /wa-business/messages/send/interactive → REMOVED 2026-10-02, answers 410
 #   POST /wa-business/messages/send/flow        → flow message by id or name (draft/published)
 # All post to {phone_id}/messages via the Graph API.
 # ============================================================================
@@ -2044,14 +2045,6 @@ def _send_media_msg(body: Dict) -> Dict:
     if body.get('filename') and media_type == 'document':
         obj['filename'] = body['filename']
     return _send_message(phone_id, {'type': media_type, media_type: obj}, body)
-
-
-def _send_interactive_msg(body: Dict) -> Dict:
-    interactive = body.get('interactive')
-    if not interactive:
-        return _resp(400, {'error': 'interactive object is required'})
-    phone_id = body.get('phoneId') or PHONE1_META_ID
-    return _send_message(phone_id, {'type': 'interactive', 'interactive': interactive}, body)
 
 
 def _send_request_contact_info(body: Dict) -> Dict:
@@ -2185,7 +2178,12 @@ def _route_send_message(path: str, body: Dict) -> Dict:
     if path.rstrip('/').endswith('/media'):
         return _send_media_msg(body)
     if path.rstrip('/').endswith('/interactive'):
-        return _send_interactive_msg(body)
+        # The generic interactive pass-through was deleted with every WhatsApp
+        # menu on 2026-10-02. 410 rather than the 404 below, because the route
+        # still exists - it was withdrawn, it is not unknown.
+        return _resp(410, {'error': 'interactive messaging removed',
+                           'detail': 'generic interactive sends were deleted on '
+                                     '2026-10-02; use /text, /template, /media or /flow'})
     if path.rstrip('/').endswith('/flow'):
         return _send_flow_msg(body)
     if path.rstrip('/').endswith('/contacts'):
@@ -2520,56 +2518,6 @@ def _reject_group_join_requests(group_id: str, body: Dict) -> Dict:
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, result)
-
-# ============================================================================
-# INTERACTIVE LIST MESSAGES
-# ============================================================================
-def _send_interactive_list(phone_id: str, body: Dict) -> Dict:
-    """Send an interactive list message to a WhatsApp user."""
-    to = body.get('to')
-    if not to:
-        return _resp(400, {'error': 'to (recipient phone number) required'})
-
-    header_text = body.get('headerText', '')
-    body_text = body.get('bodyText', '')
-    footer_text = body.get('footerText', '')
-    button_text = body.get('buttonText', 'Options')
-    sections = body.get('sections', [])
-
-    if not body_text:
-        return _resp(400, {'error': 'bodyText required'})
-    if not sections:
-        return _resp(400, {'error': 'sections required (array of {title, rows})'})
-
-    interactive = {
-        'type': 'list',
-        'body': {'text': body_text},
-        'action': {
-            'button': button_text,
-            'sections': sections,
-        },
-    }
-    if header_text:
-        interactive['header'] = {'type': 'text', 'text': header_text}
-    if footer_text:
-        interactive['footer'] = {'text': footer_text}
-
-    payload = {
-        'messaging_product': 'whatsapp',
-        'to': to,
-        'type': 'interactive',
-        'interactive': interactive,
-    }
-
-    result = _graph_api(f'{phone_id}/messages', method='POST', payload=payload, phone_id=phone_id)
-    if 'error' in result:
-        return _resp(400, result)
-    msg_id = ''
-    msgs = result.get('messages', [])
-    if msgs:
-        msg_id = msgs[0].get('id', '')
-    return _resp(200, {'success': True, 'messageId': msg_id})
-
 
 # ============================================================================
 # CALLING SETTINGS (Enable/Disable calling on a phone number)
@@ -6085,10 +6033,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _delete_group(group_id or '')
 
         elif '/interactive-list' in path:
-            phone_id = params.get('phoneId') or body.get('phoneId')
-            if not phone_id:
-                return _resp(400, {'error': 'phoneId required'})
-            return _send_interactive_list(phone_id, body)
+            # The route stays declared so it answers honestly rather than 404ing.
+            return _resp(410, {'error': 'interactive messaging removed',
+                               'detail': 'the interactive-list sender was deleted on 2026-10-02'})
 
         elif '/calling-settings' in path:
             phone_id = params.get('phoneId') or body.get('phoneId')

@@ -602,20 +602,45 @@ class TestWhatsAppPolicy:
         assert d.eligible is False
         assert "SENDER_UNRESOLVED" in d.reason
 
-    def test_unverified_template_is_skipped_not_sent(self):
+    def test_no_template_configured_is_skipped_not_sent(self):
+        """The shipped state since 2026-10-02. `wd_menu` was the default template
+        name and Meta deleted it with every other WhatsApp menu, so the default is
+        now empty and the channel refuses rather than naming a template that does
+        not exist. This is reported in preference to UNVERIFIED because it is the
+        more specific truth."""
+        assert policy_mod.WA_TEMPLATE_NAME == ""
+        d = policy_mod.decide_whatsapp(CUSTOMER, sender_phone_id=PHONE1_META)
+        assert d.eligible is False
+        assert "TEMPLATE_UNCONFIGURED" in d.reason
+        assert d.template_id == "998210796499191"
+
+    def test_unverified_template_is_skipped_not_sent(self, monkeypatch):
+        """With a template name configured, the verified-sender check is what refuses.
+        Patching the module attribute rather than the env var on purpose:
+        WA_TEMPLATE_NAME is read once at import, so setenv would not reach it."""
+        monkeypatch.setattr(policy_mod, "WA_TEMPLATE_NAME", "wd_call_followup_v1")
         d = policy_mod.decide_whatsapp(CUSTOMER, sender_phone_id=PHONE1_META)
         assert d.eligible is False
         assert "TEMPLATE_UNVERIFIED" in d.reason
         assert d.template_id == "998210796499191"
 
     def test_verified_sender_becomes_eligible(self, monkeypatch):
+        monkeypatch.setattr(policy_mod, "WA_TEMPLATE_NAME", "wd_call_followup_v1")
         monkeypatch.setenv("NOTIF_WA_VERIFIED_SENDERS", PHONE1_META)
         d = policy_mod.decide_whatsapp(CUSTOMER, sender_phone_id=PHONE1_META)
         assert d.eligible is True
         assert d.provider == "meta-direct"
-        assert d.template_name == "wd_menu"
+        assert d.template_name == "wd_call_followup_v1"
         assert d.template_id == "998210796499191"
         assert d.sender_label == "WABA1"
+
+    def test_a_configured_name_cannot_be_bypassed_by_verification(self, monkeypatch):
+        """Verifying a sender must not make an unconfigured template eligible - the
+        UNCONFIGURED guard sits ahead of the verified check for exactly this case."""
+        monkeypatch.setenv("NOTIF_WA_VERIFIED_SENDERS", PHONE1_META)
+        d = policy_mod.decide_whatsapp(CUSTOMER, sender_phone_id=PHONE1_META)
+        assert d.eligible is False
+        assert "TEMPLATE_UNCONFIGURED" in d.reason
 
     def test_each_phone_id_maps_to_exactly_one_template_object(self):
         """The 'never duplicate from WABA2' rule expressed as data: one phone id
@@ -626,6 +651,7 @@ class TestWhatsAppPolicy:
         assert len(ids) == len(set(ids))
 
     def test_secondary_number_uses_its_own_object_not_waba1s(self, monkeypatch):
+        monkeypatch.setattr(policy_mod, "WA_TEMPLATE_NAME", "wd_call_followup_v1")
         monkeypatch.setenv("NOTIF_WA_VERIFIED_SENDERS", PHONE2_META)
         d = policy_mod.decide_whatsapp(CUSTOMER, sender_phone_id=PHONE2_META)
         assert d.eligible is True

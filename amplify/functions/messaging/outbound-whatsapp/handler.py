@@ -1459,15 +1459,19 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
                               interactive_data: Dict, request_id: str,
                               recipient_bsuid: Optional[str] = None) -> Dict[str, Any]:
     """
-    Send interactive messages (list, buttons, location request, CTA URL).
-    
+    Send interactive messages (location request, CTA URL, flow, address, catalog).
+
+    The menu-shaped types - list, button, product and product_list - were deleted
+    on 2026-10-02 with every other WhatsApp menu. A request for one of them now
+    gets the JSON error from the `else` arm below rather than a send.
+
     Interactive Types:
-    - list: Up to 10 sections with rows (max 10 rows total)
-    - button: Up to 3 quick reply buttons
     - location_request: Request user's location
     - cta_url: Call-to-action URL button
-    - flow: WhatsApp Flow trigger (if supported)
-    
+    - flow: WhatsApp Flow trigger
+    - address_message: India Address Message (checkout delivery address)
+    - catalog_message: "View catalog" button onto the Meta product catalogue
+
     Per WhatsApp Business API docs:
     https://developers.facebook.com/docs/whatsapp/guides/interactive-messages/
     https://developers.facebook.com/docs/whatsapp/cloud-api/messages/interactive-cta-url-messages/
@@ -1489,102 +1493,7 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
             payload['recipient'] = recipient_bsuid
         
         # Build interactive payload based on type
-        if interactive_type == 'list':
-            # List message with sections and rows
-            header_text = interactive_data.get('header', '')
-            body_text = interactive_data.get('body', 'Please select an option')
-            footer_text = interactive_data.get('footer', '')
-            button_text = interactive_data.get('buttonText', 'View Options')
-            sections = interactive_data.get('sections', [])
-            
-            interactive_payload = {
-                'type': 'list',
-                'body': {'text': body_text},
-                'action': {
-                    'button': button_text,
-                    'sections': []
-                }
-            }
-            
-            # Add header if provided
-            if header_text:
-                interactive_payload['header'] = {'type': 'text', 'text': header_text}
-            
-            # Add footer if provided
-            if footer_text:
-                interactive_payload['footer'] = {'text': footer_text}
-            
-            # Build sections (max 10 sections, max 10 rows total)
-            for section in sections[:10]:
-                section_obj = {
-                    'title': section.get('title', 'Options'),
-                    'rows': []
-                }
-                for row in section.get('rows', [])[:10]:
-                    section_obj['rows'].append({
-                        'id': row.get('id', str(len(section_obj['rows']))),
-                        'title': row.get('title', 'Option')[:24],  # Max 24 chars
-                        'description': row.get('description', '')[:72]  # Max 72 chars
-                    })
-                if section_obj['rows']:
-                    interactive_payload['action']['sections'].append(section_obj)
-            
-            payload['interactive'] = interactive_payload
-            
-        elif interactive_type == 'button':
-            # Reply buttons (max 3)
-            header_text = interactive_data.get('header', '')
-            header_type = interactive_data.get('headerType', 'text')  # text, image, video, document
-            body_text = interactive_data.get('body', 'Please select an option')
-            footer_text = interactive_data.get('footer', '')
-            buttons = interactive_data.get('buttons', [])
-            
-            interactive_payload = {
-                'type': 'button',
-                'body': {'text': body_text},
-                'action': {'buttons': []}
-            }
-            
-            # Add header if provided
-            if header_text or header_type != 'text':
-                if header_type == 'text':
-                    interactive_payload['header'] = {'type': 'text', 'text': header_text}
-                elif header_type == 'image':
-                    interactive_payload['header'] = {
-                        'type': 'image',
-                        'image': {'link': interactive_data.get('headerMedia', '')}
-                    }
-                elif header_type == 'video':
-                    interactive_payload['header'] = {
-                        'type': 'video',
-                        'video': {'link': interactive_data.get('headerMedia', '')}
-                    }
-                elif header_type == 'document':
-                    interactive_payload['header'] = {
-                        'type': 'document',
-                        'document': {
-                            'link': interactive_data.get('headerMedia', ''),
-                            'filename': interactive_data.get('headerFilename', 'document.pdf')
-                        }
-                    }
-            
-            # Add footer if provided
-            if footer_text:
-                interactive_payload['footer'] = {'text': footer_text}
-            
-            # Build buttons (max 3)
-            for i, btn in enumerate(buttons[:3]):
-                interactive_payload['action']['buttons'].append({
-                    'type': 'reply',
-                    'reply': {
-                        'id': btn.get('id', f'btn_{i}'),
-                        'title': btn.get('title', 'Button')[:20]  # Max 20 chars
-                    }
-                })
-            
-            payload['interactive'] = interactive_payload
-            
-        elif interactive_type == 'location_request':
+        if interactive_type == 'location_request':
             # Location request message
             body_text = interactive_data.get('body', 'Please share your location')
             
@@ -1693,25 +1602,6 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
             
             payload['interactive'] = interactive_payload
             
-        elif interactive_type == 'product':
-            # Single Product Message — requires a catalog_id + product_retailer_id.
-            catalog_id = interactive_data.get('catalogId') or interactive_data.get('catalog_id')
-            product_retailer_id = interactive_data.get('productRetailerId') or interactive_data.get('product_retailer_id')
-            if not catalog_id or not product_retailer_id:
-                return _error_response(400, 'product message requires catalogId and productRetailerId')
-            interactive_payload = {
-                'type': 'product',
-                'action': {
-                    'catalog_id': str(catalog_id),
-                    'product_retailer_id': str(product_retailer_id),
-                }
-            }
-            if interactive_data.get('body'):
-                interactive_payload['body'] = {'text': interactive_data['body']}
-            if interactive_data.get('footer'):
-                interactive_payload['footer'] = {'text': interactive_data['footer']}
-            payload['interactive'] = interactive_payload
-
         elif interactive_type == 'address_message':
             # Native India Address Message — collect a shipping address for physical
             # goods. Docs: interactive.type=address_message, action.name=address_message,
@@ -1756,42 +1646,11 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
                 interactive_payload['footer'] = {'text': str(interactive_data['footer'])[:60]}
             payload['interactive'] = interactive_payload
 
-        elif interactive_type == 'product_list':
-            # Multi-Product Message — catalog_id + sections of product_items.
-            catalog_id = interactive_data.get('catalogId') or interactive_data.get('catalog_id')
-            sections_in = interactive_data.get('sections', [])
-            if not catalog_id or not sections_in:
-                return _error_response(400, 'product_list requires catalogId and sections')
-            header_text = interactive_data.get('header', 'Our products')
-            body_text = interactive_data.get('body', 'Browse our catalog')
-            footer_text = interactive_data.get('footer', '')
-            sections_out = []
-            for section in sections_in[:10]:
-                items = section.get('productItems') or section.get('product_items') or []
-                product_items = []
-                for it in items[:30]:
-                    rid = it.get('productRetailerId') or it.get('product_retailer_id') or (it if isinstance(it, str) else None)
-                    if rid:
-                        product_items.append({'product_retailer_id': str(rid)})
-                if product_items:
-                    sections_out.append({'title': section.get('title', 'Products')[:24], 'product_items': product_items})
-            if not sections_out:
-                return _error_response(400, 'product_list has no valid product items')
-            interactive_payload = {
-                'type': 'product_list',
-                'header': {'type': 'text', 'text': header_text},
-                'body': {'text': body_text},
-                'action': {
-                    'catalog_id': str(catalog_id),
-                    'sections': sections_out,
-                }
-            }
-            if footer_text:
-                interactive_payload['footer'] = {'text': footer_text}
-            payload['interactive'] = interactive_payload
-            
         else:
-            return _error_response(400, f'Invalid interactive type: {interactive_type}')
+            return _error_response(
+                400, 'interactive messaging removed',
+                f"'{interactive_type}' interactive sends were deleted on 2026-10-02; "
+                "list, button, product and product_list are no longer supported")
         
         logger.info(json.dumps({
             'event': 'interactive_payload',
