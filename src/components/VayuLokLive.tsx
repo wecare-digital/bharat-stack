@@ -990,12 +990,15 @@ const VayuLokLive: React.FC = () => {
         .vl-live-wrap{width:100%;max-width:1300px;margin:0 auto;padding:0 24px}
         .vl-live-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
-        /* Type ladder from index.tsx + the two Blog components. */
-        .vl-live-h2{margin:0 0 14px;font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;letter-spacing:-1.2px;color:var(--ink-head)}
-        .vl-live-card-h{margin:0 0 6px;font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:var(--ink-strong)}
-        .vl-live-body{margin:0;max-width:62ch;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:var(--ink-body)}
-        .vl-live-eyebrow{margin:0 0 14px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
-        .vl-live-label{margin:0 0 7px;font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--green)}
+        /* Type ladder MEASURED from the live home page (wecare.digital): Inter,
+           text #1a1a1a; h2 40px/700/-1.2px; eyebrow 12px/700/0.72px-tracking
+           uppercase in dark green #1a3a2a (NOT the light --green, which read as
+           loose/washed-out against the home language); body a tighter 17px. */
+        .vl-live-h2{margin:0 0 14px;font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.1;letter-spacing:-1.2px;color:#1a1a1a}
+        .vl-live-card-h{margin:0 0 6px;font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#1a1a1a}
+        .vl-live-body{margin:0;max-width:62ch;font-size:17px;font-weight:400;line-height:1.55;letter-spacing:-.1px;color:rgba(0,0,0,.72)}
+        .vl-live-eyebrow{margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1a3a2a}
+        .vl-live-label{margin:0 0 7px;font-size:12px;font-weight:600;letter-spacing:.01em;color:rgba(0,0,0,.54)}
         .vl-live-small{margin:0;font-size:13px;line-height:1.4;color:var(--ink-muted)}
         .vl-live-mb16{margin-bottom:16px}
 
@@ -1056,16 +1059,19 @@ const VayuLokLive: React.FC = () => {
         .vl-live-search-option-name{display:block;font-size:16px;font-weight:600;line-height:1.3;color:var(--ink-strong)}
         .vl-live-search-option-addr{display:block;margin-top:2px;font-size:13px;line-height:1.4;color:var(--ink-muted)}
 
-        /* NOW figures. */
-        .vl-live-place{margin:0 0 6px;font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:var(--ink-strong)}
-        .vl-live-place-addr{margin:0 0 36px;max-width:62ch;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:var(--ink-body)}
-        .vl-live-now{padding-top:32px;border-top:1px solid var(--hair)}
-        .vl-live-figure{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:10px 0 0}
-        .vl-live-metric-xl{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;letter-spacing:-0.04em;color:var(--ink-head)}
-        .vl-live-metric-lg{font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;letter-spacing:-1.2px;color:var(--ink-head)}
-        .vl-live-metric-md{display:block;font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:var(--ink-strong)}
-        .vl-live-cond{margin:16px 0 0;max-width:46ch;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:var(--ink-body)}
-        .vl-live-sub-fact{margin:8px 0 0;font-size:15px;line-height:1.5;color:var(--ink-second)}
+        /* NOW figures - tightened to the home scale. The place name is a clean
+           20px/700, the address a muted 15px (was an oversized 20px that made the
+           header feel loose), figures stay large (the home h1 rung) and body/cond
+           text drops to the home 17px with the home muted tone. */
+        .vl-live-place{margin:0 0 4px;font-size:20px;font-weight:700;line-height:1.25;letter-spacing:-.4px;color:#1a1a1a}
+        .vl-live-place-addr{margin:0 0 28px;max-width:62ch;font-size:15px;font-weight:400;line-height:1.5;letter-spacing:0;color:rgba(0,0,0,.54)}
+        .vl-live-now{padding-top:28px;border-top:1px solid var(--hair)}
+        .vl-live-figure{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:8px 0 0}
+        .vl-live-metric-xl{font-size:clamp(40px,4.3vw,56px);font-weight:600;line-height:1.04;letter-spacing:-0.04em;color:#1a1a1a}
+        .vl-live-metric-lg{font-size:clamp(32px,3.2vw,40px);font-weight:600;line-height:1.08;letter-spacing:-1.6px;color:#1a1a1a}
+        .vl-live-metric-md{display:block;font-size:20px;font-weight:700;line-height:1.25;letter-spacing:-.4px;color:#1a1a1a}
+        .vl-live-cond{margin:14px 0 0;max-width:46ch;font-size:17px;font-weight:400;line-height:1.55;letter-spacing:-.1px;color:rgba(0,0,0,.72)}
+        .vl-live-sub-fact{margin:8px 0 0;font-size:14px;line-height:1.5;color:rgba(0,0,0,.54)}
 
         /* AQI mark - severity encoded by FORM as well as tone. */
         .vl-live-dot{display:inline-block;width:16px;height:16px;border-radius:50%;flex:0 0 auto}
@@ -1075,7 +1081,7 @@ const VayuLokLive: React.FC = () => {
         .vl-live-dot-poor{background:var(--paper);border:5px solid var(--aqi-poor);box-shadow:0 0 0 1px var(--green)}
         .vl-live-dot-worst{background:var(--aqi-worst);border:3px solid var(--paper);box-shadow:0 0 0 2px var(--aqi-worst),0 0 0 3px var(--green)}
 
-        .vl-live-cat{display:inline-flex;align-items:center;padding:4px 14px;border:1px solid var(--green);border-radius:var(--r-pill);background:var(--paper);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green);white-space:nowrap}
+        .vl-live-cat{display:inline-flex;align-items:center;padding:5px 14px;border:1.5px solid #1a3a2a;border-radius:var(--r-pill);background:var(--paper);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1a3a2a;white-space:nowrap}
 
         /* Map overlays - inset from the bottom corners (Maps Platform ToS). No rule
            anywhere targets .gm-style-cc, a[href*="google"] or img[alt="Google"]. */
