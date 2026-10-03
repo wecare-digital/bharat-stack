@@ -535,7 +535,13 @@ def test_a_redemption_failure_after_capture_lands_in_needs_reconciliation():
                    gcs.RANK_ATTRIBUTE: gcs.STAGE_RANK[gcs.GC_HELD],
                    gcs.REQUIRED_PAISE_ATTR: REDEEMED})
 
-    cards.arm_failure("update_item", RuntimeError("ProvisionedThroughputExceededException"))
+    # Aimed at `transact_write_items`, because that is where the balance move lives: the move
+    # and the claim's `settled` flag are one transaction. Only the INJECTION POINT moves - every
+    # assertion below is unchanged, which is what shows the property was preserved rather than
+    # the test adjusted. A bare throughput error is not a cancellation, so it surfaces as
+    # `GiftCardStoreUnavailable` and can never be mistaken for a lost race.
+    cards.arm_failure("transact_write_items",
+                      RuntimeError("ProvisionedThroughputExceededException"))
     with pytest.raises(gc.GiftCardStoreUnavailable):
         gc.redeem(cards, code_hash=digest(), attempt_id="attempt-1", amount_paise=REDEEMED,
                   clock=clock())

@@ -136,6 +136,10 @@ GIFT_CARDS_TABLE = "stack-wecare-digital-GiftCardsTable"
 WIX_API_KEY_SECRET = "wecare/wix/headless-api-key"
 RAZORPAY_API_SECRET = "wecare/razorpay/api"
 CONTACTS_TABLE = "stack-wecare-digital-ContactsTable"
+#: The internal order record. An order exists ONLY after an authoritative capture, and
+#: `finalization.accept_paid` is what writes it. Granted GetItem/PutItem/UpdateItem and
+#: explicitly NOT DeleteItem or Scan: an order record is evidence that money moved.
+ORDERS_TABLE = "stack-wecare-digital-OrderTable"
 WIX_SITE_ID = "fcd82f0c-9572-49c7-acfb-88fb05042ece"
 SENDER_FUNCTION = "wecare-whatsapp-business-api"
 PAYMENT_WABA_ID = "2094615664435155"
@@ -420,6 +424,18 @@ def ensure_role(dry_run: bool) -> str:
                 ],
             },
             {
+                "Sid": "InternalOrderRecord",
+                "Effect": "Allow",
+                # No DeleteItem and no Scan. The internal order is the record that a verified
+                # capture became exactly one order, so it is evidence rather than a reservation --
+                # the same reasoning PaymentAttemptAndCommerceKeys states for an attempt row. A
+                # Scan is withheld because every access on this path is an exact-key operation.
+                "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"],
+                "Resource": [
+                    f"arn:aws:dynamodb:{REGION}:{acct}:table/{ORDERS_TABLE}",
+                ],
+            },
+            {
                 "Sid": "CouponAndGiftCardRedemption",
                 "Effect": "Allow",
                 # DeleteItem IS granted, and ONLY on these two tables. A redemption deletes the
@@ -485,6 +501,7 @@ def expected_environment() -> dict:
         "WIX_API_KEY_SECRET": WIX_API_KEY_SECRET,
         "RAZORPAY_SECRET_ID": RAZORPAY_API_SECRET,
         "CONTACTS_TABLE": CONTACTS_TABLE,
+        "ORDERS_TABLE": ORDERS_TABLE,
         "WIX_SITE_ID": WIX_SITE_ID,
         "SENDER_FUNCTION": f"{SENDER_FUNCTION}:{LIVE_ALIAS}",
         "PAYMENT_WABA_ID": PAYMENT_WABA_ID,
@@ -715,6 +732,10 @@ _SIMULATED_ACTIONS = ("dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateIt
 _EXPECTED_DENY = {
     ("dynamodb:DeleteItem", PAYMENT_ATTEMPTS_TABLE),
     ("dynamodb:DeleteItem", COMMERCE_KEYS_TABLE),
+    # Without this pair, `--verify` reports a false "GRANTED BY THE INLINE POLICY BUT DENIED IN
+    # SIMULATION" for DeleteItem on the OrderTable and exits non-zero on a CORRECTLY provisioned
+    # role -- because InternalOrderRecord deliberately withholds it.
+    ("dynamodb:DeleteItem", ORDERS_TABLE),
 }
 
 
@@ -841,9 +862,13 @@ def report_required_grants(members: dict | None) -> list:
               f"arn:aws:dynamodb:{REGION}:{acct}:table/{COMMERCE_KEYS_TABLE}",
               f"arn:aws:dynamodb:{REGION}:{acct}:table/{COUPONS_TABLE}",
               f"arn:aws:dynamodb:{REGION}:{acct}:table/{GIFT_CARDS_TABLE}",
+              # BEFORE the phone index, deliberately: the two slices below are POSITIONAL, so
+              # appending after it would make `profile_index` the OrderTable and simulate Query
+              # against the wrong resource while reporting a pass.
+              f"arn:aws:dynamodb:{REGION}:{acct}:table/{ORDERS_TABLE}",
               f"arn:aws:dynamodb:{REGION}:{acct}:table/{CONTACTS_TABLE}/index/phone-index"]
-    core_tables = tables[:4]
-    profile_index = tables[4]
+    core_tables = tables[:5]
+    profile_index = tables[5]
     #: ARN -> readable resource name. The profile resource ends in `phone-index`, so retaining the
     #: table name matters when a verifier reports a mismatch.
     table_names = {
@@ -851,7 +876,8 @@ def report_required_grants(members: dict | None) -> list:
         tables[1]: COMMERCE_KEYS_TABLE,
         tables[2]: COUPONS_TABLE,
         tables[3]: GIFT_CARDS_TABLE,
-        tables[4]: CONTACTS_TABLE + "/index/phone-index",
+        tables[4]: ORDERS_TABLE,
+        tables[5]: CONTACTS_TABLE + "/index/phone-index",
     }
     try:
         role_arn = iam().get_role(RoleName=ROLE_NAME)["Role"]["Arn"]

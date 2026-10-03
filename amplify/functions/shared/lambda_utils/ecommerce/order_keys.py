@@ -174,10 +174,22 @@ class OrderIdentityUnavailable(RuntimeError):
     """
 
 
-def _is_conditional_failure(error: Exception) -> bool:
-    """True for a losing conditional write, which is a race to retry, not an outage."""
+def is_conditional_failure(error: Exception) -> bool:
+    """A DynamoDB ConditionalCheckFailedException, as opposed to any other failure.
+
+    Public because a caller outside this module needs it: `website_checkout`'s create-right claim
+    must tell "somebody else holds it" from "storage is broken", and those two answers differ by
+    whether a second payable order may be created. The tree already held three inline copies of
+    this check, so a fourth in the one function whose whole point is "this is not best-effort"
+    was the worst possible place for a copy to drift.
+    """
     response = getattr(error, "response", None) or {}
     return response.get("Error", {}).get("Code") == "ConditionalCheckFailedException"
+
+
+#: The private name the six internal call sites in this module already use. Kept as an alias
+#: rather than renamed at every site, because that is churn with no benefit.
+_is_conditional_failure = is_conditional_failure
 
 
 # ── validation ─────────────────────────────────────────────────────────────────
@@ -1049,6 +1061,19 @@ def bind_gateway_order(table: Any,
     return _claim_row(table, key_attr, GATEWAY_ORDER_PREFIX + gateway_order_id, item)
 
 
+def resolve_checkout_request_key(table: Any, *, customer_id: str, request_key: str,
+                                 key_attr: str = "orderId") -> Optional[Dict[str, Any]]:
+    """The stored reservation for one customer's request key, or None.
+
+    A reader for a row `reserve_checkout_request_key` already writes. `website_checkout`'s
+    create-right claim needs to read back the reference that row carries, and reading it through
+    `_read_row` is what makes a storage failure raise rather than answer "no reservation".
+    """
+    if not customer_id or not request_key:
+        return None
+    return _read_row(table, key_attr, REQUEST_KEY_PREFIX + customer_id + "#" + request_key)
+
+
 def resolve_gateway_order(table: Any, gateway_order_id: str, *,
                           key_attr: str = "orderId") -> Optional[Dict[str, Any]]:
     """The stored binding for a gateway order id, or None.
@@ -1059,6 +1084,338 @@ def resolve_gateway_order(table: Any, gateway_order_id: str, *,
     if not gateway_order_id:
         return None
     return _read_row(table, key_attr, GATEWAY_ORDER_PREFIX + gateway_order_id)
+
+
+# ── one live payable attempt per cart, and durable per-basket paid memory ───────
+
+#: The customer's most recent PAYABLE attempt for one Cart V2 cart, so a create can resolve
+#: before it generates a second gateway order for a basket that already has one.
+#:
+#: WHY A POINTER ROW AND NOT A QUERY. PaymentAttemptsTable is keyed on `paymentAttemptId` alone
+#: and carries no index on the customer or the cart, so the only way to ask "does this cart
+#: already have a live payment?" without a table scan is to write the question's answer down when
+#: the payable attempt is reserved. Same discipline as `REQUESTKEY#`, `PAYREF#` and `ORDERNO#`:
+#: resolve before generate, on a stored key.
+#:
+#: Namespaced by customer FIRST, so one customer can never resolve or block another's cart.
+CART_PAYMENT_PREFIX = "CARTPAYMENT#"
+CART_PAYMENT_KIND = "CART_PAYMENT_POINTER"
+
+#: Per-BASKET paid memory. SEPARATE from CART_PAYMENT_PREFIX, and the separation is the fix.
+#: `CARTPAYMENT#` is a single slot per cart and is deliberately upserted when a later attempt
+#: opens on the same cart — which destroys the only record that an EARLIER basket was paid. A
+#: cart has ONE live attempt and may have MANY paid baskets over its 30-day lifetime, so "which
+#: attempt is live" and "has this basket been paid" are different cardinalities and cannot share
+#: a row.
+#:
+#: Customer FIRST, then cart, then basket, so one customer can never resolve another's basket and
+#: so the row is diagnosable by prefix for one cart when a human reconciles a refusal.
+CART_BASKET_PREFIX = "CARTBASKET#"
+CART_BASKET_KIND = "CART_BASKET_PAID_POINTER"
+
+#: The NARROW per-basket paid row. The SAME question as CART_BASKET_PREFIX, keyed on the identity
+#: we can PROVE is stable rather than the one we cannot. `checkout_pricing.basket_hash` is
+#: subtractive and may carry a per-calculate field, so a lookup keyed on it can MISS for an
+#: unedited basket — and the cart pointer's narrow veto cannot cover that, because the veto only
+#: runs when the POINTER names a paid attempt, and the pointer is a single slot a later attempt
+#: upserts. Two keys, two chances, and the narrow one cannot be polluted by a field Wix controls.
+CART_NARROW_BASKET_PREFIX = "CARTNARROW#"
+CART_NARROW_BASKET_KIND = "CART_NARROW_BASKET_PAID_POINTER"
+
+#: How long a per-basket create claim is honoured before a later click may take it over. Mirrors
+#: `website_checkout.CREATE_CLAIM_STALE_SECONDS`; a test pins the two equal. A claim that never
+#: became an attempt means a create FAILED, which is a different fact from a capture still
+#: settling, and 1200s of friction for a provider timeout is the wrong answer.
+CART_CREATE_CLAIM_STALE_SECONDS = 120
+
+#: Written by a claim, replaced by a record. Evidence, never a decision: the decision is taken on
+#: the PRESENCE of `recordedAt`, so a stage value that drifts cannot change behaviour.
+CART_CLAIM_STAGE_CREATED = "CREATE_CLAIMED"
+
+
+def _cart_payment_key(customer_id: str, wix_cart_id: str) -> str:
+    if not customer_id:
+        raise ValueError("customer_id is required")
+    if not wix_cart_id:
+        raise ValueError("wix_cart_id is required")
+    return CART_PAYMENT_PREFIX + customer_id + "#" + wix_cart_id
+
+
+def _cart_basket_key(customer_id: str, wix_cart_id: str, basket_hash: str) -> str:
+    """`CARTBASKET#<customer>#<cart>#<basketHash>`. ValueError on ANY empty part.
+
+    Mirrors `_cart_payment_key`'s refusal rather than silently composing a key with an empty
+    segment, because two different baskets must never collide onto one key.
+    """
+    if not customer_id:
+        raise ValueError("customer_id is required")
+    if not wix_cart_id:
+        raise ValueError("wix_cart_id is required")
+    if not basket_hash:
+        raise ValueError("basket_hash is required")
+    return CART_BASKET_PREFIX + customer_id + "#" + wix_cart_id + "#" + basket_hash
+
+
+def _cart_narrow_basket_key(customer_id: str, wix_cart_id: str, narrow_hash: str) -> str:
+    """`CARTNARROW#<customer>#<cart>#<narrowBasketHash>`. ValueError on ANY empty part."""
+    if not customer_id:
+        raise ValueError("customer_id is required")
+    if not wix_cart_id:
+        raise ValueError("wix_cart_id is required")
+    if not narrow_hash:
+        raise ValueError("narrow_hash is required")
+    return CART_NARROW_BASKET_PREFIX + customer_id + "#" + wix_cart_id + "#" + narrow_hash
+
+
+def resolve_cart_payment(table: Any, *, customer_id: str, wix_cart_id: str,
+                         key_attr: str = "orderId") -> Optional[Dict[str, Any]]:
+    """The last payable attempt recorded for this customer's cart, or None. Consistent read.
+
+    A read failure raises `OrderIdentityUnavailable` rather than answering None, for the usual
+    reason in this module and a sharper one here: the caller acts on absence by creating a NEW
+    payable gateway order, so a throttle answering "no attempt" is how one basket acquires two.
+    """
+    return _read_row(table, key_attr, _cart_payment_key(customer_id, wix_cart_id))
+
+
+def resolve_cart_basket(table: Any, *, customer_id: str, wix_cart_id: str, basket_hash: str,
+                        key_attr: str = "orderId") -> Optional[Dict[str, Any]]:
+    """The attempt recorded against THIS BASKET on this cart, or None. Consistent read.
+
+    Absence is the dangerous answer, so a read failure raises rather than returning None.
+    """
+    return _read_row(table, key_attr,
+                     _cart_basket_key(customer_id, wix_cart_id, basket_hash))
+
+
+def resolve_cart_narrow_basket(table: Any, *, customer_id: str, wix_cart_id: str,
+                               narrow_hash: str,
+                               key_attr: str = "orderId") -> Optional[Dict[str, Any]]:
+    """The same question as `resolve_cart_basket`, keyed on the narrow identity."""
+    return _read_row(table, key_attr,
+                     _cart_narrow_basket_key(customer_id, wix_cart_id, narrow_hash))
+
+
+def _write_cart_row(table: Any, item: Dict[str, Any], what: str) -> Dict[str, Any]:
+    """One unconditional upsert, raising `OrderIdentityUnavailable` on any failure.
+
+    These writes are NOT best-effort. A silently lost row re-opens the exact double-order path
+    the rows exist to close, so the caller refuses to expose checkout options instead.
+    """
+    try:
+        table.put_item(Item=item)
+    except Exception as error:  # noqa: BLE001
+        raise OrderIdentityUnavailable(
+            "could not record %s: %s" % (what, type(error).__name__)) from error
+    return item
+
+
+def record_cart_payment(table: Any,
+                        *,
+                        customer_id: str,
+                        wix_cart_id: str,
+                        payment_attempt_id: str,
+                        request_key: str = "",
+                        basket_hash: str = "",
+                        narrow_basket_hash: str = "",
+                        snapshot_hash: str = "",
+                        now: Optional[int] = None,
+                        key_attr: str = "orderId") -> Dict[str, Any]:
+    """Point this cart at the payable attempt that was just reserved for it. Returns the row.
+
+    An UPSERT, deliberately, where most rows in this module are one-shot claims: a cart may
+    legitimately acquire a second payable attempt later (the first was abandoned, and nothing in
+    the payment vocabulary ever moves an abandoned attempt to a terminal state), and the caller
+    decides whether that is allowed BEFORE it gets here. The guard is the read, not this write.
+
+    `basketHash` is what the paid arm DECIDES on, `narrowBasketHash` is what it may additionally
+    VETO on, and `snapshotHash` is EVIDENCE ONLY — no decision reads it. Writing all three and
+    deciding on two is deliberate: a human reading the row can tell "same basket, newer quote"
+    from "same items, different tender" from "different basket" without inferring any of them.
+
+    Neither the request key nor the cart id is a secret or a phone number.
+    """
+    payment_attempt_id = str(payment_attempt_id or "").strip()
+    if not payment_attempt_id:
+        raise ValueError("payment_attempt_id is required")
+    moment = int(time.time()) if now is None else int(now)
+    item: Dict[str, Any] = {
+        key_attr: _cart_payment_key(customer_id, wix_cart_id),
+        "kind": CART_PAYMENT_KIND,
+        "customerId": customer_id,
+        "wixCartId": wix_cart_id,
+        "paymentAttemptId": payment_attempt_id,
+        "requestKey": str(request_key or ""),
+        "basketHash": str(basket_hash or ""),
+        "narrowBasketHash": str(narrow_basket_hash or ""),
+        "snapshotHash": str(snapshot_hash or ""),
+        "recordedAt": moment,
+    }
+    return _write_cart_row(table, item, "the cart payment pointer")
+
+
+def record_cart_basket(table: Any,
+                       *,
+                       customer_id: str,
+                       wix_cart_id: str,
+                       basket_hash: str,
+                       payment_attempt_id: str,
+                       request_key: str = "",
+                       narrow_basket_hash: str = "",
+                       snapshot_hash: str = "",
+                       now: Optional[int] = None,
+                       key_attr: str = "orderId") -> Dict[str, Any]:
+    """Record that THIS BASKET has a payable attempt, keyed on the fine identity.
+
+    An upsert like its sibling, and safe here for a reason the cart row cannot claim: the key
+    CONTAINS the basket identity, so the only request that can rewrite the row is one presenting
+    the same basket — and the guard refuses exactly that request when the named attempt is paid.
+    The upsert therefore only ever re-points a basket whose previous attempt was NOT paid, which
+    is the legitimate retry.
+
+    Writes `recordedAt`, which is what promotes a `CREATE_CLAIMED` row to `RECORDED` and so moves
+    it out of the create-staleness window and under the rule that a claim can never take it over.
+    """
+    payment_attempt_id = str(payment_attempt_id or "").strip()
+    if not payment_attempt_id:
+        raise ValueError("payment_attempt_id is required")
+    moment = int(time.time()) if now is None else int(now)
+    item: Dict[str, Any] = {
+        key_attr: _cart_basket_key(customer_id, wix_cart_id, basket_hash),
+        "kind": CART_BASKET_KIND,
+        "customerId": customer_id,
+        "wixCartId": wix_cart_id,
+        "basketHash": basket_hash,
+        "narrowBasketHash": str(narrow_basket_hash or ""),
+        "snapshotHash": str(snapshot_hash or ""),
+        "paymentAttemptId": payment_attempt_id,
+        "requestKey": str(request_key or ""),
+        "recordedAt": moment,
+    }
+    return _write_cart_row(table, item, "the paid basket pointer")
+
+
+def record_cart_narrow_basket(table: Any,
+                              *,
+                              customer_id: str,
+                              wix_cart_id: str,
+                              narrow_hash: str,
+                              payment_attempt_id: str,
+                              request_key: str = "",
+                              basket_hash: str = "",
+                              snapshot_hash: str = "",
+                              now: Optional[int] = None,
+                              key_attr: str = "orderId") -> Dict[str, Any]:
+    """The same fact as `record_cart_basket`, keyed on the identity we can prove is stable."""
+    payment_attempt_id = str(payment_attempt_id or "").strip()
+    if not payment_attempt_id:
+        raise ValueError("payment_attempt_id is required")
+    moment = int(time.time()) if now is None else int(now)
+    item: Dict[str, Any] = {
+        key_attr: _cart_narrow_basket_key(customer_id, wix_cart_id, narrow_hash),
+        "kind": CART_NARROW_BASKET_KIND,
+        "customerId": customer_id,
+        "wixCartId": wix_cart_id,
+        "narrowBasketHash": narrow_hash,
+        "basketHash": str(basket_hash or ""),
+        "snapshotHash": str(snapshot_hash or ""),
+        "paymentAttemptId": payment_attempt_id,
+        "requestKey": str(request_key or ""),
+        "recordedAt": moment,
+    }
+    return _write_cart_row(table, item, "the narrow paid basket pointer")
+
+
+def _claim_basket_slot(table: Any, key_attr: str, key: str, kind: str, *,
+                       customer_id: str, wix_cart_id: str, payment_attempt_id: str,
+                       prior_payment_attempt_id: str, request_key: str,
+                       now: Optional[int]) -> bool:
+    """Take the per-basket create slot BEFORE the provider create. True if won.
+
+    ONE conditional `put_item`, which REPLACES the item. Never an `update_item`: under an update
+    a stale `recordedAt` would SURVIVE and the row would keep the settling horizon, when what a
+    retaken claim means is that a create is in progress — a different fact with a different
+    window. Replacing is what demotes a retried RECORDED row to `CREATE_CLAIMED` and moves it
+    onto the create horizon.
+
+    `prior_payment_attempt_id` is a COMPARE-AND-SWAP basis supplied by the caller — the attempt
+    id its own guard read off this row — and not re-read here. What the condition guarantees,
+    stated as what it does: the claim FAILS when ANOTHER request re-pointed this row between the
+    guard's read and now, which is the case that would otherwise let two prepares both believe
+    they hold the basket. It does NOT detect a capture landing on the SAME attempt in that gap:
+    the row is unchanged, so the condition holds. That window is bounded by the guard having
+    already passed an in-flight attempt, and the attempt STATE is deliberately re-read nowhere
+    here — whether an attempt is paid belongs to `payment_attempt`'s vocabulary, and splitting
+    that decision across two modules is how it drifts.
+
+    The staleness escape covers a claimer that died before writing its attempt. It is keyed on
+    `claimedAt` and guarded by `attribute_not_exists(recordedAt)`, so a RECORDED row — one whose
+    attempt really exists — can NEVER be taken over by a claim, however old it is.
+
+    Raises `OrderIdentityUnavailable` on any failure that is not a lost condition: a throttle
+    must never be mistaken for "the slot is free", because the caller acts on True by creating a
+    payable order.
+    """
+    payment_attempt_id = str(payment_attempt_id or "").strip()
+    if not payment_attempt_id:
+        raise ValueError("payment_attempt_id is required")
+    moment = int(time.time()) if now is None else int(now)
+    item = {
+        key_attr: key,
+        "kind": kind,
+        "customerId": customer_id,
+        "wixCartId": wix_cart_id,
+        "paymentAttemptId": payment_attempt_id,
+        # Carried so the guard's same-request-key resume exemption can recognise the claimer's
+        # OWN later click. Without it a retry on the same key reads its own claim as a foreign
+        # in-flight attempt and is refused for the whole settling window -- which would make the
+        # resume exit unreachable and the payable-modal choke point inert on that path. It
+        # changes no horizon: the discrimination is the ABSENCE of `recordedAt`, not this field.
+        "requestKey": str(request_key or ""),
+        "claimStage": CART_CLAIM_STAGE_CREATED,
+        "claimedAt": moment,
+    }
+    prior = str(prior_payment_attempt_id or "")
+    if prior:
+        condition = "paymentAttemptId = :prior"
+        values = {":prior": prior}
+    else:
+        condition = ("attribute_not_exists(%s) OR "
+                     "(attribute_not_exists(recordedAt) AND claimedAt < :stale)" % key_attr)
+        values = {":stale": moment - CART_CREATE_CLAIM_STALE_SECONDS}
+    try:
+        table.put_item(Item=item, ConditionExpression=condition,
+                       ExpressionAttributeValues=values)
+        return True
+    except Exception as error:  # noqa: BLE001 - classified, never swallowed
+        if is_conditional_failure(error):
+            return False
+        raise OrderIdentityUnavailable(
+            "could not claim the basket slot %r: %s" % (key, type(error).__name__)) from error
+
+
+def claim_cart_basket(table: Any, *, customer_id: str, wix_cart_id: str, basket_hash: str,
+                      payment_attempt_id: str, prior_payment_attempt_id: str = "",
+                      request_key: str = "", now: Optional[int] = None,
+                      key_attr: str = "orderId") -> bool:
+    """Take the fine per-basket create slot. True if won. See `_claim_basket_slot`."""
+    return _claim_basket_slot(
+        table, key_attr, _cart_basket_key(customer_id, wix_cart_id, basket_hash),
+        CART_BASKET_KIND, customer_id=customer_id, wix_cart_id=wix_cart_id,
+        payment_attempt_id=payment_attempt_id,
+        prior_payment_attempt_id=prior_payment_attempt_id, request_key=request_key, now=now)
+
+
+def claim_cart_narrow_basket(table: Any, *, customer_id: str, wix_cart_id: str,
+                             narrow_hash: str, payment_attempt_id: str,
+                             prior_payment_attempt_id: str = "", request_key: str = "",
+                             now: Optional[int] = None, key_attr: str = "orderId") -> bool:
+    """The same claim on the NARROW slot. Both delegate to one private `_claim_basket_slot`."""
+    return _claim_basket_slot(
+        table, key_attr, _cart_narrow_basket_key(customer_id, wix_cart_id, narrow_hash),
+        CART_NARROW_BASKET_KIND, customer_id=customer_id, wix_cart_id=wix_cart_id,
+        payment_attempt_id=payment_attempt_id,
+        prior_payment_attempt_id=prior_payment_attempt_id, request_key=request_key, now=now)
 
 
 # ── Section 5 blog contributions (BLOG_CONTRIBUTION) ────────────────────────────
@@ -1495,6 +1852,7 @@ __all__ = [
     "LEGACY_REFERENCE_PREFIX",
     "REFERENCE_ID_PREFIX",
     "OrderIdentityUnavailable",
+    "is_conditional_failure",
     "is_valid_meta_reference_id",
     "assert_valid_meta_reference_id",
     "is_public_order_number",
@@ -1528,8 +1886,25 @@ __all__ = [
     "REQUEST_KEY_PREFIX",
     "GATEWAY_ORDER_PREFIX",
     "reserve_checkout_request_key",
+    "resolve_checkout_request_key",
     "bind_gateway_order",
     "resolve_gateway_order",
+    "CART_PAYMENT_PREFIX",
+    "CART_PAYMENT_KIND",
+    "CART_BASKET_PREFIX",
+    "CART_BASKET_KIND",
+    "CART_NARROW_BASKET_PREFIX",
+    "CART_NARROW_BASKET_KIND",
+    "CART_CREATE_CLAIM_STALE_SECONDS",
+    "CART_CLAIM_STAGE_CREATED",
+    "resolve_cart_payment",
+    "record_cart_payment",
+    "resolve_cart_basket",
+    "record_cart_basket",
+    "claim_cart_basket",
+    "resolve_cart_narrow_basket",
+    "record_cart_narrow_basket",
+    "claim_cart_narrow_basket",
     "CONTRIBUTION_PREFIX",
     "CONTRIBUTION_SETTLE_PREFIX",
     "reserve_contribution",

@@ -153,6 +153,12 @@ def _checkout_policy() -> dict:
                                  "stack-wecare-digital-CouponsTable"),
         "GIFT_CARDS_TABLE": getattr(checkout, "GIFT_CARDS_TABLE",
                                     "stack-wecare-digital-GiftCardsTable"),
+        "RAZORPAY_API_SECRET": getattr(checkout, "RAZORPAY_API_SECRET",
+                                       "wecare/razorpay/api"),
+        "ORDERS_TABLE": getattr(checkout, "ORDERS_TABLE",
+                                "stack-wecare-digital-OrderTable"),
+        "CONTACTS_TABLE": getattr(checkout, "CONTACTS_TABLE",
+                                  "stack-wecare-digital-ContactsTable"),
     }
     try:
         return eval(body, {"__builtins__": {}}, namespace)  # noqa: S307 - our own source
@@ -172,6 +178,12 @@ def _checkout_simulated_tables() -> list:
                                  "stack-wecare-digital-CouponsTable"),
         "GIFT_CARDS_TABLE": getattr(checkout, "GIFT_CARDS_TABLE",
                                     "stack-wecare-digital-GiftCardsTable"),
+        "RAZORPAY_API_SECRET": getattr(checkout, "RAZORPAY_API_SECRET",
+                                       "wecare/razorpay/api"),
+        "ORDERS_TABLE": getattr(checkout, "ORDERS_TABLE",
+                                "stack-wecare-digital-OrderTable"),
+        "CONTACTS_TABLE": getattr(checkout, "CONTACTS_TABLE",
+                                  "stack-wecare-digital-ContactsTable"),
     }
     try:
         return eval("[" + body + "]", {"__builtins__": {}}, namespace)  # noqa: S307
@@ -295,6 +307,39 @@ def test_the_spi_role_has_no_delete_item(roles):
     assert spi_attempt[0]["Action"] == ["dynamodb:UpdateItem"]
     assert "dynamodb:Query" not in spi_attempt[0]["Action"], (
         "both functions reach an attempt only by its exact paymentAttemptId")
+
+
+def test_the_ledger_statements_grant_exactly_what_the_store_needs_and_no_more(roles):
+    """The two ledger grants, pinned to an EXACT action set, so a widening must be deliberate.
+
+    The ledger was pinned by nothing before this: the existing exact-action assertion covers
+    `AdvanceGiftCardStageOnAPaymentAttempt` on **PaymentAttemptsTable**, not on
+    `GiftCardsTable`.
+
+    NO IAM CHANGE IS NEEDED for the two-item `TransactWriteItems` the store now uses, and this
+    test is where that is recorded rather than assumed. `TransactWriteItems` is authorized
+    through its ITEMS' actions, so two `Update` items need `dynamodb:UpdateItem` - which both
+    roles already grant. `dynamodb:ConditionCheckItem` is required only for a `ConditionCheck`
+    item, and this transaction has none; `assert_transaction_items_are_exact_key_updates` in
+    `tests/test_gift_card_store.py` is what keeps it that way. There is no
+    `dynamodb:TransactWriteItems` action to grant - the API is not its own permission.
+    """
+    ledger = {
+        "GiftCardLedger": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
+                           "dynamodb:DeleteItem", "dynamodb:Query"],
+        "GiftCardLedgerNoDelete": ["dynamodb:GetItem", "dynamodb:PutItem",
+                                   "dynamodb:UpdateItem", "dynamodb:Query"],
+    }
+    statements = (roles.gift_cards_policy()["Statement"] + roles.spi_policy()["Statement"])
+    found = {statement["Sid"]: statement["Action"] for statement in statements
+             if statement.get("Sid") in ledger}
+    assert set(found) == set(ledger), f"expected both ledger statements, found {sorted(found)}"
+    for sid, expected in ledger.items():
+        assert found[sid] == expected, (
+            f"{sid} grants {found[sid]}; a widening here is a deliberate edit, because this "
+            f"role reaches a liability ledger")
+    assert "dynamodb:ConditionCheckItem" not in found["GiftCardLedger"]
+    assert "dynamodb:ConditionCheckItem" not in found["GiftCardLedgerNoDelete"]
 
 
 def test_no_wildcard_was_added_to_the_shared_lambda_role(roles):
@@ -633,6 +678,29 @@ def test_every_provisioner_defaults_to_a_dry_run_and_verifies_what_it_wrote():
 @pytest.mark.xfail(strict=True, reason=SEAM_G14)
 def test_the_website_checkout_split_binds_the_charged_amount_and_the_payable_separately():
     """HIGH-1, and the test that catches BOTH obvious wrong resolutions of it.
+
+    ── HANDOFF, 2026-10-03, from the direct-Razorpay graft ───────────────────────────────────
+    READ THIS BEFORE CLEARING THE MARKER. This row's MEDIUM-2 half -- the `_amount_args` scoping
+    below -- no longer matches `website_checkout.py`'s structure, so the marker is currently
+    satisfied BY FAILURE rather than by the seam being open. The marker was NOT touched and the
+    property was NOT dropped.
+
+    What changed: the double-charge fix introduced a single payable-modal choke point,
+    `website_checkout._emit_payable_modal`, which is now the ONLY function that calls
+    `_browser_options`. `payment_attempt.build` is still called from `_bind_and_ready`. The two
+    calls are therefore in two different functions, so `assert browser` -- which requires both in
+    the SAME function -- fails, and `xfail(strict=True)` is satisfied.
+
+    The property itself is re-pinned, by AST, over `_bind_and_ready`'s arguments:
+
+        tests/test_graft_money_correctness.py
+            ::test_the_browser_amount_and_the_attempt_amount_are_different_expressions
+
+    So when this workstream clears SEAM-G14, the fix is to RESCOPE the assertion (walk from
+    `prepare_checkout` across the call graph, or assert over `_emit_payable_modal`'s
+    `amount_paise` argument at the `_bind_and_ready` call site) rather than to flip the marker and
+    expect green. Nothing else in this row changed.
+    ──────────────────────────────────────────────────────────────────────────────────────────
 
     `binding["amountPaise"] == payNowPaise` (or line 434 refuses every capture as a
     `BINDING_MISMATCH`), `attempt["amountPaise"] == quote.total_payable_paise` (or

@@ -56,6 +56,10 @@ function installGoogleMaps(): MapsRecorder {
     overlayMapTypes = overlayMapTypes;
     constructor( _el: HTMLElement, opts: Record<string, unknown> ) { rec.mapOpts = opts; }
     setCenter() { /* no-op */ }
+    addListener( eventName: string, handler: () => void ) {
+      if ( eventName === 'tilesloaded' ) requestAnimationFrame( handler );
+      return { remove() { /* no-op */ } };
+    }
   }
   class FakeMarker {
     constructor( _opts: Record<string, unknown> ) { /* no-op */ }

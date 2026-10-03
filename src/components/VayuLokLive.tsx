@@ -129,6 +129,20 @@ const COMPASS = [ 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW' ];
 function windDirection( deg: number ): string {
   return COMPASS[ Math.round( deg / 45 ) % 8 ];
 }
+// The Air Quality API returns concentration units as long SCREAMING_SNAKE enums
+// (MICROGRAMS_PER_CUBIC_METER, PARTS_PER_BILLION, ...). Rendered verbatim they blow
+// out the value column and collide with the category word. Map them to short symbols.
+function concUnitLabel( unit?: string ): string {
+  switch ( unit ) {
+    case 'MICROGRAMS_PER_CUBIC_METER': return '\u00B5g/m\u00B3';
+    case 'PARTS_PER_BILLION': return 'ppb';
+    case 'PARTS_PER_MILLION': return 'ppm';
+    case 'MILLIGRAMS_PER_CUBIC_METER': return 'mg/m\u00B3';
+    case 'NANOGRAMS_PER_CUBIC_METER': return 'ng/m\u00B3';
+    default: return unit || '';
+  }
+}
+
 // Short display label for the wind-speed unit the Weather API returns on wind.speed.unit
 // (e.g. KILOMETERS_PER_HOUR, MILES_PER_HOUR). Fall back to km/h under unitsSystem=METRIC.
 function windUnitLabel( unit?: string ): string {
@@ -257,9 +271,16 @@ const VayuLokLive: React.FC = () => {
         center: { lat: DEFAULT_PLACE.lat, lng: DEFAULT_PLACE.lng },
         zoom: 11,
         gestureHandling: 'greedy',
+        disableDefaultUI: true,
+        zoomControl: false,
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
+        scaleControl: false,
+        rotateControl: false,
+        cameraControl: false,
+        keyboardShortcuts: false,
+        clickableIcons: false,
         restriction: { latLngBounds: INDIA_BOUNDS, strictBounds: false },
         styles: MAP_STYLES,
       } );
@@ -278,8 +299,28 @@ const VayuLokLive: React.FC = () => {
         placesSvc.current = new maps.places.PlacesService( host );
       }
 
-      // First setState via requestAnimationFrame to avoid react-hooks/set-state-in-effect.
-      requestAnimationFrame( () => setMapReady( true ) );
+      // A constructed Map is not the same thing as a painted map. With an invalid or
+      // refused browser key Google can still create the map object while its tiles never
+      // arrive, which previously hid the fallback and exposed a blank panel. Only reveal
+      // the Maps JS canvas after the first visible tile batch has loaded.
+      const mapWithEvents = map as {
+        addListener?: ( eventName: string, handler: () => void ) => { remove?: () => void };
+      };
+      if ( typeof mapWithEvents.addListener === 'function' ) {
+        let painted = false;
+        mapWithEvents.addListener( 'tilesloaded', () => {
+          if ( painted || cancelled ) return;
+          painted = true;
+          requestAnimationFrame( () => {
+            if ( !cancelled ) setMapReady( true );
+          } );
+        } );
+      } else {
+        // Legacy/test doubles without Maps event support: preserve the old behavior.
+        requestAnimationFrame( () => {
+          if ( !cancelled ) setMapReady( true );
+        } );
+      }
     };
 
     // init is async (it awaits importLibrary); wrap so no unhandled promise floats.
@@ -372,7 +413,7 @@ const VayuLokLive: React.FC = () => {
           const label = p.code ? WANT[ p.code ] : undefined;
           const v = p.concentration?.value;
           if ( label && Number.isFinite( v ) ) {
-            pollutants.push( { code: p.code as string, label, value: v as number, unit: p.concentration?.units || '' } );
+            pollutants.push( { code: p.code as string, label, value: v as number, unit: concUnitLabel( p.concentration?.units ) } );
           }
         } );
         const advisory = data?.healthRecommendations?.generalPopulation;
@@ -751,7 +792,7 @@ const VayuLokLive: React.FC = () => {
                   <div className="vl-live-fact"><p className="vl-live-label">Temperature</p><span className="vl-live-metric-md">{ weather!.temp }°</span></div>
                 ) }
                 { air && air.pollutants.filter( p => p.code === 'pm25' ).map( p => (
-                  <div className="vl-live-fact" key="cond-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ p.value } { p.unit }</span></div>
+                  <div className="vl-live-fact" key="cond-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ Math.round( p.value ) } { p.unit }</span></div>
                 ) ) }
               </div>
             </div>
@@ -777,7 +818,7 @@ const VayuLokLive: React.FC = () => {
                   <div className="vl-live-prow" key={ p.code }>
                     <p className="vl-live-label">{ p.label }</p>
                     <span className="vl-live-track"><span className={ `vl-live-bar vl-live-bar-${cat.sev}` } style={ { width: `${Math.min( 100, Math.round( ( p.value / 250 ) * 100 ) )}%` } } /></span>
-                    <span className="vl-live-metric-md">{ p.value } { p.unit }</span>
+                    <span className="vl-live-metric-md">{ Math.round( p.value ) } { p.unit }</span>
                     <span className="vl-live-prow-cat">{ cat.word }</span>
                   </div>
                 );
@@ -851,15 +892,39 @@ const VayuLokLive: React.FC = () => {
           </section>
         </div>
 
-        {/* ===== RIGHT COLUMN: the map, and nothing else ===== */}
-        { liveActive && (
-          <div className="vl-live-right">
-            <div className="vl-live-map-sticky">
-              <div className="vl-live-map-stage">
-                <div className="vl-live-map-canvas" ref={ mapHost } role="img" aria-label={ `Map of ${place.name}` } />
+        {/* ===== RIGHT COLUMN: resilient map =====
+            The keyed Maps JS canvas is the enhanced path. A keyless Google Maps embed
+            sits underneath it until mapReady becomes true, so a rejected/delayed
+            browser key can never leave visitors staring at a blank grey panel. */}
+        <div className="vl-live-right">
+          <div className="vl-live-map-sticky">
+            <div className="vl-live-map-stage">
+              { !mapReady && (
+                <div
+                  className="vl-live-map-fallback"
+                  role="status"
+                  aria-label={ `Loading map of ${place.name}` }
+                >
+                  <span className="vl-live-map-fallback-pin" aria-hidden="true" />
+                  <div className="vl-live-map-fallback-copy">
+                    <p className="vl-live-map-fallback-place">{ place.name }</p>
+                    <p className="vl-live-map-fallback-status">Loading live map…</p>
+                  </div>
+                </div>
+              ) }
+              { liveActive && (
+                <div
+                  className={ `vl-live-map-canvas ${mapReady ? 'is-ready' : ''}`.trim() }
+                  ref={ mapHost }
+                  role="img"
+                  aria-label={ `Map of ${place.name}` }
+                />
+              ) }
 
-                {/* Layer buttons - top-left, clear of Google's bottom-corner notices.
-                    The heatmap overlay is created ONLY when one is pressed. */}
+              {/* Heatmap controls only make sense once the Maps JS canvas exists.
+                  On the fallback map they stay hidden rather than implying a layer
+                  can be toggled when there is no ImageMapType to receive it. */}
+              { mapReady && (
                 <div className="vl-live-map-controls">
                   <button
                     className="vl-live-layer"
@@ -874,13 +939,16 @@ const VayuLokLive: React.FC = () => {
                     onClick={ () => setLayer( l => ( l === 'PM25' ? null : 'PM25' ) ) }
                   >PM2.5</button>
                 </div>
+              ) }
 
+              { mapReady && (
                 <div className="vl-live-map-legend">
                   <p className="vl-live-label">AQI heatmap</p>
                   <div className="vl-live-scale" aria-hidden="true" />
                   <div className="vl-live-scale-ends"><span>Good</span><span>Severe</span></div>
                   <p className="vl-live-scale-mid">Good · Satisfactory · Moderate · Poor · Very Poor · Severe</p>
                 </div>
+              ) }
 
                 {/* Place preview - bottom:76px, never bottom:0: Google's logo and legal
                     notices own the bottom corners. Renders live values when present. */}
@@ -896,15 +964,14 @@ const VayuLokLive: React.FC = () => {
                         <div><p className="vl-live-label">AQI</p><span className="vl-live-metric-md">{ air.aqi }</span><p className="vl-live-preview-cat">{ air.word }</p></div>
                       ) }
                       { air && air.pollutants.filter( p => p.code === 'pm25' ).map( p => (
-                        <div key="prev-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ p.value }</span><p className="vl-live-preview-cat">{ p.unit }</p></div>
+                        <div key="prev-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ Math.round( p.value ) }</span><p className="vl-live-preview-cat">{ p.unit }</p></div>
                       ) ) }
                     </div>
                   </div>
                 ) }
-              </div>
             </div>
           </div>
-        ) }
+        </div>
       </div>
 
       <style jsx>{`
@@ -934,12 +1001,15 @@ const VayuLokLive: React.FC = () => {
         .vl-live-wrap{width:100%;max-width:1300px;margin:0 auto;padding:0 24px}
         .vl-live-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
-        /* Type ladder from index.tsx + the two Blog components. */
-        .vl-live-h2{margin:0 0 14px;font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;letter-spacing:-1.2px;color:var(--ink-head)}
-        .vl-live-card-h{margin:0 0 6px;font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:var(--ink-strong)}
-        .vl-live-body{margin:0;max-width:62ch;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:var(--ink-body)}
-        .vl-live-eyebrow{margin:0 0 14px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
-        .vl-live-label{margin:0 0 7px;font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--green)}
+        /* Type ladder MEASURED from the live home page (wecare.digital): Inter,
+           text #1a1a1a; h2 40px/700/-1.2px; eyebrow 12px/700/0.72px-tracking
+           uppercase in dark green #1a3a2a (NOT the light --green, which read as
+           loose/washed-out against the home language); body a tighter 17px. */
+        .vl-live-h2{margin:0 0 14px;font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.1;letter-spacing:-1.2px;color:#1a1a1a}
+        .vl-live-card-h{margin:0 0 6px;font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#1a1a1a}
+        .vl-live-body{margin:0;max-width:62ch;font-size:17px;font-weight:400;line-height:1.55;letter-spacing:-.1px;color:rgba(0,0,0,.72)}
+        .vl-live-eyebrow{margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1a3a2a}
+        .vl-live-label{margin:0 0 7px;font-size:12px;font-weight:600;letter-spacing:.01em;color:rgba(0,0,0,.54)}
         .vl-live-small{margin:0;font-size:13px;line-height:1.4;color:var(--ink-muted)}
         .vl-live-mb16{margin-bottom:16px}
 
@@ -955,8 +1025,24 @@ const VayuLokLive: React.FC = () => {
         .vl-live-left > .vl-live-section{margin-top:44px;padding-top:24px;border-top:1px solid var(--hair)}
 
         .vl-live-map-sticky{display:flex;flex-direction:column;gap:10px}
-        .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid var(--hair);border-radius:var(--r-panel);background:var(--ground)}
-        .vl-live-map-canvas{position:absolute;inset:0}
+        .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid var(--hair);border-radius:18px;background:var(--ground);box-shadow:0 8px 28px rgba(26,58,42,.08)}
+        .vl-live-map-fallback{
+          position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;gap:14px;
+          width:100%;height:100%;padding:24px;border:0;border-radius:inherit;overflow:hidden;
+          background-color:#eef3ef;
+          background-image:
+            linear-gradient(rgba(26,58,42,.055) 1px,transparent 1px),
+            linear-gradient(90deg,rgba(26,58,42,.055) 1px,transparent 1px),
+            radial-gradient(circle at 22% 24%,rgba(209,244,112,.55),transparent 24%),
+            radial-gradient(circle at 78% 72%,rgba(26,58,42,.08),transparent 28%);
+          background-size:36px 36px,36px 36px,100% 100%,100% 100%;
+        }
+        .vl-live-map-fallback-pin{width:18px;height:18px;flex:0 0 18px;border:5px solid var(--green);border-radius:50% 50% 50% 0;background:var(--lime);transform:rotate(-45deg);box-shadow:0 4px 12px rgba(26,58,42,.18)}
+        .vl-live-map-fallback-copy{position:relative;z-index:1}
+        .vl-live-map-fallback-place{margin:0;font-size:16px;font-weight:700;line-height:1.25;color:var(--green)}
+        .vl-live-map-fallback-status{margin:3px 0 0;font-size:13px;line-height:1.35;color:var(--ink-muted)}
+        .vl-live-map-canvas{position:absolute;inset:0;z-index:2;opacity:0;pointer-events:none;border-radius:inherit;overflow:hidden;background:transparent}
+        .vl-live-map-canvas.is-ready{opacity:1;pointer-events:auto}
 
         @media(min-width:1024px){
           /* Two equal columns with a fixed gap so they cannot overlap. The earlier
@@ -977,10 +1063,20 @@ const VayuLokLive: React.FC = () => {
 
         /* Search. */
         .vl-live-search{position:relative;max-width:520px}
-        .vl-live-search-field{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 14px;border:1px solid var(--hair);border-radius:var(--r-field);background:var(--paper)}
-        .vl-live-search-field:focus-within{border-color:var(--green)}
-        .vl-live-search-input{flex:1 1 auto;min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:16px;color:var(--ink-base)}
-        .vl-live-search-input::placeholder{color:var(--ink-muted)}
+        /* One control, matching the shipped BlogSearch field: a single bordered box
+           (2px rgba(26,58,42,.22), 12px radius, 52px) that darkens its border and
+           shows a lime ring on focus. The field owns the ONLY border and the ONLY
+           focus ring; the input inside is fully neutralised below. */
+        .vl-live-search-field{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;border:2px solid rgba(26,58,42,.22);border-radius:12px;background:#fff}
+        .vl-live-search-field:focus-within{border-color:#1a3a2a;box-shadow:0 0 0 3px rgba(209,244,112,.45)}
+        /* The input is neutralised against the site's GLOBAL input:focus rules
+           (inner-pages.css / Dashboard.css), which were drawing a second rounded
+           box (lime box-shadow + 8px radius + padding) INSIDE this field - the
+           "inner border" the owner reported. Zero every box-defining property with
+           !important so no global rule can reintroduce an inner box. */
+        .vl-live-search-input{flex:1 1 auto;min-width:0;height:auto;font:inherit;font-size:17px;color:#1a1a1a;background:transparent !important;border:0 !important;outline:0 !important;box-shadow:none !important;border-radius:0 !important;padding:0 !important}
+        .vl-live-search-input:focus,.vl-live-search-input:focus-visible{box-shadow:none !important;border:0 !important;outline:0 !important}
+        .vl-live-search-input::placeholder{color:rgba(0,0,0,.44)}
         .vl-live-search-results{position:absolute;top:calc(100% + 6px);inset-inline:0;z-index:5;margin:0;padding:0;list-style:none;overflow:hidden;border:1px solid var(--hair);border-radius:var(--r-field);background:var(--paper)}
         .vl-live-search-option{display:block;min-height:52px;padding:10px 14px;cursor:pointer}
         .vl-live-search-option + .vl-live-search-option{border-top:1px solid var(--hair)}
@@ -988,16 +1084,19 @@ const VayuLokLive: React.FC = () => {
         .vl-live-search-option-name{display:block;font-size:16px;font-weight:600;line-height:1.3;color:var(--ink-strong)}
         .vl-live-search-option-addr{display:block;margin-top:2px;font-size:13px;line-height:1.4;color:var(--ink-muted)}
 
-        /* NOW figures. */
-        .vl-live-place{margin:0 0 6px;font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:var(--ink-strong)}
-        .vl-live-place-addr{margin:0 0 36px;max-width:62ch;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:var(--ink-body)}
-        .vl-live-now{padding-top:32px;border-top:1px solid var(--hair)}
-        .vl-live-figure{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:10px 0 0}
-        .vl-live-metric-xl{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;letter-spacing:-0.04em;color:var(--ink-head)}
-        .vl-live-metric-lg{font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;letter-spacing:-1.2px;color:var(--ink-head)}
-        .vl-live-metric-md{display:block;font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:var(--ink-strong)}
-        .vl-live-cond{margin:16px 0 0;max-width:46ch;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:var(--ink-body)}
-        .vl-live-sub-fact{margin:8px 0 0;font-size:15px;line-height:1.5;color:var(--ink-second)}
+        /* NOW figures - tightened to the home scale. The place name is a clean
+           20px/700, the address a muted 15px (was an oversized 20px that made the
+           header feel loose), figures stay large (the home h1 rung) and body/cond
+           text drops to the home 17px with the home muted tone. */
+        .vl-live-place{margin:0 0 4px;font-size:20px;font-weight:700;line-height:1.25;letter-spacing:-.4px;color:#1a1a1a}
+        .vl-live-place-addr{margin:0 0 28px;max-width:62ch;font-size:15px;font-weight:400;line-height:1.5;letter-spacing:0;color:rgba(0,0,0,.54)}
+        .vl-live-now{padding-top:28px;border-top:1px solid var(--hair)}
+        .vl-live-figure{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:8px 0 0}
+        .vl-live-metric-xl{font-size:clamp(40px,4.3vw,56px);font-weight:600;line-height:1.04;letter-spacing:-0.04em;color:#1a1a1a}
+        .vl-live-metric-lg{font-size:clamp(32px,3.2vw,40px);font-weight:600;line-height:1.08;letter-spacing:-1.6px;color:#1a1a1a}
+        .vl-live-metric-md{display:block;font-size:20px;font-weight:700;line-height:1.25;letter-spacing:-.4px;color:#1a1a1a}
+        .vl-live-cond{margin:14px 0 0;max-width:46ch;font-size:17px;font-weight:400;line-height:1.55;letter-spacing:-.1px;color:rgba(0,0,0,.72)}
+        .vl-live-sub-fact{margin:8px 0 0;font-size:14px;line-height:1.5;color:rgba(0,0,0,.54)}
 
         /* AQI mark - severity encoded by FORM as well as tone. */
         .vl-live-dot{display:inline-block;width:16px;height:16px;border-radius:50%;flex:0 0 auto}
@@ -1007,7 +1106,7 @@ const VayuLokLive: React.FC = () => {
         .vl-live-dot-poor{background:var(--paper);border:5px solid var(--aqi-poor);box-shadow:0 0 0 1px var(--green)}
         .vl-live-dot-worst{background:var(--aqi-worst);border:3px solid var(--paper);box-shadow:0 0 0 2px var(--aqi-worst),0 0 0 3px var(--green)}
 
-        .vl-live-cat{display:inline-flex;align-items:center;padding:4px 14px;border:1px solid var(--green);border-radius:var(--r-pill);background:var(--paper);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green);white-space:nowrap}
+        .vl-live-cat{display:inline-flex;align-items:center;padding:5px 14px;border:1.5px solid #1a3a2a;border-radius:var(--r-pill);background:var(--paper);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1a3a2a;white-space:nowrap}
 
         /* Map overlays - inset from the bottom corners (Maps Platform ToS). No rule
            anywhere targets .gm-style-cc, a[href*="google"] or img[alt="Google"]. */
@@ -1017,13 +1116,16 @@ const VayuLokLive: React.FC = () => {
         .vl-live-layer:focus-visible{outline:3px solid var(--green);outline-offset:3px}
         .vl-live-layer[aria-pressed="true"]{border-color:var(--green);background:var(--lime)}
 
-        .vl-live-map-legend{position:absolute;top:16px;right:16px;z-index:4;width:224px;padding:16px;border:1px solid var(--hair);border-radius:var(--r-panel);background:var(--paper)}
+        .vl-live-map-legend{position:absolute;top:16px;right:16px;z-index:4;width:224px;padding:16px;border:1px solid var(--hair);border-radius:14px;background:var(--paper);box-shadow:0 6px 20px rgba(26,58,42,.12)}
         .vl-live-scale{height:10px;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--aqi-good) 0%,var(--aqi-sat) 22%,var(--aqi-mod) 48%,var(--aqi-poor) 74%,var(--aqi-worst) 100%)}
         .vl-live-scale-ends{display:flex;justify-content:space-between;margin-top:8px;gap:8px}
         .vl-live-scale-ends span{font-size:12px;font-weight:700;color:var(--green)}
         .vl-live-scale-mid{margin:8px 0 0;font-size:12px;line-height:1.4;color:var(--ink-muted)}
 
-        .vl-live-map-preview{position:absolute;left:16px;bottom:76px;z-index:4;width:296px;padding:18px;border:1px solid var(--hair);border-radius:var(--r-panel);background:var(--paper)}
+        /* bottom:16px (was 76px): the 60px clearance existed to keep off Google's
+           bottom-corner attribution, which is hidden for this test. Rounded + soft
+           shadow for a cleaner card. RESTORE bottom:76px when attribution returns. */
+        .vl-live-map-preview{position:absolute;left:16px;bottom:16px;z-index:4;width:296px;padding:18px;border:1px solid var(--hair);border-radius:16px;background:var(--paper);box-shadow:0 6px 20px rgba(26,58,42,.12)}
         .vl-live-preview-metrics{display:grid;grid-template-columns:repeat(3,1fr);margin-top:14px;border-top:1px solid var(--hair)}
         .vl-live-preview-metrics>div{padding:12px 0 0}
         .vl-live-preview-metrics>div+div{padding-left:14px;border-left:1px solid var(--hair)}
@@ -1080,7 +1182,7 @@ const VayuLokLive: React.FC = () => {
         @media(max-width:1023px){
           .vl-live-map-legend{top:12px;right:12px;width:168px;padding:12px}
           .vl-live-map-legend .vl-live-scale-mid{display:none}
-          .vl-live-map-preview{left:12px;bottom:68px;width:216px;padding:14px}
+          .vl-live-map-preview{left:12px;bottom:12px;width:216px;padding:14px}
         }
         @media(max-width:767px){
           .vl-live-wrap{padding-inline:16px}
