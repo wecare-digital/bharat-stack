@@ -239,11 +239,11 @@ const BlogSubscribe: React.FC = () => {
                     placeholder="Code"
                     disabled={ phoneStep === 'verifying' }
                   />
-                  <button type="button" onClick={ verifyPhone } disabled={ phoneStep === 'verifying' || phoneStep === 'sending' }>
+                  <button type="button" onClick={ verifyPhone } disabled={ phoneStep === 'verifying' }>
                     { phoneStep === 'verifying' ? 'Checking…' : 'Confirm WhatsApp code' }
                   </button>
-                  <button type="button" onClick={ requestPhone } disabled={ phoneStep === 'verifying' || phoneStep === 'sending' || !phoneValid }>
-                    { phoneStep === 'sending' ? 'Sending…' : 'Resend OTP on WhatsApp' }
+                  <button type="button" onClick={ requestPhone } disabled={ phoneStep === 'verifying' || !phoneValid }>
+                    Resend OTP on WhatsApp
                   </button>
                 </>
               ) : phoneStep === 'verified' ? (
@@ -280,11 +280,11 @@ const BlogSubscribe: React.FC = () => {
                     placeholder="Code"
                     disabled={ emailStep === 'verifying' }
                   />
-                  <button type="button" onClick={ verifyEmail } disabled={ emailStep === 'verifying' || emailStep === 'sending' }>
+                  <button type="button" onClick={ verifyEmail } disabled={ emailStep === 'verifying' }>
                     { emailStep === 'verifying' ? 'Checking…' : 'Confirm email code' }
                   </button>
-                  <button type="button" onClick={ requestEmail } disabled={ emailStep === 'verifying' || emailStep === 'sending' || !emailValid }>
-                    { emailStep === 'sending' ? 'Sending…' : 'Resend verification code by email' }
+                  <button type="button" onClick={ requestEmail } disabled={ emailStep === 'verifying' || !emailValid }>
+                    Resend verification code by email
                   </button>
                 </>
               ) : emailStep === 'verified' ? (
