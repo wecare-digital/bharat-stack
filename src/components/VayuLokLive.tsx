@@ -271,9 +271,16 @@ const VayuLokLive: React.FC = () => {
         center: { lat: DEFAULT_PLACE.lat, lng: DEFAULT_PLACE.lng },
         zoom: 11,
         gestureHandling: 'greedy',
+        disableDefaultUI: true,
+        zoomControl: false,
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
+        scaleControl: false,
+        rotateControl: false,
+        cameraControl: false,
+        keyboardShortcuts: false,
+        clickableIcons: false,
         restriction: { latLngBounds: INDIA_BOUNDS, strictBounds: false },
         styles: MAP_STYLES,
       } );
@@ -893,17 +900,21 @@ const VayuLokLive: React.FC = () => {
           <div className="vl-live-map-sticky">
             <div className="vl-live-map-stage">
               { !mapReady && (
-                <iframe
+                <div
                   className="vl-live-map-fallback"
-                  title={ `Map of ${place.name}` }
-                  src={ `https://maps.google.com/maps?q=${place.lat},${place.lng}&z=11&output=embed` }
-                  loading="lazy"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                />
+                  role="status"
+                  aria-label={ `Loading map of ${place.name}` }
+                >
+                  <span className="vl-live-map-fallback-pin" aria-hidden="true" />
+                  <div className="vl-live-map-fallback-copy">
+                    <p className="vl-live-map-fallback-place">{ place.name }</p>
+                    <p className="vl-live-map-fallback-status">Loading live map…</p>
+                  </div>
+                </div>
               ) }
               { liveActive && (
                 <div
-                  className="vl-live-map-canvas"
+                  className={ `vl-live-map-canvas ${mapReady ? 'is-ready' : ''}`.trim() }
                   ref={ mapHost }
                   role="img"
                   aria-label={ `Map of ${place.name}` }
@@ -1014,26 +1025,24 @@ const VayuLokLive: React.FC = () => {
         .vl-live-left > .vl-live-section{margin-top:44px;padding-top:24px;border-top:1px solid var(--hair)}
 
         .vl-live-map-sticky{display:flex;flex-direction:column;gap:10px}
-        .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid var(--hair);border-radius:16px;background:var(--ground);box-shadow:0 1px 3px rgba(26,58,42,.06)}
-        .vl-live-map-fallback{position:absolute;inset:0;z-index:0;width:100%;height:100%;border:0;background:var(--ground)}
-        /* Canvas is ALWAYS visible once mounted. It used to be opacity:0 until an
-           is-ready class landed from setMapReady(true) at the end of init(); if init
-           ever stalled, the constructed map stayed invisible and the panel looked
-           blank. Showing the canvas unconditionally means a built map is always seen;
-           the fallback iframe sits behind it (lower z-index) and is covered once the
-           real tiles paint. */
-        .vl-live-map-canvas{position:absolute;inset:0;z-index:2;opacity:1;pointer-events:auto;background:var(--ground)}
-
-        /* TESTING ONLY (2026-10-03, owner-approved): hide the Google logo + legal
-           attribution so the map reads clean for a visual test. THIS VIOLATES the
-           Google Maps Platform Terms of Service and MUST be restored before any
-           public/production use. To restore: delete this one block. The code
-           elsewhere deliberately never targeted these selectors for exactly this
-           reason - this is a temporary, clearly-fenced exception. */
-        .vl-live-map-stage .gm-style-cc,
-        .vl-live-map-stage a[href*="google"],
-        .vl-live-map-stage img[alt="Google"],
-        .vl-live-map-stage .gmnoprint{display:none !important}
+        .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid var(--hair);border-radius:18px;background:var(--ground);box-shadow:0 8px 28px rgba(26,58,42,.08)}
+        .vl-live-map-fallback{
+          position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;gap:14px;
+          width:100%;height:100%;padding:24px;border:0;border-radius:inherit;overflow:hidden;
+          background-color:#eef3ef;
+          background-image:
+            linear-gradient(rgba(26,58,42,.055) 1px,transparent 1px),
+            linear-gradient(90deg,rgba(26,58,42,.055) 1px,transparent 1px),
+            radial-gradient(circle at 22% 24%,rgba(209,244,112,.55),transparent 24%),
+            radial-gradient(circle at 78% 72%,rgba(26,58,42,.08),transparent 28%);
+          background-size:36px 36px,36px 36px,100% 100%,100% 100%;
+        }
+        .vl-live-map-fallback-pin{width:18px;height:18px;flex:0 0 18px;border:5px solid var(--green);border-radius:50% 50% 50% 0;background:var(--lime);transform:rotate(-45deg);box-shadow:0 4px 12px rgba(26,58,42,.18)}
+        .vl-live-map-fallback-copy{position:relative;z-index:1}
+        .vl-live-map-fallback-place{margin:0;font-size:16px;font-weight:700;line-height:1.25;color:var(--green)}
+        .vl-live-map-fallback-status{margin:3px 0 0;font-size:13px;line-height:1.35;color:var(--ink-muted)}
+        .vl-live-map-canvas{position:absolute;inset:0;z-index:2;opacity:0;pointer-events:none;border-radius:inherit;overflow:hidden;background:transparent}
+        .vl-live-map-canvas.is-ready{opacity:1;pointer-events:auto}
 
         @media(min-width:1024px){
           /* Two equal columns with a fixed gap so they cannot overlap. The earlier
