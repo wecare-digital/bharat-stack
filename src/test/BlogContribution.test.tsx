@@ -64,8 +64,7 @@ describe( 'BlogContribution presets', () => {
     expect( container.querySelector( 'h1' ) ).toBeNull();
     expect( container.querySelector( 'h2' )?.textContent ).toBe( 'Contribute' );
     expect( container.textContent ).toContain(
-      'If this article was useful, you can make a small voluntary contribution to support more '
-      + 'independent writing and practical guides from WECARE.DIGITAL.'
+      'If you found this useful, you\u2019re welcome to make a small voluntary contribution.'
     );
   } );
 } );

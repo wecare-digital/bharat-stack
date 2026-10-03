@@ -6954,47 +6954,18 @@ def _get_flow_triggers_config() -> Dict:
 # already sitting in menus on customers' handsets, and reusing the id means
 # those taps land on the same action instead of on nothing.
 DEFAULT_ONE_MENU = {
+    # MENU REMOVED by owner decision 2026-10-03: no interactive menu is sent on a
+    # greeting / QR / new-contact for now. `sections` is empty, so
+    # `_send_interactive_list` returns without sending anything (it short-circuits
+    # on an empty `sections`). The header/body/footer/buttonText are kept so that
+    # re-enabling a menu later is just a matter of putting rows back here — nothing
+    # else in the dispatch path changed. MENU_TO_KEYWORD still answers every id a
+    # customer may tap in a list already sitting in their chat history.
     'header': 'WECARE.DIGITAL',
     'body': "What would you like to do? Everything is in this one menu \u2014 or just type what you need.",
     'footer': 'Tap an option to continue.',
     'buttonText': 'Open Menu',
-    'sections': [
-        {
-            'title': 'Requests',
-            'rows': [
-                {'id': 'menu_request_new', 'title': '\U0001f4cb New Request', 'description': 'Start a request. \u20b949 processing fee'},
-                {'id': 'menu_request_track', 'title': '\U0001f50d Track a Request', 'description': 'Check status with your reference id'},
-                {'id': 'menu_request_change', 'title': '\u270f\ufe0f Change a Request', 'description': 'Edit or correct a submitted request'},
-            ]
-        },
-        {
-            'title': 'Visits',
-            'rows': [
-                {'id': 'menu_visit_book', 'title': '\U0001f4c5 Book a Visit', 'description': 'Consultation or service visit, at your time'},
-                {'id': 'menu_visit_rx', 'title': '\U0001fa7a Book an RX Slot', 'description': 'Prescription, pharmacy or medical travel visit'},
-            ]
-        },
-        {
-            'title': 'Documents & Payment',
-            'rows': [
-                {'id': 'menu_docs_send', 'title': '\U0001f4c4 Send Documents', 'description': 'Share files for an open request'},
-                {'id': 'menu_pay', 'title': '\U0001f4b3 Pay a Bill', 'description': 'Pay an invoice or clear a pending due'},
-            ]
-        },
-        {
-            'title': 'Business & Account',
-            'rows': [
-                {'id': 'menu_business', 'title': '\U0001f3e2 Business Enquiry', 'description': 'Corporate, B2B and bulk enquiries'},
-                {'id': 'menu_subscribe', 'title': '\U0001f514 Get Updates', 'description': 'Offers, service news and order updates'},
-            ]
-        },
-        {
-            'title': 'Help',
-            'rows': [
-                {'id': 'menu_help', 'title': '\u2753 Help & About', 'description': 'FAQs, business info and what we do'},
-            ]
-        },
-    ]
+    'sections': []
 }
 
 # ── RETIRED: the previous main menu ─────────────────────────────────────────

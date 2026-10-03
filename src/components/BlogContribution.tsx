@@ -160,8 +160,7 @@ const BlogContribution: React.FC<BlogContributionProps> = ( { postId, slug } ) =
       {/* h2, never h1: the post page already owns the single h1, and htmlcheck guards H1-MANY. */}
       <h2 className="bc-title" id="bc-title">Contribute</h2>
       <p className="bc-copy">
-        If this article was useful, you can make a small voluntary contribution to support more
-        independent writing and practical guides from WECARE.DIGITAL.
+        If you found this useful, you’re welcome to make a small voluntary contribution.
       </p>
 
       <form className="bc-form" onSubmit={ onSubmit } noValidate>

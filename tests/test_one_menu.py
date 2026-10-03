@@ -178,33 +178,39 @@ class TestThereIsExactlyOneMenu:
         assert inspect.signature(wa._get_welcome_config).parameters == {}
 
 
-class TestTheOneMenuFitsMeta:
-    def test_exactly_ten_rows(self, wa):
-        assert len(_rows(wa.DEFAULT_ONE_MENU)) == MAX_ROWS_TOTAL
+class TestTheMenuIsRemoved:
+    """The menu was emptied by owner decision 2026-10-03. No interactive list is
+    sent on a greeting / QR / new-contact: `DEFAULT_ONE_MENU['sections']` is empty,
+    so `_send_interactive_list` short-circuits and sends nothing. These assertions
+    pin the removed state so a menu does not grow back by accident; the envelope
+    text is kept so re-enabling is just adding rows."""
 
-    def test_section_count(self, wa):
-        assert 1 <= len(wa.DEFAULT_ONE_MENU['sections']) <= MAX_SECTIONS
+    def test_no_rows_are_served(self, wa):
+        assert _rows(wa.DEFAULT_ONE_MENU) == []
 
-    def test_row_ids_are_unique(self, wa):
-        ids = [r['id'] for r in _rows(wa.DEFAULT_ONE_MENU)]
-        assert len(ids) == len(set(ids))
+    def test_no_sections_are_served(self, wa):
+        assert wa.DEFAULT_ONE_MENU['sections'] == []
 
-    @pytest.mark.parametrize('field,limit', [('title', MAX_ROW_TITLE),
-                                             ('description', MAX_ROW_DESCRIPTION)])
-    def test_row_field_lengths(self, wa, field, limit):
-        for row in _rows(wa.DEFAULT_ONE_MENU):
-            assert len(row[field]) <= limit, f"{row['id']} {field} is {len(row[field])} chars"
-
-    def test_section_titles(self, wa):
-        for section in wa.DEFAULT_ONE_MENU['sections']:
-            assert 0 < len(section['title']) <= MAX_SECTION_TITLE
-
-    def test_envelope_lengths(self, wa):
+    def test_envelope_text_is_kept_for_easy_reenable(self, wa):
         menu = wa.DEFAULT_ONE_MENU
         assert len(menu['header']) <= MAX_HEADER
         assert len(menu['footer']) <= MAX_FOOTER
         assert len(menu['buttonText']) <= MAX_BUTTON
         assert menu['body']
+
+    def test_any_rows_added_later_still_fit_meta(self, wa):
+        """If rows are put back, they must still obey Meta's limits. Vacuously true
+        while empty, but keeps the guard in place for the day a menu returns."""
+        rows = _rows(wa.DEFAULT_ONE_MENU)
+        assert len(rows) <= MAX_ROWS_TOTAL
+        assert len(wa.DEFAULT_ONE_MENU['sections']) <= MAX_SECTIONS
+        ids = [r['id'] for r in rows]
+        assert len(ids) == len(set(ids))
+        for row in rows:
+            assert len(row['title']) <= MAX_ROW_TITLE
+            assert len(row['description']) <= MAX_ROW_DESCRIPTION
+        for section in wa.DEFAULT_ONE_MENU['sections']:
+            assert 0 < len(section['title']) <= MAX_SECTION_TITLE
 
 
 class TestEveryRowIdResolves:
@@ -260,39 +266,14 @@ class TestEveryRowIdResolves:
 
 
 class TestRowTitlesAreTypeable:
-    """The menu invites a phrase, so the phrase has to work when typed. These sets
-    are exact-match and `strip_decorative_edges` is deliberately NOT applied to the
-    flow-trigger or pay sets, so the emoji-prefixed form needs listing too."""
+    """When the menu had rows, a row's title had to work when typed. The menu is
+    now empty, so there are no titles to check — but the flows those rows reached
+    (submit/track/amend request, visits, rx, drop docs, pay, subscribe, help) must
+    stay reachable by keyword, which is asserted in TestNothingWasTakenAway below.
+    If rows are added back, re-add the per-title assertions here."""
 
-    EXPECTED = {
-        'menu_request_new': 'submit_request',
-        'menu_request_track': 'track_request',
-        'menu_request_change': 'amend_request',
-        'menu_visit_book': 'schedule_appointment',
-        'menu_visit_rx': 'rx_slot',
-        'menu_docs_send': 'drop_docs',
-        'menu_business': 'enterprise_assist',
-        'menu_subscribe': 'subscribe',
-    }
-
-    def test_flow_row_titles_reach_their_flow(self, wa):
-        flow_keywords = _flow_keywords(wa)
-        by_id = {r['id']: r for r in _rows(wa.DEFAULT_ONE_MENU)}
-        for row_id, flow_key in self.EXPECTED.items():
-            title = by_id[row_id]['title'].lower()
-            plain = wa.strip_decorative_edges(title)
-            assert flow_keywords.get(title) == flow_key or flow_keywords.get(plain) == flow_key, \
-                f'typing {by_id[row_id]["title"]!r} does not open the {flow_key} flow'
-
-    def test_pay_row_title_is_typeable(self, wa, handler_source):
-        title = [r for r in _rows(wa.DEFAULT_ONE_MENU) if r['id'] == 'menu_pay'][0]['title']
-        plain = wa.strip_decorative_edges(title.lower())
-        assert plain in _nested_literal(handler_source, 'PAY_KEYWORDS')
-
-    def test_help_row_title_is_typeable(self, wa, handler_source):
-        title = [r for r in _rows(wa.DEFAULT_ONE_MENU) if r['id'] == 'menu_help'][0]['title']
-        plain = wa.strip_decorative_edges(title.lower())
-        assert plain in _nested_literal(handler_source, 'HELP_ABOUT_KEYWORDS')
+    def test_menu_has_no_titles_to_check_while_removed(self, wa):
+        assert _rows(wa.DEFAULT_ONE_MENU) == []
 
 
 class TestNothingWasTakenAway:
