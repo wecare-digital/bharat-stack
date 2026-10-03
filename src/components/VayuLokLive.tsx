@@ -392,6 +392,8 @@ const VayuLokLive: React.FC = () => {
   const [ mapCandidate, setMapCandidate ] = useState<PlaceState | null>( null );
   const [ mapCandidateWeather, setMapCandidateWeather ] = useState<WeatherState | null>( null );
   const [ mapCandidateAir, setMapCandidateAir ] = useState<AirState | null>( null );
+  const [ nearbyPhotos, setNearbyPhotos ] = useState<PlacePhoto[]>( [] );
+  const [ streetViewReady, setStreetViewReady ] = useState( false );
 
   // Search combobox state.
   const [ query, setQuery ] = useState( '' );
@@ -403,6 +405,8 @@ const VayuLokLive: React.FC = () => {
   const [ layer, setLayer ] = useState<'AQI' | 'PM25' | null>( null );
 
   const mapHost = useRef<HTMLDivElement | null>( null );
+  const streetViewHost = useRef<HTMLDivElement | null>( null );
+  const photoRailRef = useRef<HTMLDivElement | null>( null );
   const mapRef = useRef<unknown>( null );
   const markerRef = useRef<unknown>( null );
   const placesLibRef = useRef<Record<string, unknown> | null>( null );
@@ -436,6 +440,8 @@ const VayuLokLive: React.FC = () => {
     setMapCandidate( null );
     setMapCandidateWeather( null );
     setMapCandidateAir( null );
+    setNearbyPhotos( [] );
+    setStreetViewReady( false );
   }, [ place.lat, place.lng ] );
 
   useEffect( () => {
@@ -715,6 +721,97 @@ const VayuLokLive: React.FC = () => {
     runInit();
     return () => { cancelled = true; };
   }, [] );
+
+  /* ---------------------------------------------------------------------------------
+     PLACE MEDIA FALLBACK. Exact-place photos are preferred. If none are available,
+     look for nearby photographed Places within ~2.5 km. Only when that also yields
+     nothing do we show a tightly-contained Street View panorama with navigation,
+     fullscreen, zoom and motion controls disabled. */
+  useEffect( () => {
+    if ( !MAPS_KEY || typeof window === 'undefined' || !mapReady ) return;
+    const target = mapCandidate || place;
+    if ( target.photos?.length ) {
+      setNearbyPhotos( [] );
+      setStreetViewReady( false );
+      return;
+    }
+
+    let cancelled = false;
+    setNearbyPhotos( [] );
+    setStreetViewReady( false );
+
+    const loadMedia = async () => {
+      const lib = placesLibRef.current as {
+        Place?: {
+          searchNearby?: ( req: Record<string, unknown> ) => Promise<{ places?: any[] }>;
+        };
+      } | null;
+
+      try {
+        const searchNearby = lib?.Place?.searchNearby;
+        if ( typeof searchNearby === 'function' ) {
+          const out = await searchNearby( {
+            fields: [ 'displayName', 'location', 'photos' ],
+            locationRestriction: { center: { lat: target.lat, lng: target.lng }, radius: 2500 },
+            maxResultCount: 8,
+            rankPreference: 'DISTANCE',
+          } );
+          const photos: PlacePhoto[] = [];
+          ( Array.isArray( out?.places ) ? out.places : [] ).forEach( p => {
+            ( Array.isArray( p?.photos ) ? p.photos : [] ).slice( 0, 2 ).forEach( ( photo: any ) => {
+              const url = photo?.getURI?.( { maxWidth: 1200, maxHeight: 760 } ) || '';
+              if ( !url ) return;
+              photos.push( {
+                url,
+                attributions: ( Array.isArray( photo?.authorAttributions ) ? photo.authorAttributions : [] )
+                  .map( ( a: any ) => ( { name: String( a?.displayName || 'Photo contributor' ), uri: a?.uri } ) ),
+              } );
+            } );
+          } );
+          if ( !cancelled && photos.length ) {
+            setNearbyPhotos( photos.slice( 0, 8 ) );
+            return;
+          }
+        }
+      } catch { /* nearby photo enrichment is optional */ }
+
+      const maps = ( window as any ).google?.maps;
+      const host = streetViewHost.current;
+      if ( cancelled || !maps?.StreetViewService || !maps?.StreetViewPanorama || !host ) return;
+      try {
+        const service = new maps.StreetViewService();
+        service.getPanorama(
+          { location: { lat: target.lat, lng: target.lng }, radius: 120, preference: 'nearest' },
+          ( data: any, status: string ) => {
+            if ( cancelled || status !== 'OK' || !data?.location?.latLng ) return;
+            new maps.StreetViewPanorama( host, {
+              position: data.location.latLng,
+              pov: { heading: 0, pitch: 0 },
+              zoom: 0,
+              addressControl: false,
+              clickToGo: false,
+              disableDefaultUI: true,
+              fullscreenControl: false,
+              linksControl: false,
+              motionTracking: false,
+              motionTrackingControl: false,
+              panControl: false,
+              scrollwheel: false,
+              showRoadLabels: false,
+              zoomControl: false,
+            } );
+            setStreetViewReady( true );
+          },
+        );
+      } catch { /* Street View is optional */ }
+    };
+
+    const id = window.setTimeout( () => { void loadMedia(); }, 0 );
+    return () => {
+      cancelled = true;
+      window.clearTimeout( id );
+    };
+  }, [ mapReady, mapCandidate, place ] );
 
   /* ---------------------------------------------------------------------------------
      LIVE DATA for the selected place. Air + Weather + Pollen fire together whenever
@@ -1384,6 +1481,7 @@ const VayuLokLive: React.FC = () => {
   const previewPlace = mapCandidate || place;
   const previewWeather = mapCandidate ? mapCandidateWeather : weather;
   const previewAir = mapCandidate ? mapCandidateAir : air;
+  const displayPhotos = previewPlace.photos?.length ? previewPlace.photos : nearbyPhotos;
   const dotClass = ( sev: Sev ) => `vl-live-dot vl-live-dot-${sev}`;
   const liveActive = Boolean( MAPS_KEY );
   const bestOutside = bestOutsideWindow( weatherHourly, airForecast );
@@ -1916,38 +2014,64 @@ const VayuLokLive: React.FC = () => {
                     notices own the bottom corners. Renders live values when present. */}
                 { ( previewAir || previewWeather || mapCandidate ) && (
                   <div className="vl-live-map-preview">
-                    { previewPlace.photos?.length ? (
+                    { displayPhotos.length ? (
                       <>
-                        <div
-                          className="vl-live-place-photos"
-                          aria-label={ `Photos of ${previewPlace.name}` }
-                          onScroll={ e => {
-                            const el = e.currentTarget;
-                            if ( el.clientWidth ) setPhotoIndex( Math.max( 0, Math.min( previewPlace.photos!.length - 1, Math.round( el.scrollLeft / el.clientWidth ) ) ) );
-                          } }
-                        >
-                          { previewPlace.photos.map( ( photo, i ) => (
-                            <figure className="vl-live-place-photo" key={ photo.url + i }>
-                              <img src={ photo.url } alt={ `${previewPlace.name} ${i + 1}` } loading={ i === 0 ? 'eager' : 'lazy' } />
-                              { photo.attributions.length > 0 && (
-                                <figcaption>
-                                  { photo.attributions.map( ( a, j ) => a.uri ? (
-                                    <a key={ a.name + j } href={ a.uri } target="_blank" rel="noopener noreferrer">{ a.name }</a>
-                                  ) : <span key={ a.name + j }>{ a.name }</span> ) }
-                                </figcaption>
-                              ) }
-                            </figure>
-                          ) ) }
+                        <div className="vl-live-photo-shell">
+                          <div className="vl-live-photo-count" aria-label={ `${displayPhotos.length} place photos` }>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v13H4zM7 15l3.2-3.2 2.4 2.3 2.1-2.1L18 15.5M8 9h.01" /></svg>
+                            <span>{ displayPhotos.length } photos</span>
+                          </div>
+                          <div
+                            ref={ photoRailRef }
+                            className="vl-live-place-photos"
+                            aria-label={ `Photos near ${previewPlace.name}` }
+                            onScroll={ e => {
+                              const el = e.currentTarget;
+                              if ( el.clientWidth ) setPhotoIndex( Math.max( 0, Math.min( displayPhotos.length - 1, Math.round( el.scrollLeft / el.clientWidth ) ) ) );
+                            } }
+                          >
+                            { displayPhotos.map( ( photo, i ) => (
+                              <figure className="vl-live-place-photo" key={ photo.url + i }>
+                                <img src={ photo.url } alt={ `${previewPlace.name} area ${i + 1}` } loading={ i === 0 ? 'eager' : 'lazy' } />
+                                { photo.attributions.length > 0 && (
+                                  <figcaption>
+                                    { photo.attributions.map( ( a, j ) => a.uri ? (
+                                      <a key={ a.name + j } href={ a.uri } target="_blank" rel="noopener noreferrer">{ a.name }</a>
+                                    ) : <span key={ a.name + j }>{ a.name }</span> ) }
+                                  </figcaption>
+                                ) }
+                              </figure>
+                            ) ) }
+                          </div>
                         </div>
-                        { previewPlace.photos.length > 1 && (
-                          <div className="vl-live-photo-dots" aria-label={ `Photo ${photoIndex + 1} of ${previewPlace.photos.length}` }>
-                            { previewPlace.photos.map( ( _, i ) => <i key={ i } className={ i === photoIndex ? 'is-active' : '' } aria-hidden="true" /> ) }
+                        { displayPhotos.length > 1 && (
+                          <div className="vl-live-photo-tabs" role="tablist" aria-label={ `Photo ${photoIndex + 1} of ${displayPhotos.length}` }>
+                            { displayPhotos.map( ( _, i ) => (
+                              <button
+                                key={ i }
+                                type="button"
+                                role="tab"
+                                aria-selected={ i === photoIndex }
+                                aria-label={ `Show photo ${i + 1}` }
+                                onClick={ () => {
+                                  const el = photoRailRef.current;
+                                  if ( el ) el.scrollTo( { left: el.clientWidth * i, behavior: 'smooth' } );
+                                  setPhotoIndex( i );
+                                } }
+                              />
+                            ) ) }
                           </div>
                         ) }
                       </>
                     ) : (
-                      <div className="vl-live-place-photo-fallback" role="img" aria-label={ `VayuLok place preview for ${previewPlace.name}` }>
-                        <span aria-hidden="true" />
+                      <div className={ `vl-live-streetview ${streetViewReady ? 'is-ready' : ''}`.trim() }>
+                        <div ref={ streetViewHost } className="vl-live-streetview-host" aria-label={ `Street View near ${previewPlace.name}` } />
+                        { !streetViewReady && (
+                          <div className="vl-live-place-photo-fallback" role="img" aria-label={ `VayuLok place preview for ${previewPlace.name}` }>
+                            <span aria-hidden="true" />
+                          </div>
+                        ) }
+                        { streetViewReady && <span className="vl-live-media-tag">Street View nearby</span> }
                       </div>
                     ) }
                     <div className="vl-live-map-preview-head">
@@ -2054,7 +2178,7 @@ const VayuLokLive: React.FC = () => {
         .vl-live-left{min-width:0;container-type:inline-size;container-name:vllive}
         .vl-live-right{min-width:0}
 
-        .vl-live-left > .vl-live-section{margin-top:44px;padding-top:24px;border-top:1px solid var(--hair)}
+        .vl-live-left > .vl-live-section{margin-top:56px;padding-top:0;border-top:0}
         .vl-live-left > .vl-live-section.vl-live-section-tail{padding-top:0;border-top:0}
 
         .vl-live-map-sticky{display:flex;flex-direction:column;gap:10px}
@@ -2082,8 +2206,8 @@ const VayuLokLive: React.FC = () => {
           /* Two equal columns with a fixed gap so they cannot overlap. The earlier
              track definition summed past the container width once the gap was added,
              so the right map column slid over the left content. */
-          .vl-live-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:40px;row-gap:0}
-          .vl-live-map-sticky{position:sticky;top:96px;height:calc(100vh - 120px)}
+          .vl-live-grid{grid-template-columns:minmax(0,.72fr) minmax(0,1.08fr);column-gap:36px;row-gap:0}
+          .vl-live-map-sticky{position:sticky;top:96px;height:calc(100vh - 112px);min-height:620px}
           .vl-live-map-stage{flex:1 1 auto;min-height:0;height:auto}
         }
 
@@ -2135,7 +2259,7 @@ const VayuLokLive: React.FC = () => {
         .vl-live-data-skeleton i:nth-child(2){width:72%}.vl-live-data-skeleton i:nth-child(3){width:86%}.vl-live-data-skeleton i:nth-child(4){width:58%}
         .vl-live-sub-fact.is-stale{color:#8a5a1f}
         @keyframes vl-live-shimmer{to{background-position:-200% 0}}
-        .vl-live-now{padding-top:28px;border-top:1px solid var(--hair)}
+        .vl-live-now{padding:22px;border:0;border-radius:14px;background:linear-gradient(135deg,rgba(209,244,112,.2),rgba(255,255,255,.94))}
         .vl-live-figure{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:8px 0 0}
         .vl-live-metric-xl{font-size:clamp(40px,4.3vw,56px);font-weight:600;line-height:1.04;letter-spacing:-0.04em;color:#1a1a1a}
         .vl-live-metric-lg{font-size:clamp(32px,3.2vw,40px);font-weight:600;line-height:1.08;letter-spacing:-1.6px;color:#1a1a1a}
@@ -2167,20 +2291,29 @@ const VayuLokLive: React.FC = () => {
 
         /* One map information card only. It lives in the top-right so Google's
            required attribution/legal strip at the bottom remains completely clear. */
-        .vl-live-map-preview{position:absolute;top:16px;right:16px;left:auto;bottom:auto;z-index:4;width:320px;padding:0 18px 18px;border:1px solid rgba(209,244,112,.86);border-radius:20px;background:rgba(255,255,255,.985);box-shadow:0 14px 34px rgba(26,58,42,.16);overflow:visible}
+        .vl-live-map-preview{position:absolute;top:16px;right:16px;left:auto;bottom:auto;z-index:4;width:min(390px,calc(100% - 150px));padding:0 18px 18px;border:1px solid rgba(209,244,112,.86);border-radius:20px;background:rgba(255,255,255,.985);box-shadow:0 14px 34px rgba(26,58,42,.16);overflow:visible}
         .vl-live-map-preview::after{content:'';position:absolute;left:50%;bottom:-10px;width:20px;height:20px;background:#fff;border-right:1px solid rgba(209,244,112,.86);border-bottom:1px solid rgba(209,244,112,.86);transform:translateX(-50%) rotate(45deg);border-radius:0 0 4px 0}
-        .vl-live-place-photos{display:flex;gap:0;overflow-x:auto;overflow-y:hidden;margin:0 -18px;border-radius:20px 20px 0 0;scroll-snap-type:x mandatory;scrollbar-width:none}
+        .vl-live-photo-shell{position:relative;margin:0 -18px}
+        .vl-live-place-photos{display:flex;gap:0;overflow-x:auto;overflow-y:hidden;border-radius:20px 20px 0 0;scroll-snap-type:x mandatory;scrollbar-width:none}
         .vl-live-place-photos::-webkit-scrollbar{display:none}
-        .vl-live-place-photo{position:relative;flex:0 0 100%;width:100%;height:132px;margin:0;scroll-snap-align:start;background:#eef3ef}
-        .vl-live-place-photo img{display:block;width:100%;height:132px;object-fit:cover}
+        .vl-live-place-photo{position:relative;flex:0 0 100%;width:100%;height:210px;margin:0;scroll-snap-align:start;background:#eef3ef}
+        .vl-live-place-photo img{display:block;width:100%;height:210px;object-fit:cover}
+        .vl-live-photo-count{position:absolute;top:12px;left:12px;z-index:4;display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:9px;background:rgba(17,24,20,.78);color:#fff;font-size:12px;font-weight:700;backdrop-filter:blur(6px)}
+        .vl-live-photo-count svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
         .vl-live-place-photo figcaption{position:absolute;left:8px;bottom:7px;max-width:calc(100% - 16px);padding:3px 5px;border-radius:6px;background:rgba(0,0,0,.58);font-size:8px;line-height:1.2;color:#fff}
         .vl-live-place-photo figcaption a,.vl-live-place-photo figcaption span{color:#fff}
         .vl-live-place-photo figcaption a+span,.vl-live-place-photo figcaption a+a,.vl-live-place-photo figcaption span+a,.vl-live-place-photo figcaption span+span{margin-left:5px}
-        .vl-live-place-photo-fallback{height:116px;margin:0 -18px 12px;border-radius:20px 20px 0 0;display:grid;place-items:center;background:linear-gradient(135deg,rgba(209,244,112,.5),rgba(26,58,42,.08)),#eef3ef}
+        .vl-live-place-photo-fallback{height:180px;margin:0;border-radius:20px 20px 0 0;display:grid;place-items:center;background:linear-gradient(135deg,rgba(209,244,112,.5),rgba(26,58,42,.08)),#eef3ef}
+        .vl-live-streetview{position:relative;height:180px;margin:0 -18px 12px;border-radius:20px 20px 0 0;overflow:hidden;background:#eef3ef}
+        .vl-live-streetview-host{position:absolute;inset:0;opacity:0;pointer-events:none}
+        .vl-live-streetview.is-ready .vl-live-streetview-host{opacity:1}
+        .vl-live-streetview .vl-live-place-photo-fallback{position:absolute;inset:0;width:100%;height:100%;margin:0;border-radius:0}
+        .vl-live-media-tag{position:absolute;top:12px;left:12px;z-index:4;padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.92);font-size:10px;font-weight:700;color:var(--green);box-shadow:0 2px 8px rgba(26,58,42,.1)}
         .vl-live-place-photo-fallback span{width:26px;height:26px;border:7px solid var(--green);border-radius:50% 50% 50% 0;background:var(--lime);transform:rotate(-45deg)}
-        .vl-live-photo-dots{display:flex;justify-content:center;gap:5px;margin:8px 0 14px}
-        .vl-live-photo-dots i{width:5px;height:5px;border-radius:50%;background:#cfd6d0}
-        .vl-live-photo-dots i.is-active{background:var(--green);transform:scale(1.25)}
+        .vl-live-photo-tabs{display:flex;gap:5px;margin:10px 0 14px;padding:0 2px}
+        .vl-live-photo-tabs button{flex:1 1 0;height:5px;min-width:12px;padding:0;border:0;border-radius:999px;background:#e7ebe8;cursor:pointer;transition:background-color .18s ease,transform .18s ease}
+        .vl-live-photo-tabs button[aria-selected="true"]{background:var(--lime);box-shadow:0 0 0 1px rgba(26,58,42,.16);transform:scaleY(1.35)}
+        .vl-live-photo-tabs button:focus-visible{outline:2px solid var(--green);outline-offset:3px}
         .vl-live-map-preview-head{display:block;margin-top:2px}
         .vl-live-map-preview .vl-live-card-h{margin:0;font-size:20px;line-height:1.2;font-weight:700;letter-spacing:-.02em;color:#1a1a1a}
         .vl-live-map-address{margin:5px 0 0;font-size:12px;line-height:1.45;color:var(--ink-muted)}
@@ -2202,8 +2335,9 @@ const VayuLokLive: React.FC = () => {
         .vl-live-best-outside{display:grid;gap:10px;padding:24px;border-radius:18px;background:var(--green);color:#fff}
         .vl-live-best-outside .vl-live-metric-lg,.vl-live-best-outside .vl-live-body{color:#fff}
         .vl-live-best-outside .vl-live-small{color:rgba(255,255,255,.76)}
-        .vl-live-hour-rail,.vl-live-day-rail{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;padding:2px 0 8px;scrollbar-width:thin}
-        .vl-live-hour-card{position:relative;flex:0 0 112px;min-height:144px;padding:14px;border:1px solid var(--hair);border-radius:14px;background:#fff;scroll-snap-align:start}
+        .vl-live-hour-rail,.vl-live-day-rail{display:flex;gap:0;overflow-x:auto;scroll-snap-type:x proximity;padding:0 0 8px;border-radius:14px;background:#fafbf8;scrollbar-color:var(--lime) transparent;scrollbar-width:thin}
+        .vl-live-hour-card{position:relative;flex:0 0 112px;min-height:144px;padding:14px;border:0;border-right:1px solid var(--hair);border-radius:0;background:transparent;scroll-snap-align:start}
+        .vl-live-hour-card:first-child{background:rgba(209,244,112,.18)}
         .vl-live-hour-card time,.vl-live-hour-card span{display:block;font-size:12px;line-height:1.35;color:var(--ink-muted)}
         .vl-live-hour-card strong{display:block;margin:9px 0;font-size:19px;color:var(--green)}
         .vl-live-hour-card img{display:block;width:30px;height:30px;margin-top:8px}
@@ -2221,14 +2355,15 @@ const VayuLokLive: React.FC = () => {
         .vl-live-history-controls button[aria-pressed="true"]{border-color:var(--green);background:var(--lime)}
         .vl-live-history{height:132px;display:flex;align-items:flex-end;gap:2px;margin-top:14px;padding:10px 0 2px;border-bottom:1px solid var(--hair)}
         .vl-live-history i{flex:1 1 0;min-width:2px;max-width:10px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,var(--lime),var(--green))}
-        .vl-live-weather-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--hair)}
+        .vl-live-weather-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:hidden;border:0;border-radius:14px;background:#fafbf8}
         .vl-live-weather-grid>div{padding:16px 14px 16px 0;border-bottom:1px solid var(--hair)}
         .vl-live-weather-grid>div:nth-child(even){padding-left:14px;border-left:1px solid var(--hair)}
         .vl-live-weather-grid strong{font-size:15px;color:#1a1a1a}
         .vl-live-sunline{display:grid;grid-template-columns:1fr 1fr;margin-top:18px;border:1px solid var(--hair);border-radius:14px;overflow:hidden}
         .vl-live-sunline>div{padding:16px}
         .vl-live-sunline>div+div{border-left:1px solid var(--hair)}
-        .vl-live-day-card{flex:0 0 112px;min-height:150px;padding:14px;border:1px solid var(--hair);border-radius:14px;background:#fff;scroll-snap-align:start;text-align:center}
+        .vl-live-day-card{flex:0 0 116px;min-height:150px;padding:14px;border:0;border-right:1px solid var(--hair);border-radius:0;background:transparent;scroll-snap-align:start;text-align:center}
+        .vl-live-day-card:first-child{background:rgba(209,244,112,.18)}
         .vl-live-day-card>span,.vl-live-day-card>b{display:block;margin-top:5px;font-size:12px;color:var(--ink-muted)}
         .vl-live-day-card>b{font-size:14px;color:#1a1a1a}
         .vl-live-day-card img{width:34px;height:34px;margin:8px auto 2px}
@@ -2244,7 +2379,7 @@ const VayuLokLive: React.FC = () => {
         .vl-live-pollen-card span{display:block;margin-top:5px;font-size:12px;color:var(--ink-muted)}
 
         /* Conditions rail. */
-        .vl-live-rail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--hair)}
+        .vl-live-rail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:hidden;border:0;border-radius:14px;background:#fafbf8}
         .vl-live-fact{padding:22px 24px 22px 0}
         .vl-live-fact:nth-child(even){padding-left:24px;border-left:1px solid var(--hair)}
         .vl-live-fact:nth-child(n+3){border-top:1px solid var(--hair)}
@@ -2311,7 +2446,8 @@ const VayuLokLive: React.FC = () => {
           .vl-live-map-preview{top:70px;right:12px;left:12px;width:auto;max-width:none}
           .vl-live-map-preview::after{left:50%}
           .vl-live-map-preview .vl-live-card-h{font-size:18px}
-          .vl-live-place-photo,.vl-live-place-photo img{height:116px}
+          .vl-live-place-photo,.vl-live-place-photo img{height:165px}
+          .vl-live-streetview{height:165px}
         }
         @media(prefers-reduced-motion:reduce){
           .vl-live-data-skeleton i{animation:none}
