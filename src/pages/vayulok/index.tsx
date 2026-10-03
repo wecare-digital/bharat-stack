@@ -63,8 +63,8 @@ const VayuLokPage: React.FC = () => {
   // Order is hue rhythm as much as grouping. Air + Pollen are what is in the air,
   // Weather + Forecast are conditions, Solar is the adjacent service, Heatmap is the
   // view rather than a subject. Sequencing them this way leaves only one adjacent
-  // warm pair (Solar -> Heatmap); the obvious logical order stacked amber, red and
-  // yellow consecutively and the pill stopped feeling like it was changing.
+  // warm pair (Solar -> Heatmap); the obvious logical order stacked the warm hues
+  // consecutively and the pill stopped feeling like it was changing.
   //
   // The first four tint/dot pairs are reused verbatim from the Grahak OS hero. The
   // last two are new, and follow that system's construction rule rather than being
@@ -72,7 +72,10 @@ const VayuLokPage: React.FC = () => {
   // 100/600 relationship the existing four use. Reusing one of the four for Heatmap
   // or Pollen was the alternative, but every existing pair is hue-matched to its
   // subject and doubling up would have broken exactly that.
-  // Red for Heatmap because the map reads as heat; yellow for Pollen for the obvious
+  // Heatmap is a warm TERRACOTTA (#c2591b on #fbe6d4), NOT red: it still reads as
+  // heat but honours the owner constraint that #dc2626 - a true red - is forbidden
+  // across this page (see .agents/tasks/vayulok-home-aligned-mock/design-tokens.md
+  // and owner-constraints.md "NO RED anywhere"). Yellow for Pollen for the obvious
   // reason. Neither touches the brand palette - like the Grahak OS channel tints,
   // these are a per-subject system that sits outside it by design.
   const cycleWords = [
@@ -81,7 +84,7 @@ const VayuLokPage: React.FC = () => {
     { word: 'Weather', tint: '#dbeafe', dot: '#2563eb' },
     { word: 'Forecast', tint: '#ede9fe', dot: '#9849e8' },
     { word: 'Solar', tint: '#fef3c7', dot: '#f0a818' },
-    { word: 'Heatmap', tint: '#fee2e2', dot: '#dc2626' },
+    { word: 'Heatmap', tint: '#fbe6d4', dot: '#c2591b' },
   ];
   const [ cycleIndex, setCycleIndex ] = useState( 0 );
   const [ cycleW, setCycleW ] = useState<number | null>( null );
