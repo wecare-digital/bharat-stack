@@ -1643,19 +1643,80 @@ const VayuLokLive: React.FC = () => {
 
           { combinedHours.length > 0 && (
             <div className="vl-live-block">
-              <h3 className="vl-live-h2">Next 24 hours</h3>
-              <div className="vl-live-hour-rail" aria-label="Next 24 hours">
-                { combinedHours.map( ( h, i ) => (
-                  <article className="vl-live-hour-card" key={ h.time }>
-                    <time>{ hourLabel( h.time ) }</time>
-                    { h.icon && <img src={ h.icon + '.svg' } alt="" loading="lazy" /> }
-                    <strong>{ Number.isFinite( h.temp ) ? h.temp + '°' : '—' }</strong>
-                    <span>{ Number.isFinite( h.rainProb ) ? h.rainProb + '% rain' : 'No rain data' }</span>
-                    <span>{ h.air ? 'AQI ' + h.air.aqi : 'AQI —' }</span>
-                    { i === 0 && <em>Next</em> }
-                  </article>
-                ) ) }
-              </div>
+              <section className="vl-live-forecast-board" aria-labelledby="vl-live-forecast-title">
+                <div className="vl-live-forecast-head">
+                  <div>
+                    <p className="vl-live-eyebrow">Today</p>
+                    <h3 className="vl-live-h2" id="vl-live-forecast-title">Next 24 hours</h3>
+                  </div>
+                  <time>{ new Intl.DateTimeFormat( 'en-IN', { timeZone: 'Asia/Kolkata', month: 'short', day: 'numeric' } ).format( new Date() ) }</time>
+                </div>
+
+                <div className="vl-live-hour-rail vl-live-hour-rail-primary" aria-label="Next 24 hours">
+                  { combinedHours.map( ( h, i ) => (
+                    <article className="vl-live-hour-card" key={ h.time }>
+                      <time>{ hourLabel( h.time ) }</time>
+                      { h.icon && <img src={ h.icon + '.svg' } alt="" loading="lazy" /> }
+                      <strong>{ Number.isFinite( h.temp ) ? h.temp + '°' : '—' }</strong>
+                      <span>{ Number.isFinite( h.rainProb ) ? h.rainProb + '% rain' : 'No rain data' }</span>
+                      <span>{ h.air ? 'AQI ' + h.air.aqi : 'AQI —' }</span>
+                      { i === 0 && <em>Now</em> }
+                    </article>
+                  ) ) }
+                </div>
+
+                <div className="vl-live-forecast-row">
+                  <p className="vl-live-forecast-label">Temperature <span>Feels like</span></p>
+                  <div className="vl-live-metric-rail" aria-label="Hourly temperature and feels like">
+                    { combinedHours.map( h => (
+                      <div className="vl-live-metric-cell" key={ 'temp-' + h.time }>
+                        <strong>{ Number.isFinite( h.temp ) ? h.temp + '°' : '—' }</strong>
+                        <span>{ Number.isFinite( h.feelsLike ) ? h.feelsLike + '°' : '—' }</span>
+                        <i className="vl-live-temp-line" aria-hidden="true" />
+                      </div>
+                    ) ) }
+                  </div>
+                </div>
+
+                <div className="vl-live-forecast-row">
+                  <p className="vl-live-forecast-label">Precipitation</p>
+                  <div className="vl-live-metric-rail" aria-label="Hourly precipitation">
+                    { combinedHours.map( h => (
+                      <div className="vl-live-metric-cell" key={ 'rain-' + h.time }>
+                        <strong>{ Number.isFinite( h.rainProb ) ? h.rainProb + '%' : '—' }</strong>
+                        <span>{ Number.isFinite( h.rainMm ) ? h.rainMm + ' mm' : 'Rain' }</span>
+                        <i className="vl-live-rain-line" aria-hidden="true" />
+                      </div>
+                    ) ) }
+                  </div>
+                </div>
+
+                <div className="vl-live-forecast-row">
+                  <p className="vl-live-forecast-label">UV index</p>
+                  <div className="vl-live-metric-rail" aria-label="Hourly UV index">
+                    { combinedHours.map( h => (
+                      <div className="vl-live-metric-cell" key={ 'uv-' + h.time }>
+                        <strong>{ Number.isFinite( h.uv ) ? h.uv : '—' }</strong>
+                        <span>{ Number.isFinite( h.uv ) ? ( h.uv! <= 2 ? 'Low' : h.uv! <= 5 ? 'Moderate' : h.uv! <= 7 ? 'High' : 'Very high' ) : 'UV' }</span>
+                        <i className="vl-live-uv-line" aria-hidden="true" />
+                      </div>
+                    ) ) }
+                  </div>
+                </div>
+
+                <div className="vl-live-forecast-row">
+                  <p className="vl-live-forecast-label">Air quality</p>
+                  <div className="vl-live-metric-rail" aria-label="Hourly air quality">
+                    { combinedHours.map( h => (
+                      <div className="vl-live-metric-cell" key={ 'aq-' + h.time }>
+                        <strong>{ h.air ? h.air.aqi : '—' }</strong>
+                        <span>{ h.air ? h.air.word : 'AQI' }</span>
+                        <i className="vl-live-aq-line" aria-hidden="true" />
+                      </div>
+                    ) ) }
+                  </div>
+                </div>
+              </section>
             </div>
           ) }
 
@@ -1883,6 +1944,45 @@ const VayuLokLive: React.FC = () => {
                       </div>
                     </>
                   ) }
+                  <section className="vl-live-plan-card" aria-labelledby="vl-live-plan-title">
+                    <div className="vl-live-plan-head">
+                      <div>
+                        <p className="vl-live-eyebrow">Plan ahead</p>
+                        <h4 className="vl-live-plan-title" id="vl-live-plan-title">Next few days</h4>
+                        <p className="vl-live-plan-place">{ place.name }, { place.addr }</p>
+                      </div>
+                      <p className="vl-live-plan-range">
+                        { weatherDaily.slice( 0, 3 ).map( d => d.dateLabel ).filter( Boolean ).join( ' · ' ) }
+                      </p>
+                    </div>
+
+                    <div className="vl-live-plan-days" aria-label="Three day weather outlook">
+                      { weatherDaily.slice( 0, 3 ).map( d => (
+                        <article className="vl-live-plan-day" key={ 'plan-' + d.time }>
+                          <strong>{ d.label }</strong>
+                          { d.icon && <img src={ d.icon + '.svg' } alt="" loading="lazy" /> }
+                          <b>{ Number.isFinite( d.max ) ? d.max + '°' : '—' } <span>{ Number.isFinite( d.min ) ? d.min + '°' : '—' }</span></b>
+                          <p>{ Number.isFinite( d.rainProb ) ? d.rainProb + '% rain' : d.condition || 'Forecast' }</p>
+                        </article>
+                      ) ) }
+                    </div>
+
+                    <div className="vl-live-plan-context">
+                      <div>
+                        <p className="vl-live-label">Air quality details</p>
+                        <strong>{ air ? 'AQI ' + air.aqi + ' · ' + air.word : 'Not available today' }</strong>
+                      </div>
+                      <div>
+                        <p className="vl-live-label">Pollen forecast</p>
+                        { pollen && pollen.length > 0 ? (
+                          <div className="vl-live-plan-pollen">
+                            { Array.from( new Set( pollen.map( row => row.label ) ) ).slice( 0, 3 ).map( label => <span key={ label }>{ label }</span> ) }
+                          </div>
+                        ) : <strong>No pollen data available for this region.</strong> }
+                      </div>
+                    </div>
+                  </section>
+
                   <h4 className="vl-live-minor-title">10-day outlook</h4>
                   <div className="vl-live-day-rail" aria-label="10-day weather outlook">
                     { weatherDaily.map( d => (
@@ -2410,6 +2510,48 @@ const VayuLokLive: React.FC = () => {
           .vl-live-signal-facts>div+div{border-left:1px solid var(--hair)}
         }
 
+        /* Screenshot-led hourly workspace: one horizontal table, shared columns, no card pile. */
+        .vl-live-forecast-board{overflow:hidden;border:1px solid rgba(209,244,112,.72);border-radius:18px;background:#fff}
+        .vl-live-forecast-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:20px;background:linear-gradient(135deg,rgba(209,244,112,.24),rgba(255,255,255,.98))}
+        .vl-live-forecast-head .vl-live-h2{margin:3px 0 0}
+        .vl-live-forecast-head>time{font-size:12px;font-weight:700;color:var(--green);white-space:nowrap}
+        .vl-live-hour-rail-primary{border-radius:0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+        .vl-live-forecast-row{padding-top:16px}
+        .vl-live-forecast-row+.vl-live-forecast-row{border-top:1px solid var(--hair)}
+        .vl-live-forecast-label{display:flex;justify-content:space-between;gap:12px;margin:0;padding:0 20px 10px;font-size:12px;font-weight:700;color:var(--ink-muted)}
+        .vl-live-forecast-label span{font-weight:600}
+        .vl-live-metric-rail{display:flex;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-color:var(--lime) transparent;scrollbar-width:thin}
+        .vl-live-metric-cell{position:relative;flex:0 0 112px;min-height:86px;padding:12px 12px 18px;border-right:1px solid var(--hair);scroll-snap-align:start;background:#fff}
+        .vl-live-metric-cell:first-child{background:rgba(209,244,112,.16)}
+        .vl-live-metric-cell strong{display:block;font-size:17px;line-height:1.1;color:#1a1a1a}
+        .vl-live-metric-cell span{display:block;margin-top:5px;font-size:10px;color:var(--ink-muted)}
+        .vl-live-temp-line,.vl-live-rain-line,.vl-live-uv-line,.vl-live-aq-line{position:absolute;left:12px;right:12px;bottom:9px;height:2px;border-radius:999px;background:var(--lime)}
+        .vl-live-temp-line::after,.vl-live-aq-line::after{content:'';position:absolute;right:0;top:50%;width:6px;height:6px;border-radius:50%;background:var(--green);transform:translateY(-50%)}
+        .vl-live-rain-line{background:linear-gradient(90deg,var(--green),var(--lime))}
+        .vl-live-uv-line{background:linear-gradient(90deg,#7ab75a,var(--lime),#d4b33d)}
+        .vl-live-aq-line{background:linear-gradient(90deg,var(--green),var(--aqi-sat),var(--lime))}
+
+        /* Compact near-term planning panel from the supplied trip reference, restyled to Home. */
+        .vl-live-plan-card{margin-top:28px;padding:22px;border:1px solid var(--hair);border-radius:18px;background:#fff}
+        .vl-live-plan-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+        .vl-live-plan-title{margin:0;font-size:22px;line-height:1.2;font-weight:700;letter-spacing:-.4px;color:#1a1a1a}
+        .vl-live-plan-place{margin:6px 0 0;font-size:13px;line-height:1.45;color:var(--ink-muted)}
+        .vl-live-plan-range{margin:0;font-size:12px;line-height:1.4;color:var(--ink-muted);text-align:right}
+        .vl-live-plan-days{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:20px}
+        .vl-live-plan-day{min-width:0;padding:16px 12px;border-radius:14px;background:#fafafa;text-align:center}
+        .vl-live-plan-day strong,.vl-live-plan-day b,.vl-live-plan-day p{display:block}
+        .vl-live-plan-day strong{font-size:13px;color:var(--ink-muted)}
+        .vl-live-plan-day img{display:block;width:38px;height:38px;margin:10px auto}
+        .vl-live-plan-day b{font-size:18px;color:#1a1a1a}
+        .vl-live-plan-day b span{font-size:13px;font-weight:600;color:var(--ink-muted)}
+        .vl-live-plan-day p{margin:8px 0 0;font-size:11px;line-height:1.35;color:var(--ink-muted)}
+        .vl-live-plan-context{display:grid;gap:18px;margin-top:22px;padding-top:20px;border-top:1px solid var(--hair)}
+        .vl-live-plan-context>div+div{padding-top:18px;border-top:1px solid var(--hair)}
+        .vl-live-plan-context strong{font-size:14px;color:#1a1a1a}
+        .vl-live-plan-pollen{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:hidden;border:1px solid var(--hair);border-radius:999px}
+        .vl-live-plan-pollen span{padding:10px 12px;text-align:center;font-size:13px;font-weight:600;color:var(--ink-second)}
+        .vl-live-plan-pollen span+span{border-left:1px solid var(--hair)}
+
         .vl-live-best-outside{display:grid;gap:10px;padding:24px;border:2px solid var(--lime);border-radius:14px;background:var(--lime-tint);color:var(--ink-base)}
         .vl-live-best-outside .vl-live-metric-lg,.vl-live-best-outside .vl-live-body{color:var(--ink-head)}
         .vl-live-best-outside .vl-live-small{color:var(--ink-muted)}
@@ -2515,6 +2657,12 @@ const VayuLokLive: React.FC = () => {
           .vl-live-map-controls{top:12px;left:12px}
           .vl-live-map-preview{width:calc(100% - 24px);max-width:360px}
           .vl-live-map-preview .vl-live-card-h{font-size:17px}
+          .vl-live-plan-head{display:block}
+          .vl-live-plan-range{margin-top:8px;text-align:left}
+          .vl-live-plan-days{gap:6px}
+          .vl-live-plan-day{padding:14px 8px}
+          .vl-live-plan-pollen{grid-template-columns:1fr}
+          .vl-live-plan-pollen span+span{border-left:0;border-top:1px solid var(--hair)}
         }
         @media(prefers-reduced-motion:reduce){
           .vl-live-data-skeleton i{animation:none}
