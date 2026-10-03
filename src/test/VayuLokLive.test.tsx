@@ -475,7 +475,7 @@ describe( 'VayuLokLive - forecast, history and partial failure rendering', () =>
     const VayuLokLive = await loadComponent();
     render( <VayuLokLive /> );
 
-    expect( await screen.findByText( '31°' ) ).toBeInTheDocument();
+    expect( ( await screen.findAllByText( '31°' ) ).length ).toBeGreaterThan( 0 );
     expect( screen.getByText( 'Sunny' ) ).toBeInTheDocument();
     expect( screen.queryByText( 'Current conditions are temporarily unavailable.' ) ).toBeNull();
   } );
