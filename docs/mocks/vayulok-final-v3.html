@@ -917,42 +917,38 @@ html,body{margin:0;background:#fff}
   .vl-threeup>div+div{padding-top:22px;padding-left:24px;border-top:0;border-left:1px solid var(--hair)}
 }
 
-/* THE HISTORY CHART - ON THE HOME PAGE'S DESIGN LANGUAGE.
-   The home hero's visual grammar is: hairline rules rather than boxes, the
-   lime #d1f470 / #e0f7c8 brand tint as the single accent, generous airy
-   spacing, and 9999px/13px rounding on anything that reads as a shape
-   (docs/mocks/home-hero/index.html: .home-mark, .home-btn, .home-layout).
-   This chart is brought onto that grammar:
-     - it sits BETWEEN two hairlines (top + baseline), the same device the
-       .vl-signal / .vl-hours rails already use, so it reads as a framed signal
-       block rather than loose bars on one line;
-     - the bars are rounded 3px at the top (home rounds everything), carry a
-       little more air (gap 6px) and bottom-align on the baseline;
+/* THE 24-HOUR CHART - ON THE HOME PAGE'S DESIGN LANGUAGE (Option A).
+   KEEP the hourly bar shape, but take its colour grammar from the home page
+   (docs/mocks/home-hero/index.html): hairline rules rather than boxes, one calm
+   accent, airy spacing, rounded shapes. The previous version re-used the amber
+   AQI severity ramp here, with dark caps on the worst bars and a diagonal hatch
+   on the very worst - that is loud and off-palette, so it is GONE:
+     - every bar is now ONE calm colour, the home green #3da35a (--green-dot,
+       the .home-mark-dot green), which reads cleaner against white than the
+       pale brand lime would;
+     - no severity ramp, no dark caps, no hatching - the bars no longer encode
+       category by colour at all, so the caption below stops claiming they do;
+     - the bars stay thin with rounded 3px tops, bottom-aligned on the baseline,
+       sitting BETWEEN two hairlines (top + bottom), the same device the
+       .vl-signal / .vl-hours rails use;
      - the CURRENT reading - the last bar - is marked with the home mark's lime
-       tint (--lime-tint, the composited #e0f7c8 the home .home-mark uses) and a
-       lime baseline tick, so the eye lands on "Now" exactly as the home hero's
-       lime pill marks the live word.
-   FORM STILL CARRIES SEVERITY, NOT TONE ALONE: the two worst bands keep their
-   dark cap and the worst keeps its hatch, so Poor and Very Poor stay apart from
-   Moderate in greyscale (WCAG 1.4.1). The chart is aria-hidden - a picture of
-   the numbers - and the readable version is the worded range printed below. */
+       tint (--lime-tint) and a lime baseline tick, the same "lime marks the live
+       thing" gesture as .home-mark, so the eye still lands on "Now".
+   The chart is aria-hidden - a picture of the numbers - and the readable version
+   is the worded low/now/high range printed below it, which names each value's
+   category in text (the only place category now lives, WCAG 1.4.1). */
 .vl-chart{
   display:flex;align-items:flex-end;gap:6px;height:170px;padding-top:24px;
   border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);
 }
-.vl-chart span{flex:1 1 0;border-radius:3px 3px 0 0;min-width:0}
-.vl-chart .is-sat{background-color:var(--aqi-sat)}
-.vl-chart .is-mod{background-color:var(--aqi-mod)}
-.vl-chart .is-poor{background-color:var(--aqi-poor);border-top:3px solid var(--green)}
-.vl-chart .is-worst{
-  background-color:var(--aqi-worst);border-top:3px solid var(--green);
-  background-image:repeating-linear-gradient(135deg,rgba(26,58,42,.3) 0 3px,transparent 3px 8px);
+.vl-chart span{
+  flex:1 1 0;border-radius:3px 3px 0 0;min-width:0;
+  background-color:var(--green-dot);
 }
 /* THE 'NOW' MARK - the home hero's lime brand tint applied to the live reading.
-   It paints the lime #e0f7c8 wash BEHIND the current bar and drops a 3px lime
-   tick on the baseline under it, which is the same "lime marks the live thing"
-   gesture as .home-mark. It sits on its own class so it layers over whichever
-   severity band the current hour happens to be. */
+   It paints the lime wash BEHIND the current bar and drops a 3px lime tick on
+   the baseline under it, the same "lime marks the live thing" gesture as
+   .home-mark. It layers over the one calm bar colour. */
 .vl-chart .is-now{
   position:relative;
   box-shadow:0 0 0 2px var(--lime-tint);
@@ -1492,42 +1488,40 @@ html,body{margin:0;background:#fff}
             </div>
 
             <h4 class="vl-card-h">Last 24 hours, AQI</h4>
-            <!-- aria-hidden because the chart is a picture of the numbers. The
-                 readable version is the worded range below it, which names the
-                 categories instead of leaving them to the bar colours. The two
-                 worst bands also carry a dark cap, and the worst is hatched, so
-                 they stay apart from Moderate in greyscale. -->
+            <!-- aria-hidden because the chart is a picture of the numbers. The bars
+                 are one calm colour and no longer encode category, so the readable
+                 version is the worded low/now/high range below, which names each
+                 value's category in text (WCAG 1.4.1). -->
             <div class="vl-chart" aria-hidden="true">
-              <span class="is-sat" style="height:46%"></span>
-              <span class="is-sat" style="height:42%"></span>
-              <span class="is-sat" style="height:38%"></span>
-              <span class="is-sat" style="height:35%"></span>
-              <span class="is-sat" style="height:31%"></span>
-              <span class="is-sat" style="height:34%"></span>
-              <span class="is-sat" style="height:44%"></span>
-              <span class="is-mod" style="height:57%"></span>
-              <span class="is-mod" style="height:63%"></span>
-              <span class="is-mod" style="height:59%"></span>
-              <span class="is-mod" style="height:54%"></span>
-              <span class="is-mod" style="height:58%"></span>
-              <span class="is-mod" style="height:62%"></span>
-              <span class="is-mod" style="height:66%"></span>
-              <span class="is-mod" style="height:61%"></span>
-              <span class="is-mod" style="height:56%"></span>
-              <span class="is-mod" style="height:64%"></span>
-              <span class="is-poor" style="height:73%"></span>
-              <span class="is-poor" style="height:81%"></span>
-              <span class="is-worst" style="height:92%"></span>
-              <span class="is-worst" style="height:88%"></span>
-              <span class="is-poor" style="height:79%"></span>
-              <span class="is-poor" style="height:71%"></span>
-              <span class="is-mod is-now" style="height:67%"></span>
+              <span style="height:46%"></span>
+              <span style="height:42%"></span>
+              <span style="height:38%"></span>
+              <span style="height:35%"></span>
+              <span style="height:31%"></span>
+              <span style="height:34%"></span>
+              <span style="height:44%"></span>
+              <span style="height:57%"></span>
+              <span style="height:63%"></span>
+              <span style="height:59%"></span>
+              <span style="height:54%"></span>
+              <span style="height:58%"></span>
+              <span style="height:62%"></span>
+              <span style="height:66%"></span>
+              <span style="height:61%"></span>
+              <span style="height:56%"></span>
+              <span style="height:64%"></span>
+              <span style="height:73%"></span>
+              <span style="height:81%"></span>
+              <span style="height:92%"></span>
+              <span style="height:88%"></span>
+              <span style="height:79%"></span>
+              <span style="height:71%"></span>
+              <span class="is-now" style="height:67%"></span>
             </div>
             <div class="vl-chart-axis"><span>24 hours ago</span><span>Now</span></div>
             <p class="vl-small" style="margin-top:12px">
               Range over the last 24 hours: low 84 (Satisfactory) at 5 am, high 214 (Very Poor) at
-              10 pm, now 168 (Moderate). Warmer, darker and capped bars are worse — and every value
-              is named in words, because colour alone is not allowed to carry severity here.
+              10 pm, now 168 (Moderate).
             </p>
           </div>
 
@@ -1545,6 +1539,35 @@ html,body{margin:0;background:#fff}
             </div>
           </div>
         </div>
+
+        <!-- SOLAR - BUILDING INSIGHTS. A static mock of the Solar API that this page
+             already names (src/pages/vayulok/index.tsx:19 documents
+             solar.googleapis.com/v1/buildingInsights:findClosest). It reuses the
+             existing .vl-prow label / track / value / category row and the .vl-section
+             rhythm, so it reads as a sibling of the air-quality and weather detail
+             sections. Every number is plausible static sample data for a Delhi rooftop -
+             this is a design mock and calls NO API. -->
+        <section class="vl-section" aria-labelledby="vl-solar-title">
+          <h3 class="vl-h2" id="vl-solar-title">Solar &ndash; Building Insights</h3>
+          <p class="vl-small" style="margin-bottom:16px">Rooftop solar potential for this address, from the Solar API's building insights.</p>
+          <div class="vl-prow"><p class="vl-label">Max panels</p><span class="vl-track"><span class="vl-bar vl-bar-mod" style="width:62%"></span></span><span class="vl-metric-md">38 panels</span><span class="vl-prow-cat">Large roof</span></div>
+          <div class="vl-prow"><p class="vl-label">Sunshine</p><span class="vl-track"><span class="vl-bar vl-bar-poor" style="width:78%"></span></span><span class="vl-metric-md">1,642 hrs/yr</span><span class="vl-prow-cat">High</span></div>
+          <div class="vl-prow"><p class="vl-label">Roof area</p><span class="vl-track"><span class="vl-bar vl-bar-sat" style="width:48%"></span></span><span class="vl-metric-md">74 m²</span><span class="vl-prow-cat">Usable</span></div>
+          <div class="vl-prow"><p class="vl-label">Yearly energy</p><span class="vl-track"><span class="vl-bar vl-bar-poor" style="width:71%"></span></span><span class="vl-metric-md">13,900 kWh</span><span class="vl-prow-cat">Estimated</span></div>
+        </section>
+
+        <!-- POLLEN. A static mock of the Pollen API this page names on its roadmap
+             (src/pages/vayulok/index.tsx:24 documents
+             pollen.googleapis.com/v1/forecast:lookup). Same .vl-prow row pattern and
+             .vl-section rhythm. Plausible static sample pollen indices for Delhi, with a
+             category word per row; calls NO API. -->
+        <section class="vl-section" aria-labelledby="vl-pollen-title">
+          <h3 class="vl-h2" id="vl-pollen-title">Pollen</h3>
+          <p class="vl-small" style="margin-bottom:16px">Today's pollen index by type, from the Pollen API forecast.</p>
+          <div class="vl-prow"><p class="vl-label">Grass</p><span class="vl-track"><span class="vl-bar vl-bar-mod" style="width:50%"></span></span><span class="vl-metric-md">Index 3</span><span class="vl-prow-cat">Moderate</span></div>
+          <div class="vl-prow"><p class="vl-label">Tree</p><span class="vl-track"><span class="vl-bar vl-bar-poor" style="width:72%"></span></span><span class="vl-metric-md">Index 4</span><span class="vl-prow-cat">High</span></div>
+          <div class="vl-prow"><p class="vl-label">Weed</p><span class="vl-track"><span class="vl-bar vl-bar-sat" style="width:33%"></span></span><span class="vl-metric-md">Index 2</span><span class="vl-prow-cat">Low</span></div>
+        </section>
 
 
         <!-- SUBSCRIBE AND CONTRIBUTE NOW LIVE INSIDE THE LEFT COLUMN, on the

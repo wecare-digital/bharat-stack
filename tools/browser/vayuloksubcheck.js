@@ -826,12 +826,13 @@ const run = async ( browser, mock ) => {
        `.vl-app-left > .vl-section` carries the hairline. So the dividers are the existing
        rhythm, not new rules - and that is what this asserts: the 2nd and 3rd sections each
        carry a 1px hairline above them, and the first does not. */
-    const rhythm = await page.evaluate( () => {
+    const allSecs = await page.evaluate( () => {
       const secs = Array.prototype.slice.call( document.querySelectorAll( '.vl-app-left > .vl-section' ) );
       return secs.map( el => {
         const c = getComputedStyle( el );
         return {
           cls: el.className,
+          ariaLabelledby: el.getAttribute( 'aria-labelledby' ) || '',
           borderTopWidth: c.borderTopWidth,
           borderTopColor: c.borderTopColor,
           paddingTop: c.paddingTop,
@@ -839,8 +840,31 @@ const run = async ( browser, mock ) => {
         };
       } );
     } );
+    /* THE LEFT COLUMN NOW HOLDS FIVE .vl-section SIBLINGS: two NEW data sections
+       (Solar - Building Insights, then Pollen) added at the owner's instruction, then the
+       three ported footer sections (Subscribe, Contribute, Share). Every one of them is a
+       .vl-section, so every one draws the same `.vl-app-left > .vl-section` hairline - the
+       data sections are built on the SAME rhythm as the footer trio by design. The
+       assertions below split the two groups: the footer trio keeps its exact
+       order/divider contract, and the new data sections are asserted for their own
+       hairline rhythm. */
+    const dataSecs = allSecs.filter( r => /vl-solar|vl-pollen/.test( r.ariaLabelledby ) );
+    const rhythm = allSecs.filter( r => !/vl-solar|vl-pollen/.test( r.ariaLabelledby ) );
+    record( scope, 'left column holds exactly 5 sections (2 data + 3 footer)', allSecs.length === 5,
+      allSecs.map( r => r.ariaLabelledby || r.cls ).join( ' | ' ) );
     record( scope, 'left column holds exactly 3 ported sections', rhythm.length === 3,
       rhythm.map( r => r.cls ).join( ' | ' ) );
+    /* THE TWO NEW DATA SECTIONS COME FIRST, in order Solar then Pollen, and each carries
+       the same 1px --hair hairline as the rest of the rhythm. */
+    record( scope, 'left column holds the 2 new data sections (solar, pollen) in order',
+      dataSecs.length === 2
+      && /vl-solar/.test( dataSecs[ 0 ].ariaLabelledby )
+      && /vl-pollen/.test( dataSecs[ 1 ].ariaLabelledby ),
+      dataSecs.map( r => r.ariaLabelledby ).join( ' -> ' ) );
+    record( scope, 'both new data sections carry the 1px --hair hairline',
+      dataSecs.length === 2
+      && dataSecs.every( r => r.borderTopWidth === '1px' && r.borderTopColor === 'rgb(229, 231, 235)' ),
+      dataSecs.map( r => `${r.borderTopWidth} ${r.borderTopColor}` ).join( ', ' ) );
     /* THE SECTIONS ARE IN SCREENSHOT ORDER: Subscribe, then Contribute, then Share. */
     record( scope, 'the 3 sections are in screenshot order (subscribe, contribute, share)',
       rhythm.length === 3
@@ -883,6 +907,95 @@ const run = async ( browser, mock ) => {
     const sepShapes = [ ...new Set( rhythm.map( r => `${r.borderTopWidth} ${r.borderTopColor} ${r.paddingTop} ${r.marginTop}` ) ) ];
     record( scope, 'all 3 separators are geometrically identical', sepShapes.length === 1,
       sepShapes.join( ' | ' ) );
+
+    /* ---- THE TWO NEW DATA SECTIONS: SOLAR AND POLLEN ----------------------
+       Added at the owner's instruction as static mocks of the Solar
+       (buildingInsights:findClosest) and Pollen (forecast:lookup) APIs this page already
+       names in src/pages/vayulok/index.tsx. They must reuse the SAME .vl-prow row the
+       air-quality / weather sections use (label + track + bar + value + category), so
+       these assert the headings, the row counts and that each row carries the shared
+       label/track/value/category parts. The numbers are mock sample data and are not
+       pinned (a mock may change its sample values); the STRUCTURE is what is contracted. */
+    const newData = await page.evaluate( () => {
+      const read = ( titleId ) => {
+        const h = document.getElementById( titleId );
+        if ( !h ) return null;
+        const sec = h.closest( '.vl-section' );
+        const rows = Array.prototype.slice.call( sec.querySelectorAll( '.vl-prow' ) );
+        return {
+          title: h.textContent,
+          rowCount: rows.length,
+          rowsWellFormed: rows.every( r =>
+            r.querySelector( '.vl-label' )
+            && r.querySelector( '.vl-track .vl-bar' )
+            && r.querySelector( '.vl-metric-md' )
+            && r.querySelector( '.vl-prow-cat' ) ),
+          labels: rows.map( r => r.querySelector( '.vl-label' ).textContent ).join( ',' ),
+          cats: rows.map( r => r.querySelector( '.vl-prow-cat' ).textContent ).join( ',' ),
+        };
+      };
+      return { solar: read( 'vl-solar-title' ), pollen: read( 'vl-pollen-title' ) };
+    } );
+    record( scope, 'Solar section heading reads "Solar \u2013 Building Insights"',
+      !!newData.solar && newData.solar.title === 'Solar \u2013 Building Insights',
+      newData.solar ? newData.solar.title : 'absent' );
+    record( scope, 'Solar section has 4 well-formed vl-prow rows',
+      !!newData.solar && newData.solar.rowCount === 4 && newData.solar.rowsWellFormed,
+      newData.solar ? `${newData.solar.rowCount} rows` : 'absent' );
+    record( scope, 'Solar rows cover the rooftop-potential fields',
+      !!newData.solar && newData.solar.labels === 'Max panels,Sunshine,Roof area,Yearly energy',
+      newData.solar ? newData.solar.labels : 'absent' );
+    record( scope, 'Pollen section heading reads "Pollen"',
+      !!newData.pollen && newData.pollen.title === 'Pollen',
+      newData.pollen ? newData.pollen.title : 'absent' );
+    record( scope, 'Pollen section has 3 well-formed vl-prow rows',
+      !!newData.pollen && newData.pollen.rowCount === 3 && newData.pollen.rowsWellFormed,
+      newData.pollen ? `${newData.pollen.rowCount} rows` : 'absent' );
+    record( scope, 'Pollen rows are grass/tree/weed each with a category word',
+      !!newData.pollen && newData.pollen.labels === 'Grass,Tree,Weed'
+      && newData.pollen.cats === 'Moderate,High,Low',
+      newData.pollen ? `${newData.pollen.labels} | ${newData.pollen.cats}` : 'absent' );
+
+    /* ---- THE 24-HOUR CHART IS NOW ONE CALM COLOUR (Option A) ---------------
+       The amber severity ramp, the dark caps on the worst bars and the diagonal hatch are
+       GONE at the owner's instruction. So every bar must render the SAME single colour -
+       the home green #3da35a (--green-dot = rgb(61,163,90)) - with no per-bar severity
+       class and no background-image (the old hatch was a repeating-linear-gradient). The
+       one exception is the LAST bar, which carries .is-now for the lime "Now" marker; its
+       fill is still the one green, so its backgroundColor is asserted alongside the rest.
+       The caption below the chart must no longer use an em dash or the old
+       "warmer/darker/capped bars are worse" severity-by-colour language. */
+    const chart = await page.evaluate( () => {
+      const bars = Array.prototype.slice.call( document.querySelectorAll( '.vl-chart > span' ) );
+      const fills = new Set( bars.map( b => getComputedStyle( b ).backgroundColor ) );
+      const anyHatch = bars.some( b => getComputedStyle( b ).backgroundImage !== 'none' );
+      const anyCap = bars.some( b => parseFloat( getComputedStyle( b ).borderTopWidth ) > 0 );
+      const severityClass = bars.some( b => /is-sat|is-mod|is-poor|is-worst/.test( b.className ) );
+      const nowCount = bars.filter( b => /\bis-now\b/.test( b.className ) ).length;
+      const caption = ( document.querySelector( '.vl-chart-axis' ).nextElementSibling || {} ).textContent || '';
+      return {
+        barCount: bars.length,
+        fills: [ ...fills ],
+        anyHatch, anyCap, severityClass, nowCount,
+        caption: caption.replace( /\s+/g, ' ' ).trim(),
+      };
+    } );
+    record( scope, 'the 24h chart keeps all 24 hourly bars', chart.barCount === 24,
+      `${chart.barCount}` );
+    record( scope, 'every chart bar is the one home-green fill rgb(61, 163, 90)',
+      chart.fills.length === 1 && chart.fills[ 0 ] === 'rgb(61, 163, 90)',
+      chart.fills.join( ', ' ) );
+    record( scope, 'no chart bar carries a diagonal hatch (background-image:none)',
+      chart.anyHatch === false, `anyHatch=${chart.anyHatch}` );
+    record( scope, 'no chart bar carries a dark cap (border-top width 0)',
+      chart.anyCap === false, `anyCap=${chart.anyCap}` );
+    record( scope, 'no chart bar carries an AQI severity class',
+      chart.severityClass === false, `severityClass=${chart.severityClass}` );
+    record( scope, 'exactly one chart bar carries the .is-now marker', chart.nowCount === 1,
+      `${chart.nowCount}` );
+    record( scope, 'the chart caption has no em dash and no severity-by-colour language',
+      !chart.caption.includes( '\u2014' ) && !/warmer|darker|capped bars are worse/i.test( chart.caption ),
+      chart.caption.slice( 0, 80 ) );
 
     /* THE SHARED-CLASS PROOF, and it is the guard against this file's own history: the
        shape must come from ONE rule both controls match, not from two rules that happen
