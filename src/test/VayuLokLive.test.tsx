@@ -393,14 +393,20 @@ describe( 'VayuLokLive - forecast, history and partial failure rendering', () =>
         } );
       }
       if ( url.includes( 'weather.googleapis.com/v1/forecast/hours' ) ) {
+        const secondPage = url.includes( 'pageToken=page-2' );
+        const start = secondPage ? 24 : 0;
         return response( {
-          forecastHours: [ 0, 1 ].map( offset => ( {
-            interval: { startTime: new Date( base + offset * 3600000 ).toISOString() },
-            temperature: { degrees: 30 - offset },
-            precipitation: { probability: { percent: 20 + offset * 5 } },
-            uvIndex: 5,
-            weatherCondition: { description: { text: 'Clear' } },
-          } ) ),
+          forecastHours: Array.from( { length: 24 }, ( _, i ) => {
+            const offset = start + i;
+            return {
+              interval: { startTime: new Date( base + offset * 3600000 ).toISOString() },
+              temperature: { degrees: 30 - Math.floor( offset / 8 ) },
+              precipitation: { probability: { percent: 20 + ( offset % 6 ) * 5 } },
+              uvIndex: 5,
+              weatherCondition: { description: { text: 'Clear' } },
+            };
+          } ),
+          ...( secondPage ? {} : { nextPageToken: 'page-2' } ),
         } );
       }
       if ( url.includes( 'weather.googleapis.com/v1/forecast/days' ) ) {
@@ -451,6 +457,7 @@ describe( 'VayuLokLive - forecast, history and partial failure rendering', () =>
     render( <VayuLokLive /> );
 
     expect( await screen.findByRole( 'heading', { name: 'Next 24 hours' } ) ).toBeInTheDocument();
+    expect( await screen.findByText( '48-hour weather' ) ).toBeInTheDocument();
     expect( await screen.findByText( '10-day outlook' ) ).toBeInTheDocument();
     expect( await screen.findByText( 'Past 24 hours' ) ).toBeInTheDocument();
     expect( await screen.findByRole( 'heading', { name: 'Air intelligence' } ) ).toBeInTheDocument();
