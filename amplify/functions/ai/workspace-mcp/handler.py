@@ -287,9 +287,16 @@ def oauth_begin(owner, provider):
         "provider": provider, "expiresAt": now + 600, "ttl": now + 600,
         "cipher": encrypt({"verifier": verifier}, owner, provider)})
     parameters = {"response_type": "code", "client_id": registered["client_id"], "redirect_uri": CALLBACK,
-        "scope": " ".join(config["scopes"]), "state": state,
+        "state": state,
         "code_challenge": base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode(),
         "code_challenge_method": "S256"}
+    # Facebook Login for Business requests permissions by configuration id, where config_id
+    # replaces scope; sending both leaves which one the dialog honours ambiguous. Absent or
+    # empty loginConfigId keeps the plain scope dialog unchanged.
+    if config.get('loginConfigId'):
+        parameters['config_id'] = config['loginConfigId']
+    else:
+        parameters['scope'] = " ".join(config["scopes"])
     if config['kind'] == 'oauth-sdk':
         parameters.update({'access_type': 'offline', 'prompt': 'consent'})
     else:

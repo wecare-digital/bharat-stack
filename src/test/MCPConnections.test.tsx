@@ -35,7 +35,7 @@ it('checks multiple selected providers without offering Connect for pending adap
   expect(await screen.findByText(/GitHub: wecare-digital/)).toBeInTheDocument();
 });
 it('shows a validated OAuth link only after the chosen provider starts authorization', async () => {
-  const params = new URLSearchParams({ client_id: '2238810740192680', redirect_uri: 'https://wecare.digital/api/workspace/mcp/oauth/callback', code_challenge_method: 'S256' });
+  const params = new URLSearchParams({ client_id: '2238810740192680', redirect_uri: 'https://wecare.digital/api/workspace/mcp/oauth/callback', code_challenge_method: 'S256', scope: 'business_management whatsapp_business_management' });
   call.mockImplementation(async name => name === 'connection_authorize' ? { authorizationUrl: `https://www.facebook.com/v26.0/dialog/oauth?${params}`, expiresIn: 600 } : { connections });
   render(<Page />);
   const region = await screen.findByRole('region', { name: 'WhatsApp Business Tools' });

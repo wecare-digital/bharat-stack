@@ -29,7 +29,10 @@ export function metaAuthorizationURL(value: string): string {
   const meta = url.origin === 'https://www.facebook.com' && url.pathname === '/v26.0/dialog/oauth';
   const google = url.origin === 'https://accounts.google.com' && url.pathname === '/o/oauth2/v2/auth'
     && url.searchParams.get('client_id') === '756034744787-occ06h9v22rh0kbm83mmedpfqqqfni44.apps.googleusercontent.com';
-  if ((!meta && !google) || !url.searchParams.get('client_id')
+  // Permissions arrive either as scope, or as a Facebook Login for Business config_id that
+  // replaces it. At least one must be present, so a link requesting nothing never passes.
+  const permissions = url.searchParams.get('scope') || url.searchParams.get('config_id');
+  if ((!meta && !google) || !url.searchParams.get('client_id') || !permissions
     || url.searchParams.get('redirect_uri') !== 'https://wecare.digital/api/workspace/mcp/oauth/callback'
     || url.searchParams.get('code_challenge_method') !== 'S256') {
     throw new Error('The authorization link could not be verified.');
