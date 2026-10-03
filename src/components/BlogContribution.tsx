@@ -51,6 +51,8 @@ export interface BlogContributionProps {
   postId: string;
   /** The post slug, carried alongside the id for human-readable attribution and reconciliation. */
   slug: string;
+  /** Removes the component's own top rule when a parent surface already owns section rhythm. */
+  embedded?: boolean;
 }
 
 /** The browser-visible outcome states. "idle" is the default, server-rendered state. */
@@ -76,7 +78,7 @@ type Choice = number | typeof OTHER;
 
 const HONEST_UNAVAILABLE = 'Contributions are not available right now.';
 
-const BlogContribution: React.FC<BlogContributionProps> = ( { postId, slug } ) => {
+const BlogContribution: React.FC<BlogContributionProps> = ( { postId, slug, embedded = false } ) => {
   const [ choice, setChoice ] = useState<Choice>( CONTRIBUTION_PRESETS_PAISE[ 0 ] );
   const [ customRupees, setCustomRupees ] = useState( '' );
   const [ phase, setPhase ] = useState<Phase>( 'idle' );
@@ -156,7 +158,7 @@ const BlogContribution: React.FC<BlogContributionProps> = ( { postId, slug } ) =
   const customId = `bc-custom-${ slug }`;
 
   return (
-    <section className="bc" aria-labelledby="bc-title" data-post-id={ postId }>
+    <section className={ embedded ? 'bc is-embedded' : 'bc' } aria-labelledby="bc-title" data-post-id={ postId }>
       {/* h2, never h1: the post page already owns the single h1, and htmlcheck guards H1-MANY. */}
       <h2 className="bc-title" id="bc-title">Contribute</h2>
       <p className="bc-copy">
@@ -253,6 +255,7 @@ const BlogContribution: React.FC<BlogContributionProps> = ( { postId, slug } ) =
           margin-top:44px;padding-top:24px;border-top:1px solid #e5e7eb;
           font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
         }
+        .bc.is-embedded{margin-top:0;padding-top:0;border-top:0}
         /* h2 at the related-section eyebrow rung, NOT the 40px/700 section rung, because this is a
            quiet appeal at the tail of the reading rather than a claim - same treatment the
            "More in ..." related heading and the breadcrumb furniture use. */
