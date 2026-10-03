@@ -926,10 +926,9 @@ const VayuLokLive: React.FC = () => {
         .vl-live-map-canvas{position:absolute;inset:0}
 
         @media(min-width:1024px){
-          /* Two equal-ish columns that account for the 40px gap so they cannot
-             overlap. `1fr 1fr` with a fixed column-gap keeps the sum at 100% of the
-             track area; the earlier 49% + 1fr + 40px gap summed past 100% and the
-             right (map) column slid over the left content. */
+          /* Two equal columns with a fixed gap so they cannot overlap. The earlier
+             track definition summed past the container width once the gap was added,
+             so the right map column slid over the left content. */
           .vl-live-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:40px;row-gap:0}
           .vl-live-map-sticky{position:sticky;top:96px;height:calc(100vh - 120px)}
           .vl-live-map-stage{flex:1 1 auto;min-height:0;height:auto}
