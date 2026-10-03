@@ -594,13 +594,20 @@ e4bbcb2d  feat: latch the cart's payment rail once it has returned a result
 68c82f50  test: teach the CRM fake OR and ordered comparison, and name the IAM eval constants
 ```
 
+```
+60e58781  docs: the nine ordered steps to a first payment, and the evidence for this change
+```
+
 Iteration 2 adds, in order:
 
 ```
-<pending>  fix: refuse a cart pointer with no identity, and document the create-right orphan
-<pending>  test: drive finalization and the split-tender wiring through the handler, not around it
-<pending>  docs: hand SEAM-G14 over with its replacement row named
+3ddcec72  fix: refuse a cart pointer with no identity, and document the create-right orphan
+c63179a9  test: drive finalization and the split-tender wiring through the handler, not around it
+818d2861  docs: hand SEAM-G14 over with its replacement row named, and record iteration 2
+<this>    docs: record iteration 2 in the change-authority matrix
 ```
+
+Every one grouped by `git commit --only <explicit paths>`; nothing pushed, nothing deployed.
 
 Nothing pushed. Raw logs (untracked, inside the worktree): `.scratch/final-pytest.log`,
 `.scratch/final-build.log`, `.scratch/final-vitest.log`, `.scratch/flow-evidence.json`,
