@@ -40,7 +40,7 @@ afterEach( () => {
   vi.unstubAllGlobals();
 } );
 
-/** Type the number and click "Send code". */
+/** Type the number and click "Send OTP on WhatsApp". */
 /*
  * ONE FIELD NOW, SO THE VALUE CARRIES THE COUNTRY CODE. The dial-code <select> is gone on owner
  * instruction ("phone number and whatsapp country code should be in one field"), so the default
@@ -51,13 +51,13 @@ afterEach( () => {
  */
 async function enterPhone ( value = '+919876543210' ): Promise<void> {
   fireEvent.change( screen.getByLabelText( 'WhatsApp number' ), { target: { value } } );
-  fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+  fireEvent.click( screen.getByRole( 'button', { name: 'Send OTP on WhatsApp' } ) );
 }
 
-/** Type a code and click "Confirm code". */
+/** Type a code and click "Confirm WhatsApp code". */
 async function enterCode ( value: string ): Promise<void> {
   fireEvent.change( await screen.findByLabelText( 'WhatsApp code' ), { target: { value } } );
-  fireEvent.click( screen.getByRole( 'button', { name: 'Confirm code' } ) );
+  fireEvent.click( screen.getByRole( 'button', { name: 'Confirm WhatsApp code' } ) );
 }
 
 describe( 'the registered happy path', () => {
