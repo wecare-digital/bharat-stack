@@ -96,12 +96,22 @@ const DEFAULT_PLACE: PlaceState = {
 const MAP_STYLES = [
   { elementType: 'geometry', stylers: [ { color: '#fafafa' } ] },
   { elementType: 'labels.text.fill', stylers: [ { color: '#1a3a2a' } ] },
-  { elementType: 'labels.text.stroke', stylers: [ { color: '#ffffff' } ] },
-  { featureType: 'poi', elementType: 'labels', stylers: [ { visibility: 'off' } ] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [ { color: '#f5fde0' } ] },
+  { elementType: 'labels.text.stroke', stylers: [ { color: '#ffffff' }, { weight: 3 } ] },
+
+  // Keep the map unmistakably a street map: road names and locality labels stay visible.
   { featureType: 'road', elementType: 'geometry', stylers: [ { color: '#ffffff' } ] },
   { featureType: 'road', elementType: 'geometry.stroke', stylers: [ { color: '#e5e7eb' } ] },
+  { featureType: 'road', elementType: 'labels', stylers: [ { visibility: 'on' } ] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [ { color: '#1a3a2a' } ] },
+  { featureType: 'road.local', elementType: 'labels', stylers: [ { visibility: 'on' } ] },
+  { featureType: 'road.arterial', elementType: 'labels', stylers: [ { visibility: 'on' } ] },
   { featureType: 'road.highway', elementType: 'geometry', stylers: [ { color: '#ffffff' } ] },
+  { featureType: 'road.highway', elementType: 'labels', stylers: [ { visibility: 'on' } ] },
+  { featureType: 'administrative.locality', elementType: 'labels', stylers: [ { visibility: 'on' } ] },
+  { featureType: 'administrative.neighborhood', elementType: 'labels', stylers: [ { visibility: 'on' } ] },
+
+  { featureType: 'poi', elementType: 'labels', stylers: [ { visibility: 'off' } ] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [ { color: '#f5fde0' } ] },
   { featureType: 'transit', stylers: [ { visibility: 'off' } ] },
   { featureType: 'water', elementType: 'geometry', stylers: [ { color: '#e8eeea' } ] },
 ];
@@ -532,7 +542,8 @@ const VayuLokLive: React.FC = () => {
 
       const map = new maps.Map( host, {
         center: { lat: DEFAULT_PLACE.lat, lng: DEFAULT_PLACE.lng },
-        zoom: 11,
+        zoom: 14,
+        mapTypeId: 'roadmap',
         gestureHandling: 'greedy',
         disableDefaultUI: true,
         zoomControl: false,
@@ -1164,10 +1175,11 @@ const VayuLokLive: React.FC = () => {
      RECENTRE the map + move the marker when the place changes (after the map exists). */
   useEffect( () => {
     const w = window as unknown as { google?: { maps?: { LatLng: new ( a: number, b: number ) => unknown } } };
-    const map = mapRef.current as { setCenter?: ( p: { lat: number; lng: number } ) => void } | null;
+    const map = mapRef.current as { setCenter?: ( p: { lat: number; lng: number } ) => void; setZoom?: ( zoom: number ) => void } | null;
     const marker = markerRef.current as { setPosition?: ( p: { lat: number; lng: number } ) => void; setTitle?: ( t: string ) => void } | null;
     if ( !map || !marker || !w.google?.maps ) return;
     map.setCenter?.( { lat: place.lat, lng: place.lng } );
+    map.setZoom?.( 14 );
     marker.setPosition?.( { lat: place.lat, lng: place.lng } );
     marker.setTitle?.( place.name );
   }, [ place, mapReady ] );
