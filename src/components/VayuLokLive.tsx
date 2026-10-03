@@ -129,6 +129,20 @@ const COMPASS = [ 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW' ];
 function windDirection( deg: number ): string {
   return COMPASS[ Math.round( deg / 45 ) % 8 ];
 }
+// The Air Quality API returns concentration units as long SCREAMING_SNAKE enums
+// (MICROGRAMS_PER_CUBIC_METER, PARTS_PER_BILLION, ...). Rendered verbatim they blow
+// out the value column and collide with the category word. Map them to short symbols.
+function concUnitLabel( unit?: string ): string {
+  switch ( unit ) {
+    case 'MICROGRAMS_PER_CUBIC_METER': return '\u00B5g/m\u00B3';
+    case 'PARTS_PER_BILLION': return 'ppb';
+    case 'PARTS_PER_MILLION': return 'ppm';
+    case 'MILLIGRAMS_PER_CUBIC_METER': return 'mg/m\u00B3';
+    case 'NANOGRAMS_PER_CUBIC_METER': return 'ng/m\u00B3';
+    default: return unit || '';
+  }
+}
+
 // Short display label for the wind-speed unit the Weather API returns on wind.speed.unit
 // (e.g. KILOMETERS_PER_HOUR, MILES_PER_HOUR). Fall back to km/h under unitsSystem=METRIC.
 function windUnitLabel( unit?: string ): string {
@@ -372,7 +386,7 @@ const VayuLokLive: React.FC = () => {
           const label = p.code ? WANT[ p.code ] : undefined;
           const v = p.concentration?.value;
           if ( label && Number.isFinite( v ) ) {
-            pollutants.push( { code: p.code as string, label, value: v as number, unit: p.concentration?.units || '' } );
+            pollutants.push( { code: p.code as string, label, value: v as number, unit: concUnitLabel( p.concentration?.units ) } );
           }
         } );
         const advisory = data?.healthRecommendations?.generalPopulation;
@@ -751,7 +765,7 @@ const VayuLokLive: React.FC = () => {
                   <div className="vl-live-fact"><p className="vl-live-label">Temperature</p><span className="vl-live-metric-md">{ weather!.temp }°</span></div>
                 ) }
                 { air && air.pollutants.filter( p => p.code === 'pm25' ).map( p => (
-                  <div className="vl-live-fact" key="cond-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ p.value } { p.unit }</span></div>
+                  <div className="vl-live-fact" key="cond-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ Math.round( p.value ) } { p.unit }</span></div>
                 ) ) }
               </div>
             </div>
@@ -777,7 +791,7 @@ const VayuLokLive: React.FC = () => {
                   <div className="vl-live-prow" key={ p.code }>
                     <p className="vl-live-label">{ p.label }</p>
                     <span className="vl-live-track"><span className={ `vl-live-bar vl-live-bar-${cat.sev}` } style={ { width: `${Math.min( 100, Math.round( ( p.value / 250 ) * 100 ) )}%` } } /></span>
-                    <span className="vl-live-metric-md">{ p.value } { p.unit }</span>
+                    <span className="vl-live-metric-md">{ Math.round( p.value ) } { p.unit }</span>
                     <span className="vl-live-prow-cat">{ cat.word }</span>
                   </div>
                 );
@@ -919,7 +933,7 @@ const VayuLokLive: React.FC = () => {
                         <div><p className="vl-live-label">AQI</p><span className="vl-live-metric-md">{ air.aqi }</span><p className="vl-live-preview-cat">{ air.word }</p></div>
                       ) }
                       { air && air.pollutants.filter( p => p.code === 'pm25' ).map( p => (
-                        <div key="prev-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ p.value }</span><p className="vl-live-preview-cat">{ p.unit }</p></div>
+                        <div key="prev-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ Math.round( p.value ) }</span><p className="vl-live-preview-cat">{ p.unit }</p></div>
                       ) ) }
                     </div>
                   </div>
