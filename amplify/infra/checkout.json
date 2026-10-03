@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Customer checkout Lambda, its two HTTP API routes and a least-privilege role. Payment initiation is OFF: CHECKOUT_INITIATION_ENABLED is absent on purpose, and both readiness inputs are empty so payment_readiness blocks independently of the flag.",
+  "Description": "Customer checkout Lambda, its four HTTP API routes and a least-privilege role. Payment initiation is OFF: CHECKOUT_INITIATION_ENABLED is absent on purpose, and both readiness inputs are empty so payment_readiness blocks independently of the flag.",
   "Metadata": {
     "WECARE::Provisioner": "scripts/provision_checkout.py",
     "WECARE::ReadThisFirst": [
