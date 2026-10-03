@@ -294,6 +294,28 @@ function bestOutsideWindow( weatherHours: WeatherHour[], airHours: AirPoint[] ):
   return { label: hourLabel( best.start.w.time ) + '–' + hourLabel( end ), note: notes.join( ' · ' ) || 'Best upcoming outdoor window' };
 }
 
+const RECENT_PLACES_KEY = 'vayulok_recent_places_v2';
+
+function recentPlaces(): PlaceState[] {
+  if ( typeof window === 'undefined' ) return [];
+  try {
+    const rows = JSON.parse( window.localStorage.getItem( RECENT_PLACES_KEY ) || '[]' );
+    return Array.isArray( rows ) ? rows.slice( 0, 5 ) : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberPlace( place: PlaceState ) {
+  if ( typeof window === 'undefined' ) return;
+  try {
+    const key = `${place.lat.toFixed( 4 )},${place.lng.toFixed( 4 )}`;
+    const rows = recentPlaces().filter( p => `${p.lat.toFixed( 4 )},${p.lng.toFixed( 4 )}` !== key );
+    rows.unshift( { ...place, photoUrls: place.photoUrls?.slice( 0, 6 ) || [] } );
+    window.localStorage.setItem( RECENT_PLACES_KEY, JSON.stringify( rows.slice( 0, 5 ) ) );
+  } catch { /* storage can be unavailable */ }
+}
+
 const VayuLokLive: React.FC = () => {
   // The selected place drives every fetch. Default is Connaught Place; search updates it.
   const [ place, setPlace ] = useState<PlaceState>( DEFAULT_PLACE );
@@ -345,6 +367,13 @@ const VayuLokLive: React.FC = () => {
     setSolarRequested( false );
     setSolarLoading( false );
   }, [ place.lat, place.lng ] );
+
+  useEffect( () => {
+    if ( !MAPS_KEY || mapReady ) return;
+    setMapFailed( false );
+    const id = window.setTimeout( () => setMapFailed( true ), 12_000 );
+    return () => window.clearTimeout( id );
+  }, [ mapReady ] );
 
   /* ---------------------------------------------------------------------------------
      MAP. Fires on load WHEN a key is present. The Maps JS script is injected once per
@@ -463,6 +492,32 @@ const VayuLokLive: React.FC = () => {
         placesSvc.current = new maps.places.PlacesService( host );
       }
 
+      const interactiveMap = map as {
+        addListener?: ( eventName: string, handler: ( event?: any ) => void ) => { remove?: () => void };
+      };
+      interactiveMap.addListener?.( 'click', ( event?: any ) => {
+        const lat = event?.latLng?.lat?.();
+        const lng = event?.latLng?.lng?.();
+        if ( !Number.isFinite( lat ) || !Number.isFinite( lng ) ) return;
+        const gc = geocoder.current as {
+          geocode?: ( req: Record<string, unknown>, cb: ( rows: unknown[] | null, status: string ) => void ) => void;
+        } | null;
+        gc?.geocode?.( { location: { lat, lng }, region: 'in' }, ( rows, status ) => {
+          if ( status !== 'OK' || !Array.isArray( rows ) || !rows.length ) return;
+          const first = rows[ 0 ] as { formatted_address?: string };
+          const next: PlaceState = {
+            name: first.formatted_address?.split( ',' )[ 0 ] || 'Selected location',
+            addr: first.formatted_address || '',
+            lat,
+            lng,
+            photoUrls: [],
+          };
+          rememberPlace( next );
+          setPlace( next );
+          setQuery( next.name );
+        } );
+      } );
+
       // A constructed Map is not the same thing as a painted map. With an invalid or
       // refused browser key Google can still create the map object while its tiles never
       // arrive, which previously hid the fallback and exposed a blank panel. Only reveal
@@ -515,8 +570,9 @@ const VayuLokLive: React.FC = () => {
   }, [] );
 
   /* ---------------------------------------------------------------------------------
-     LIVE DATA for the selected place. Air + Weather + Solar + Pollen all fire together
-     whenever the place changes AND a key is present. Each is independently guarded,
+     LIVE DATA for the selected place. Air + Weather + Pollen fire together whenever
+     the place changes AND a key is present. Solar is deliberately user-triggered because
+     Building Insights is the comparatively expensive SKU. Each call is independently guarded,
      uses AbortController + Number.isFinite + silent degradation, and caches per place. */
   useEffect( () => {
     if ( !MAPS_KEY || typeof window === 'undefined' ) return;
@@ -1016,11 +1072,20 @@ const VayuLokLive: React.FC = () => {
     const v = e.target.value;
     setQuery( v );
     if ( searchTimer.current ) clearTimeout( searchTimer.current );
+    if ( !v.trim() ) {
+      const recent = recentPlaces();
+      setResults( recent );
+      setActive( recent.length ? 0 : -1 );
+      setOpen( recent.length > 0 );
+      return;
+    }
     searchTimer.current = setTimeout( () => runSearch( v ), 300 );
   };
 
   const choose = ( r: PlaceState ) => {
-    setPlace( { name: r.name, addr: r.addr, lat: r.lat, lng: r.lng, photoUrls: r.photoUrls || [] } );
+    const next = { name: r.name, addr: r.addr, lat: r.lat, lng: r.lng, photoUrls: r.photoUrls || [] };
+    rememberPlace( next );
+    setPlace( next );
     setQuery( r.name );
     setOpen( false );
     setResults( [] );
@@ -1081,6 +1146,13 @@ const VayuLokLive: React.FC = () => {
                     placeholder="Search a city or place"
                     value={ query }
                     onChange={ onQueryChange }
+                    onFocus={ () => {
+                      if ( query.trim() ) return;
+                      const recent = recentPlaces();
+                      setResults( recent );
+                      setActive( recent.length ? 0 : -1 );
+                      setOpen( recent.length > 0 );
+                    } }
                     onKeyDown={ onKeyDown }
                   />
                 </div>
@@ -1436,12 +1508,15 @@ const VayuLokLive: React.FC = () => {
                 <div
                   className="vl-live-map-fallback"
                   role="status"
-                  aria-label={ `Loading map of ${place.name}` }
+                  aria-label={ mapFailed ? `Map unavailable for ${place.name}` : `Loading map of ${place.name}` }
                 >
                   <span className="vl-live-map-fallback-pin" aria-hidden="true" />
                   <div className="vl-live-map-fallback-copy">
                     <p className="vl-live-map-fallback-place">{ place.name }</p>
-                    <p className="vl-live-map-fallback-status">Loading live map…</p>
+                    <p className="vl-live-map-fallback-status">{ mapFailed ? 'Map temporarily unavailable.' : 'Loading live map…' }</p>
+                    { mapFailed && (
+                      <button className="vl-live-map-retry" type="button" onClick={ () => window.location.reload() }>Retry map</button>
+                    ) }
                   </div>
                 </div>
               ) }
@@ -1588,7 +1663,8 @@ const VayuLokLive: React.FC = () => {
         .vl-live-map-fallback-place{margin:0;font-size:16px;font-weight:700;line-height:1.25;color:var(--green)}
         .vl-live-map-fallback-status{margin:3px 0 0;font-size:13px;line-height:1.35;color:var(--ink-muted)}
         .vl-live-map-canvas{position:absolute;inset:0;z-index:2;opacity:0;pointer-events:none;border-radius:inherit;overflow:hidden;background:transparent}
-        .vl-live-map-canvas.is-ready{opacity:1;pointer-events:auto}
+
+        .vl-live-map-retry{min-height:36px;margin-top:10px;padding:0 12px;border:1px solid var(--green);border-radius:999px;background:#fff;color:var(--green);font:inherit;font-size:12px;font-weight:700;cursor:pointer}        .vl-live-map-canvas.is-ready{opacity:1;pointer-events:auto}
 
         @media(min-width:1024px){
           /* Two equal columns with a fixed gap so they cannot overlap. The earlier
@@ -1668,9 +1744,7 @@ const VayuLokLive: React.FC = () => {
         .vl-live-scale-ends span{font-size:12px;font-weight:700;color:var(--green)}
         .vl-live-scale-mid{margin:8px 0 0;font-size:12px;line-height:1.4;color:var(--ink-muted)}
 
-        /* bottom:16px (was 76px): the 60px clearance existed to keep off Google's
-           bottom-corner attribution, which is hidden for this test. Rounded + soft
-           shadow for a cleaner card. RESTORE bottom:76px when attribution returns. */
+        /* Keep the preview above Google's bottom legal/attribution area. */
         .vl-live-map-preview{position:absolute;left:16px;bottom:76px;z-index:4;width:320px;padding:0 16px 16px;border:1px solid var(--hair);border-radius:16px;background:var(--paper);box-shadow:0 6px 20px rgba(26,58,42,.12);overflow:hidden}
         .vl-live-place-photos{display:flex;gap:6px;overflow-x:auto;margin:0 -16px 14px;scroll-snap-type:x mandatory;scrollbar-width:none}
         .vl-live-place-photos::-webkit-scrollbar{display:none}
