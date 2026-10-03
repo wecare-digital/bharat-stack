@@ -21,7 +21,8 @@
     "cap:build": "next build && npx cap sync",
     "cap:open:ios": "npx cap open ios",
     "cap:open:android": "npx cap open android",
-    "amplify:install": "npm install --prefix amplify --no-audit --no-fund"
+    "amplify:install": "npm install --prefix amplify --no-audit --no-fund",
+    "demo-video": "node scripts/make_demo_video.mjs"
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.15.4",

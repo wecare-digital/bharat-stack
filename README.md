@@ -133,6 +133,11 @@ All Lambda functions use Python 3.12 runtime with prefix `wecare-*`:
 - `scripts/snapstart_publish.py` - Publish a version + move the `live` alias
   on its own, e.g. after deploying a function by hand.
 - `scripts/sync_faq.py` - Sync FAQ config to Python + TypeScript
+- `scripts/make_demo_video.mjs` - Generate a demo `.mp4` UI walkthrough from a
+  JSON scene spec (headless Chrome + ffmpeg). Run via `npm run demo-video -- <spec.json>`.
+  Used for the Meta App Review walkthroughs in `s3://wecare-digital-get/o/app-review/`.
+  See `scripts/make_demo_video.README.md` for the spec format, the S3 publish
+  command, and the honesty note (rendered walkthrough, not a live-session capture).
 
 The PowerShell and CMD deploy scripts were **deleted on 2026-09-20**. They could
 not run on this platform at all (`\`-separated paths), they wrote zip entries with
