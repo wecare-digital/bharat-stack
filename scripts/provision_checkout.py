@@ -128,11 +128,8 @@ DEPLOY_SOURCE_ROOT = ROOT / ".scratch" / "deploy-checkout"
 
 PAYMENT_ATTEMPTS_TABLE = "stack-wecare-digital-PaymentAttemptsTable"
 COMMERCE_KEYS_TABLE = "stack-wecare-digital-WixOrderIds"
-#: The coupon and gift-card stores. Checkout writes to both because the REDEMPTION happens in the
-#: finalization path - `coupon_store.commit_redemption` and `gift_card_store.redeem` run here, not
-#: inside `wecare-coupons` or `wecare-gift-cards`, which issue and answer eligibility.
-COUPONS_TABLE = "stack-wecare-digital-CouponsTable"
-GIFT_CARDS_TABLE = "stack-wecare-digital-GiftCardsTable"
+#: Website checkout keeps coupons and gift cards Wix-authoritative. The legacy custom coupon and
+#: gift-card stores have their own functions/roles and are deliberately NOT granted to checkout.
 WIX_API_KEY_SECRET = "wecare/wix/headless-api-key"
 RAZORPAY_API_SECRET = "wecare/razorpay/api"
 CONTACTS_TABLE = "stack-wecare-digital-ContactsTable"
@@ -365,33 +362,15 @@ def report_package(zip_bytes: bytes, members: dict, errors: list, warnings: list
     return 0
 
 
-def ensure_role(dry_run: bool) -> str:
-    if role_exists():
-        return "exists"
-    if dry_run:
-        return "would create"
+def expected_role_policy(acct: str | None = None) -> dict:
+    """Least-privilege inline policy for the current checkout import closure.
 
-    assume = {
-        "Version": "2012-10-17",
-        "Statement": [{
-            "Effect": "Allow",
-            "Principal": {"Service": "lambda.amazonaws.com"},
-            "Action": "sts:AssumeRole",
-        }],
-    }
-    iam().create_role(
-        RoleName=ROLE_NAME,
-        AssumeRolePolicyDocument=json.dumps(assume),
-        Description="Customer checkout (headless WhatsApp/Razorpay) execution role",
-        Tags=[{"Key": "Project", "Value": "WECARE.DIGITAL"},
-              {"Key": "Purpose", "Value": "Checkout"}],
-    )
-    iam().attach_role_policy(
-        RoleName=ROLE_NAME,
-        PolicyArn="arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-    )
-    acct = account_id()
-    least_privilege = {
+    Kept as one pure builder so create, reconcile and tests all reason about the same document.
+    Coupons and gift cards are Wix-authoritative on the website path; the legacy custom stores are
+    not imported by checkout and therefore do not belong in this role.
+    """
+    acct = acct or account_id()
+    return {
         "Version": "2012-10-17",
         "Statement": [
             {
@@ -410,13 +389,13 @@ def ensure_role(dry_run: bool) -> str:
                 "Sid": "ReadVerifiedCheckoutProfile",
                 "Effect": "Allow",
                 "Action": ["dynamodb:Query"],
-                "Resource": [f"arn:aws:dynamodb:{REGION}:{acct}:table/{CONTACTS_TABLE}/index/phone-index"],
+                "Resource": [
+                    f"arn:aws:dynamodb:{REGION}:{acct}:table/{CONTACTS_TABLE}/index/phone-index"
+                ],
             },
             {
                 "Sid": "PaymentAttemptAndCommerceKeys",
                 "Effect": "Allow",
-                # No DeleteItem: a checkout never deletes a payment attempt or a reservation — a
-                # failed attempt is the evidence that no charge became an order.
                 "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"],
                 "Resource": [
                     f"arn:aws:dynamodb:{REGION}:{acct}:table/{PAYMENT_ATTEMPTS_TABLE}",
@@ -426,30 +405,8 @@ def ensure_role(dry_run: bool) -> str:
             {
                 "Sid": "InternalOrderRecord",
                 "Effect": "Allow",
-                # No DeleteItem and no Scan. The internal order is the record that a verified
-                # capture became exactly one order, so it is evidence rather than a reservation --
-                # the same reasoning PaymentAttemptAndCommerceKeys states for an attempt row. A
-                # Scan is withheld because every access on this path is an exact-key operation.
                 "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"],
-                "Resource": [
-                    f"arn:aws:dynamodb:{REGION}:{acct}:table/{ORDERS_TABLE}",
-                ],
-            },
-            {
-                "Sid": "CouponAndGiftCardRedemption",
-                "Effect": "Allow",
-                # DeleteItem IS granted, and ONLY on these two tables. A redemption deletes the
-                # hold row that reserved the code for this cart — the hold is a RESERVATION, and a
-                # reservation that outlives the order it was taken for locks the code out of every
-                # later cart. The statement above deliberately withholds DeleteItem on the payment
-                # attempt and reservation tables, where a row is evidence rather than a
-                # reservation. Two statements, because the two grants are different grants.
-                "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
-                           "dynamodb:DeleteItem"],
-                "Resource": [
-                    f"arn:aws:dynamodb:{REGION}:{acct}:table/{COUPONS_TABLE}",
-                    f"arn:aws:dynamodb:{REGION}:{acct}:table/{GIFT_CARDS_TABLE}",
-                ],
+                "Resource": [f"arn:aws:dynamodb:{REGION}:{acct}:table/{ORDERS_TABLE}"],
             },
             {
                 "Sid": "InvokeWhatsAppSender",
@@ -462,12 +419,48 @@ def ensure_role(dry_run: bool) -> str:
             },
         ],
     }
+
+
+def ensure_role(dry_run: bool) -> str:
+    """Create OR reconcile the dedicated checkout role.
+
+    Returning early merely because the role exists is unsafe: that is exactly how an older live
+    role can survive while the verifier and candidate code have moved on. `put_role_policy` is an
+    idempotent replacement of this function's one owned inline policy.
+    """
+    exists = role_exists()
+    if dry_run:
+        return "would reconcile existing role" if exists else "would create and reconcile role"
+
+    if not exists:
+        assume = {
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": {"Service": "lambda.amazonaws.com"},
+                "Action": "sts:AssumeRole",
+            }],
+        }
+        iam().create_role(
+            RoleName=ROLE_NAME,
+            AssumeRolePolicyDocument=json.dumps(assume),
+            Description="Customer checkout (headless WhatsApp/Razorpay) execution role",
+            Tags=[{"Key": "Project", "Value": "WECARE.DIGITAL"},
+                  {"Key": "Purpose", "Value": "Checkout"}],
+        )
+
+    # Both calls are idempotent. Re-running the provisioner repairs policy drift on an existing
+    # role instead of reporting it only after other resources have already changed.
+    iam().attach_role_policy(
+        RoleName=ROLE_NAME,
+        PolicyArn="arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+    )
     iam().put_role_policy(
         RoleName=ROLE_NAME,
         PolicyName="CheckoutLeastPrivilege",
-        PolicyDocument=json.dumps(least_privilege),
+        PolicyDocument=json.dumps(expected_role_policy()),
     )
-    return "created"
+    return "reconciled" if exists else "created"
 
 
 def ensure_log_group(dry_run: bool) -> str:
@@ -722,13 +715,8 @@ _SIMULATED_ACTIONS = ("dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateIt
 #: (action, TABLE NAME) pairs the inline policy deliberately withholds, so a `denied` verdict is
 #: the CORRECT answer rather than a problem to report.
 #:
-#: This set is why the verdict below is keyed on the PAIR and not on the action alone. `DeleteItem`
-#: is now legitimately allowed on the coupon and gift-card tables and legitimately denied on these
-#: two, so aggregating every resource's decision under one action key produces
-#: `{"allowed", "implicitDeny"}` — not `{"allowed"}` — and a correctly provisioned role fails
-#: `verify()`. The pair key also turns the withholding into something measured rather than assumed:
-#: a `DeleteItem` that becomes ALLOWED here is reported, which a per-action aggregate could not
-#: distinguish from the coupon grant it was supposed to see.
+#: DeleteItem is deliberately withheld from every table checkout owns. These rows are evidence, not
+#: temporary holds. Keying on the action/resource pair keeps that withholding directly measured.
 _EXPECTED_DENY = {
     ("dynamodb:DeleteItem", PAYMENT_ATTEMPTS_TABLE),
     ("dynamodb:DeleteItem", COMMERCE_KEYS_TABLE),
@@ -860,24 +848,15 @@ def report_required_grants(members: dict | None) -> list:
     acct = account_id()
     tables = [f"arn:aws:dynamodb:{REGION}:{acct}:table/{PAYMENT_ATTEMPTS_TABLE}",
               f"arn:aws:dynamodb:{REGION}:{acct}:table/{COMMERCE_KEYS_TABLE}",
-              f"arn:aws:dynamodb:{REGION}:{acct}:table/{COUPONS_TABLE}",
-              f"arn:aws:dynamodb:{REGION}:{acct}:table/{GIFT_CARDS_TABLE}",
-              # BEFORE the phone index, deliberately: the two slices below are POSITIONAL, so
-              # appending after it would make `profile_index` the OrderTable and simulate Query
-              # against the wrong resource while reporting a pass.
               f"arn:aws:dynamodb:{REGION}:{acct}:table/{ORDERS_TABLE}",
               f"arn:aws:dynamodb:{REGION}:{acct}:table/{CONTACTS_TABLE}/index/phone-index"]
-    core_tables = tables[:5]
-    profile_index = tables[5]
-    #: ARN -> readable resource name. The profile resource ends in `phone-index`, so retaining the
-    #: table name matters when a verifier reports a mismatch.
+    core_tables = tables[:3]
+    profile_index = tables[3]
     table_names = {
         tables[0]: PAYMENT_ATTEMPTS_TABLE,
         tables[1]: COMMERCE_KEYS_TABLE,
-        tables[2]: COUPONS_TABLE,
-        tables[3]: GIFT_CARDS_TABLE,
-        tables[4]: ORDERS_TABLE,
-        tables[5]: CONTACTS_TABLE + "/index/phone-index",
+        tables[2]: ORDERS_TABLE,
+        tables[3]: CONTACTS_TABLE + "/index/phone-index",
     }
     try:
         role_arn = iam().get_role(RoleName=ROLE_NAME)["Role"]["Arn"]
@@ -899,8 +878,20 @@ def report_required_grants(members: dict | None) -> list:
         return [f"IAM verdicts NOT MEASURED: simulate_principal_policy failed ({code})"]
 
     for item in result.get("EvaluationResults", []):
-        key = (item["EvalActionName"], item.get("EvalResourceName", ""))
-        verdicts.setdefault(key, set()).add(item["EvalDecision"])
+        action = item["EvalActionName"]
+        specific = item.get("ResourceSpecificResults") or []
+        if specific:
+            # With multiple ResourceArns, IAM returns one EvaluationResult per ACTION and nests the
+            # per-resource verdicts here. Reading only top-level EvalResourceName yields AWS's
+            # generic resource template and makes every real ARN look "not evaluated".
+            for resource_result in specific:
+                key = (action, resource_result.get("EvalResourceName", ""))
+                verdicts.setdefault(key, set()).add(
+                    resource_result.get("EvalResourceDecision", "not evaluated"))
+        else:
+            # Keep the single-resource/fake shape supported as well.
+            key = (action, item.get("EvalResourceName", ""))
+            verdicts.setdefault(key, set()).add(item.get("EvalDecision", "not evaluated"))
 
     # `None` means the closure was never measured, which is NOT the same as "measured, needs
     # nothing" — the empty list. Keep the two distinguishable all the way to the exit code.
@@ -909,7 +900,7 @@ def report_required_grants(members: dict | None) -> list:
     condition_check: set = set()
     for action in _SIMULATED_ACTIONS:
         # Query exists only to read the verified checkout profile from the Contacts phone index.
-        # Every other Dynamo action is evaluated only on the four commerce tables. IAM simulation
+        # Every other Dynamo action is evaluated only on the three checkout-owned tables. IAM simulation
         # returns the full action/resource cross product, but irrelevant pairs are intentionally
         # ignored rather than treated as desired permissions.
         resources = [profile_index] if action == "dynamodb:Query" else core_tables
