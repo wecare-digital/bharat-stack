@@ -38,7 +38,7 @@ interface MapsRecorder {
   placeFetchFields: string[][];
 }
 
-function installGoogleMaps(): MapsRecorder {
+function installGoogleMaps( paintMap = true ): MapsRecorder {
   const rec: MapsRecorder = {
     mapOpts: null,
     overlayPushes: [],
@@ -59,7 +59,7 @@ function installGoogleMaps(): MapsRecorder {
     constructor( _el: HTMLElement, opts: Record<string, unknown> ) { rec.mapOpts = opts; }
     setCenter() { /* no-op */ }
     addListener( eventName: string, handler: () => void ) {
-      if ( eventName === 'tilesloaded' ) requestAnimationFrame( handler );
+      if ( eventName === 'tilesloaded' && paintMap ) requestAnimationFrame( handler );
       return { remove() { /* no-op */ } };
     }
   }
@@ -141,6 +141,7 @@ afterEach( () => {
   removeScript();
   clearGoogleMaps();
   document.body.innerHTML = '';
+  vi.useRealTimers();
 } );
 
 describe( 'VayuLokLive - honest degradation when the key is absent', () => {
@@ -313,6 +314,11 @@ describe( 'VayuLokLive - map wiring, heatmap on user action, India scoping (key 
     expect( b.north ).toBeLessThan( 40 );
     expect( b.east ).toBeLessThan( 100 );
     expect( restriction ).toMatchObject( { strictBounds: true } );
+    expect( rec.mapOpts!.disableDefaultUI ).toBe( true );
+    expect( rec.mapOpts!.fullscreenControl ).toBe( false );
+    expect( rec.mapOpts!.mapTypeControl ).toBe( false );
+    expect( rec.mapOpts!.streetViewControl ).toBe( false );
+    expect( rec.mapOpts!.keyboardShortcuts ).toBe( false );
 
     // The default centre sits inside the restriction bounds (so the map opens on India).
     const centre = rec.mapOpts!.center as { lat: number; lng: number };
@@ -338,6 +344,43 @@ describe( 'VayuLokLive - map wiring, heatmap on user action, India scoping (key 
     fireEvent.mouseDown( screen.getByRole( 'option', { name: /Mumbai/i } ) );
     await waitFor( () => expect( rec.placeFetchFields.length ).toBeGreaterThan( 0 ) );
     expect( rec.placeFetchFields[ 0 ] ).toEqual( expect.arrayContaining( [ 'displayName', 'formattedAddress', 'location', 'photos' ] ) );
+  } );
+} );
+
+describe( 'VayuLokLive - failure and cost controls', () => {
+  beforeEach( () => {
+    vi.stubEnv( 'NEXT_PUBLIC_GOOGLE_MAPS_KEY', DUMMY_KEY );
+  } );
+
+  it( 'shows unavailable + retry when map tiles never paint', async () => {
+    vi.useFakeTimers();
+    const rec = installGoogleMaps( false );
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( { ok: false, json: async () => ( {} ) } ) );
+    const VayuLokLive = await loadComponent();
+    render( <VayuLokLive /> );
+
+    await act( async () => { await Promise.resolve(); await Promise.resolve(); } );
+    expect( rec.mapOpts ).not.toBeNull();
+
+    await act( async () => { await vi.advanceTimersByTimeAsync( 12_100 ); } );
+    expect( screen.getByText( 'Map temporarily unavailable.' ) ).toBeInTheDocument();
+    expect( screen.getByRole( 'button', { name: 'Retry map' } ) ).toBeInTheDocument();
+  } );
+
+  it( 'does not call Solar until the visitor asks for rooftop potential', async () => {
+    installGoogleMaps();
+    const fetchSpy = vi.fn().mockResolvedValue( { ok: false, json: async () => ( {} ) } );
+    vi.stubGlobal( 'fetch', fetchSpy );
+    const VayuLokLive = await loadComponent();
+    render( <VayuLokLive /> );
+
+    await waitFor( () => expect( screen.getByRole( 'button', { name: 'View solar potential' } ) ).toBeInTheDocument() );
+    expect( fetchSpy.mock.calls.some( call => String( call[ 0 ] ).includes( 'solar.googleapis.com' ) ) ).toBe( false );
+
+    fireEvent.click( screen.getByRole( 'button', { name: 'View solar potential' } ) );
+    await waitFor( () => expect(
+      fetchSpy.mock.calls.some( call => String( call[ 0 ] ).includes( 'solar.googleapis.com' ) )
+    ).toBe( true ) );
   } );
 } );
 
