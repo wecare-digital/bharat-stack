@@ -87,10 +87,10 @@
   --color-border: #e5e7eb;
   --color-border-dark: #d1d5db;
 
-  /* Border Radius - Consistent 13px for buttons */
+  /* Border Radius - Home CTA is the canonical action shape. */
   --radius-sm: 8px;
   --radius-md: 13px;
-  --radius-btn: 13px;
+  --radius-btn: 999px;
   --radius-lg: 16px;
 }
 
@@ -2932,4 +2932,42 @@
 .layout .main-content select::-ms-expand,
 .inner-page select::-ms-expand {
   display: none !important;
+}
+
+/* ========================================
+   SITE-WIDE SCROLLBARS - HOME PALETTE
+   ======================================== */
+html {
+  scrollbar-color: #1a3a2a #f5fde0;
+  scrollbar-width: thin;
+}
+
+* {
+  scrollbar-color: #1a3a2a #f5fde0;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #f5fde0;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #1a3a2a;
+  border: 2px solid #f5fde0;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #0f2a1d;
+}
+
+@media (max-width: 767px) {
+  *::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
 }
