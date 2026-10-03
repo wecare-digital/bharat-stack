@@ -422,9 +422,15 @@ html,body{margin:0;background:#fff}
   border:1px solid var(--hair);border-radius:var(--r-panel);background:var(--ground);
 }
 .vl-map-canvas{position:absolute;inset:0}
-/* The attribution note sits BELOW the map surface, outside it, so it cannot
-   sit on top of Google's logo or the map legal notices. */
-.vl-map-note{margin:0;font-size:12px;line-height:1.45;color:var(--ink-muted)}
+/* .vl-map-note IS RETIRED. It styled a user-visible paragraph below the map that
+   repeated an internal developer note about Google's logo and the map legal
+   notices. That paragraph was an internal comment leaking onto the rendered page,
+   so it was removed; the policy it stated is now a code comment beside the map
+   markup. The rule had no other user, so it is deleted rather than left dormant,
+   per this file's "unused rules are deleted" convention. The behaviour it
+   described - never covering or styling the map's corner attributions - is
+   unchanged: the overlays stay inset from the corners (see .vl-map-preview and
+   .vl-map-legend). */
 
 @media(min-width:1024px){
   .vl-app-grid{
@@ -911,13 +917,30 @@ html,body{margin:0;background:#fff}
   .vl-threeup>div+div{padding-top:22px;padding-left:24px;border-top:0;border-left:1px solid var(--hair)}
 }
 
-/* THE HISTORY CHART. Form again, not tone alone: the two worst bands carry a
-   dark cap, and the worst band is additionally hatched, so Poor and Very Poor
-   stay apart from Moderate in greyscale. The chart is aria-hidden - it is a
-   picture of the numbers - and the readable version is the worded range
-   printed underneath it. */
-.vl-chart{display:flex;align-items:flex-end;gap:5px;height:170px;border-bottom:1px solid var(--hair)}
-.vl-chart span{flex:1 1 0;border-radius:2px 2px 0 0;min-width:0}
+/* THE HISTORY CHART - ON THE HOME PAGE'S DESIGN LANGUAGE.
+   The home hero's visual grammar is: hairline rules rather than boxes, the
+   lime #d1f470 / #e0f7c8 brand tint as the single accent, generous airy
+   spacing, and 9999px/13px rounding on anything that reads as a shape
+   (docs/mocks/home-hero/index.html: .home-mark, .home-btn, .home-layout).
+   This chart is brought onto that grammar:
+     - it sits BETWEEN two hairlines (top + baseline), the same device the
+       .vl-signal / .vl-hours rails already use, so it reads as a framed signal
+       block rather than loose bars on one line;
+     - the bars are rounded 3px at the top (home rounds everything), carry a
+       little more air (gap 6px) and bottom-align on the baseline;
+     - the CURRENT reading - the last bar - is marked with the home mark's lime
+       tint (--lime-tint, the composited #e0f7c8 the home .home-mark uses) and a
+       lime baseline tick, so the eye lands on "Now" exactly as the home hero's
+       lime pill marks the live word.
+   FORM STILL CARRIES SEVERITY, NOT TONE ALONE: the two worst bands keep their
+   dark cap and the worst keeps its hatch, so Poor and Very Poor stay apart from
+   Moderate in greyscale (WCAG 1.4.1). The chart is aria-hidden - a picture of
+   the numbers - and the readable version is the worded range printed below. */
+.vl-chart{
+  display:flex;align-items:flex-end;gap:6px;height:170px;padding-top:24px;
+  border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);
+}
+.vl-chart span{flex:1 1 0;border-radius:3px 3px 0 0;min-width:0}
 .vl-chart .is-sat{background-color:var(--aqi-sat)}
 .vl-chart .is-mod{background-color:var(--aqi-mod)}
 .vl-chart .is-poor{background-color:var(--aqi-poor);border-top:3px solid var(--green)}
@@ -925,8 +948,21 @@ html,body{margin:0;background:#fff}
   background-color:var(--aqi-worst);border-top:3px solid var(--green);
   background-image:repeating-linear-gradient(135deg,rgba(26,58,42,.3) 0 3px,transparent 3px 8px);
 }
-.vl-chart-axis{display:flex;justify-content:space-between;margin:10px 0 0;gap:12px}
+/* THE 'NOW' MARK - the home hero's lime brand tint applied to the live reading.
+   It paints the lime #e0f7c8 wash BEHIND the current bar and drops a 3px lime
+   tick on the baseline under it, which is the same "lime marks the live thing"
+   gesture as .home-mark. It sits on its own class so it layers over whichever
+   severity band the current hour happens to be. */
+.vl-chart .is-now{
+  position:relative;
+  box-shadow:0 0 0 2px var(--lime-tint);
+  border-bottom:3px solid var(--lime);
+}
+.vl-chart-axis{display:flex;justify-content:space-between;margin:12px 0 0;gap:12px}
 .vl-chart-axis span{font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--ink-muted)}
+/* The 'Now' label on the axis carries the brand green, matching the home hero's
+   #1a3a2a accent type, so the two ends read as "then -> now". */
+.vl-chart-axis span:last-child{color:var(--green)}
 
 /* ============================================================================
    SUBSCRIBE - mirrors the .blog-wa-subscribe anchor in src/pages/post/[slug].tsx.
@@ -940,8 +976,17 @@ html,body{margin:0;background:#fff}
    rules. .vl-eyebrow is NOT deleted: it has a second, live user ("Health
    advisory") further up the page, which a grep of every occurrence confirmed
    before anything was removed.
-   ========================================================================= */
-.vl-section{padding-block:56px}
+   NO BOTTOM PADDING. The shipped `.bc` and `.post-share` blocks carry only
+   `margin-top:44px;padding-top:24px;border-top` - they have NO padding-bottom,
+   so the gap below each block is just the next block's own 44px margin-top. The
+   56px padding-bottom this rule used to add was invented for this column and
+   doubled the space under Subscribe and Contribute (the divider already sits
+   44px below the previous content, then 56px of empty padding sat under the
+   content inside the block). Dropping it brings the stack onto the shipped
+   rhythm and removes the extra whitespace between the three blocks. The
+   padding-top here is left in place but is shadowed to 24px by the more-specific
+   `.vl-app-left > .vl-section` rule for all three stacked sections. */
+.vl-section{padding-top:56px;padding-bottom:0}
 /* ROLE 8, ported from src/pages/post/[slug].tsx:772-782
    (.blog-wa-subscribe). It is NO LONGER a ROLE 1 .vl-btn. The shipped anchor is a
    999px pill, 17px/700, padding 12px 20px, lime fill, dark-green type and NO
@@ -1164,7 +1209,7 @@ html,body{margin:0;background:#fff}
 }
 @media(max-width:767px){
   .vl-wrap,.vl-mocknote,.vl-context{padding-inline:16px}
-  .vl-section{padding-block:40px}
+  .vl-section{padding-top:40px;padding-bottom:0}
   .vl-block{padding-block:36px}
   .vl-keycard{padding:16px}
   .vl-map-controls{top:12px;left:12px}
@@ -1473,7 +1518,7 @@ html,body{margin:0;background:#fff}
               <span class="is-worst" style="height:88%"></span>
               <span class="is-poor" style="height:79%"></span>
               <span class="is-poor" style="height:71%"></span>
-              <span class="is-mod" style="height:67%"></span>
+              <span class="is-mod is-now" style="height:67%"></span>
             </div>
             <div class="vl-chart-axis"><span>24 hours ago</span><span>Now</span></div>
             <p class="vl-small" style="margin-top:12px">
@@ -1732,12 +1777,14 @@ html,body{margin:0;background:#fff}
             </div>
           </div>
 
-          <!-- BELOW the map surface, outside it, so it cannot cover Google's
-               logo or the map legal notices. -->
-          <p class="vl-map-note">
-            Google's logo and the map legal notices render in the map's bottom corners and are
-            deliberately left uncovered and unstyled — hiding them is not permitted.
-          </p>
+          <!-- POLICY, FOR DEVELOPERS ONLY - NOT RENDERED. Google's logo and the
+               map legal notices render in the map's bottom corners and must be
+               left uncovered and unstyled; hiding them breaks Google Maps
+               Platform terms. The overlays above (.vl-map-preview at bottom:76px,
+               the legend inset from the corners) already keep clear of them, so
+               there is nothing to draw here. The user-visible paragraph that used
+               to repeat this note on the page was an internal developer comment
+               and has been removed - it is kept here as a code comment instead. -->
         </div>
       </div><!-- /.vl-app-right -->
 
