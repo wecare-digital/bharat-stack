@@ -681,15 +681,22 @@ const VayuLokLive: React.FC = () => {
     const cacheKey = `${lat.toFixed( 4 )},${lng.toFixed( 4 )}`;
 
     const cached = cache.current[ cacheKey ];
-    if ( cached ) {
+    const CORE_TTL_MS = 5 * 60 * 1000;
+    if ( cached && Date.now() - cached.ts < CORE_TTL_MS ) {
       requestAnimationFrame( () => {
         setAir( cached.air );
         setWeather( cached.weather );
         setPollen( cached.pollen );
+        setCoreFetchedAt( cached.ts );
+        setDataLoading( false );
       } );
       return;
     }
 
+    setDataLoading( true );
+    setAir( null );
+    setWeather( null );
+    setPollen( null );
     const ac = new AbortController();
     const store: { air: AirState | null; weather: WeatherState | null; pollen: PollenRow[] | null } = {
       air: null, weather: null, pollen: null,
@@ -744,6 +751,7 @@ const VayuLokLive: React.FC = () => {
           dominant: idx.dominantPollutant || undefined,
           pollutants,
           advisory: typeof advisory === 'string' ? advisory : undefined,
+          updatedAt: typeof data?.dateTime === 'string' ? data.dateTime : undefined,
         };
       } catch { /* silent degradation */ }
     };
@@ -838,13 +846,16 @@ const VayuLokLive: React.FC = () => {
     ( async () => {
       await Promise.all( [ fetchAir(), fetchWeather(), fetchPollen() ] );
       if ( ac.signal.aborted ) return;
-      cache.current[ cacheKey ] = store;
+      const fetchedAt = Date.now();
+      cache.current[ cacheKey ] = { ts: fetchedAt, ...store };
       // First setState via rAF to avoid react-hooks/set-state-in-effect.
       requestAnimationFrame( () => {
         if ( ac.signal.aborted ) return;
         setAir( store.air );
         setWeather( store.weather );
         setPollen( store.pollen );
+        setCoreFetchedAt( fetchedAt );
+        setDataLoading( false );
       } );
     } )();
 
@@ -877,6 +888,26 @@ const VayuLokLive: React.FC = () => {
       setWeatherHourly( ( Array.isArray( data.forecastHours ) ? data.forecastHours : [] )
         .map( ( row: Record<string, any> ) => weatherHourFromApi( row ) )
         .filter( Boolean ) as WeatherHour[] );
+    };
+
+    const loadWeatherHistory = async () => {
+      const url = 'https://weather.googleapis.com/v1/history/hours:lookup?key=' + encodeURIComponent( MAPS_KEY )
+        + '&location.latitude=' + lat + '&location.longitude=' + lng
+        + '&hours=24&pageSize=24&unitsSystem=METRIC&languageCode=en';
+      const data = await getJson( url );
+      if ( !data || ac.signal.aborted ) return;
+      const rows: WeatherHistoryPoint[] = ( Array.isArray( data.historyHours ) ? data.historyHours : [] ).map( ( row: any ) => {
+        const time = new Date( row?.interval?.startTime || 0 ).getTime();
+        const temp = n( row?.temperature?.degrees );
+        const rain = n( row?.precipitation?.probability?.percent );
+        return {
+          time,
+          ...( Number.isFinite( temp ) ? { temp: Math.round( temp ) } : {} ),
+          ...( Number.isFinite( rain ) ? { rainProb: Math.round( rain ) } : {} ),
+          ...( typeof row?.weatherCondition?.description?.text === 'string' ? { condition: row.weatherCondition.description.text } : {} ),
+        };
+      } ).filter( row => Number.isFinite( row.time ) );
+      setWeatherHistory( rows );
     };
 
     const loadDaily = async () => {
@@ -954,7 +985,7 @@ const VayuLokLive: React.FC = () => {
         .filter( Boolean ) as AirPoint[] );
     };
 
-    void Promise.allSettled( [ loadHourly(), loadDaily(), loadAlerts(), loadAirForecast() ] );
+    void Promise.allSettled( [ loadHourly(), loadDaily(), loadAlerts(), loadAirForecast(), loadWeatherHistory() ] );
     return () => ac.abort();
   }, [ place ] );
 
@@ -1253,6 +1284,11 @@ const VayuLokLive: React.FC = () => {
 
   useEffect( () => () => { if ( searchTimer.current ) clearTimeout( searchTimer.current ); }, [] );
 
+  const weatherFreshness = relativeAgeLabel( weather?.currentTime || coreFetchedAt || undefined );
+  const airFreshness = relativeAgeLabel( air?.updatedAt || coreFetchedAt || undefined );
+  const previewPlace = mapCandidate || place;
+  const previewWeather = mapCandidate ? mapCandidateWeather : weather;
+  const previewAir = mapCandidate ? mapCandidateAir : air;
   const dotClass = ( sev: Sev ) => `vl-live-dot vl-live-dot-${sev}`;
   const liveActive = Boolean( MAPS_KEY );
   const bestOutside = bestOutsideWindow( weatherHourly, airForecast );
@@ -1347,6 +1383,12 @@ const VayuLokLive: React.FC = () => {
           { liveActive && (
           <div className="vl-live-block">
             <p className="vl-live-place" id="vl-live-now-place">{ place.name }</p>
+
+            { dataLoading && (
+              <div className="vl-live-data-skeleton" role="status" aria-label="Loading current conditions">
+                <i /><i /><i /><i />
+              </div>
+            ) }
             <p className="vl-live-place-addr">{ place.addr }</p>
 
             { ( air || weather ) && (
@@ -1362,7 +1404,7 @@ const VayuLokLive: React.FC = () => {
                     { air.dominant && (
                       <p className="vl-live-cond">{ air.word } air. Dominant pollutant { air.dominant }.</p>
                     ) }
-                    <p className="vl-live-sub-fact">AQI { air.aqi } · { air.word } band</p>
+                    <p className={ `vl-live-sub-fact ${airFreshness.stale ? 'is-stale' : ''}`.trim() }>AQI { air.aqi } · { air.word } band · { airFreshness.label }</p>
                   </div>
                 ) }
                 { weather && (
@@ -1372,10 +1414,11 @@ const VayuLokLive: React.FC = () => {
                       <div className="vl-live-figure"><span className="vl-live-metric-lg">{ weather.temp }°</span></div>
                     ) }
                     { weather.condition && <p className="vl-live-cond">{ weather.condition }</p> }
-                    <p className="vl-live-sub-fact">
+                    <p className={ `vl-live-sub-fact ${weatherFreshness.stale ? 'is-stale' : ''}`.trim() }>
                       { Number.isFinite( weather.feelsLike ) && <>Feels like { weather.feelsLike }°</> }
                       { Number.isFinite( weather.humidity ) && <> · humidity { weather.humidity }%</> }
                       { Number.isFinite( weather.windSpeed ) && <> · wind { weather.windSpeed } { weather.windUnit || 'km/h' }{ weather.windDir ? ` ${weather.windDir}` : '' }</> }
+                      <> · { weatherFreshness.label }</>
                     </p>
                   </div>
                 ) }
@@ -1400,6 +1443,36 @@ const VayuLokLive: React.FC = () => {
                 ) }
                 { Number.isFinite( weather?.temp ) && (
                   <div className="vl-live-fact"><p className="vl-live-label">Temperature</p><span className="vl-live-metric-md">{ weather!.temp }°</span></div>
+                ) }
+                { Number.isFinite( weather?.windGust ) && (
+                  <div className="vl-live-fact"><p className="vl-live-label">Wind gust</p><span className="vl-live-metric-md">{ weather!.windGust } km/h</span></div>
+                ) }
+                { Number.isFinite( weather?.rainMm ) && (
+                  <div className="vl-live-fact"><p className="vl-live-label">Rainfall</p><span className="vl-live-metric-md">{ weather!.rainMm } mm</span></div>
+                ) }
+                { Number.isFinite( weather?.rainProb ) && (
+                  <div className="vl-live-fact"><p className="vl-live-label">Rain chance</p><span className="vl-live-metric-md">{ weather!.rainProb }%</span></div>
+                ) }
+                { Number.isFinite( weather?.uv ) && (
+                  <div className="vl-live-fact"><p className="vl-live-label">UV index</p><span className="vl-live-metric-md">{ weather!.uv }</span></div>
+                ) }
+                { Number.isFinite( weather?.visibilityKm ) && (
+                  <div className="vl-live-fact"><p className="vl-live-label">Visibility</p><span className="vl-live-metric-md">{ weather!.visibilityKm } km</span></div>
+                ) }
+                { Number.isFinite( weather?.cloudCover ) && (
+                  <div className="vl-live-fact"><p className="vl-live-label">Cloud cover</p><span className="vl-live-metric-md">{ weather!.cloudCover }%</span></div>
+                ) }
+                { Number.isFinite( weather?.pressureHpa ) && (
+                  <div className="vl-live-fact"><p className="vl-live-label">Pressure</p><span className="vl-live-metric-md">{ weather!.pressureHpa } hPa</span></div>
+                ) }
+                { Number.isFinite( weather?.dewPoint ) && (
+                  <div className="vl-live-fact"><p className="vl-live-label">Dew point</p><span className="vl-live-metric-md">{ weather!.dewPoint }°</span></div>
+                ) }
+                { Number.isFinite( weather?.heatIndex ) && (
+                  <div className="vl-live-fact"><p className="vl-live-label">Heat index</p><span className="vl-live-metric-md">{ weather!.heatIndex }°</span></div>
+                ) }
+                { Number.isFinite( weather?.wetBulb ) && (
+                  <div className="vl-live-fact"><p className="vl-live-label">Wet bulb</p><span className="vl-live-metric-md">{ weather!.wetBulb }°</span></div>
                 ) }
                 { air && air.pollutants.filter( p => p.code === 'pm25' ).map( p => (
                   <div className="vl-live-fact" key="cond-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ Math.round( p.value ) } { p.unit }</span></div>
@@ -1557,6 +1630,21 @@ const VayuLokLive: React.FC = () => {
                         { d.icon && <img src={ d.icon + '.svg' } alt="" loading="lazy" /> }
                         <b>{ Number.isFinite( d.max ) ? d.max + '°' : '—' } / { Number.isFinite( d.min ) ? d.min + '°' : '—' }</b>
                         <span>{ Number.isFinite( d.rainProb ) ? d.rainProb + '% rain' : d.condition || 'Forecast' }</span>
+                      </article>
+                    ) ) }
+                  </div>
+                </>
+              ) }
+
+              { weatherHistory.length > 0 && (
+                <>
+                  <h4 className="vl-live-minor-title">Past 24 hours</h4>
+                  <div className="vl-live-hour-rail" aria-label="Past 24 hours weather">
+                    { weatherHistory.slice().reverse().map( point => (
+                      <article className="vl-live-hour-card" key={ point.time }>
+                        <time>{ hourLabel( point.time ) }</time>
+                        <strong>{ Number.isFinite( point.temp ) ? point.temp + '°' : '—' }</strong>
+                        <span>{ Number.isFinite( point.rainProb ) ? point.rainProb + '% rain' : point.condition || 'History' }</span>
                       </article>
                     ) ) }
                   </div>
