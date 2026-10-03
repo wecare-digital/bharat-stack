@@ -100,9 +100,9 @@ describe('the sign-in error states use no red validation colour', () => {
     render(<SignIn />);
     fireEvent.change(screen.getByLabelText('WhatsApp number'),
       { target: { value: '+919876543210' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send OTP on WhatsApp' }));
     fireEvent.change(await screen.findByLabelText('WhatsApp code'), { target: { value: '000000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm WhatsApp code' }));
 
     const alert = await screen.findByRole('alert');
     // The rendered string is one of the approved seven, verbatim.
@@ -124,7 +124,7 @@ describe('the sign-in error states use no red validation colour', () => {
     render(<SignIn />);
     fireEvent.change(screen.getByLabelText('WhatsApp number'),
       { target: { value: '+919876543210' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send OTP on WhatsApp' }));
 
     const alert = await screen.findByRole('alert');
     await waitFor(() => expect(alert.textContent).toBe(signInMessages.RATE_LIMITED));
@@ -215,9 +215,9 @@ describe('a refused session exchange must not destroy a successful sign-in', () 
     render(<SignIn />);
     fireEvent.change(screen.getByLabelText('WhatsApp number'),
       { target: { value: '+919876543210' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send OTP on WhatsApp' }));
     fireEvent.change(await screen.findByLabelText('WhatsApp code'), { target: { value: '123456' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm WhatsApp code' }));
   }
 
   it('signs in and shows no error when the exchange is refused (401)', async () => {
@@ -259,7 +259,7 @@ describe('a refused session exchange must not destroy a successful sign-in', () 
    * so the pill correctly renders TWO STYLED SEGMENTS rather than one run-together string.
    *
    * SEPARATELY, the accessible name was ALSO wrong, and that is a different defect from the
-   * scoping. The control used to announce the action alone ("Confirm code") with both visible
+   * scoping. The control used to announce the action alone ("Confirm WhatsApp code") with both visible
    * segments aria-hidden, which is a WCAG 2.5.3 Label in Name failure - a speech-input user
    * saying "click Sign in" hit nothing. The name is now the full visible text,
    * "Sign in Confirm code", and there is no aria-label. That is what these two cases pin at the
@@ -276,10 +276,10 @@ describe('a refused session exchange must not destroy a successful sign-in', () 
     render(<SignIn />);
     fireEvent.change(screen.getByLabelText('WhatsApp number'),
       { target: { value: '+919876543210' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send OTP on WhatsApp' }));
     await screen.findByLabelText('WhatsApp code');
 
-    const confirm = screen.getByRole('button', { name: 'Confirm code' });
+    const confirm = screen.getByRole('button', { name: 'Confirm WhatsApp code' });
     // No aria-label: the name is the visible text, so it cannot disagree with the screen.
     expect(confirm.hasAttribute('aria-label')).toBe(false);
     /*
@@ -292,15 +292,15 @@ describe('a refused session exchange must not destroy a successful sign-in', () 
      */
     expect(confirm.querySelector('.pill-label')).toBeNull();
     const action = confirm.querySelector('.pill-action');
-    expect(action?.textContent).toBe('Confirm code');
+    expect(action?.textContent).toBe('Confirm WhatsApp code');
     expect(action?.hasAttribute('aria-hidden')).toBe(false);
   });
 
   it('names the send button by its visible text too', () => {
     stubNetwork(401);
     render(<SignIn />);
-    const send = screen.getByRole('button', { name: 'Send code' });
+    const send = screen.getByRole('button', { name: 'Send OTP on WhatsApp' });
     expect(send.hasAttribute('aria-label')).toBe(false);
-    expect(send.querySelector('.pill-action')?.textContent).toBe('Send code');
+    expect(send.querySelector('.pill-action')?.textContent).toBe('Send OTP on WhatsApp');
   });
 });
