@@ -96,7 +96,7 @@ describe( 'the resend control in the sent arm', () => {
     await flush();
 
     expect( screen.getByLabelText( 'Email verification code' ) ).toBeInTheDocument();
-    expect( screen.getByRole( 'button', { name: 'Verify' } ) ).toBeInTheDocument();
+    expect( screen.getByRole( 'button', { name: 'Verify email code' } ) ).toBeInTheDocument();
     expect( resendControl() ).toBeDisabled();
     expect( resendControl() ).toHaveTextContent( 'Resend email code 60s' );
     expect( screen.getByText( 'Another code can be requested in 60s.' ) ).toBeInTheDocument();
