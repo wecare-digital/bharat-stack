@@ -566,3 +566,298 @@ describe( 'the initiation-failure sentence is pinned to its evidence', () => {
     expect( source.toLowerCase() ).not.toContain( 'no charge' );
   } );
 } );
+
+
+/*
+ * ── the terminal latch, and the full stubbed rail ─────────────────────────────
+ *
+ * The CTA sits underneath the Razorpay modal with `disabled={busy}` and `busy` goes false the
+ * moment `razorpay.open()` returns, so before this latch the Proceed pill was live behind an open
+ * payment modal and live again after a verify response that said "we are still verifying".
+ *
+ * Every assertion below is POSITIVE -- a call count, a URL, `pill === null || pill.disabled`.
+ * A `queryBy*` returning `null` on its own asserts nothing, because a renamed element returns
+ * null too. The CTA's accessible name is one of `Checkout Proceed`, `Checkout Pay securely` or
+ * `Checkout Try again`, so it is found by ROLE AND POSITION inside the `cart-pill` region rather
+ * than by a guessed name.
+ *
+ * The latch is DEFENCE IN DEPTH, not the guarantee: it dies with the page. The server-side
+ * one-live-payment-per-basket guard is the guarantee, and it is tested in
+ * `tests/test_graft_money_correctness.py`.
+ */
+describe( 'the payment rail latches once it has returned a result', () => {
+  function pillButton ( container: HTMLElement ): HTMLButtonElement | null {
+    const region = container.querySelector( '.cart-pill' );
+    return region ? region.querySelector( 'button' ) : null;
+  }
+
+  function fakeRazorpay () {
+    const state: { options: any; opens: number; events: string[] } = {
+      options: null, opens: 0, events: [],
+    };
+    class FakeRazorpay {
+      constructor ( options: any ) { state.options = options; }
+      open = () => {
+        // NEVER any network I/O: the SDK is stubbed precisely so no real charge is possible.
+        state.opens += 1;
+      };
+      on = ( event: string ) => { state.events.push( event ); };
+    }
+    Object.defineProperty( window, 'Razorpay', {
+      configurable: true, writable: true, value: FakeRazorpay,
+    } );
+    return state;
+  }
+
+  const READY_OPTIONS = {
+    status: 'CHECKOUT_OPTIONS_READY',
+    paymentAttemptId: 'att-latch-1',
+    options: {
+      keyId: 'fixture-publishable-id',
+      orderId: 'order-latch-1',
+      amountPaise: 2625123,
+      currency: 'INR',
+      prefill: { name: 'Asha Sen', email: 'asha@example.com', contact: '+919330994400' },
+      paymentAttemptId: 'att-latch-1',
+    },
+  };
+
+  function signedIn () {
+    vi.spyOn( customerAuth, 'getSession' ).mockReturnValue( {
+      accessToken: 'fixture-session', expiresAt: Date.now() + 3_600_000,
+    } );
+  }
+
+  it( 'the full stubbed rail: cart -> profile -> prepare -> modal -> verify -> one order', async () => {
+    signedIn();
+    const razorpay = fakeRazorpay();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce( { ok: true, status: 200, json: async () => READY_OPTIONS } )
+      .mockResolvedValueOnce( {
+        ok: true, status: 200,
+        json: async () => ( {
+          status: 'VERIFIED_PAID', paymentAttemptId: 'att-latch-1',
+          orderNumber: 'WD-ORD-A1B2C3D4',
+        } ),
+      } );
+    vi.stubGlobal( 'fetch', fetchMock );
+    cart.addItem( PRODUCT, 1 );
+
+    const { container } = render( <Cart /> );
+    await proceedPastProfile();
+
+    // The modal payload, asserted as an allow-list rather than a spot check.
+    await waitFor( () => expect( razorpay.opens ).toBe( 1 ) );
+    expect( razorpay.options.order_id ).toBe( 'order-latch-1' );
+    expect( Number.isInteger( razorpay.options.amount ) ).toBe( true );
+    expect( razorpay.options.amount ).toBe( 2625123 );
+    expect( razorpay.options.currency ).toBe( 'INR' );
+    expect( razorpay.options.key ).toBe( 'fixture-publishable-id' );
+    expect( String( razorpay.options.order_id ).length ).toBeGreaterThan( 0 );
+    // No key whose name mentions a secret, anywhere in what the browser was handed.
+    const handed = Object.keys( razorpay.options );
+    expect( handed.filter( ( key ) => /secret/i.test( key ) ) ).toEqual( [] );
+    expect( JSON.stringify( razorpay.options ) ).not.toMatch( /secret/i );
+
+    // Exactly one verify POST, to the verify route.
+    await razorpay.options.handler( {
+      razorpay_payment_id: 'pay-latch-1',
+      razorpay_order_id: 'order-latch-1',
+      razorpay_signature: 'sig-latch-1',
+    } );
+    await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
+    expect( String( fetchMock.mock.calls[ 1 ][ 0 ] ) ).toContain( '/ecommerce/verify-callback' );
+    const verifyBodies = fetchMock.mock.calls
+      .map( ( call: any[] ) => JSON.parse( call[ 1 ].body ) )
+      .filter( ( body: any ) => body.action === 'verify' );
+    expect( verifyBodies ).toHaveLength( 1 );
+
+    // ...and one navigation to the status page for that one attempt.
+    expect( navigatedTo ).toBe( '/checkout/status/?a=att-latch-1' );
+  } );
+
+  it( 'latches on a VERIFIED_PAID return, so the CTA cannot re-enter the rail', async () => {
+    signedIn();
+    const razorpay = fakeRazorpay();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce( { ok: true, status: 200, json: async () => READY_OPTIONS } )
+      .mockResolvedValueOnce( {
+        ok: true, status: 200,
+        json: async () => ( { status: 'VERIFIED_PAID', paymentAttemptId: 'att-latch-1' } ),
+      } );
+    vi.stubGlobal( 'fetch', fetchMock );
+    cart.addItem( PRODUCT, 1 );
+
+    const { container } = render( <Cart /> );
+    await proceedPastProfile();
+    await waitFor( () => expect( razorpay.opens ).toBe( 1 ) );
+
+    await razorpay.options.handler( {
+      razorpay_payment_id: 'pay-latch-1',
+      razorpay_order_id: 'order-latch-1',
+      razorpay_signature: 'sig-latch-1',
+    } );
+    await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
+
+    // The pill is either gone (replaced by the orders link) or disabled. Asserted as the
+    // DISJUNCTION, so it passes under both mechanisms and cannot be satisfied by a live button.
+    const pill = pillButton( container );
+    expect( pill === null || pill.disabled ).toBe( true );
+    // And the way off the page is a LINK, whose words cannot read as "pay again".
+    const away = container.querySelector( '.cart-pill a' ) as HTMLAnchorElement | null;
+    expect( away ).toBeTruthy();
+    expect( String( away?.textContent || '' ) ).toBe( 'Check your orders' );
+    expect( String( away?.textContent || '' ) ).not.toMatch( /pay|again|retry/i );
+  } );
+
+  it( 'latches on a LOST verify response, which is the case money may have moved in', async () => {
+    signedIn();
+    const razorpay = fakeRazorpay();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce( { ok: true, status: 200, json: async () => READY_OPTIONS } )
+      // The verify request THROWS. Nothing came back to read, so a live CTA here is the worst
+      // possible affordance: the payment may well have succeeded.
+      .mockRejectedValueOnce( new Error( 'network' ) );
+    vi.stubGlobal( 'fetch', fetchMock );
+    cart.addItem( PRODUCT, 1 );
+
+    const { container } = render( <Cart /> );
+    await proceedPastProfile();
+    await waitFor( () => expect( razorpay.opens ).toBe( 1 ) );
+
+    await razorpay.options.handler( {
+      razorpay_payment_id: 'pay-latch-1',
+      razorpay_order_id: 'order-latch-1',
+      razorpay_signature: 'sig-latch-1',
+    } );
+
+    // `waitFor`, because the latch is set as the handler's FIRST statement -- before the fetch
+    // that then throws -- so the state update has to be flushed before the render is read. That
+    // ordering is the point of the row: the latch holds even though nothing came back.
+    await waitFor( () => {
+      const pill = pillButton( container );
+      expect( pill === null || pill.disabled ).toBe( true );
+    } );
+    expect( navigatedTo ).toBe( '' );
+    // The copy makes no claim about a charge in either direction.
+    expect( container.textContent || '' ).not.toMatch( /no charge/i );
+  } );
+
+  it( 'latches on a non-VERIFIED_PAID verdict too, because the money is still unknown', async () => {
+    signedIn();
+    const razorpay = fakeRazorpay();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce( { ok: true, status: 200, json: async () => READY_OPTIONS } )
+      .mockResolvedValueOnce( {
+        ok: true, status: 200,
+        json: async () => ( { status: 'NOT_CAPTURED', paymentAttemptId: 'att-latch-1' } ),
+      } );
+    vi.stubGlobal( 'fetch', fetchMock );
+    cart.addItem( PRODUCT, 1 );
+
+    const { container } = render( <Cart /> );
+    await proceedPastProfile();
+    await waitFor( () => expect( razorpay.opens ).toBe( 1 ) );
+    await razorpay.options.handler( {
+      razorpay_payment_id: 'pay-latch-1',
+      razorpay_order_id: 'order-latch-1',
+      razorpay_signature: 'sig-latch-1',
+    } );
+    await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 2 ) );
+
+    const pill = pillButton( container );
+    expect( pill === null || pill.disabled ).toBe( true );
+    expect( navigatedTo ).toBe( '' );
+  } );
+
+  it( 'does NOT latch on a dismissed modal, because nothing came back to verify', async () => {
+    signedIn();
+    const razorpay = fakeRazorpay();
+    const fetchMock = vi.fn()
+      .mockResolvedValue( { ok: true, status: 200, json: async () => READY_OPTIONS } );
+    vi.stubGlobal( 'fetch', fetchMock );
+    cart.addItem( PRODUCT, 1 );
+
+    const { container } = render( <Cart /> );
+    await proceedPastProfile();
+    await waitFor( () => expect( razorpay.opens ).toBe( 1 ) );
+
+    // A dismissal means the provider took nothing, and the next click re-presents the SAME stored
+    // request key onto the SAME gateway order. Latching it would strand a shopper who closed the
+    // modal by accident.
+    razorpay.options.modal.ondismiss();
+    const pill = pillButton( container );
+    expect( pill ).toBeTruthy();
+    expect( pill?.disabled ).toBe( false );
+  } );
+
+  it( 'registers payment.failed and does not latch on it either', async () => {
+    signedIn();
+    const razorpay = fakeRazorpay();
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
+      ok: true, status: 200, json: async () => READY_OPTIONS,
+    } ) );
+    cart.addItem( PRODUCT, 1 );
+
+    const { container } = render( <Cart /> );
+    await proceedPastProfile();
+    await waitFor( () => expect( razorpay.opens ).toBe( 1 ) );
+    // The provider is telling us no money moved, so the rail is re-enterable.
+    expect( razorpay.events ).toContain( 'payment.failed' );
+    const pill = pillButton( container );
+    expect( pill ).toBeTruthy();
+    expect( pill?.disabled ).toBe( false );
+  } );
+
+  it( 'an ambiguous refusal WITH an attempt id goes to the status page', async () => {
+    signedIn();
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
+      ok: false, status: 409,
+      json: async () => ( {
+        status: 'CHECKOUT_AMBIGUOUS', reason: 'CART_ALREADY_PAID',
+        paymentAttemptId: 'att-blocked-1',
+      } ),
+    } ) );
+    cart.addItem( PRODUCT, 1 );
+
+    render( <Cart /> );
+    await proceedPastProfile();
+    await waitFor( () => expect( navigatedTo ).toBe( '/checkout/status/?a=att-blocked-1' ) );
+  } );
+
+  it( 'an ambiguous refusal with NO attempt id claims nothing about a charge', async () => {
+    signedIn();
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( {
+      ok: false, status: 409,
+      json: async () => ( {
+        status: 'CHECKOUT_AMBIGUOUS', reason: 'CART_PAYMENT_IN_FLIGHT',
+      } ),
+    } ) );
+    cart.addItem( PRODUCT, 1 );
+
+    const { container } = render( <Cart /> );
+    await proceedPastProfile();
+
+    // A step-4b loser deliberately carries no attempt id, because the holder's attempt may not
+    // exist yet and an unresolvable id would point the status page at nothing. So this falls to
+    // the charge-silent catch-all: no navigation, no claim either way, CTA still live for a retry
+    // that will succeed once the winner's row is recorded.
+    await waitFor( () => expect(
+      ( container.textContent || '' ).length ).toBeGreaterThan( 0 ) );
+    expect( navigatedTo ).toBe( '' );
+    expect( container.textContent || '' ).not.toMatch( /no charge/i );
+    const pill = pillButton( container );
+    expect( pill ).toBeTruthy();
+    expect( pill?.disabled ).toBe( false );
+  } );
+
+  it( 'has no INTENT_CHANGED auto-retry to leave unlatched', () => {
+    // The dangerous shape a sibling branch had: a refusal self-healing by minting a fresh request
+    // key and opening a SECOND modal with no further click. It does not exist here, and this row
+    // is what keeps it from being introduced unlatched later.
+    const source = fs.readFileSync(
+      path.resolve( __dirname, '../pages/cart.tsx' ), 'utf8' );
+    expect( source ).not.toMatch( /retriedIntent/ );
+    expect( source.match( /INTENT_CHANGED/g ) || [] ).toHaveLength( 0 );
+  } );
+} );
