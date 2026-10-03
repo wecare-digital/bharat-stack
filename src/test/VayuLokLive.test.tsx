@@ -265,6 +265,10 @@ describe( 'VayuLokLive - map wiring, heatmap on user action, India scoping (key 
     );
     expect( hitHeatmapTiles() ).toBe( false );
 
+    // The map object is constructed before the tilesloaded callback flips mapReady.
+    // Wait for the ready-only controls rather than racing that paint lifecycle.
+    await waitFor( () => expect( screen.getByRole( 'button', { name: 'AQI' } ) ).toBeInTheDocument() );
+
     // Press the AQI layer control.
     fireEvent.click( screen.getByRole( 'button', { name: 'AQI' } ) );
 
