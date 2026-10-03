@@ -195,11 +195,16 @@ const VayuLokPage: React.FC = () => {
            typeface of a public marketing page depended on an auth library's CSS
            import order. Pages.css's --font-sans has no Inter in it, so nothing here
            would have fallen back to the right face. */
-        .vl-shell{min-height:calc(100vh - 69px);padding-top:108px;box-sizing:border-box;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a}
+        /* No min-height: the hero used to fill the viewport when it was the whole
+           page, but the live VayuLok section now renders directly below it, so a
+           forced 100vh left a ~240px empty band between the hero content and the
+           live content. The hero is now only as tall as its content; padding-top
+           still clears the fixed header. */
+        .vl-shell{padding-top:108px;box-sizing:border-box;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a}
         /* No flex gap: the only gap in the page is under the badge and .vl-eyebrow
            owns it. A column gap would apply to nothing and quietly mislead whoever
            adds the second element. */
-        .vl-layout{width:100%;max-width:1300px;margin:0 auto;padding:80px 24px 96px;box-sizing:border-box}
+        .vl-layout{width:100%;max-width:1300px;margin:0 auto;padding:80px 24px 40px;box-sizing:border-box}
 
         /* Spacing only. The badge paints itself inside BrandBadge. */
         .vl-eyebrow{margin:0 0 20px}
@@ -287,7 +292,7 @@ const VayuLokPage: React.FC = () => {
         }
 
         @media(max-width:767px){
-          .vl-shell{min-height:calc(100vh - 85px);padding-top:96px}
+          .vl-shell{padding-top:96px}
           .vl-layout{padding:48px 20px 64px}
           .vl-head{line-height:1.1}
         }
