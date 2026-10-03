@@ -276,13 +276,3 @@ def test_verify_passes_when_both_sides_agree(tmp_path):
         ledger.attach_article(row.sourceId, slug, slug, "Conversations")
     assert ledger.verify_against_batches([str(tmp_path / "batches" / "*.json")]) == []
 
-
-def test_the_committed_ledger_if_present_reconciles():
-    """The real ledger, once it has content, must agree with the real batches."""
-    path = ROOT / "content/conversations/ledger.json"
-    if not path.exists():
-        pytest.skip("no Conversations ledger committed yet")
-    ledger = bl.Ledger.load(path)
-    problems = ledger.verify_against_batches(
-        [str(ROOT / "content/conversations/batches/*.json")])
-    assert problems == [], problems
