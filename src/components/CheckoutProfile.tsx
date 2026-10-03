@@ -415,7 +415,7 @@ const CheckoutProfile: React.FC<Props> = ( { accessToken, mode = 'create', initi
                     disabled={ step === 'verifying' }
                   />
                   <button type="button" onClick={ verifyCode } disabled={ step === 'verifying' }>
-                    { step === 'verifying' ? 'Checking…' : 'Verify email code' }
+                    { step === 'verifying' ? 'Checking…' : 'Confirm email code' }
                   </button>
                   <button type="button" onClick={ sendCode } disabled={ sendDisabled }>
                     { cooldownSeconds > 0 ? `Resend email code ${ cooldownSeconds }s` : 'Resend email code' }
