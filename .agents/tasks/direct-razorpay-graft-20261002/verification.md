@@ -8,6 +8,11 @@ Merge base against `origin/stack`: **`e3c01440`** — the commit the baseline wa
 
 Read this instead of re-running anything.
 
+> **ITERATION 2, 2026-10-03.** `code-review.json` returned `CHANGES_REQUESTED` with seven
+> actionable findings (3 MEDIUM, 4 LOW) and one INFORMATIONAL marked "no change required".
+> All seven are addressed; §8 below is the finding-by-finding record and §1/§2 carry the
+> re-measured counts. Nothing from iteration 1 was removed or weakened.
+
 ---
 
 ## 1. Python — `.venv/bin/python -m pytest`
@@ -15,12 +20,14 @@ Read this instead of re-running anything.
 Run with `pytest.ini`'s own `testpaths = tests, amplify/functions`, i.e. the bare invocation.
 
 ```
-5 failed, 6910 passed, 1 skipped, 3 xfailed in 97.55s
+5 failed, 6946 passed, 1 skipped, 3 xfailed in 64.21s
 ```
 
-**failed = 5 · passed = 6910 · skipped = 1 · xfailed = 3**
+**failed = 5 · passed = 6946 · skipped = 1 · xfailed = 3**
 
 Baseline (`baseline-rederived.md`): `13 failed, 6829 passed, 1 skipped, 2 xfailed`.
+Iteration 1: `5 failed, 6910 passed, 1 skipped, 3 xfailed`. **Iteration 2 adds 36 passing rows
+and no failing id.**
 
 ### The 5 failing ids, in full
 
@@ -83,14 +90,15 @@ What was and was not done about it:
 
 ### Net delta
 
-`13 → 5` failing. `6829 → 6910` passing: **+81**, of which **73** are the new rows in
-`tests/test_graft_money_correctness.py`, 8 are set A going green, and the rest is arithmetic on
-the migrated handler rows.
+`13 → 5` failing. `6829 → 6946` passing: **+117**, of which **109** are the rows in
+`tests/test_graft_money_correctness.py` (73 from iteration 1 plus **36** added in iteration 2),
+8 are set A going green, and the rest is arithmetic on the migrated handler rows.
 
 ### Targeted runs, as they were made during the build
 
 ```
-tests/test_graft_money_correctness.py                              73 passed
+tests/test_graft_money_correctness.py                             109 passed  (iteration 2)
+tests/test_graft_money_correctness.py                              73 passed  (iteration 1)
 tests/test_provision_checkout_contract.py                          58 passed
 tests/test_provision_checkout_contract.py
   tests/test_coupons_iam_and_table.py
@@ -125,6 +133,11 @@ npx tsc --noEmit     -> exit 0
 **failed = 6 · passed = 836 · skipped = 1**
 
 Baseline: `6 failed, 827 passed, 1 skipped`. **+9 passing, zero new failing ids.**
+
+Re-measured unchanged in iteration 2 (`6 failed | 836 passed | 1 skipped (843)`, files
+`3 failed | 66 passed (69)`, `tsc --noEmit` exit 0). No finding in `code-review.json` touched
+`src/`, so no client file changed and the client numbers are identical to iteration 1 rather
+than merely similar.
 
 ### The 6 failing ids, in full
 
@@ -241,6 +254,67 @@ ORDERNO#  PAYMENTATTEMPT#  PAYREF#  PROVIDERPAYMENT#  REQUESTKEY#
 
 All three cart rows present, exactly one `GATEWAYORDER#`, exactly one `PAYREF#`.
 
+### Server half, iteration 2 — the SAME flow run past the write-back gate
+
+Iteration 1's run stopped at `WIX_WRITE_CONTRACT_REQUIRED`, which is correct dormancy and also
+meant every line after that gate was unexecuted. The new rows run it to the end by setting
+`wix_writeback.is_enabled()`'s four conditions **as per-test `monkeypatch.setenv` values**, which
+pytest reverts. That is not a flag enable: nothing in `amplify/infra/` or
+`scripts/provision_checkout.py` sets any of the four, `tests/test_wix_writeback.py` has used the
+same keys since before this change, and the Wix transport is the same stub as everywhere else —
+no Wix call, no provider call, no charge.
+
+Re-dumped with `.scratch/flow_evidence.py`, which drives the same rig the suite uses so the two
+cannot disagree (public key id and prefill redacted at the dump, not at the assertion):
+
+```json
+{
+  "prepare": { "options": {
+      "keyId": "<fixture PUBLIC key id, assembled at runtime>",
+      "orderId": "order_GRAFT_1",
+      "amountPaise": 2625123,
+      "currency": "INR",
+      "prefill": { "name": "<redacted PII>", "email": "<redacted PII>",
+                   "contact": "<redacted PII>" },
+      "paymentAttemptId": "01a100bd-8261-7916-9198-8a89eaed252f" } },
+  "create_order_calls": [ { "amount_paise": 2625123,
+      "receipt": "WD-PAY-E49C7MBJ953P6K",
+      "notes_keys": ["customerId", "paymentAttemptId", "referenceId", "snapshotHash"] } ],
+  "verify": { "statusCode": 200, "status": "VERIFIED_PAID",
+              "orderNumber": "WD-ORD-7BXWQRD8" },
+  "attempt_row": {
+      "status": "PAYMENT_PAID",
+      "amountPaise": 2625123,
+      "razorpayChargedPaise": 2625123,
+      "wixGiftCardRedeemPaise": 0,
+      "verifiedCapturedPaise": 2625123,
+      "currency": "INR",
+      "checkoutMode": "WEBSITE_RAZORPAY_STANDARD",
+      "finalizationStage": "WIX_CART_COMPLETED",
+      "finalizationReason": "",
+      "providerPaymentId": "pay_evidence_1",
+      "providerOrderId": "order_GRAFT_1" },
+  "orders_table_rows": 1,
+  "wix_calls": { "create_order": 1,
+                 "add_payment_amounts": ["26251.23"],
+                 "cart_completions": ["de4d6a89-e575-4c51-b930-aec2adbd8b80"] },
+  "key_prefixes_written": ["CARTBASKET#", "CARTNARROW#", "CARTOP#", "CARTPAYMENT#",
+      "CUSTOMERCART#", "GATEWAYORDER#", "ORDERNO#", "PAYMENTATTEMPT#", "PAYREF#",
+      "PROVIDERPAYMENT#", "REQUESTKEY#", "SIDEEFFECT#"]
+}
+```
+
+`26251.23` is `2625123` paise through `Money.to_wix` — integer division, no float, and it is the
+**Razorpay leg**. On the split-tender row the same figure is the leg and provably not the payable:
+`test_only_the_verified_razorpay_leg_reaches_wix` asserts `recorded == leg` and
+`recorded != payable` with `leg != payable` anchored first, so the row cannot pass against the
+pre-graft code that sent `attempt['amountPaise']`.
+
+Three Wix calls, and only three — create the order, record the already-collected payment, close
+the cart. The stub answers no fourth endpoint, which is the enumeration R7.4 asks for; the
+allowlist in `wix_writeback._guarded_call` has already refused anything else before a call
+reaches the stub.
+
 ### Client half
 
 `src/test/CartCheckout.test.tsx > the payment rail latches once it has returned a result > the
@@ -331,7 +405,7 @@ tests/test_provision_checkout_contract.py
 | no raw `captured` comparison | AST walk over all 7 changed Python files; `FORBIDDEN_RAW == {'captured'}` unchanged | pass |
 | no PII in a logging expression | AST walk over every `logger.*` call in all 7 files, checking the **expression** rather than the output | pass |
 | every logged exception is `type(exc).__name__` | AST walk | pass |
-| integer paise, no float, `Decimal(str())` | `test_a_float_amount_is_refused_at_every_money_boundary`-class rows plus `_no_floats` over the browser payload | pass |
+| integer paise, no float, `Decimal(str())` | `test_a_float_amount_is_refused_at_every_money_boundary` — the real row, parametrised over `0.1+0.2`, `100.0`, `True`, `Decimal('1.5')`, `'abc'` and `None` across `integer_paise`, `record_paid`, `accept_paid`, `payment_attempt.build` and `wix_writeback._paise_money`; plus `test_an_exact_integer_amount_is_still_accepted_everywhere` and `_no_floats` over the browser payload | pass |
 | INR compared explicitly | `build_wix_order_payload` raises on a non-INR quote; the status leg compares `currency != "INR"`; the modal payload asserted `== "INR"` | pass |
 | `reference_id` resolve-before-generate | `_resume_lost_request_key` never calls `allocate_reference`; `_reference_and_create_right` returns the reference read back off the row | pass |
 | the four `xfail(strict=True)` markers | `git diff ... -- tests/test_gift_card_amounts_and_gst.py` empty; no `xfail` line changed in `tests/test_gift_cards_iam_and_table.py` | untouched |
@@ -376,6 +450,140 @@ reference, one modal, not which arm produced it. The step-4b loser path (which d
 
 ---
 
+## 8. Iteration 2 — the seven review findings, one by one
+
+`code-review.json` verdict `CHANGES_REQUESTED`. Four files changed in this iteration:
+
+```
+amplify/functions/shared/lambda_utils/ecommerce/website_checkout.py   source  (LOW-1, LOW-2 comment)
+tests/test_graft_money_correctness.py                                 +36 rows
+tests/test_gift_cards_iam_and_table.py                                handoff note only
+docs/execution/direct-razorpay-graft-20261002-deploy-checklist.md      handoff section
+```
+
+### MEDIUM-1 — finalization and the §7 handler wiring had no behavioural test
+
+All twenty named rows added, every one driven through `_website_verify` or `_status` and **none**
+by calling `accept_paid` directly. The plan's reason is the operative one: a test that calls
+`accept_paid` itself cannot detect that its only production caller refuses to reach it.
+
+| row | what makes it non-vacuous |
+|---|---|
+| `test_a_website_attempt_can_be_finalized_at_all` | the ladder reaches `WIX_CART_COMPLETED`, so every line after the write-back gate executes |
+| `test_only_the_verified_razorpay_leg_reaches_wix` | `leg != payable` asserted **first**; the recorded amount equals the leg and differs from the payable |
+| `test_a_one_paise_tender_disagreement_fails_closed` | the order record still exists (money moved) while `wix_orders == []` — "fails closed" means nothing external, not nothing at all |
+| `test_a_wix_funded_split_tender_order_reaches_accept_paid` | leg B of the split gate must PASS a readable tender, or the graft is unreachable from its only caller |
+| `test_an_ordinary_card_free_order_with_a_zero_leg_is_not_refused` | asserts the attribute is PRESENT and `0`, so the row tests value-not-presence rather than assuming it |
+| `test_an_unreadable_tender_leg_is_refused` | no order record at all, because the gate is above `accept_paid` — and the capture is still recorded, because that is step 1 |
+| `test_an_unsettled_wecare_gift_card_is_refused` | leg A, the ladder `accept_paid` does not consult |
+| `test_a_settled_wecare_gift_card_is_not_refused_by_the_ladder_gate` | the other side of leg A; the Wix-recorded figure is the Razorpay leg, not the card's and not the payable |
+| `test_webhook_and_browser_return_converge_on_one_order` | the browser must return the number the **webhook** reserved; one order row, one `ORDERNO#` |
+| `test_the_reconcile_verifier_resolves_a_payref_reference` | both identifier kinds resolve onto the **same** projection, and the projection's key set is exactly the webhook's six |
+| `test_a_lost_provider_order_link_still_verifies` | asserts the link is genuinely absent first, then that the server-stored fallback supplies it |
+| `test_a_binding_with_no_reference_still_verifies_and_alarms` | 200 with `orderNumber: null`, capture recorded, `PAID_BUT_NO_ORDER` alarm — never a 503 and never a failure verdict |
+| `test_a_verified_capture_is_recorded_even_when_reconciliation_fails` | driven through the real `IDENTITY_UNAVAILABLE` (the claim's durable write fails), not by stubbing the outcome |
+| `test_a_finalization_fault_is_still_a_200` | the reserved number still reaches the shopper, and the exception TEXT is asserted absent from the log |
+| `test_two_readbacks_disagreeing_on_the_capture_write_nothing` | the two stored authorities are made to disagree by one paise so BOTH comparisons pass and two different provider figures result — the only way to reach the check |
+| `test_the_closed_tab_poll_writes_exactly_one_order_record` | the webhook leaves the attempt at `PAYMENT_PENDING`, which is why the gate is the CLAIM; a second poll writes nothing more |
+| `test_the_status_leg_refuses_rather_than_substituting_the_payable` | two halves: an unavailable provider writes nothing, an available one stores the LEG, with `leg != payable` anchored |
+| `test_a_claim_without_a_reference_alarms_once_instead_of_polling_forever` | the capture verifier is replaced with one that FAILS the test if called |
+| `test_claim_outcome_satisfies_accept_paid` | the three keys `accept_paid` reads by name, plus the unnumbered-claim arm |
+| `test_a_float_amount_is_refused_at_every_money_boundary` | see MEDIUM-2 |
+
+### MEDIUM-2 — the money-boundary table did not exist
+
+`test_a_float_amount_is_refused_at_every_money_boundary` added, parametrised over the six values
+the review names, across all five boundaries. Two assertions beyond "it raises": `record_paid`
+leaves the row at `PAYMENT_PENDING` after refusing, and `accept_paid` leaves no
+`finalizationStage` — so a refusal cannot have half-written first.
+
+`test_an_exact_integer_amount_is_still_accepted_everywhere` is the must-still-work half
+(`100`, `Decimal('100')`, `'100'` → `100`, stored as an `int`). It also executes `record_paid`'s
+new fourth argument and its **nested** condition group: a redelivery agreeing on the provider id
+AND the amount is idempotent, one agreeing on the id but **not** the amount is refused by the
+database with a `ConditionalCheckFailedException` and the stored evidence is unchanged. That is
+the subtlety two sibling OR groups would get wrong, and it now has an executing test.
+
+### MEDIUM-3 — the joint blob budget was untested
+
+`test_the_attempt_row_fits_one_dynamodb_item` reproduces the production ordering verbatim
+(snapshot measured first, payload measured against the remainder with the floor) and asserts the
+joint sum is within `ceiling + floor` and within DynamoDB's 400 KB item limit — plus
+`ceiling + floor < 2 * ceiling`, which is the off-by-one the joint split exists to prevent. It
+also pins that a money field is never what gets trimmed (`priceSummary` and `additionalFees`
+byte-equal at any size) and that `cart` is retained, because `accept_paid`'s own guard is
+`snapshot.get('cart')` and dropping it would refuse the order rather than shrink it.
+
+`test_an_ordinary_prepare_stores_a_row_far_inside_the_item_limit` measures the same property on
+the row production actually writes. `test_a_reduced_wix_payload_is_refused_rather_than_sent`
+drives `accept_paid`'s `WIX_PAYLOAD_REDUCED` refusal through `_website_verify`.
+
+### LOW-1 — `_record_cart_pointer` passed silently on a missing identity
+
+**Source change.** `if not customer_id or not wix_cart_id: return None` is now a
+`CHECKOUT_AMBIGUOUS` / `CART_POINTER_SAVE_FAILED` refusal with the same vocabulary, the same
+200-not-409 handler mapping and the same consequence as the write-failure arm: no `options`, so
+the modal never opens and the unused Razorpay order expires. The docstring's "`None` means
+written, carry on" claim is corrected to name the one path that returns it.
+
+No user-visible change, and the reason is measured rather than assumed: the arm is unreachable
+from a prepare on three independent counts — `QuoteSnapshot.__post_init__` raises
+`PricingError('snapshot requires a cart id')` so an identity-less snapshot cannot be constructed
+at all, `build_snapshot` derives `frozen_data['cart']['id']` from the same `cart_id`, and step 2a
+converts a cartless payload into `CheckoutRejected(BASKET_IDENTITY_REQUIRED)` before anything is
+created. `test_a_pointer_with_no_cart_identity_refuses_rather_than_passing` asserts both arms at
+the choke point with a stand-in, and records that third layer as the reason a stand-in is the
+only honest way to reach it.
+
+### LOW-2 — orphan `PAYREF#` row on a lost create right
+
+Taken as **documented behaviour plus the named test**, not as a reordering. The mint cannot move
+below the create right: `_reference_and_create_right` claims the right and writes the reference in
+ONE conditional round trip — which is what makes the two agree — so it has to be handed a value
+before the right is known. A comment at the mint site now states that, names the consequence, and
+points at the test.
+
+`test_a_lost_create_right_correlates_on_the_stored_reference` drives the race with a table that
+refuses the create-right claim exactly once and then stores the holder's reference, and asserts:
+200 `CHECKOUT_AMBIGUOUS` / `CREATE_IN_FLIGHT` with no `options`, `create_order` never called, the
+receipt correlation performed against the **holder's** reference (anchored by asserting the
+minted reference differs from it), exactly one orphan `PAYREF#` row carrying no
+`providerOrderId`, and no cart rows because the loser never reached the choke point.
+
+### LOW-3 — the dormant prepare gained a new 503
+
+`test_a_guard_read_failure_is_a_503_and_never_a_pass` is now parametrised over
+`initiation_enabled` as well as the three resolvers (6 cases), so the gate-off answer is a
+decision rather than a side effect. Both worlds answer 503 `TEMPORARILY_UNAVAILABLE`, and both
+assert nothing was written — zero `REQUESTKEY#` rows and an empty attempts table — because the
+refusal sits above step 3's reservation. The direction is deliberate: "we could not check" must
+not be reported as "nothing is live".
+
+### LOW-4 — SEAM-G14 handed over satisfied by failure
+
+Recorded in the two places that workstream will actually read: a `HANDOFF` block in the xfail
+row's own docstring in `tests/test_gift_cards_iam_and_table.py`, and a section in
+`docs/execution/direct-razorpay-graft-20261002-deploy-checklist.md`. Both name the replacement
+row (`test_the_browser_amount_and_the_attempt_amount_are_different_expressions`), state that the
+fix is to **rescope** the assertion rather than flip the marker, and suggest the two ways to do
+it. **The marker itself was not touched** and the row is still red.
+
+### INFO-1 — `razorpay_verify.CAPTURED`
+
+No change, as the review states. The file is not in this diff and not in the gate's
+`TOUCHED_PYTHON` list; `FORBIDDEN_RAW == {'captured'}` is unchanged and
+`test_the_vocabulary_gate_itself_is_unchanged` still pins it.
+
+### What iteration 2 did NOT do
+
+No deploy, publish, alias move, live route, live env set, IAM or Cognito mutation, flag enable, no
+capture/refund/config mutation, no live send, no `secretsmanager get-secret-value` in any
+spelling, no PayU, no new S3 bucket. No force push, no history rewrite, no `git add -A`/`.`/`-u`,
+no bare `stash`, no `clean`; every commit used `git commit --only <explicit paths>`. The
+wix-coupon-giftcard worktree and the main checkout's dirty files were not touched.
+
+---
+
 ## 7. Commits on `direct-razorpay-graft-20261002`
 
 ```
@@ -386,5 +594,15 @@ e4bbcb2d  feat: latch the cart's payment rail once it has returned a result
 68c82f50  test: teach the CRM fake OR and ordered comparison, and name the IAM eval constants
 ```
 
+Iteration 2 adds, in order:
+
+```
+<pending>  fix: refuse a cart pointer with no identity, and document the create-right orphan
+<pending>  test: drive finalization and the split-tender wiring through the handler, not around it
+<pending>  docs: hand SEAM-G14 over with its replacement row named
+```
+
 Nothing pushed. Raw logs (untracked, inside the worktree): `.scratch/final-pytest.log`,
-`.scratch/final-build.log`, `.scratch/final-vitest.log`, `.scratch/flow-evidence.json`.
+`.scratch/final-build.log`, `.scratch/final-vitest.log`, `.scratch/flow-evidence.json`,
+and for iteration 2 `.scratch/pytest-iter2.txt`, `.scratch/build-iter2.txt`,
+`.scratch/vitest-iter2.txt`, `.scratch/tsc-iter2.txt`, `.scratch/flow-evidence-iter2.json`.

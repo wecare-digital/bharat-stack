@@ -102,6 +102,27 @@ exist in one place rather than two. That predates this change and is not closed 
 is one template per function, modelled on `amplify/infra/checkout.json`, which this change has
 just reconciled against its own provisioner and can serve as the pattern.
 
+## Handoff to the gift-card workstream: SEAM-G14 is now satisfied by failure
+
+`tests/test_gift_cards_iam_and_table.py::test_the_website_checkout_split_binds_the_charged_amount_and_the_payable_separately`
+carries `xfail(strict=True, reason=SEAM_G14)` and must stay red. It still is — but the reason
+changed, and the next person to clear the marker needs to know that before they flip it.
+
+The payable-modal choke point moved the single `_browser_options` call out of `_bind_and_ready`
+and into `_emit_payable_modal`. That row's MEDIUM-2 half asserts the browser amount and the
+attempt amount are different expressions **within one function**, so with the two calls now in two
+functions its `assert browser` fails and the strict marker is satisfied structurally rather than
+because the seam is closed.
+
+Nothing was lowered: the marker is untouched, and the property is re-pinned by AST over
+`_bind_and_ready`'s arguments in
+`tests/test_graft_money_correctness.py::test_the_browser_amount_and_the_attempt_amount_are_different_expressions`.
+
+**So clearing SEAM-G14 means rescoping that assertion, not flipping the marker.** Walk the call
+graph from `prepare_checkout`, or assert over the `amount_paise` argument at `_bind_and_ready`'s
+`_emit_payable_modal` call site. The same note is written into the test's own docstring, which is
+where that workstream will actually read it.
+
 ## Rollback
 
 Every step is a pointer move or an additive declaration:

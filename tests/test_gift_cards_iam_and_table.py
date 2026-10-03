@@ -646,6 +646,29 @@ def test_every_provisioner_defaults_to_a_dry_run_and_verifies_what_it_wrote():
 def test_the_website_checkout_split_binds_the_charged_amount_and_the_payable_separately():
     """HIGH-1, and the test that catches BOTH obvious wrong resolutions of it.
 
+    ── HANDOFF, 2026-10-03, from the direct-Razorpay graft ───────────────────────────────────
+    READ THIS BEFORE CLEARING THE MARKER. This row's MEDIUM-2 half -- the `_amount_args` scoping
+    below -- no longer matches `website_checkout.py`'s structure, so the marker is currently
+    satisfied BY FAILURE rather than by the seam being open. The marker was NOT touched and the
+    property was NOT dropped.
+
+    What changed: the double-charge fix introduced a single payable-modal choke point,
+    `website_checkout._emit_payable_modal`, which is now the ONLY function that calls
+    `_browser_options`. `payment_attempt.build` is still called from `_bind_and_ready`. The two
+    calls are therefore in two different functions, so `assert browser` -- which requires both in
+    the SAME function -- fails, and `xfail(strict=True)` is satisfied.
+
+    The property itself is re-pinned, by AST, over `_bind_and_ready`'s arguments:
+
+        tests/test_graft_money_correctness.py
+            ::test_the_browser_amount_and_the_attempt_amount_are_different_expressions
+
+    So when this workstream clears SEAM-G14, the fix is to RESCOPE the assertion (walk from
+    `prepare_checkout` across the call graph, or assert over `_emit_payable_modal`'s
+    `amount_paise` argument at the `_bind_and_ready` call site) rather than to flip the marker and
+    expect green. Nothing else in this row changed.
+    ──────────────────────────────────────────────────────────────────────────────────────────
+
     `binding["amountPaise"] == payNowPaise` (or line 434 refuses every capture as a
     `BINDING_MISMATCH`), `attempt["amountPaise"] == quote.total_payable_paise` (or
     `is_fully_settled`'s closure has nothing to close against and a gift-card order reads as settled
