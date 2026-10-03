@@ -384,7 +384,7 @@ export default function FilesPage () {
                                 as="button"
                                 type="button"
                                 label="Collect"
-                                action={ busy ? 'Sending…' : 'Send code' }
+                                action={ busy ? 'Sending…' : 'Send OTP on WhatsApp' }
                                 block
                                 onClick={ handleRequestOtp }
                                 disabled={ busy }
@@ -420,7 +420,7 @@ export default function FilesPage () {
                                 as="button"
                                 type="button"
                                 label="Collect"
-                                action={ busy ? 'Verifying…' : 'Verify' }
+                                action={ busy ? 'Verifying…' : 'Verify WhatsApp OTP' }
                                 block
                                 onClick={ handleSubmitOtp }
                                 disabled={ busy || code.length < 4 }
@@ -566,11 +566,11 @@ export default function FilesPage () {
                 .sf-input{
                   width:100%;box-sizing:border-box;min-height:52px;padding:0 16px;
                   margin:0 0 20px;font-family:inherit;font-size:17px;color:#1a1a1a;
-                  background:#fff;border:1px solid #e5e7eb;border-radius:10px;
+                  background:#fff;border:1px solid #e5e7eb;border-radius:999px;
                   transition:border-color .2s;
                 }
                 .sf-input:focus{outline:none;border-color:#1a3a2a}
-                .sf-input:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
+                .sf-input:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px;box-shadow:0 0 0 3px rgba(209,244,112,.28)}
                 .sf-input:disabled{opacity:.6}
                 /* NO .sf-input-code RULE ANY MORE. The code field had bespoke 22px/600/centred
                    type tracked out at .34em, which made the second stage look like a different
@@ -620,7 +620,7 @@ export default function FilesPage () {
                 /* Status banners. Colour is never the only signal - each carries role
                    alert or status, so a screen reader announces them regardless. */
                 .sf-note{
-                  margin:0 0 20px;padding:14px 16px;border-radius:10px;
+                  margin:0 0 20px;padding:14px 16px;border-radius:999px;
                   font-size:16px;line-height:1.5;
                 }
                 /* NO RED, matching .si-error on /account/sign-in, which the owner had already
