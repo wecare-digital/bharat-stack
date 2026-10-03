@@ -319,8 +319,21 @@ amount block records that and names both files as what a real rollout would have
 | `vayulok-live-mock-1280.png` + `vayulok-final-v3-1280.png` | `26b786de0b44558e2c775d4b46f6778cb0f7fdd3` | identical |
 | `vayulok-live-mock-390.png` + `vayulok-final-v3-390.png` | `ad952433711263b33a19f072068a7073174f2be5` | identical |
 
-Commit 1 (the stack and the separators, pushed separately so the owner could see it immediately)
-was `edb16b84`, at twin hash `4ac8441bc0733e4cb7854bae34ff6b2625dd537a`.
+### Pushed commits on `fix/vayulok-subscribe-inline`
+
+Three commits, in order. All pushed with a plain `git push origin fix/vayulok-subscribe-inline`
+(no `-u`, no force). **No PR opened.** The branch never changed; `stack`, `feat/vayulok-update` and
+`vayulok-preview` were not touched.
+
+| SHA | What |
+| --- | --- |
+| `edb16b84` | The Subscribe/Contribute/Share stack, the panel removal and the shipped separators. Pushed first, on the owner's instruction to land the visible match immediately. Twin hash `4ac8441bc0733e4cb7854bae34ff6b2625dd537a`, harness 804/804. |
+| `6f76f908` | ROLE 5 — the map controls onto the shipped pill. (An intermediate commit captured mid-pass; its content is part of the role audit below.) |
+| **`60708f82`** | **HEAD.** ROLE 6 tabs, the `AUDIT ROLE 1/ROLE 3` assertions, and this note. Twin hash `eb1406ec1b42a6675629a1afec5e740beac1fb6d`, harness **880/880**. |
+
+Final state: `HEAD` == `origin/fix/vayulok-subscribe-inline` == `60708f82`, working tree clean
+apart from an untracked `.agents/tasks/vayulok-design-language-sweep-20261003/` scaffold written by
+the orchestrator, which is deliberately left uncommitted.
 
 Method: edit `vayulok-live-mock.html` only, then
 `cp docs/mocks/vayulok-live-mock.html docs/mocks/vayulok-final-v3.html`, then hash both.
