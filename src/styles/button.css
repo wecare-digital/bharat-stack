@@ -22,14 +22,14 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-weight: 500;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 600;
   line-height: 1;
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
-  border-radius: 13px;
-  transition: all 0.15s ease;
+  border-radius: 999px;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   outline: none;
   box-sizing: border-box;
 }
@@ -52,7 +52,7 @@
 .btn-lg {
   height: 52px;
   padding: 0 24px;
-  font-size: 16px;
+  font-size: 17px;
 }
 
 /* Icon-only buttons (square) */
@@ -82,18 +82,23 @@
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #c5e866;
-  border-color: #0f2a1d;
+  background: #ffffff;
+  border-color: #1a3a2a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 58, 42, 0.12);
 }
 
 .btn-primary:active:not(:disabled) {
-  transform: scale(0.98);
-  background: #b8dc5a;
-  border-color: #0f2a1d;
+  transform: translateY(0);
+  background: #ffffff;
+  border-color: #1a3a2a;
+  box-shadow: none;
 }
 
 .btn-primary:focus-visible {
-  box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.3);
+  outline: 3px solid #1a3a2a;
+  outline-offset: 3px;
+  box-shadow: none;
 }
 
 /* ========================================
@@ -102,13 +107,15 @@
    ======================================== */
 .btn-secondary {
   background: #ffffff;
-  color: rgba(0,0,0,.898);
-  border: 2px solid #e5e7eb;
+  color: #1a3a2a;
+  border: 2px solid #1a3a2a;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: #d1f470;
+  background: #d1f470;
+  border-color: #1a3a2a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 58, 42, 0.12);
 }
 
 .btn-secondary:active:not(:disabled) {
@@ -118,7 +125,9 @@
 }
 
 .btn-secondary:focus-visible {
-  box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.3);
+  outline: 3px solid #1a3a2a;
+  outline-offset: 3px;
+  box-shadow: none;
 }
 
 /* ========================================
@@ -127,13 +136,13 @@
    ======================================== */
 .btn-ghost {
   background: transparent;
-  color: #6b7280;
-  border: 1.5px solid #1a3a2a;
+  color: #1a3a2a;
+  border: 2px solid #1a3a2a;
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: #f3f4f6;
-  color: #374151;
+  background: rgba(209,244,112,.22);
+  color: #1a3a2a;
 }
 
 .btn-ghost:active:not(:disabled) {
@@ -142,7 +151,9 @@
 }
 
 .btn-ghost:focus-visible {
-  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.3);
+  outline: 3px solid #1a3a2a;
+  outline-offset: 3px;
+  box-shadow: none;
 }
 
 /* ========================================
@@ -150,14 +161,15 @@
    Red background, white text — matches test page Delete button
    ======================================== */
 .btn-danger {
-  background: #dc2626;
-  color: #ffffff;
-  border: 2px solid #dc2626;
+  background: #ffffff;
+  color: #991b1b;
+  border: 2px solid #991b1b;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #b91c1c;
-  border-color: #b91c1c;
+  background: #fef2f2;
+  border-color: #991b1b;
+  transform: translateY(-2px);
 }
 
 .btn-danger:active:not(:disabled) {
@@ -167,7 +179,9 @@
 }
 
 .btn-danger:focus-visible {
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.3);
+  outline: 3px solid #991b1b;
+  outline-offset: 3px;
+  box-shadow: none;
 }
 
 /* ========================================
@@ -247,9 +261,9 @@
   }
   
   .btn-lg {
-    height: 48px;
+    height: 52px;
     padding: 0 20px;
-    font-size: 15px;
+    font-size: 17px;
   }
   
   /* Ensure minimum touch target */
@@ -290,4 +304,16 @@
 /* Block button - full width */
 .btn-block {
   width: 100%;
+}
+
+
+/* Home CTA is the canonical site-wide action geometry. */
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+  .btn:hover:not(:disabled),
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
 }

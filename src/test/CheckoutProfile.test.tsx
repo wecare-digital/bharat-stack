@@ -60,7 +60,7 @@ describe( 'CheckoutProfile', () => {
     fireEvent.change( screen.getByLabelText( 'First name' ), { target: { value: 'Asha' } } );
     fireEvent.change( screen.getByLabelText( 'Last name' ), { target: { value: 'Sen' } } );
     fireEvent.change( screen.getByLabelText( 'Email' ), { target: { value: 'asha@example.com' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Send verification code by email' } ) );
 
     await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 1 ) );
     expect( String( fetchMock.mock.calls[ 0 ][ 0 ] ) ).toContain( '/auth/email-verification' );
@@ -68,7 +68,7 @@ describe( 'CheckoutProfile', () => {
     fireEvent.change( await screen.findByLabelText( 'Email verification code' ), {
       target: { value: '123456' },
     } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Verify' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Confirm email code' } ) );
     await screen.findByText( '✓ Email verified' );
 
     // A verified email is not enough on creation: the row cannot be written without an address.
@@ -116,11 +116,11 @@ describe( 'CheckoutProfile', () => {
     fireEvent.change( screen.getByLabelText( 'First name' ), { target: { value: 'Asha' } } );
     fireEvent.change( screen.getByLabelText( 'Last name' ), { target: { value: 'Sen' } } );
     fireEvent.change( screen.getByLabelText( 'Email' ), { target: { value: 'asha@example.com' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Send verification code by email' } ) );
     fireEvent.change( await screen.findByLabelText( 'Email verification code' ), {
       target: { value: '123456' },
     } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Verify' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Confirm email code' } ) );
     await screen.findByText( '✓ Email verified' );
 
     fireEvent.change( screen.getByLabelText( 'Email' ), { target: { value: 'new@example.com' } } );

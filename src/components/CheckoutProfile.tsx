@@ -415,16 +415,16 @@ const CheckoutProfile: React.FC<Props> = ( { accessToken, mode = 'create', initi
                     disabled={ step === 'verifying' }
                   />
                   <button type="button" onClick={ verifyCode } disabled={ step === 'verifying' }>
-                    { step === 'verifying' ? 'Checking…' : 'Verify' }
+                    { step === 'verifying' ? 'Checking…' : 'Confirm email code' }
                   </button>
                   <button type="button" onClick={ sendCode } disabled={ sendDisabled }>
-                    { cooldownSeconds > 0 ? `Resend code ${ cooldownSeconds }s` : 'Resend code' }
+                    { cooldownSeconds > 0 ? `Resend email code ${ cooldownSeconds }s` : 'Resend email code' }
                   </button>
                 </>
               ) : (
                 <button type="button" onClick={ sendCode } disabled={ sendDisabled }>
                   { step === 'sending' ? 'Sending…'
-                    : cooldownSeconds > 0 ? `Send code ${ cooldownSeconds }s` : 'Send code' }
+                    : cooldownSeconds > 0 ? `Send email code ${ cooldownSeconds }s` : 'Send verification code by email' }
                 </button>
               ) }
             </div>
@@ -495,14 +495,14 @@ const CheckoutProfile: React.FC<Props> = ( { accessToken, mode = 'create', initi
         .checkout-profile-grid input:focus-visible{
           outline:3px solid #1a3a2a;outline-offset:2px;border-color:#1a3a2a;
         }
-        .verify-row{display:flex;align-items:center;gap:8px;min-height:34px;flex-wrap:wrap}
+        .verify-row{display:flex;align-items:center;gap:8px;min-height:44px;flex-wrap:wrap}
         .verify-row button{
-          min-height:34px;padding:0 12px;border:1px solid #1a3a2a;border-radius:999px;background:#fff;
+          min-height:44px;padding:0 16px;border:2px solid #1a3a2a;border-radius:999px;background:#d1f470;
           color:#1a3a2a;font:inherit;font-size:12px;font-weight:700;cursor:pointer;
         }
-        .verify-row button:hover:not(:disabled){background:#d1f470}
+        .verify-row button:hover:not(:disabled){background:#fff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
         .verify-row button:disabled{opacity:.55;cursor:default}
-        .verify-row .otp{width:96px;min-height:34px;padding:0 10px;font-size:14px}
+        .verify-row .otp{width:112px;min-height:44px;padding:0 14px;font-size:15px;border-radius:999px}
         .resend-countdown{margin:6px 0 0;font-size:12px;line-height:1.4;color:rgba(0,0,0,.66)}
         .checkout-profile-note,.checkout-profile-status{
           margin:14px 0 0;font-size:14px;line-height:1.5;color:rgba(0,0,0,.66);

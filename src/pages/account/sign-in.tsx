@@ -507,7 +507,7 @@ export default function CustomerSignIn (): React.ReactElement {
                 as="button"
                 type="submit"
                 label="Sign in"
-                action={ busy ? 'Sending…' : 'Send code' }
+                action={ busy ? 'Sending…' : 'Send OTP on WhatsApp' }
                 disabled={ busy }
                 busy={ busy }
                 describedBy={ error ? 'si-error' : undefined }
@@ -557,7 +557,7 @@ export default function CustomerSignIn (): React.ReactElement {
                 as="button"
                 type="submit"
                 label="Sign in"
-                action={ busy ? 'Checking…' : 'Confirm code' }
+                action={ busy ? 'Checking…' : 'Confirm WhatsApp code' }
                 disabled={ busy }
                 busy={ busy }
                 describedBy={ error ? 'si-error' : undefined }
@@ -587,14 +587,14 @@ export default function CustomerSignIn (): React.ReactElement {
           /* 52px, matching the CTA below it, so the field and the button it feeds are the same
              height. 1px #e5e7eb is the static hairline. */
           .si-input{
-            min-height:52px;padding:0 16px;border:1px solid #e5e7eb;border-radius:10px;
+            min-height:52px;padding:0 16px;border:1px solid #e5e7eb;border-radius:999px;
             font-family:inherit;font-size:17px;color:#1a1a1a;background:#fff;margin-bottom:20px;
             box-sizing:border-box;
           }
           /* .si-input now dresses the CODE field only. The WhatsApp number is PhoneField, which owns
              its own outline, radius and height - so the two controls on this page are styled in two
              places on purpose, and the numbers above are the ones PhoneField matches. */
-          .si-input:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
+          .si-input:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px;box-shadow:0 0 0 3px rgba(209,244,112,.28)}
           /* THE CODE FIELD NEEDS THE SAME HEADER CLEARANCE THE NUMBER FIELD HAS, and it needs
              it MORE: the code phase is reached by submitting, which moves focus into this input
              on a page the shopper has usually already scrolled. Without it the browser reveals

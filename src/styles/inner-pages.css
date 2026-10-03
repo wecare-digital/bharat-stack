@@ -2517,3 +2517,63 @@
 .layout .main-content .forms-page {
   min-height: calc(100vh - 60px);
 }
+
+
+/* ========================================
+   PHASE 4 HOME BUTTON NORMALIZATION
+   Home CTA is the visual source of truth for actions.
+   ======================================== */
+.layout .main-content button:not([data-public-ui]),
+.layout .main-content .btn:not([data-public-ui]),
+.layout .inner-content-container button:not([data-public-ui]),
+.layout .inner-content-container .btn:not([data-public-ui]) {
+  border-radius: 999px !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-weight: 600 !important;
+}
+
+.layout .main-content .btn-primary:not([data-public-ui]),
+.layout .main-content button.btn-primary:not([data-public-ui]),
+.layout .inner-content-container .btn-primary:not([data-public-ui]),
+.layout .inner-content-container button.btn-primary:not([data-public-ui]) {
+  background: #d1f470 !important;
+  color: #1a3a2a !important;
+  border: 2px solid #1a3a2a !important;
+}
+
+.layout .main-content .btn-primary:hover:not(:disabled):not([data-public-ui]),
+.layout .main-content button.btn-primary:hover:not(:disabled):not([data-public-ui]),
+.layout .inner-content-container .btn-primary:hover:not(:disabled):not([data-public-ui]) {
+  background: #ffffff !important;
+  border-color: #1a3a2a !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26,58,42,.12) !important;
+}
+
+.layout .main-content .btn-secondary:not([data-public-ui]),
+.layout .main-content .btn-outline:not([data-public-ui]),
+.layout .inner-content-container .btn-secondary:not([data-public-ui]),
+.layout .inner-content-container .btn-outline:not([data-public-ui]) {
+  background: #ffffff !important;
+  color: #1a3a2a !important;
+  border: 2px solid #1a3a2a !important;
+}
+
+.layout .main-content button:focus-visible:not([data-public-ui]),
+.layout .main-content .btn:focus-visible:not([data-public-ui]),
+.layout .inner-content-container button:focus-visible:not([data-public-ui]),
+.layout .inner-content-container .btn:focus-visible:not([data-public-ui]) {
+  outline: 3px solid #1a3a2a !important;
+  outline-offset: 3px !important;
+  box-shadow: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layout .main-content button:not([data-public-ui]),
+  .layout .main-content .btn:not([data-public-ui]),
+  .layout .inner-content-container button:not([data-public-ui]),
+  .layout .inner-content-container .btn:not([data-public-ui]) {
+    transition: none !important;
+    transform: none !important;
+  }
+}

@@ -92,7 +92,7 @@ describe( 'CheckoutProfile address mode', () => {
     expect( saveButton() ).toBeEnabled();
     // No OTP surface at all: there is nothing to verify when only the address is changing.
     expect( screen.queryByLabelText( 'Email' ) ).toBeNull();
-    expect( screen.queryByRole( 'button', { name: 'Send code' } ) ).toBeNull();
+    expect( screen.queryByRole( 'button', { name: 'Send verification code by email' } ) ).toBeNull();
     expect( screen.queryByLabelText( 'Email verification code' ) ).toBeNull();
   } );
 
@@ -202,9 +202,9 @@ describe( 'CheckoutProfile email mode', () => {
     fireEvent.change( screen.getByLabelText( 'Email' ), { target: { value: 'new@example.com' } } );
     expect( saveButton() ).toBeDisabled();
 
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Send verification code by email' } ) );
     fireEvent.change( await screen.findByLabelText( 'Email verification code' ), { target: { value: '123456' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Verify' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Confirm email code' } ) );
     await screen.findByText( '✓ Email verified' );
     expect( saveButton() ).toBeEnabled();
 
@@ -220,7 +220,7 @@ describe( 'CheckoutProfile email mode', () => {
     const fetchMock = stubFetch();
     render( <CheckoutProfile accessToken="fixture-session" mode="email" initial={ INITIAL } onReady={ vi.fn() } /> );
     fireEvent.change( screen.getByLabelText( 'Email' ), { target: { value: 'new@example.com' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Send verification code by email' } ) );
 
     await waitFor( () => expect( fetchMock ).toHaveBeenCalledTimes( 1 ) );
     const request = JSON.parse( ( fetchMock.mock.calls[ 0 ][ 1 ] as any ).body );
@@ -231,9 +231,9 @@ describe( 'CheckoutProfile email mode', () => {
     stubFetch();
     render( <CheckoutProfile accessToken="fixture-session" mode="email" initial={ INITIAL } onReady={ vi.fn() } /> );
     fireEvent.change( screen.getByLabelText( 'Email' ), { target: { value: 'new@example.com' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Send verification code by email' } ) );
     fireEvent.change( await screen.findByLabelText( 'Email verification code' ), { target: { value: '123456' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Verify' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Confirm email code' } ) );
     await screen.findByText( '✓ Email verified' );
 
     fireEvent.change( screen.getByLabelText( 'Email' ), { target: { value: 'third@example.com' } } );

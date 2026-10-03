@@ -301,7 +301,7 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
       .pf{
         display:flex;align-items:stretch;
         min-height:52px;box-sizing:border-box;
-        border:1px solid #e5e7eb;border-radius:10px;background:#fff;
+        border:1px solid #e5e7eb;border-radius:999px;background:#fff;
         margin-bottom:20px;overflow:hidden;
       }
 
@@ -317,14 +317,8 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
         background:#fff;color:#1a1a1a;
         font-family:inherit;font-size:17px;font-weight:600;
         cursor:text;
-        /* LOGICAL CORNERS, 9px = the container's 10px minus its 1px border, so this segment's
-           leading corners sit flush inside the container's and its trailing corners stay square
-           against the divider. Measured reason, not neatness: the inset focus ring follows
-           border-radius, and src/styles/button.css puts a GLOBAL 13px radius on controls, which was
-           measured bleeding onto the number input - a 13px ring corner inside a 10px container.
-           The start/end spellings mirror on their own, so the rounded end follows the code segment
-           when it moves to the right in an RTL document. */
-        border-start-start-radius:9px;border-end-start-radius:9px;
+        /* Match the Home pill silhouette while keeping the divider square internally. */
+        border-start-start-radius:999px;border-end-start-radius:999px;
         border-start-end-radius:0;border-end-end-radius:0;
       }
       /* Search input only: no native country dropdown, no flag, no country name. The segment shows
@@ -355,10 +349,9 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
            silently double their anchor clearance to 256px. Measured both ways; this one
            fixes the field without touching anything else. */
         scroll-margin-top:128px;
-        /* The mirror image of the code segment's corners: square against the divider, 9px on the
-           outside. This is also what overrides the global 13px from button.css. */
+        /* Mirror the Home pill end on the number segment. */
         border-start-start-radius:0;border-end-start-radius:0;
-        border-start-end-radius:9px;border-end-end-radius:9px;
+        border-start-end-radius:999px;border-end-end-radius:999px;
       }
 
       /* INSET RINGS, one per segment. outline-offset:-3px draws the ring inside the segment, so the
@@ -384,7 +377,7 @@ const PhoneField: React.FC<PhoneFieldProps> = ( {
          does not affect layout so the 52px height is untouched. */
       .pf:focus-within{
         border-color:#1a3a2a;
-        box-shadow:0 0 0 3px rgba(209,244,112,.55);
+        box-shadow:0 0 0 3px rgba(209,244,112,.38);
       }
 
       /* VERIFIED. The same lime accent, held permanently, plus the tick. The border goes dark green

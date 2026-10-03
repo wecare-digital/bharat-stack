@@ -70,8 +70,8 @@ const flush = () => act( async () => { await Promise.resolve(); await Promise.re
 const tick = ( ms: number ) => act( async () => { await vi.advanceTimersByTimeAsync( ms ); } );
 
 const emailInput = () => screen.getByLabelText( 'Email' );
-const sendControl = () => screen.getByRole( 'button', { name: /^Send code/ } );
-const resendControl = () => screen.getByRole( 'button', { name: /^Resend code/ } );
+const sendControl = () => screen.getByRole( 'button', { name: /^Send (verification code by email|email code)/ } );
+const resendControl = () => screen.getByRole( 'button', { name: /^Resend email code/ } );
 
 function mount () {
   render( <CheckoutProfile accessToken="fixture-session" mode="email"
@@ -87,7 +87,7 @@ afterEach( () => {
 } );
 
 describe( 'the resend control in the sent arm', () => {
-  it( 'appears beside Verify, disabled, counting down from 60', async () => {
+  it( 'appears beside Confirm, disabled, counting down from 60', async () => {
     vi.useFakeTimers();
     stubRequests( [ { ok: true } ] );
     mount();
@@ -96,9 +96,9 @@ describe( 'the resend control in the sent arm', () => {
     await flush();
 
     expect( screen.getByLabelText( 'Email verification code' ) ).toBeInTheDocument();
-    expect( screen.getByRole( 'button', { name: 'Verify' } ) ).toBeInTheDocument();
+    expect( screen.getByRole( 'button', { name: 'Confirm email code' } ) ).toBeInTheDocument();
     expect( resendControl() ).toBeDisabled();
-    expect( resendControl() ).toHaveTextContent( 'Resend code 60s' );
+    expect( resendControl() ).toHaveTextContent( 'Resend email code 60s' );
     expect( screen.getByText( 'Another code can be requested in 60s.' ) ).toBeInTheDocument();
   } );
 
@@ -110,14 +110,14 @@ describe( 'the resend control in the sent arm', () => {
     await flush();
 
     await tick( 1000 );
-    expect( resendControl() ).toHaveTextContent( 'Resend code 59s' );
+    expect( resendControl() ).toHaveTextContent( 'Resend email code 59s' );
 
     await tick( 17_000 );
-    expect( resendControl() ).toHaveTextContent( 'Resend code 42s' );
+    expect( resendControl() ).toHaveTextContent( 'Resend email code 42s' );
     expect( resendControl() ).toBeDisabled();
 
     await tick( 42_000 );
-    expect( screen.getByRole( 'button', { name: 'Resend code' } ) ).toBeEnabled();
+    expect( screen.getByRole( 'button', { name: 'Resend email code' } ) ).toBeEnabled();
     // The live region empties rather than announcing a stale number.
     expect( screen.queryByText( /Another code can be requested/ ) ).toBeNull();
   } );
@@ -132,12 +132,12 @@ describe( 'the resend control in the sent arm', () => {
     const region = screen.getByText( 'Another code can be requested in 60s.' );
     expect( region ).toHaveAttribute( 'aria-live', 'polite' );
     // WCAG 2.5.3: the accessible name contains the visible label, because it IS the visible text.
-    expect( resendControl() ).toHaveAccessibleName( 'Resend code 60s' );
+    expect( resendControl() ).toHaveAccessibleName( 'Resend email code 60s' );
   } );
 } );
 
 describe( 'the two 429 shapes, which both carry a retry hint', () => {
-  it( 'adopts retryAfterSeconds from RESEND_TOO_SOON and returns to Send code', async () => {
+  it( 'adopts retryAfterSeconds from RESEND_TOO_SOON and returns to Send verification code by email', async () => {
     vi.useFakeTimers();
     stubRequests( [ { ok: false, status: 429, payload: { error: 'RESEND_TOO_SOON', retryAfterSeconds: 25 } } ] );
     mount();
@@ -146,13 +146,13 @@ describe( 'the two 429 shapes, which both carry a retry hint', () => {
     await flush();
 
     expect( screen.getByText( 'Wait 25 seconds before asking for another code.' ) ).toBeInTheDocument();
-    // Back to the Send code control: there is no code coming, so a code box would be a lie.
+    // Back to the Send verification code by email control: there is no code coming, so a code box would be a lie.
     expect( screen.queryByLabelText( 'Email verification code' ) ).toBeNull();
     expect( sendControl() ).toBeDisabled();
-    expect( sendControl() ).toHaveTextContent( 'Send code 25s' );
+    expect( sendControl() ).toHaveTextContent( 'Send email code 25s' );
 
     await tick( 25_000 );
-    expect( screen.getByRole( 'button', { name: 'Send code' } ) ).toBeEnabled();
+    expect( screen.getByRole( 'button', { name: 'Send verification code by email' } ) ).toBeEnabled();
   } );
 
   it( 'adopts retryAfterSeconds from TOO_MANY_REQUESTS when the resend itself is throttled', async () => {
@@ -166,14 +166,14 @@ describe( 'the two 429 shapes, which both carry a retry hint', () => {
     fireEvent.click( sendControl() );
     await flush();
     await tick( 60_000 );
-    expect( screen.getByRole( 'button', { name: 'Resend code' } ) ).toBeEnabled();
+    expect( screen.getByRole( 'button', { name: 'Resend email code' } ) ).toBeEnabled();
 
     fireEvent.click( resendControl() );
     await flush();
 
     expect( screen.getByText( 'Wait 40 seconds before asking for another code.' ) ).toBeInTheDocument();
     expect( sendControl() ).toBeDisabled();
-    expect( sendControl() ).toHaveTextContent( 'Send code 40s' );
+    expect( sendControl() ).toHaveTextContent( 'Send email code 40s' );
   } );
 } );
 
@@ -189,13 +189,13 @@ describe( 'the failures that differ on whether a send was consumed', () => {
     expect( screen.getByText(
       'We could not send the email code. You can ask for another in a moment.' ) ).toBeInTheDocument();
     expect( sendControl() ).toBeDisabled();
-    expect( sendControl() ).toHaveTextContent( 'Send code 60s' );
+    expect( sendControl() ).toHaveTextContent( 'Send email code 60s' );
 
     await tick( 59_000 );
     expect( sendControl() ).toBeDisabled();
 
     await tick( 1_000 );
-    expect( screen.getByRole( 'button', { name: 'Send code' } ) ).toBeEnabled();
+    expect( screen.getByRole( 'button', { name: 'Send verification code by email' } ) ).toBeEnabled();
   } );
 
   it( 'leaves the control immediately available after 503 TEMPORARILY_UNAVAILABLE', async () => {
@@ -208,7 +208,7 @@ describe( 'the failures that differ on whether a send was consumed', () => {
 
     expect( screen.getByText(
       'We could not reach the verification service. Try again.' ) ).toBeInTheDocument();
-    expect( screen.getByRole( 'button', { name: 'Send code' } ) ).toBeEnabled();
+    expect( screen.getByRole( 'button', { name: 'Send verification code by email' } ) ).toBeEnabled();
     expect( screen.queryByText( /Another code can be requested/ ) ).toBeNull();
   } );
 
@@ -222,7 +222,7 @@ describe( 'the failures that differ on whether a send was consumed', () => {
 
     expect( screen.getByText(
       'We could not reach the verification service. Try again.' ) ).toBeInTheDocument();
-    expect( screen.getByRole( 'button', { name: 'Send code' } ) ).toBeEnabled();
+    expect( screen.getByRole( 'button', { name: 'Send verification code by email' } ) ).toBeEnabled();
   } );
 } );
 
@@ -238,7 +238,7 @@ describe( 'RESEND_LIMIT_REACHED, the one failure with no retry hint', () => {
     expect( screen.getByText( 'Too many codes requested. Try again later.' ) ).toBeInTheDocument();
     expect( sendControl() ).toBeDisabled();
     // No countdown, because no number of seconds helps inside the window.
-    expect( sendControl() ).toHaveTextContent( 'Send code' );
+    expect( sendControl() ).toHaveTextContent( 'Send verification code by email' );
     expect( screen.queryByText( /Another code can be requested/ ) ).toBeNull();
 
     // Waiting does not lift it either - only a different address has a different budget.
@@ -258,6 +258,6 @@ describe( 'RESEND_LIMIT_REACHED, the one failure with no retry hint', () => {
     expect( sendControl() ).toBeDisabled();
 
     fireEvent.change( emailInput(), { target: { value: 'another@example.com' } } );
-    expect( screen.getByRole( 'button', { name: 'Send code' } ) ).toBeEnabled();
+    expect( screen.getByRole( 'button', { name: 'Send verification code by email' } ) ).toBeEnabled();
   } );
 } );
