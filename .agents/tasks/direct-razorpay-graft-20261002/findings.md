@@ -623,4 +623,8 @@ c63179a9  test: drive finalization and the split-tender wiring through the handl
 cd096bc5  docs: record iteration 2 in the change-authority matrix
 ```
 
-HEAD = `cd096bc5`. Ten commits, 20 files, every one named in the plan.
+`cd096bc5` is the last **implementation** commit: ten commits, 20 files, every one named in the
+plan, and the tree the APPROVED code review and the §4 counts were measured against. This report
+itself lands on the same branch as one or two subsequent `docs:` commits carrying only
+`.agents/tasks/direct-razorpay-graft-20261002/findings.md`, so branch HEAD is ahead of `cd096bc5`
+by documentation alone. No source, test, IaC or script file changed after `cd096bc5`.
