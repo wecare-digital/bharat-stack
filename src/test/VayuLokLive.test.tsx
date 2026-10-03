@@ -34,7 +34,8 @@ interface MapsRecorder {
   overlayClears: number;
   imageMapTypeOpts: Record<string, unknown>[];
   geocodeCalls: Record<string, unknown>[];
-  textSearchCalls: Record<string, unknown>[];
+  autocompleteCalls: Record<string, unknown>[];
+  placeFetchFields: string[][];
 }
 
 function installGoogleMaps(): MapsRecorder {
@@ -44,7 +45,8 @@ function installGoogleMaps(): MapsRecorder {
     overlayClears: 0,
     imageMapTypeOpts: [],
     geocodeCalls: [],
-    textSearchCalls: [],
+    autocompleteCalls: [],
+    placeFetchFields: [],
   };
 
   const overlayMapTypes = {
@@ -72,10 +74,28 @@ function installGoogleMaps(): MapsRecorder {
   class FakeImageMapType {
     constructor( opts: Record<string, unknown> ) { rec.imageMapTypeOpts.push( opts ); }
   }
-  class FakePlacesService {
-    constructor( _attr: HTMLElement ) { /* no-op */ }
-    textSearch( req: Record<string, unknown> ) { rec.textSearchCalls.push( req ); }
-  }
+  class FakeAutocompleteSessionToken {}
+  const fakePrediction = {
+    mainText: { text: 'Mumbai' },
+    secondaryText: { text: 'Maharashtra, India' },
+    text: { toString: () => 'Mumbai, Maharashtra, India' },
+    toPlace: () => ( {
+      displayName: 'Mumbai',
+      formattedAddress: 'Mumbai, Maharashtra, India',
+      location: { lat: () => 19.076, lng: () => 72.8777 },
+      photos: [],
+      fetchFields: async ( req: { fields: string[] } ) => { rec.placeFetchFields.push( req.fields ); },
+    } ),
+  };
+  const places = {
+    AutocompleteSessionToken: FakeAutocompleteSessionToken,
+    AutocompleteSuggestion: {
+      fetchAutocompleteSuggestions: async ( req: Record<string, unknown> ) => {
+        rec.autocompleteCalls.push( req );
+        return { suggestions: [ { placePrediction: fakePrediction } ] };
+      },
+    },
+  };
 
   ( window as unknown as { google: unknown } ).google = {
     maps: {
@@ -84,10 +104,14 @@ function installGoogleMaps(): MapsRecorder {
       Geocoder: FakeGeocoder,
       ImageMapType: FakeImageMapType,
       LatLng: class { constructor( _a: number, _b: number ) { /* no-op */ } },
-      places: {
-        PlacesService: FakePlacesService,
-        PlacesServiceStatus: { OK: 'OK' },
-      },
+      places,
+      importLibrary: async ( name: string ) => name === 'places'
+        ? places
+        : name === 'maps'
+          ? { Map: FakeMap }
+          : name === 'marker'
+            ? { Marker: FakeMarker }
+            : {},
     },
   };
 
@@ -288,6 +312,7 @@ describe( 'VayuLokLive - map wiring, heatmap on user action, India scoping (key 
     expect( b.west ).toBeLessThan( b.east );
     expect( b.north ).toBeLessThan( 40 );
     expect( b.east ).toBeLessThan( 100 );
+    expect( restriction ).toMatchObject( { strictBounds: true } );
 
     // The default centre sits inside the restriction bounds (so the map opens on India).
     const centre = rec.mapOpts!.center as { lat: number; lng: number };
@@ -296,16 +321,23 @@ describe( 'VayuLokLive - map wiring, heatmap on user action, India scoping (key 
     expect( centre.lng ).toBeGreaterThan( b.west );
     expect( centre.lng ).toBeLessThan( b.east );
 
-    // Search is India-scoped: typing drives a Places textSearch with region 'in', or the Geocoder
-    // fallback with componentRestrictions country 'in'. The PlacesService stub is present, so the
-    // textSearch path runs here.
+    // Search is India-scoped and uses the modern Autocomplete Data API with a
+    // session token, not legacy Text Search on each keystroke.
     const input = screen.getByRole( 'combobox' );
     fireEvent.change( input, { target: { value: 'Mumbai' } } );
-    await waitFor( () => expect( rec.textSearchCalls.length ).toBeGreaterThan( 0 ) );
-    expect( rec.textSearchCalls[ 0 ].region ).toBe( 'in' );
-    const loc = rec.textSearchCalls[ 0 ].locationRestriction as { north: number; south: number };
+    await waitFor( () => expect( rec.autocompleteCalls.length ).toBeGreaterThan( 0 ) );
+    expect( rec.autocompleteCalls[ 0 ].region ).toBe( 'in' );
+    expect( rec.autocompleteCalls[ 0 ].includedRegionCodes ).toEqual( [ 'in' ] );
+    expect( rec.autocompleteCalls[ 0 ].sessionToken ).toBeTruthy();
+    const loc = rec.autocompleteCalls[ 0 ].locationRestriction as { north: number; south: number };
     expect( loc.south ).toBeGreaterThan( 0 );
     expect( loc.north ).toBeLessThan( 40 );
+
+    // Resolving the prediction requests only the fields VayuLok needs.
+    await waitFor( () => expect( screen.getByRole( 'option', { name: /Mumbai/i } ) ).toBeInTheDocument() );
+    fireEvent.mouseDown( screen.getByRole( 'option', { name: /Mumbai/i } ) );
+    await waitFor( () => expect( rec.placeFetchFields.length ).toBeGreaterThan( 0 ) );
+    expect( rec.placeFetchFields[ 0 ] ).toEqual( expect.arrayContaining( [ 'displayName', 'formattedAddress', 'location', 'photos' ] ) );
   } );
 } );
 
