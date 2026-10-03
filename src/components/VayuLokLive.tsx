@@ -743,7 +743,6 @@ const VayuLokLive: React.FC = () => {
         if ( ac.signal.aborted ) return;
         setAir( store.air );
         setWeather( store.weather );
-        setSolar( store.solar );
         setPollen( store.pollen );
       } );
     } )();
@@ -813,8 +812,8 @@ const VayuLokLive: React.FC = () => {
         + '&location.latitude=' + lat + '&location.longitude=' + lng + '&languageCode=en';
       const data = await getJson( url );
       if ( !data || ac.signal.aborted ) return;
-      const rows: WeatherAlertRow[] = ( Array.isArray( data.weatherAlerts ) ? data.weatherAlerts : [] ).slice( 0, 3 ).map( ( a: any ) => ( {
-        id: String( a?.alertId || a?.eventType || Math.random() ),
+      const rows: WeatherAlertRow[] = ( Array.isArray( data.weatherAlerts ) ? data.weatherAlerts : [] ).slice( 0, 3 ).map( ( a: any, i: number ) => ( {
+        id: String( a?.alertId || a?.eventType || 'weather-alert-' + i ),
         title: String( a?.alertTitle?.text || a?.description || a?.eventType || 'Weather alert' ),
         description: typeof a?.description === 'string' ? a.description : undefined,
         area: typeof a?.areaName === 'string' ? a.areaName : undefined,
