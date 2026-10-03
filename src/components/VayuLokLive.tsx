@@ -386,6 +386,8 @@ const VayuLokLive: React.FC = () => {
   const [ historyLoading, setHistoryLoading ] = useState( false );
   const [ weatherHistory, setWeatherHistory ] = useState<WeatherHistoryPoint[]>( [] );
   const [ dataLoading, setDataLoading ] = useState( false );
+  const [ coreError, setCoreError ] = useState( false );
+  const [ refreshNonce, setRefreshNonce ] = useState( 0 );
   const [ coreFetchedAt, setCoreFetchedAt ] = useState<number | null>( null );
   const [ mapCandidate, setMapCandidate ] = useState<PlaceState | null>( null );
   const [ mapCandidateWeather, setMapCandidateWeather ] = useState<WeatherState | null>( null );
@@ -697,12 +699,14 @@ const VayuLokLive: React.FC = () => {
         setWeather( cached.weather );
         setPollen( cached.pollen );
         setCoreFetchedAt( cached.ts );
+        setCoreError( false );
         setDataLoading( false );
       } );
       return;
     }
 
     setDataLoading( true );
+    setCoreError( false );
     setAir( null );
     setWeather( null );
     setPollen( null );
@@ -864,12 +868,13 @@ const VayuLokLive: React.FC = () => {
         setWeather( store.weather );
         setPollen( store.pollen );
         setCoreFetchedAt( fetchedAt );
+        setCoreError( !store.air && !store.weather );
         setDataLoading( false );
       } );
     } )();
 
     return () => ac.abort();
-  }, [ place ] );
+  }, [ place, refreshNonce ] );
 
   /* Extended forecast/history calls are separate from current conditions so a slow
      long-range endpoint never blocks the "Now" experience. */
@@ -1434,6 +1439,13 @@ const VayuLokLive: React.FC = () => {
             { dataLoading && (
               <div className="vl-live-data-skeleton" role="status" aria-label="Loading current conditions">
                 <i /><i /><i /><i />
+              </div>
+            ) }
+
+            { coreError && !dataLoading && (
+              <div className="vl-live-data-error" role="status">
+                <span>Current conditions are temporarily unavailable.</span>
+                <button type="button" onClick={ () => setRefreshNonce( n => n + 1 ) }>Retry</button>
               </div>
             ) }
             <p className="vl-live-place-addr">{ place.addr }</p>
@@ -2051,6 +2063,8 @@ const VayuLokLive: React.FC = () => {
         .vl-live-place{margin:0 0 4px;font-size:20px;font-weight:700;line-height:1.25;letter-spacing:-.4px;color:#1a1a1a}
         .vl-live-place-addr{margin:0 0 28px;max-width:62ch;font-size:15px;font-weight:400;line-height:1.5;letter-spacing:0;color:rgba(0,0,0,.54)}
 
+        .vl-live-data-error{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 24px;padding:14px 16px;border:1px solid #e8c547;border-radius:14px;background:var(--tint-warn);font-size:13px;color:#6e4a18}
+        .vl-live-data-error button{min-height:34px;padding:0 12px;border:1px solid #6e4a18;border-radius:999px;background:#fff;color:#6e4a18;font:inherit;font-weight:700;cursor:pointer}
         .vl-live-data-skeleton{display:grid;gap:9px;margin:0 0 24px;padding:18px;border:1px solid var(--hair);border-radius:14px}
         .vl-live-data-skeleton i{height:12px;border-radius:999px;background:linear-gradient(90deg,#eef1ee,#f7f8f7,#eef1ee);background-size:200% 100%;animation:vl-live-shimmer 1.2s linear infinite}
         .vl-live-data-skeleton i:nth-child(2){width:72%}.vl-live-data-skeleton i:nth-child(3){width:86%}.vl-live-data-skeleton i:nth-child(4){width:58%}
