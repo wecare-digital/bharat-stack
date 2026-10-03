@@ -141,6 +141,7 @@ interface AirState {
   dominant?: string;
   pollutants: { code: string; label: string; value: number; unit: string }[];
   advisory?: string;
+  updatedAt?: string;
 }
 interface WeatherState {
   temp?: number;
@@ -200,6 +201,12 @@ interface WeatherAlertRow {
   severity?: string;
   urgency?: string;
   expires?: string;
+}
+interface WeatherHistoryPoint {
+  time: number;
+  temp?: number;
+  rainProb?: number;
+  condition?: string;
 }
 interface SolarState {
   maxPanels?: number;
@@ -289,6 +296,17 @@ function istTimeLabel(): string {
   return 'IST · ' + new Intl.DateTimeFormat( 'en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' } ).format( new Date() );
 }
 
+function relativeAgeLabel( value?: string | number ): { label: string; stale: boolean } {
+  if ( value === undefined || value === null ) return { label: 'Current', stale: false };
+  const ms = typeof value === 'number' ? value : new Date( value ).getTime();
+  if ( !Number.isFinite( ms ) ) return { label: 'Current', stale: false };
+  const mins = Math.max( 0, Math.floor( ( Date.now() - ms ) / 60_000 ) );
+  if ( mins < 1 ) return { label: 'Updated just now', stale: false };
+  if ( mins < 60 ) return { label: `Updated ${mins} min ago`, stale: mins >= 30 };
+  const hours = Math.floor( mins / 60 );
+  return { label: `Updated ${hours} hr${hours === 1 ? '' : 's'} ago`, stale: true };
+}
+
 function bestOutsideWindow( weatherHours: WeatherHour[], airHours: AirPoint[] ): { label: string; note: string } | null {
   if ( weatherHours.length < 2 ) return null;
   const scored = weatherHours.slice( 0, 24 ).map( ( w, i ) => {
@@ -366,6 +384,12 @@ const VayuLokLive: React.FC = () => {
   const [ airHistory, setAirHistory ] = useState<AirPoint[]>( [] );
   const [ historyRange, setHistoryRange ] = useState<24 | 168 | 720>( 24 );
   const [ historyLoading, setHistoryLoading ] = useState( false );
+  const [ weatherHistory, setWeatherHistory ] = useState<WeatherHistoryPoint[]>( [] );
+  const [ dataLoading, setDataLoading ] = useState( false );
+  const [ coreFetchedAt, setCoreFetchedAt ] = useState<number | null>( null );
+  const [ mapCandidate, setMapCandidate ] = useState<PlaceState | null>( null );
+  const [ mapCandidateWeather, setMapCandidateWeather ] = useState<WeatherState | null>( null );
+  const [ mapCandidateAir, setMapCandidateAir ] = useState<AirState | null>( null );
 
   // Search combobox state.
   const [ query, setQuery ] = useState( '' );
@@ -383,7 +407,7 @@ const VayuLokLive: React.FC = () => {
   const autocompleteTokenRef = useRef<unknown>( null );
   const geocoder = useRef<unknown>( null );
   // Cache the last fetched values per "lat,lng" so re-selecting a place bills nothing.
-  const cache = useRef<Record<string, { air: AirState | null; weather: WeatherState | null; pollen: PollenRow[] | null }>>( {} );
+  const cache = useRef<Record<string, { ts: number; air: AirState | null; weather: WeatherState | null; pollen: PollenRow[] | null }>>( {} );
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>( null );
 
   useEffect( () => {
@@ -398,6 +422,9 @@ const VayuLokLive: React.FC = () => {
     setSolarRequested( false );
     setSolarLoading( false );
     setPhotoIndex( 0 );
+    setMapCandidate( null );
+    setMapCandidateWeather( null );
+    setMapCandidateAir( null );
   }, [ place.lat, place.lng ] );
 
   useEffect( () => {
@@ -506,7 +533,7 @@ const VayuLokLive: React.FC = () => {
         cameraControl: false,
         keyboardShortcuts: false,
         clickableIcons: false,
-        restriction: { latLngBounds: INDIA_BOUNDS, strictBounds: false },
+        restriction: { latLngBounds: INDIA_BOUNDS, strictBounds: true },
         styles: MAP_STYLES,
       } );
       mapRef.current = map;
@@ -532,7 +559,7 @@ const VayuLokLive: React.FC = () => {
         const gc = geocoder.current as {
           geocode?: ( req: Record<string, unknown>, cb: ( rows: unknown[] | null, status: string ) => void ) => void;
         } | null;
-        gc?.geocode?.( { location: { lat, lng }, region: 'in' }, ( rows, status ) => {
+        gc?.geocode?.( { location: { lat, lng }, region: 'in' }, async ( rows, status ) => {
           if ( status !== 'OK' || !Array.isArray( rows ) || !rows.length ) return;
           const first = rows[ 0 ] as { formatted_address?: string };
           const next: PlaceState = {
@@ -540,11 +567,55 @@ const VayuLokLive: React.FC = () => {
             addr: first.formatted_address || '',
             lat,
             lng,
-            photoUrls: [],
+            photos: [],
           };
-          rememberPlace( next );
-          setPlace( next );
-          setQuery( next.name );
+          setMapCandidate( next );
+          setMapCandidateWeather( null );
+          setMapCandidateAir( null );
+
+          const weatherPromise = fetch(
+            `https://weather.googleapis.com/v1/currentConditions:lookup?key=${encodeURIComponent( MAPS_KEY )}&location.latitude=${lat}&location.longitude=${lng}&unitsSystem=METRIC`,
+          ).then( async res => {
+            if ( !res.ok ) return null;
+            const d = await res.json();
+            const out: WeatherState = {};
+            const temp = n( d?.temperature?.degrees );
+            if ( Number.isFinite( temp ) ) out.temp = Math.round( temp );
+            if ( typeof d?.weatherCondition?.description?.text === 'string' ) out.condition = d.weatherCondition.description.text;
+            if ( typeof d?.currentTime === 'string' ) out.currentTime = d.currentTime;
+            return Object.keys( out ).length ? out : null;
+          } ).catch( () => null );
+
+          const airPromise = fetch(
+            `https://airquality.googleapis.com/v1/currentConditions:lookup?key=${encodeURIComponent( MAPS_KEY )}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify( {
+                location: { latitude: lat, longitude: lng },
+                extraComputations: [ 'POLLUTANT_CONCENTRATION', 'LOCAL_AQI' ],
+                languageCode: 'en',
+                universalAqi: true,
+              } ),
+            },
+          ).then( async res => {
+            if ( !res.ok ) return null;
+            const d = await res.json();
+            const indexes = Array.isArray( d?.indexes ) ? d.indexes : [];
+            const idx = indexes.find( ( i: any ) => i?.code === 'ind_cpcb' ) || indexes.find( ( i: any ) => i?.code === 'uaqi' ) || indexes[ 0 ];
+            if ( !Number.isFinite( idx?.aqi ) ) return null;
+            const cat = aqiCategory( idx.aqi );
+            const pollutants: AirState['pollutants'] = [];
+            ( Array.isArray( d?.pollutants ) ? d.pollutants : [] ).forEach( ( p: any ) => {
+              if ( p?.code !== 'pm25' || !Number.isFinite( p?.concentration?.value ) ) return;
+              pollutants.push( { code: 'pm25', label: 'PM2.5', value: p.concentration.value, unit: concUnitLabel( p.concentration?.units ) } );
+            } );
+            return { aqi: idx.aqi, word: cat.word, sev: cat.sev, pollutants, updatedAt: d?.dateTime } as AirState;
+          } ).catch( () => null );
+
+          const [ previewWeather, previewAir ] = await Promise.all( [ weatherPromise, airPromise ] );
+          setMapCandidateWeather( previewWeather );
+          setMapCandidateAir( previewAir );
         } );
       } );
 
