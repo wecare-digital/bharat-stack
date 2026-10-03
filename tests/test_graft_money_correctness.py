@@ -1454,3 +1454,318 @@ def test_the_browser_amount_and_the_attempt_amount_are_different_expressions():
         f"the browser amount comes from {sorted(emitted)} rather than from the pay-now leg")
     assert all("full_amount" in argument for argument in built), (
         f"the attempt records {sorted(built)} rather than the full payable")
+
+
+# ══ the protect-what-must-not-regress set ══════════════════════════════════════
+#
+# These bind the whole change rather than one graft. Every one of them is an assertion about a
+# property that a future edit could remove without failing any other test.
+
+#: Every Python file this build modifies. Enumerated rather than globbed, so adding a file to the
+#: change means adding it here and having the gates below apply to it.
+TOUCHED_PYTHON = (
+    "amplify/functions/shared/lambda_utils/ecommerce/order_keys.py",
+    "amplify/functions/shared/lambda_utils/ecommerce/checkout_pricing.py",
+    "amplify/functions/shared/lambda_utils/ecommerce/wix_writeback.py",
+    "amplify/functions/shared/lambda_utils/ecommerce/purchase_intent.py",
+    "amplify/functions/shared/lambda_utils/ecommerce/website_checkout.py",
+    "amplify/functions/shared/lambda_utils/ecommerce/finalization.py",
+    "amplify/functions/ecommerce/checkout/handler.py",
+)
+
+
+def _touched_trees():
+    for relative in TOUCHED_PYTHON:
+        path = ROOT / relative
+        yield relative, ast.parse(path.read_text(encoding="utf-8"))
+
+
+def test_no_raw_captured_comparison_is_introduced():
+    """The payment vocabulary gate, extended to the files this build touches.
+
+    `tests/test_payment_vocabulary_at_decision_points.py` bans the raw literal `captured` at every
+    decision point it knows about -- and its `CONSULTING_FILES` and `RAW_SCAN_ONLY_FILES` cover
+    NONE of the files here, so keeping that suite green is necessary and not sufficient.
+
+    AST, not text: the comments explaining the rule necessarily contain the forbidden literal, so
+    a text scan makes the explanation indistinguishable from the offence.
+    """
+    offenders = []
+    for relative, tree in _touched_trees():
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Compare):
+                continue
+            for operator, comparator in zip(node.ops, node.comparators):
+                if not isinstance(operator, (ast.Eq, ast.NotEq)):
+                    continue
+                for side in (node.left, comparator):
+                    if isinstance(side, ast.Constant) and side.value == "captured":
+                        offenders.append(f"{relative}:{node.lineno}")
+    assert offenders == [], (
+        f"a raw 'captured' comparison was introduced at {offenders}; `captured` belongs "
+        f"exclusively to the payment vocabulary, and `== 'captured'` is the comparison that "
+        f"silently misses `paid`")
+
+
+def test_the_vocabulary_gate_itself_is_unchanged():
+    """A dependency marker: the module-level contract this build must not have moved."""
+    spec = importlib.util.spec_from_file_location(
+        "payment_vocabulary_gate", ROOT / "tests/test_payment_vocabulary_at_decision_points.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module.FORBIDDEN_RAW == {"captured"}, (
+        "banning `paid` too would fail on the CORRECT invoice-lifecycle comparisons; banning "
+        "only `captured` catches the dangerous direction")
+
+
+def test_no_pii_appears_in_any_log_expression():
+    """An AST assertion rather than a review habit.
+
+    Reducing a sensitive value to a bool or a ternary does not launder it -- CodeQL's
+    `py/clear-text-logging-sensitive-data` failed this repo's build twice on exactly that shape --
+    so the test is "no logging expression REFERENCES the name", not "no value reaches the output".
+    """
+    sensitive = ("email", "address", "pin", "phone", "prefill", "customer_name",
+                 "addressLine", "postalCode")
+    offenders = []
+    for relative, tree in _touched_trees():
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if not (isinstance(func, ast.Attribute)
+                    and isinstance(func.value, ast.Name)
+                    and func.value.id == "logger"):
+                continue
+            rendered = " ".join(ast.unparse(argument) for argument in node.args)
+            rendered += " " + " ".join(ast.unparse(k.value) for k in node.keywords)
+            for name in sensitive:
+                if name in rendered:
+                    offenders.append(f"{relative}:{node.lineno} mentions {name!r}")
+    assert offenders == [], f"a logging expression references PII: {offenders}"
+
+
+def test_every_logged_exception_is_logged_by_type_name():
+    """`type(exc).__name__` only. An exception's text can echo request content."""
+    offenders = []
+    for relative, tree in _touched_trees():
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if not (isinstance(func, ast.Attribute)
+                    and isinstance(func.value, ast.Name)
+                    and func.value.id == "logger"):
+                continue
+            rendered = ast.unparse(node)
+            # The bound names this build uses for a caught exception.
+            for bound in ("error", "exc", "lookup_error", "raised"):
+                bare = f"({bound})" in rendered or f" {bound}," in rendered \
+                    or f"{{{bound}}}" in rendered or f"%s\" % {bound}" in rendered
+                typed = f"type({bound}).__name__" in rendered
+                if bare and not typed:
+                    offenders.append(f"{relative}:{node.lineno} logs {bound} directly")
+    assert offenders == [], f"an exception is logged by value rather than by type: {offenders}"
+
+
+def test_no_changed_file_reads_a_secret_value():
+    """`get-secret-value` in any spelling, and `key_secret` anywhere, are both refusals.
+
+    Only the PUBLIC key id is publishable, and it is read lazily at request time from
+    `wecare/razorpay/api` by `integrations/razorpay_orders.py`, which this build does not touch.
+    """
+    for relative in TOUCHED_PYTHON:
+        source = (ROOT / relative).read_text(encoding="utf-8")
+        for forbidden in ("get-secret-value", "batch-get-secret-value", "key_secret"):
+            assert forbidden not in source, f"{relative} mentions {forbidden!r}"
+
+
+def test_an_unsigned_webhook_body_is_still_401():
+    """The standing test of the property, as opposed to a byte-identity check.
+
+    A byte-identity assertion over `amplify/functions/payments/` would be a permanent false alarm
+    on the first unrelated change there, so it stays a per-commit review command
+    (`git diff --numstat <merge-base>..HEAD -- amplify/functions/payments/` must be empty) and
+    the PROPERTY is tested here.
+    """
+    handler_path = ROOT / "amplify/functions/payments/razorpay-webhook/handler.py"
+    spec = importlib.util.spec_from_file_location("razorpay_webhook_under_test", handler_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    response = module.handler(
+        {"headers": {}, "body": json.dumps({"event": "payment.captured"}),
+         "requestContext": {"http": {"method": "POST"}}}, None)
+    assert int(response["statusCode"]) == 401, (
+        "an unsigned webhook body must be refused; HMAC verification is the only thing standing "
+        "between a forged capture and an order")
+
+
+def test_website_prepare_makes_no_lambda_invoke(rig):
+    """The readiness severance, pinned by behaviour rather than by a code change.
+
+    Measured: `_website_prepare` never calls `_readiness()`, so the website leg has no dependency
+    on the retired `/wa-business/payment-config/raw` Meta readback. `_create` and `_readiness()`
+    are deliberately left alone -- the in-WhatsApp path is retained -- so the severance is a TEST,
+    and this is it. The rig's `_lambda_client` raises on any call.
+    """
+    r = rig()
+    code, body = r.prepare("K1")
+    assert code == 200 and body["status"] == "CHECKOUT_OPTIONS_READY", body
+
+
+def test_the_constants_match_the_modules_they_mirror():
+    """Every literal that mirrors another module's constant, pinned pair by pair.
+
+    Each of these is a cross-module literal rather than an import, and each has a reason: an
+    import cycle between sibling `ecommerce` modules, or the handler's import-closure assertion.
+    A divergence in any of them produces NO error -- only a silently disabled check.
+    """
+    from lambda_utils.ecommerce import gift_card_settlement
+    from lambda_utils.integrations import razorpay_orders
+
+    # The one whose divergence silently DISABLES accept_paid's reduced-payload refusal.
+    assert (website_checkout._WIX_PAYLOAD_REDUCED_FLAG
+            == wix_writeback.PAYLOAD_REDUCED_FLAG)
+    # The verified-capture attribute, declared as an obligation by the gift-card ladder and
+    # written only by finalization.
+    from lambda_utils.ecommerce import finalization
+    assert (finalization.VERIFIED_CAPTURED_PAISE_ATTR
+            == gift_card_settlement.RAZORPAY_VERIFIED_PAISE_ATTR)
+    # Both tender legs, and the Wix-native one asserted against the literal `_bind_and_ready`
+    # actually writes -- read out of the module source, so a rename is caught.
+    assert gift_card_settlement.REDEEMED_PAISE_ATTR in finalization.OTHER_TENDER_PAISE_ATTRS
+    assert "wixGiftCardRedeemPaise" in finalization.OTHER_TENDER_PAISE_ATTRS
+    binder_source = WEBSITE_CHECKOUT_SOURCE.read_text(encoding="utf-8")
+    assert '"wixGiftCardRedeemPaise"' in binder_source, (
+        "the website producer no longer writes the attribute finalization reconciles against")
+    # The checkout mode the finalizer accepts.
+    assert website_checkout.CHECKOUT_MODE_WEBSITE in finalization.ACCEPTED_CHECKOUT_MODES
+    assert "WIX_HEADLESS" in finalization.ACCEPTED_CHECKOUT_MODES
+    # The receipt length both sides slice/compare on. A divergence produces no error, only a
+    # correlation that silently stops matching.
+    assert (order_keys.RAZORPAY_RECEIPT_MAX_LENGTH
+            == razorpay_orders.RECEIPT_MAX_LENGTH)
+    # The create horizon, shared by the request-key claim and the basket claim.
+    assert (website_checkout.CREATE_CLAIM_STALE_SECONDS
+            == order_keys.CART_CREATE_CLAIM_STALE_SECONDS)
+
+
+def test_the_promoted_helpers_are_public_with_no_underscore_aliases():
+    """`finalization` exposes them because the handler asks the same questions.
+
+    No `_`-prefixed alias is kept, deliberately: on this tree there is no caller of the private
+    names, so an alias would preserve a compatibility surface with zero consumers -- and reaching
+    across modules for a `_`-prefixed function is how two readings of one question start to drift.
+    """
+    from lambda_utils.ecommerce import finalization
+    for name in ("integer_paise", "other_tender_paise", "wix_cart_id", "record_paid",
+                 "accept_paid"):
+        assert hasattr(finalization, name), name
+    for alias in ("_integer_paise", "_wix_cart_id", "_other_tender_paise"):
+        assert not hasattr(finalization, alias), (
+            f"{alias} preserves a private surface with no consumer on this tree")
+
+
+# ══ the stubbed full-flow exercise — no real charge, no real SDK, no deploy ═════
+
+def test_the_stubbed_browser_flow_yields_one_order(rig, monkeypatch):
+    """cart -> profile -> address+method -> prepare -> modal -> verify-callback -> ONE order.
+
+    The Razorpay SDK is not involved at all: `create_order`, `verify_checkout_signature` and the
+    authenticated capture readback are stubbed, so no provider call and no charge is possible.
+    `initiation_enabled` is injected as a module attribute rather than set in the environment --
+    `CHECKOUT_INITIATION_ENABLED` stays absent, so this is not a flag enable.
+
+    The modal payload is asserted as an ALLOW-LIST, so a new field cannot leak by omission.
+    """
+    r = rig()
+    code, body = r.prepare("K_flow")
+    assert code == 200 and body["status"] == "CHECKOUT_OPTIONS_READY", body
+
+    options = body["options"]
+    # 1. EXACTLY these keys. An allow-list, never a deny-list.
+    assert set(options) == {"keyId", "orderId", "amountPaise", "currency", "prefill",
+                            "paymentAttemptId"}
+    # 2. Integer paise, and no float anywhere in the payload.
+    assert isinstance(options["amountPaise"], int)
+    assert not isinstance(options["amountPaise"], bool)
+
+    def _no_floats(value, path="options"):
+        if isinstance(value, bool):
+            return
+        if isinstance(value, float):
+            raise AssertionError(f"a float reached the browser payload at {path}")
+        if isinstance(value, dict):
+            for key, inner in value.items():
+                _no_floats(inner, f"{path}.{key}")
+        elif isinstance(value, list):
+            for index, inner in enumerate(value):
+                _no_floats(inner, f"{path}[{index}]")
+
+    _no_floats(options)
+    # 3. INR, compared explicitly and never inferred from the amount.
+    assert options["currency"] == "INR"
+    # 4. The PUBLIC key id, and nothing else from the credential.
+    assert options["keyId"] == FIXTURE_PUBLIC_KEY_ID
+    rendered = json.dumps(body)
+    assert FIXTURE_SECRET_SENTINEL not in rendered
+    assert "key_secret" not in rendered
+    assert "keySecret" not in rendered
+    # 5. The amount is the CALCULATOR total, not the raw Wix collection.
+    expected = cp.compute_quote(V2_COLLECTION_PAISE).total_payable_paise
+    assert options["amountPaise"] == expected
+    assert options["amountPaise"] != V2_COLLECTION_PAISE
+
+    # ── the verify leg, with the signature and the capture readback both stubbed ──
+    gateway_order_id = options["orderId"]
+    monkeypatch.setattr(r.h.razorpay_orders, "verify_checkout_signature",
+                        lambda **kwargs: True)
+    monkeypatch.setattr(
+        r.h.razorpay_verify, "verifier_for_event",
+        lambda **kwargs: (lambda reference: (True, "pay_flow_1", expected, "INR")))
+
+    code_v, body_v = r.verify(order_id=gateway_order_id, payment_id="pay_flow_1")
+    assert code_v == 200, body_v
+    assert body_v["status"] == "VERIFIED_PAID"
+
+    # Exactly ONE of everything that represents an order.
+    orders = r.db.rows(ORDERS_TABLE)
+    assert len(orders) == 1, f"expected one order record, got {len(orders)}"
+    assert r.db.count_prefix(order_keys.ORDER_NUMBER_PREFIX) == 1
+    numbers = {str(row.get("orderNumber") or "") for row in orders
+               if row.get("orderNumber")}
+    assert len(numbers) == 1
+    assert order_keys.is_current_public_order_number(next(iter(numbers)))
+    attempt = r.db.rows(ATTEMPTS_TABLE)[0]
+    assert attempt["status"] == payment_attempt.PAYMENT_PAID
+    assert attempt[finalization_module().VERIFIED_CAPTURED_PAISE_ATTR] == expected
+    assert attempt["providerPaymentId"] == "pay_flow_1"
+    # ...and no second order on a redelivered verify.
+    code_again, _ = r.verify(order_id=gateway_order_id, payment_id="pay_flow_1")
+    assert code_again == 200
+    assert len(r.db.rows(ORDERS_TABLE)) == 1, "a replayed verify must converge on one order"
+    assert r.db.count_prefix(order_keys.ORDER_NUMBER_PREFIX) == 1
+
+
+def finalization_module():
+    from lambda_utils.ecommerce import finalization
+    return finalization
+
+
+def test_no_response_or_log_can_carry_the_key_secret(rig, caplog):
+    """The secret half must appear in no response body and in no captured log record."""
+    import logging
+    r = rig()
+    with caplog.at_level(logging.DEBUG):
+        _code, body = r.prepare("K_secret")
+    rendered = json.dumps(body)
+    for forbidden in (FIXTURE_SECRET_SENTINEL, "key_secret", "keySecret"):
+        assert forbidden not in rendered
+        for record in caplog.records:
+            assert forbidden not in record.getMessage()
+    # And no PII beyond the prefill the owner approved reaches a log line.
+    for record in caplog.records:
+        message = record.getMessage()
+        assert "asha@example.com" not in message
+        assert PHONE not in message
+        assert "Asha Sen" not in message
