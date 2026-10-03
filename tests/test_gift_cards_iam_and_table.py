@@ -132,36 +132,10 @@ def _docstring_ids(tree: ast.Module) -> set:
 
 
 def _checkout_policy() -> dict:
-    """`provision_checkout.py`'s inline policy document, evaluated without calling AWS.
-
-    The same idiom `tests/test_provision_checkout_contract.py` uses: the literal interpolates the
-    region, the account and a handful of constants, so it is evaluated against a namespace holding
-    exactly those - plus the two table constants the two seams would add, defaulted so this works
-    before and after either lands.
-    """
-    source = CHECKOUT_SCRIPT.read_text(encoding="utf-8")
-    body = source.split("least_privilege = ")[1].split("\n    iam().put_role_policy")[0]
+    """Current checkout inline policy, from the provisioner's single policy builder."""
     checkout = _load(CHECKOUT_SCRIPT, "provision_checkout")
-    namespace = {
-        "REGION": checkout.REGION, "acct": ACCOUNT,
-        "WIX_API_KEY_SECRET": checkout.WIX_API_KEY_SECRET,
-        "PAYMENT_ATTEMPTS_TABLE": checkout.PAYMENT_ATTEMPTS_TABLE,
-        "COMMERCE_KEYS_TABLE": checkout.COMMERCE_KEYS_TABLE,
-        "SENDER_FUNCTION": checkout.SENDER_FUNCTION,
-        "LIVE_ALIAS": checkout.LIVE_ALIAS,
-        "COUPONS_TABLE": getattr(checkout, "COUPONS_TABLE",
-                                 "stack-wecare-digital-CouponsTable"),
-        "GIFT_CARDS_TABLE": getattr(checkout, "GIFT_CARDS_TABLE",
-                                    "stack-wecare-digital-GiftCardsTable"),
-        "RAZORPAY_API_SECRET": getattr(checkout, "RAZORPAY_API_SECRET",
-                                       "wecare/razorpay/api"),
-        "ORDERS_TABLE": getattr(checkout, "ORDERS_TABLE",
-                                "stack-wecare-digital-OrderTable"),
-        "CONTACTS_TABLE": getattr(checkout, "CONTACTS_TABLE",
-                                  "stack-wecare-digital-ContactsTable"),
-    }
     try:
-        return eval(body, {"__builtins__": {}}, namespace)  # noqa: S307 - our own source
+        return checkout.expected_role_policy("775261844268")
     finally:
         sys.modules.pop("provision_checkout", None)
 
@@ -361,24 +335,11 @@ def test_no_wildcard_was_added_to_the_shared_lambda_role(roles):
 
 # ── 107 / 107a: SEAM-G9, landed ───────────────────────────────────────────────
 
-def test_the_checkout_role_gains_only_the_gift_cards_table():
-    """`wecare-checkout-role` is a PER-FUNCTION role, not the shared fleet role, which is why
-    extending it additively is compatible with section 10.1's objection to widening a shared role.
-
-    The hold is taken and the redemption performed inside the checkout and finalization paths, not
-    inside `wecare-gift-cards`, so without this statement neither can write at all.
-    """
+def test_checkout_role_does_not_gain_the_custom_gift_cards_table():
+    """Website gift cards are Wix-native; checkout must not depend on the superseded custom store."""
     policy = _checkout_policy()
-    statements = [s for s in policy["Statement"]
-                  if any(GIFT_CARDS_TABLE_ARN in r for r in s.get("Resource", []))]
-    assert statements, "no statement names the gift-cards table"
-    for statement in statements:
-        actions = set(statement["Action"])
-        assert actions == {"dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
-                           "dynamodb:DeleteItem"}
-        assert "dynamodb:Scan" not in actions
-        for resource in statement["Resource"]:
-            assert not resource.endswith("*"), f"{resource} is a wildcard over the tables"
+    resources = [r for s in policy["Statement"] for r in s.get("Resource", [])]
+    assert GIFT_CARDS_TABLE_ARN not in resources
 
 
 def test_the_gift_card_grant_and_its_simulation_cannot_drift_apart():
