@@ -115,7 +115,57 @@ interface WeatherState {
   windSpeed?: number;
   windUnit?: string;
   windDir?: string;
+  windGust?: number;
+  rainMm?: number;
+  rainProb?: number;
+  stormProb?: number;
+  uv?: number;
+  visibilityKm?: number;
+  pressureHpa?: number;
+  dewPoint?: number;
+  heatIndex?: number;
+  wetBulb?: number;
+  cloudCover?: number;
   condition?: string;
+  currentTime?: string;
+}
+interface WeatherHour {
+  time: number;
+  temp?: number;
+  feelsLike?: number;
+  rainProb?: number;
+  rainMm?: number;
+  stormProb?: number;
+  uv?: number;
+  condition?: string;
+  icon?: string;
+}
+interface WeatherDay {
+  time: number;
+  label: string;
+  dateLabel: string;
+  min?: number;
+  max?: number;
+  rainProb?: number;
+  condition?: string;
+  icon?: string;
+  sunrise?: string;
+  sunset?: string;
+}
+interface AirPoint {
+  time: number;
+  aqi: number;
+  word: string;
+  pm25?: number;
+}
+interface WeatherAlertRow {
+  id: string;
+  title: string;
+  description?: string;
+  area?: string;
+  severity?: string;
+  urgency?: string;
+  expires?: string;
 }
 interface SolarState {
   maxPanels?: number;
@@ -123,7 +173,7 @@ interface SolarState {
   yearlyKwh?: number;
   sunshineHrs?: number;
 }
-interface PollenRow { label: string; index: number; word: string; }
+interface PollenRow { label: string; index: number; word: string; day: string; }
 
 const COMPASS = [ 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW' ];
 function windDirection( deg: number ): string {
@@ -154,6 +204,87 @@ function windUnitLabel( unit?: string ): string {
   }
 }
 
+function n( value: unknown ): number {
+  const out = Number( value );
+  return Number.isFinite( out ) ? out : NaN;
+}
+
+function weatherHourFromApi( row: Record<string, any> ): WeatherHour | null {
+  const time = new Date( row?.interval?.startTime || row?.dateTime || 0 ).getTime();
+  if ( !Number.isFinite( time ) ) return null;
+  const out: WeatherHour = { time };
+  const temp = n( row?.temperature?.degrees );
+  const feels = n( row?.feelsLikeTemperature?.degrees );
+  const rain = n( row?.precipitation?.probability?.percent );
+  const rainMm = n( row?.precipitation?.qpf?.quantity );
+  const storm = n( row?.thunderstormProbability );
+  const uv = n( row?.uvIndex );
+  if ( Number.isFinite( temp ) ) out.temp = Math.round( temp );
+  if ( Number.isFinite( feels ) ) out.feelsLike = Math.round( feels );
+  if ( Number.isFinite( rain ) ) out.rainProb = Math.round( rain );
+  if ( Number.isFinite( rainMm ) ) out.rainMm = rainMm;
+  if ( Number.isFinite( storm ) ) out.stormProb = Math.round( storm );
+  if ( Number.isFinite( uv ) ) out.uv = Math.round( uv );
+  if ( typeof row?.weatherCondition?.description?.text === 'string' ) out.condition = row.weatherCondition.description.text;
+  if ( typeof row?.weatherCondition?.iconBaseUri === 'string' ) out.icon = row.weatherCondition.iconBaseUri;
+  return out;
+}
+
+function airPointFromApi( row: Record<string, any> ): AirPoint | null {
+  const time = new Date( row?.dateTime || row?.period?.startTime || row?.interval?.startTime || 0 ).getTime();
+  if ( !Number.isFinite( time ) ) return null;
+  const indexes = Array.isArray( row?.indexes ) ? row.indexes : [];
+  const idx = indexes.find( ( i: any ) => i?.code === 'ind_cpcb' ) || indexes.find( ( i: any ) => i?.code === 'uaqi' ) || indexes[ 0 ];
+  const aqi = n( idx?.aqi );
+  if ( !Number.isFinite( aqi ) ) return null;
+  const pm = ( Array.isArray( row?.pollutants ) ? row.pollutants : [] ).find( ( p: any ) => p?.code === 'pm25' );
+  const pm25 = n( pm?.concentration?.value );
+  return {
+    time,
+    aqi: Math.round( aqi ),
+    word: typeof idx?.category === 'string' ? idx.category : aqiCategory( aqi ).word,
+    ...( Number.isFinite( pm25 ) ? { pm25 } : {} ),
+  };
+}
+
+function hourLabel( ms: number ): string {
+  return new Intl.DateTimeFormat( 'en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric' } ).format( new Date( ms ) );
+}
+
+function istTimeLabel(): string {
+  return new Intl.DateTimeFormat( 'en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' } ).format( new Date() ) + ' IST';
+}
+
+function bestOutsideWindow( weatherHours: WeatherHour[], airHours: AirPoint[] ): { label: string; note: string } | null {
+  if ( weatherHours.length < 2 ) return null;
+  const scored = weatherHours.slice( 0, 24 ).map( ( w, i ) => {
+    const a = airHours.find( p => Math.abs( p.time - w.time ) < 45 * 60 * 1000 ) || airHours[ i ];
+    let score = 100;
+    if ( Number.isFinite( w.rainProb ) ) score -= ( w.rainProb as number ) * .45;
+    if ( Number.isFinite( w.stormProb ) ) score -= ( w.stormProb as number ) * .65;
+    if ( Number.isFinite( w.uv ) && ( w.uv as number ) > 5 ) score -= ( ( w.uv as number ) - 5 ) * 5;
+    if ( Number.isFinite( w.temp ) ) {
+      if ( ( w.temp as number ) > 34 ) score -= ( ( w.temp as number ) - 34 ) * 5;
+      if ( ( w.temp as number ) < 15 ) score -= ( 15 - ( w.temp as number ) ) * 2;
+    }
+    if ( a && Number.isFinite( a.aqi ) && a.aqi > 50 ) score -= ( a.aqi - 50 ) * .22;
+    return { w, a, score };
+  } );
+  let best: { start: typeof scored[number]; end: typeof scored[number]; score: number } | null = null;
+  for ( let i = 0; i < scored.length - 1; i++ ) {
+    const pairScore = ( scored[ i ].score + scored[ i + 1 ].score ) / 2;
+    if ( !best || pairScore > best.score ) best = { start: scored[ i ], end: scored[ i + 1 ], score: pairScore };
+  }
+  if ( !best ) return null;
+  const end = new Date( best.end.w.time + 60 * 60 * 1000 ).getTime();
+  const notes: string[] = [];
+  if ( Number.isFinite( best.start.w.temp ) ) notes.push( String( best.start.w.temp ) + '°C' );
+  if ( Number.isFinite( best.start.w.rainProb ) ) notes.push( String( best.start.w.rainProb ) + '% rain' );
+  if ( best.start.a ) notes.push( 'AQI ' + String( best.start.a.aqi ) );
+  if ( Number.isFinite( best.start.w.uv ) ) notes.push( 'UV ' + String( best.start.w.uv ) );
+  return { label: hourLabel( best.start.w.time ) + '–' + hourLabel( end ), note: notes.join( ' · ' ) || 'Best upcoming outdoor window' };
+}
+
 const VayuLokLive: React.FC = () => {
   // The selected place drives every fetch. Default is Connaught Place; search updates it.
   const [ place, setPlace ] = useState( DEFAULT_PLACE );
@@ -163,6 +294,13 @@ const VayuLokLive: React.FC = () => {
   const [ weather, setWeather ] = useState<WeatherState | null>( null );
   const [ solar, setSolar ] = useState<SolarState | null>( null );
   const [ pollen, setPollen ] = useState<PollenRow[] | null>( null );
+  const [ weatherHourly, setWeatherHourly ] = useState<WeatherHour[]>( [] );
+  const [ weatherDaily, setWeatherDaily ] = useState<WeatherDay[]>( [] );
+  const [ weatherAlerts, setWeatherAlerts ] = useState<WeatherAlertRow[]>( [] );
+  const [ airForecast, setAirForecast ] = useState<AirPoint[]>( [] );
+  const [ airHistory, setAirHistory ] = useState<AirPoint[]>( [] );
+  const [ historyRange, setHistoryRange ] = useState<24 | 168 | 720>( 24 );
+  const [ historyLoading, setHistoryLoading ] = useState( false );
 
   // Search combobox state.
   const [ query, setQuery ] = useState( '' );
@@ -453,6 +591,29 @@ const VayuLokLive: React.FC = () => {
           out.windUnit = windUnitLabel( typeof windUnit === 'string' ? windUnit : undefined );
         }
         if ( Number.isFinite( windDeg ) ) out.windDir = windDirection( windDeg );
+        const gust = n( d?.wind?.gust?.value );
+        const rainMm = n( d?.precipitation?.qpf?.quantity );
+        const rainProb = n( d?.precipitation?.probability?.percent );
+        const stormProb = n( d?.thunderstormProbability );
+        const uv = n( d?.uvIndex );
+        const visibility = n( d?.visibility?.distance );
+        const pressure = n( d?.airPressure?.meanSeaLevelMillibars );
+        const dew = n( d?.dewPoint?.degrees );
+        const heat = n( d?.heatIndex?.degrees );
+        const wet = n( d?.wetBulbTemperature?.degrees );
+        const cloud = n( d?.cloudCover );
+        if ( Number.isFinite( gust ) ) out.windGust = Math.round( gust );
+        if ( Number.isFinite( rainMm ) ) out.rainMm = rainMm;
+        if ( Number.isFinite( rainProb ) ) out.rainProb = Math.round( rainProb );
+        if ( Number.isFinite( stormProb ) ) out.stormProb = Math.round( stormProb );
+        if ( Number.isFinite( uv ) ) out.uv = Math.round( uv );
+        if ( Number.isFinite( visibility ) ) out.visibilityKm = visibility;
+        if ( Number.isFinite( pressure ) ) out.pressureHpa = Math.round( pressure );
+        if ( Number.isFinite( dew ) ) out.dewPoint = Math.round( dew );
+        if ( Number.isFinite( heat ) ) out.heatIndex = Math.round( heat );
+        if ( Number.isFinite( wet ) ) out.wetBulb = Math.round( wet );
+        if ( Number.isFinite( cloud ) ) out.cloudCover = Math.round( cloud );
+        if ( typeof d?.currentTime === 'string' ) out.currentTime = d.currentTime;
         if ( typeof condition === 'string' ) out.condition = condition;
         // Only keep weather if at least one field arrived.
         if ( Object.keys( out ).length ) store.weather = out;
@@ -484,19 +645,30 @@ const VayuLokLive: React.FC = () => {
     const fetchPollen = async () => {
       try {
         const res = await fetch(
-          `https://pollen.googleapis.com/v1/forecast:lookup?key=${encodeURIComponent( MAPS_KEY )}&location.latitude=${lat}&location.longitude=${lng}&days=1`,
+          `https://pollen.googleapis.com/v1/forecast:lookup?key=${encodeURIComponent( MAPS_KEY )}&location.latitude=${lat}&location.longitude=${lng}&days=5`,
           { signal: ac.signal },
         );
         if ( !res.ok ) return;
         const d = await res.json();
-        const daily = Array.isArray( d?.dailyInfo ) ? d.dailyInfo[ 0 ] : null;
-        const types: { code?: string; displayName?: string; indexInfo?: { value?: number } }[] = daily?.pollenTypeInfo || [];
+        const daily = Array.isArray( d?.dailyInfo ) ? d.dailyInfo : [];
         const rows: PollenRow[] = [];
-        types.forEach( t => {
-          const v = t.indexInfo?.value;
-          if ( t.displayName && Number.isFinite( v ) ) {
-            rows.push( { label: t.displayName, index: v as number, word: pollenCategory( v as number ) } );
-          }
+        daily.forEach( ( day: any, dayIndex: number ) => {
+          const date = day?.date;
+          const dateObj = date?.year && date?.month && date?.day
+            ? new Date( Date.UTC( date.year, date.month - 1, date.day ) )
+            : null;
+          const dayLabel = dayIndex === 0
+            ? 'Today'
+            : dateObj
+              ? new Intl.DateTimeFormat( 'en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' } ).format( dateObj )
+              : 'Day ' + String( dayIndex + 1 );
+          const types: { code?: string; displayName?: string; indexInfo?: { value?: number } }[] = day?.pollenTypeInfo || [];
+          types.forEach( t => {
+            const v = t.indexInfo?.value;
+            if ( t.displayName && Number.isFinite( v ) ) {
+              rows.push( { label: t.displayName, index: v as number, word: pollenCategory( v as number ), day: dayLabel } );
+            }
+          } );
         } );
         if ( rows.length ) store.pollen = rows;
       } catch { /* silent degradation */ }
@@ -518,6 +690,163 @@ const VayuLokLive: React.FC = () => {
 
     return () => ac.abort();
   }, [ place ] );
+
+  /* Extended forecast/history calls are separate from current conditions so a slow
+     long-range endpoint never blocks the "Now" experience. */
+  useEffect( () => {
+    if ( !MAPS_KEY || typeof window === 'undefined' ) return;
+    const ac = new AbortController();
+    const { lat, lng } = place;
+    setWeatherHourly( [] );
+    setWeatherDaily( [] );
+    setWeatherAlerts( [] );
+    setAirForecast( [] );
+
+    const getJson = async ( url: string ) => {
+      const res = await fetch( url, { signal: ac.signal } );
+      if ( !res.ok ) return null;
+      return res.json();
+    };
+
+    const loadHourly = async () => {
+      const url = 'https://weather.googleapis.com/v1/forecast/hours:lookup?key=' + encodeURIComponent( MAPS_KEY )
+        + '&location.latitude=' + lat + '&location.longitude=' + lng
+        + '&hours=24&pageSize=24&unitsSystem=METRIC&languageCode=en';
+      const data = await getJson( url );
+      if ( !data || ac.signal.aborted ) return;
+      setWeatherHourly( ( Array.isArray( data.forecastHours ) ? data.forecastHours : [] )
+        .map( ( row: Record<string, any> ) => weatherHourFromApi( row ) )
+        .filter( Boolean ) as WeatherHour[] );
+    };
+
+    const loadDaily = async () => {
+      const url = 'https://weather.googleapis.com/v1/forecast/days:lookup?key=' + encodeURIComponent( MAPS_KEY )
+        + '&location.latitude=' + lat + '&location.longitude=' + lng
+        + '&days=10&unitsSystem=METRIC&languageCode=en';
+      const data = await getJson( url );
+      if ( !data || ac.signal.aborted ) return;
+      const rows: WeatherDay[] = ( Array.isArray( data.forecastDays ) ? data.forecastDays : [] ).map( ( row: any, i: number ) => {
+        const d = row?.displayDate || {};
+        const date = d?.year && d?.month && d?.day ? new Date( Date.UTC( d.year, d.month - 1, d.day ) ) : new Date();
+        const p = row?.daytimeForecast || row?.nighttimeForecast || {};
+        const min = n( row?.minTemperature?.degrees );
+        const max = n( row?.maxTemperature?.degrees );
+        const rain = n( p?.precipitation?.probability?.percent );
+        return {
+          time: date.getTime(),
+          label: i === 0 ? 'Today' : new Intl.DateTimeFormat( 'en-IN', { weekday: 'short', timeZone: 'UTC' } ).format( date ),
+          dateLabel: new Intl.DateTimeFormat( 'en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' } ).format( date ),
+          ...( Number.isFinite( min ) ? { min: Math.round( min ) } : {} ),
+          ...( Number.isFinite( max ) ? { max: Math.round( max ) } : {} ),
+          ...( Number.isFinite( rain ) ? { rainProb: Math.round( rain ) } : {} ),
+          ...( typeof p?.weatherCondition?.description?.text === 'string' ? { condition: p.weatherCondition.description.text } : {} ),
+          ...( typeof p?.weatherCondition?.iconBaseUri === 'string' ? { icon: p.weatherCondition.iconBaseUri } : {} ),
+          ...( typeof row?.sunEvents?.sunriseTime === 'string' ? { sunrise: row.sunEvents.sunriseTime } : {} ),
+          ...( typeof row?.sunEvents?.sunsetTime === 'string' ? { sunset: row.sunEvents.sunsetTime } : {} ),
+        };
+      } );
+      setWeatherDaily( rows );
+    };
+
+    const loadAlerts = async () => {
+      const url = 'https://weather.googleapis.com/v1/publicAlerts:lookup?key=' + encodeURIComponent( MAPS_KEY )
+        + '&location.latitude=' + lat + '&location.longitude=' + lng + '&languageCode=en';
+      const data = await getJson( url );
+      if ( !data || ac.signal.aborted ) return;
+      const rows: WeatherAlertRow[] = ( Array.isArray( data.weatherAlerts ) ? data.weatherAlerts : [] ).slice( 0, 3 ).map( ( a: any ) => ( {
+        id: String( a?.alertId || a?.eventType || Math.random() ),
+        title: String( a?.alertTitle?.text || a?.description || a?.eventType || 'Weather alert' ),
+        description: typeof a?.description === 'string' ? a.description : undefined,
+        area: typeof a?.areaName === 'string' ? a.areaName : undefined,
+        severity: typeof a?.severity === 'string' ? a.severity.replaceAll( '_', ' ' ) : undefined,
+        urgency: typeof a?.urgency === 'string' ? a.urgency.replaceAll( '_', ' ' ) : undefined,
+        expires: typeof a?.expirationTime === 'string' ? a.expirationTime : undefined,
+      } ) );
+      setWeatherAlerts( rows );
+    };
+
+    const loadAirForecast = async () => {
+      const start = new Date();
+      start.setUTCMinutes( 0, 0, 0 );
+      start.setUTCHours( start.getUTCHours() + 1 );
+      const end = new Date( start.getTime() + 96 * 60 * 60 * 1000 );
+      const res = await fetch(
+        'https://airquality.googleapis.com/v1/forecast:lookup?key=' + encodeURIComponent( MAPS_KEY ),
+        {
+          method: 'POST',
+          signal: ac.signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify( {
+            location: { latitude: lat, longitude: lng },
+            period: { startTime: start.toISOString(), endTime: end.toISOString() },
+            pageSize: 96,
+            universalAqi: true,
+            customLocalAqis: [ { regionCode: 'IN', aqi: 'ind_cpcb' } ],
+            extraComputations: [ 'LOCAL_AQI', 'POLLUTANT_CONCENTRATION', 'DOMINANT_POLLUTANT_CONCENTRATION' ],
+            languageCode: 'en',
+          } ),
+        },
+      );
+      if ( !res.ok || ac.signal.aborted ) return;
+      const data = await res.json();
+      setAirForecast( ( Array.isArray( data.hourlyForecasts ) ? data.hourlyForecasts : [] )
+        .map( ( row: Record<string, any> ) => airPointFromApi( row ) )
+        .filter( Boolean ) as AirPoint[] );
+    };
+
+    void Promise.allSettled( [ loadHourly(), loadDaily(), loadAlerts(), loadAirForecast() ] );
+    return () => ac.abort();
+  }, [ place ] );
+
+  useEffect( () => {
+    if ( !MAPS_KEY || typeof window === 'undefined' ) return;
+    const ac = new AbortController();
+    const { lat, lng } = place;
+    setHistoryLoading( true );
+    setAirHistory( [] );
+
+    const run = async () => {
+      const points: AirPoint[] = [];
+      let pageToken = '';
+      let page = 0;
+      do {
+        const body: Record<string, unknown> = {
+          location: { latitude: lat, longitude: lng },
+          hours: historyRange,
+          pageSize: Math.min( 100, historyRange ),
+          universalAqi: true,
+          customLocalAqis: [ { regionCode: 'IN', aqi: 'ind_cpcb' } ],
+          extraComputations: [ 'LOCAL_AQI', 'POLLUTANT_CONCENTRATION' ],
+          languageCode: 'en',
+        };
+        if ( pageToken ) body.pageToken = pageToken;
+        const res = await fetch(
+          'https://airquality.googleapis.com/v1/history:lookup?key=' + encodeURIComponent( MAPS_KEY ),
+          {
+            method: 'POST',
+            signal: ac.signal,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify( body ),
+          },
+        );
+        if ( !res.ok ) break;
+        const data = await res.json();
+        ( Array.isArray( data.hoursInfo ) ? data.hoursInfo : [] ).forEach( ( row: Record<string, any> ) => {
+          const p = airPointFromApi( row );
+          if ( p ) points.push( p );
+        } );
+        pageToken = typeof data.nextPageToken === 'string' ? data.nextPageToken : '';
+        page += 1;
+      } while ( pageToken && page < 8 && !ac.signal.aborted );
+      if ( !ac.signal.aborted ) {
+        points.sort( ( a, b ) => a.time - b.time );
+        setAirHistory( points );
+        setHistoryLoading( false );
+      }
+    };
+    void run().catch( () => { if ( !ac.signal.aborted ) setHistoryLoading( false ); } );
+    return () => ac.abort();
+  }, [ place, historyRange ] );
 
   /* ---------------------------------------------------------------------------------
      RECENTRE the map + move the marker when the place changes (after the map exists). */
@@ -670,6 +999,15 @@ const VayuLokLive: React.FC = () => {
 
   const dotClass = ( sev: Sev ) => `vl-live-dot vl-live-dot-${sev}`;
   const liveActive = Boolean( MAPS_KEY );
+  const bestOutside = bestOutsideWindow( weatherHourly, airForecast );
+  const combinedHours = weatherHourly.slice( 0, 24 ).map( ( w, i ) => ( {
+    ...w,
+    air: airForecast.find( a => Math.abs( a.time - w.time ) < 45 * 60 * 1000 ) || airForecast[ i ],
+  } ) );
+  const forecastBest = airForecast.length ? airForecast.reduce( ( a, b ) => b.aqi < a.aqi ? b : a ) : null;
+  const forecastWorst = airForecast.length ? airForecast.reduce( ( a, b ) => b.aqi > a.aqi ? b : a ) : null;
+  const forecastDelta = airForecast.length > 1 ? airForecast[ airForecast.length - 1 ].aqi - airForecast[ 0 ].aqi : 0;
+  const forecastTrend = Math.abs( forecastDelta ) < 6 ? 'Stable' : forecastDelta < 0 ? 'Improving' : 'Worsening';
 
   return (
     <section className="vl-live" aria-labelledby="vl-live-title">
@@ -808,6 +1146,37 @@ const VayuLokLive: React.FC = () => {
             </div>
           ) }
 
+          { bestOutside && (
+            <div className="vl-live-block">
+              <p className="vl-live-eyebrow">Best outside</p>
+              <div className="vl-live-best-outside">
+                <div>
+                  <span className="vl-live-metric-lg">{ bestOutside.label }</span>
+                  <p className="vl-live-body">{ bestOutside.note }</p>
+                </div>
+                <p className="vl-live-small">Calculated from the upcoming Google Weather and Air Quality forecasts.</p>
+              </div>
+            </div>
+          ) }
+
+          { combinedHours.length > 0 && (
+            <div className="vl-live-block">
+              <h3 className="vl-live-h2">Next 24 hours</h3>
+              <div className="vl-live-hour-rail" aria-label="Next 24 hours">
+                { combinedHours.map( ( h, i ) => (
+                  <article className="vl-live-hour-card" key={ h.time }>
+                    <time>{ hourLabel( h.time ) }</time>
+                    { h.icon && <img src={ h.icon + '.svg' } alt="" loading="lazy" /> }
+                    <strong>{ Number.isFinite( h.temp ) ? h.temp + '°' : '—' }</strong>
+                    <span>{ Number.isFinite( h.rainProb ) ? h.rainProb + '% rain' : 'No rain data' }</span>
+                    <span>{ h.air ? 'AQI ' + h.air.aqi : 'AQI —' }</span>
+                    { i === 0 && <em>Next</em> }
+                  </article>
+                ) ) }
+              </div>
+            </div>
+          ) }
+
           {/* AIR / WEATHER DETAIL - pollutant rows from the live response. */}
           { air && air.pollutants.length > 0 && (
             <div className="vl-live-block">
@@ -824,6 +1193,117 @@ const VayuLokLive: React.FC = () => {
                 );
               } ) }
             </div>
+          ) }
+
+          { ( airForecast.length > 0 || airHistory.length > 0 ) && (
+            <section className="vl-live-section" aria-labelledby="vl-live-air-intelligence">
+              <h3 className="vl-live-h2" id="vl-live-air-intelligence">Air intelligence</h3>
+              <div className="vl-live-insight-grid">
+                <div><p className="vl-live-label">Best hour</p><strong>{ forecastBest ? hourLabel( forecastBest.time ) + ' · AQI ' + forecastBest.aqi : '—' }</strong></div>
+                <div><p className="vl-live-label">Peak hour</p><strong>{ forecastWorst ? hourLabel( forecastWorst.time ) + ' · AQI ' + forecastWorst.aqi : '—' }</strong></div>
+                <div><p className="vl-live-label">Trend</p><strong>{ forecastTrend }</strong></div>
+              </div>
+
+              { airForecast.length > 0 && (
+                <>
+                  <h4 className="vl-live-minor-title">96-hour AQ forecast</h4>
+                  <div className="vl-live-hour-rail" aria-label="Air quality forecast">
+                    { airForecast.filter( ( _, i ) => i % 3 === 0 ).map( p => (
+                      <article className="vl-live-hour-card vl-live-hour-card-air" key={ p.time }>
+                        <time>{ hourLabel( p.time ) }</time>
+                        <strong>AQI { p.aqi }</strong>
+                        <span>{ p.word }</span>
+                        { Number.isFinite( p.pm25 ) && <span>PM2.5 { Math.round( p.pm25! ) }</span> }
+                      </article>
+                    ) ) }
+                  </div>
+                </>
+              ) }
+
+              <div className="vl-live-history-head">
+                <h4 className="vl-live-minor-title">AQ history</h4>
+                <div className="vl-live-history-controls" role="group" aria-label="Air quality history range">
+                  { ( [ [ 24, '24h' ], [ 168, '7d' ], [ 720, '30d' ] ] as const ).map( ( [ hours, label ] ) => (
+                    <button type="button" key={ hours } aria-pressed={ historyRange === hours } onClick={ () => setHistoryRange( hours ) }>{ label }</button>
+                  ) ) }
+                </div>
+              </div>
+              { historyLoading ? (
+                <p className="vl-live-small">Loading history…</p>
+              ) : airHistory.length > 0 ? (
+                <div className="vl-live-history" aria-label={ 'AQI history for ' + historyRange + ' hours' }>
+                  { airHistory.filter( ( _, i ) => {
+                    const step = Math.max( 1, Math.ceil( airHistory.length / 72 ) );
+                    return i % step === 0 || i === airHistory.length - 1;
+                  } ).map( p => (
+                    <i key={ p.time } style={ { height: Math.max( 8, Math.min( 100, p.aqi / 5 ) ) + '%' } } title={ hourLabel( p.time ) + ' · AQI ' + p.aqi } />
+                  ) ) }
+                </div>
+              ) : (
+                <p className="vl-live-small">History is not available for this location right now.</p>
+              ) }
+            </section>
+          ) }
+
+          { weather && (
+            <section className="vl-live-section" aria-labelledby="vl-live-weather-detail">
+              <h3 className="vl-live-h2" id="vl-live-weather-detail">Weather detail</h3>
+              <div className="vl-live-weather-grid">
+                { [
+                  [ 'Feels', Number.isFinite( weather.feelsLike ) ? weather.feelsLike + '°' : null ],
+                  [ 'Humidity', Number.isFinite( weather.humidity ) ? weather.humidity + '%' : null ],
+                  [ 'Wind', Number.isFinite( weather.windSpeed ) ? weather.windSpeed + ' ' + ( weather.windUnit || 'km/h' ) : null ],
+                  [ 'Wind direction', weather.windDir || null ],
+                  [ 'Gust', Number.isFinite( weather.windGust ) ? weather.windGust + ' km/h' : null ],
+                  [ 'Rainfall', Number.isFinite( weather.rainMm ) ? weather.rainMm + ' mm' : null ],
+                  [ 'Rain chance', Number.isFinite( weather.rainProb ) ? weather.rainProb + '%' : null ],
+                  [ 'Storm chance', Number.isFinite( weather.stormProb ) ? weather.stormProb + '%' : null ],
+                  [ 'UV index', Number.isFinite( weather.uv ) ? String( weather.uv ) : null ],
+                  [ 'Visibility', Number.isFinite( weather.visibilityKm ) ? weather.visibilityKm + ' km' : null ],
+                  [ 'Pressure', Number.isFinite( weather.pressureHpa ) ? weather.pressureHpa + ' hPa' : null ],
+                  [ 'Dew point', Number.isFinite( weather.dewPoint ) ? weather.dewPoint + '°' : null ],
+                  [ 'Heat index', Number.isFinite( weather.heatIndex ) ? weather.heatIndex + '°' : null ],
+                  [ 'Wet bulb', Number.isFinite( weather.wetBulb ) ? weather.wetBulb + '°' : null ],
+                  [ 'Cloud cover', Number.isFinite( weather.cloudCover ) ? weather.cloudCover + '%' : null ],
+                ].filter( row => row[ 1 ] !== null ).map( row => (
+                  <div key={ String( row[ 0 ] ) }><p className="vl-live-label">{ row[ 0 ] }</p><strong>{ row[ 1 ] }</strong></div>
+                ) ) }
+              </div>
+
+              { weatherDaily.length > 0 && (
+                <>
+                  <div className="vl-live-sunline">
+                    <div><p className="vl-live-label">Sunrise</p><strong>{ weatherDaily[ 0 ].sunrise ? new Intl.DateTimeFormat( 'en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' } ).format( new Date( weatherDaily[ 0 ].sunrise! ) ) : '—' }</strong></div>
+                    <div><p className="vl-live-label">Sunset</p><strong>{ weatherDaily[ 0 ].sunset ? new Intl.DateTimeFormat( 'en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' } ).format( new Date( weatherDaily[ 0 ].sunset! ) ) : '—' }</strong></div>
+                  </div>
+                  <h4 className="vl-live-minor-title">10-day outlook</h4>
+                  <div className="vl-live-day-rail" aria-label="10-day weather outlook">
+                    { weatherDaily.map( d => (
+                      <article className="vl-live-day-card" key={ d.time }>
+                        <strong>{ d.label }</strong>
+                        <span>{ d.dateLabel }</span>
+                        { d.icon && <img src={ d.icon + '.svg' } alt="" loading="lazy" /> }
+                        <b>{ Number.isFinite( d.max ) ? d.max + '°' : '—' } / { Number.isFinite( d.min ) ? d.min + '°' : '—' }</b>
+                        <span>{ Number.isFinite( d.rainProb ) ? d.rainProb + '% rain' : d.condition || 'Forecast' }</span>
+                      </article>
+                    ) ) }
+                  </div>
+                </>
+              ) }
+
+              { weatherAlerts.length > 0 && (
+                <div className="vl-live-alerts">
+                  <h4 className="vl-live-minor-title">Weather alerts</h4>
+                  { weatherAlerts.map( alert => (
+                    <article className="vl-live-alert" key={ alert.id }>
+                      <strong>{ alert.title }</strong>
+                      { alert.description && <p>{ alert.description }</p> }
+                      <span>{ [ alert.area, alert.severity, alert.urgency, alert.expires ? 'Until ' + new Intl.DateTimeFormat( 'en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' } ).format( new Date( alert.expires ) ) : '' ].filter( Boolean ).join( ' · ' ) }</span>
+                    </article>
+                  ) ) }
+                </div>
+              ) }
+            </section>
           ) }
 
           {/* SOLAR - Building Insights. Section renders only when the API returned data. */}
@@ -850,15 +1330,16 @@ const VayuLokLive: React.FC = () => {
           { pollen && pollen.length > 0 && (
             <section className="vl-live-section" aria-labelledby="vl-live-pollen-title">
               <h3 className="vl-live-h2" id="vl-live-pollen-title">Pollen</h3>
-              <p className="vl-live-small vl-live-mb16">Today&rsquo;s pollen index by type, from the Pollen API forecast.</p>
-              { pollen.map( row => (
-                <div className="vl-live-prow" key={ row.label }>
-                  <p className="vl-live-label">{ row.label }</p>
-                  <span className="vl-live-track"><span className="vl-live-bar vl-live-bar-mod" style={ { width: `${Math.min( 100, row.index * 20 )}%` } } /></span>
-                  <span className="vl-live-metric-md">Index { row.index }</span>
-                  <span className="vl-live-prow-cat">{ row.word }</span>
-                </div>
-              ) ) }
+              <p className="vl-live-small vl-live-mb16">Up to five days of pollen conditions, when Google Pollen has coverage for the selected place.</p>
+              <div className="vl-live-pollen-grid">
+                { pollen.map( ( row, i ) => (
+                  <article className="vl-live-pollen-card" key={ row.day + '-' + row.label + '-' + i }>
+                    <p className="vl-live-label">{ row.day }</p>
+                    <strong>{ row.label }</strong>
+                    <span>Index { row.index } · { row.word }</span>
+                  </article>
+                ) ) }
+              </div>
             </section>
           ) }
 
@@ -1133,6 +1614,50 @@ const VayuLokLive: React.FC = () => {
         .vl-live-preview-metrics .vl-live-metric-md{font-size:17px}
         .vl-live-preview-cat{margin:4px 0 0;font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--ink-muted)}
 
+        .vl-live-best-outside{display:grid;gap:10px;padding:24px;border-radius:18px;background:var(--green);color:#fff}
+        .vl-live-best-outside .vl-live-metric-lg,.vl-live-best-outside .vl-live-body{color:#fff}
+        .vl-live-best-outside .vl-live-small{color:rgba(255,255,255,.76)}
+        .vl-live-hour-rail,.vl-live-day-rail{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;padding:2px 0 8px;scrollbar-width:thin}
+        .vl-live-hour-card{position:relative;flex:0 0 112px;min-height:144px;padding:14px;border:1px solid var(--hair);border-radius:14px;background:#fff;scroll-snap-align:start}
+        .vl-live-hour-card time,.vl-live-hour-card span{display:block;font-size:12px;line-height:1.35;color:var(--ink-muted)}
+        .vl-live-hour-card strong{display:block;margin:9px 0;font-size:19px;color:var(--green)}
+        .vl-live-hour-card img{display:block;width:30px;height:30px;margin-top:8px}
+        .vl-live-hour-card em{position:absolute;top:8px;right:8px;font-size:9px;font-style:normal;font-weight:700;color:var(--green)}
+        .vl-live-hour-card-air{flex-basis:128px}
+        .vl-live-insight-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+        .vl-live-insight-grid>div{padding:18px 16px}
+        .vl-live-insight-grid>div+div{border-left:1px solid var(--hair)}
+        .vl-live-insight-grid strong{font-size:15px;color:var(--green)}
+        .vl-live-minor-title{margin:28px 0 12px;font-size:16px;font-weight:700;color:#1a1a1a}
+        .vl-live-history-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-top:24px}
+        .vl-live-history-head .vl-live-minor-title{margin:0}
+        .vl-live-history-controls{display:flex;gap:6px}
+        .vl-live-history-controls button{min-height:34px;padding:0 11px;border:1px solid var(--hair);border-radius:999px;background:#fff;color:var(--green);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+        .vl-live-history-controls button[aria-pressed="true"]{border-color:var(--green);background:var(--lime)}
+        .vl-live-history{height:132px;display:flex;align-items:flex-end;gap:2px;margin-top:14px;padding:10px 0 2px;border-bottom:1px solid var(--hair)}
+        .vl-live-history i{flex:1 1 0;min-width:2px;max-width:10px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,var(--lime),var(--green))}
+        .vl-live-weather-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--hair)}
+        .vl-live-weather-grid>div{padding:16px 14px 16px 0;border-bottom:1px solid var(--hair)}
+        .vl-live-weather-grid>div:nth-child(even){padding-left:14px;border-left:1px solid var(--hair)}
+        .vl-live-weather-grid strong{font-size:15px;color:#1a1a1a}
+        .vl-live-sunline{display:grid;grid-template-columns:1fr 1fr;margin-top:18px;border:1px solid var(--hair);border-radius:14px;overflow:hidden}
+        .vl-live-sunline>div{padding:16px}
+        .vl-live-sunline>div+div{border-left:1px solid var(--hair)}
+        .vl-live-day-card{flex:0 0 112px;min-height:150px;padding:14px;border:1px solid var(--hair);border-radius:14px;background:#fff;scroll-snap-align:start;text-align:center}
+        .vl-live-day-card>span,.vl-live-day-card>b{display:block;margin-top:5px;font-size:12px;color:var(--ink-muted)}
+        .vl-live-day-card>b{font-size:14px;color:#1a1a1a}
+        .vl-live-day-card img{width:34px;height:34px;margin:8px auto 2px}
+        .vl-live-alerts{margin-top:24px}
+        .vl-live-alert{padding:16px;border-radius:14px;background:var(--tint-warn)}
+        .vl-live-alert+.vl-live-alert{margin-top:8px}
+        .vl-live-alert strong{display:block;color:#6e4a18}
+        .vl-live-alert p{margin:6px 0 0;font-size:13px;line-height:1.45;color:#5f4a2b}
+        .vl-live-alert span{display:block;margin-top:6px;font-size:11px;color:#7f6845}
+        .vl-live-pollen-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+        .vl-live-pollen-card{padding:14px;border:1px solid var(--hair);border-radius:14px;background:#fff}
+        .vl-live-pollen-card strong{display:block;font-size:15px;color:#1a1a1a}
+        .vl-live-pollen-card span{display:block;margin-top:5px;font-size:12px;color:var(--ink-muted)}
+
         /* Conditions rail. */
         .vl-live-rail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--hair)}
         .vl-live-fact{padding:22px 24px 22px 0}
@@ -1186,6 +1711,11 @@ const VayuLokLive: React.FC = () => {
         }
         @media(max-width:767px){
           .vl-live-wrap{padding-inline:16px}
+          .vl-live-insight-grid{grid-template-columns:1fr}
+          .vl-live-insight-grid>div+div{border-left:0;border-top:1px solid var(--hair)}
+          .vl-live-weather-grid{grid-template-columns:1fr}
+          .vl-live-weather-grid>div:nth-child(even){padding-left:0;border-left:0}
+          .vl-live-pollen-grid{grid-template-columns:1fr}
           .vl-live-section{padding-top:0}
           .vl-live-block{padding-block:36px}
           .vl-live-map-controls{top:12px;left:12px}
