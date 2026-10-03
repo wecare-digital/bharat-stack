@@ -2046,8 +2046,12 @@ const VayuLokLive: React.FC = () => {
           --ink-head:rgba(0,0,0,.95);--ink-body:rgba(0,0,0,.898);--ink-strong:#000;
           --ink-base:#1a1a1a;--ink-muted:rgba(0,0,0,.54);--ink-status:rgba(0,0,0,.7);--ink-second:rgba(0,0,0,.66);
 
-          /* AQI severity ramp - NO red: dark green -> lime -> amber. */
-          --aqi-good:#1a3a2a;--aqi-sat:#4b8058;--aqi-mod:#d1f470;--aqi-poor:#e8c547;--aqi-worst:#c98a2e;
+          /* AQI severity ramp - NO red: dark green -> lime -> amber. The Satisfactory
+             rung is #3da35a (the home .home-mark-dot green, same as --green-dot), not the
+             darker #4b8058: the owner's "too much dark green" note moved it to the lighter
+             traceable value so the ramp and the 24h history read as mid-tones, not a block
+             of near-black green. See .agents/tasks/vayulok-home-aligned-mock/design-tokens.md. */
+          --aqi-good:#1a3a2a;--aqi-sat:#3da35a;--aqi-mod:#d1f470;--aqi-poor:#e8c547;--aqi-worst:#c98a2e;
           --tint-warn:#fdf4e3;
 
           --r-panel:14px;--r-field:10px;--r-pill:999px;--r-btn:13px;
@@ -2286,19 +2290,9 @@ const VayuLokLive: React.FC = () => {
         .vl-live-pollen-card strong{display:block;font-size:15px;color:#1a1a1a}
         .vl-live-pollen-card span{display:block;margin-top:5px;font-size:12px;color:var(--ink-muted)}
 
-        /* Conditions rail. */
-        .vl-live-rail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--hair)}
-        .vl-live-fact{padding:22px 24px 22px 0}
-        .vl-live-fact:nth-child(even){padding-left:24px;border-left:1px solid var(--hair)}
-        .vl-live-fact:nth-child(n+3){border-top:1px solid var(--hair)}
-        .vl-live-fact .vl-live-label{margin-bottom:10px}
-        @container vllive (min-width:860px){
-          .vl-live-rail{grid-template-columns:repeat(4,minmax(0,1fr))}
-          .vl-live-fact:nth-child(even){padding-left:0;border-left:0}
-          .vl-live-fact:nth-child(n+3){border-top:0}
-          .vl-live-fact:not(:nth-child(4n+1)){padding-left:24px;border-left:1px solid var(--hair)}
-          .vl-live-fact:nth-child(n+5){border-top:1px solid var(--hair)}
-        }
+        /* The old two-/four-up "Conditions" fact rail (.vl-live-rail/.vl-live-fact) was
+           replaced by the continuous .vl-live-signal-stack bands; its rules are deleted
+           here per this file's "unused rules are deleted" convention. */
 
         /* Health advisory accent rule. */
         .vl-live-advisory-rule{display:block;height:3px;width:120px;margin:30px 0 0;background:var(--lime)}
