@@ -20,7 +20,7 @@ import hashlib
 import boto3
 import urllib.request
 import urllib.error
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 from decimal import Decimal
 
 # Configure logging
@@ -39,6 +39,7 @@ from lambda_utils import wa_internal_event  # typed ingress -> worker contract
 from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 from lambda_utils.ecommerce import order_keys  # reference_id contract; never truncate a join key
+from lambda_utils import live_smoke  # the WA_LIVE_SMOKE_TEST lockdown applies to direct sends too
 from botocore.exceptions import ClientError
 try:
     from lambda_utils import partner_billing  # per-tenant prepaid metering (optional)
@@ -132,11 +133,158 @@ def _get_welcome_config_key(phone_number_id: str) -> str:
 
 DEFAULT_FALLBACK_MESSAGE = "Thanks for your message! Type 'menu' to see available options, or 'subscribe' to get started."
 
-# Every path that used to send an interactive menu sends this plain text instead.
-# The menus are deleted, not replaced, so a greeting / QR prefill / ice-breaker tap
-# must still get an answer rather than silence or a crash. One constant, one helper,
-# so putting a real menu back later is a localised change.
+# The degraded fallback when the Graph list send fails (no token, HTTP error). It is
+# NOT the menu any more — see WD_LISTS below — but it must stay: a greeting / QR
+# prefill / ice-breaker tap has to get an answer rather than silence or a crash even
+# when Meta refuses the list. The string is pinned byte-for-byte against the
+# `whatsapp-calling` Lambda's own copy by tests/test_calling_menu_template_is_gone.py.
 MENU_PLACEHOLDER_TEXT = "We're refreshing our menu - please type *menu* and we'll help you."
+
+
+# ── The WECARE.DIGITAL site menu, as WhatsApp interactive lists ──────────────
+# Owner-approved structure, 2026-10-03. It mirrors the public site mega-menu in
+# src/components/Header.tsx, so a path here and a path there must not drift.
+#
+# SHOP IS EXCLUDED BY OWNER DECISION. There is no Shop row anywhere, and there must
+# not be one. (`STORE_KEYWORDS` further down still answers a *typed* `shop` with a
+# CTA button; that is a live inbound alias, not a menu row, and it stays.)
+#
+# Meta's interactive-list limits, which `_send_wd_list` also enforces defensively so
+# a future edit to this data cannot produce a 400:
+#   rows per list <= 10 · row title <= 24 chars · row description <= 72
+#   button text <= 20 · header <= 60 · body <= 1024
+# Trailing slashes in the paths are LOAD-BEARING (the site has trailingSlash on);
+# dropping one turns a link into a redirect at best and a 404 at worst.
+WD_SITE_BASE = 'https://wecare.digital'
+
+# leaf row id -> (display name, site path). Tapping any of these sends a text reply
+# with the link, not another list.
+WD_LEAF_LINKS: Dict[str, Tuple[str, str]] = {
+    'wd_home': ('About / Home', '/'),
+    # Products
+    'wd_grahak_os': ('Grahak OS', '/grahak-os/'),
+    'wd_vayulok': ('VayuLok', '/vayulok/'),
+    'wd_bharat_rx': ('Bharat Rx', '/bharat-rx/'),
+    'wd_elsewhere': ('Elsewhere', '/elsewhere/'),
+    'wd_expo_week': ('Expo Week', '/expo-week/'),
+    'wd_dastavez': ('Dastavez', '/dastavez/'),
+    'wd_clear_closure': ('Clear Closure', '/clear-closure/'),
+    'wd_ritual_guru': ('Ritual Guru', '/ritual-guru/'),
+    'wd_anew': ('Anew', '/anew/'),
+    'wd_hunar': ('Hunar', '/hunar/'),
+    'wd_niji_setu': ('Niji Setu', '/niji-setu/'),
+    # Request
+    'wd_orders': ('Orders', '/orders/'),
+    'wd_submit': ('Submit Request', '/submit-request/'),
+    'wd_amend': ('Request Amendment', '/request-amendment/'),
+    'wd_drop_docs': ('Drop Docs', '/drop-docs/'),
+    'wd_vault': ('Vault', '/vault/'),
+    'wd_shipments': ('Shipments', '/shipments/'),
+    'wd_review': ('Leave Review', '/leave-review/'),
+    # Work with us
+    'wd_refer': ('Refer & Earn', '/refer-and-earn/'),
+    'wd_contact': ('Contact us', '/contact/'),
+    'wd_perks': ('Perks', '/perks/'),
+    # Legal
+    'wd_terms': ('Terms', '/terms/'),
+    'wd_privacy': ('Privacy', '/privacy/'),
+}
+
+# list key -> the list to send. `wd_main` is the only one with a header. Every
+# submenu ends with wd_back so a customer is never stranded one level down.
+WD_LISTS: Dict[str, Dict[str, Any]] = {
+    'wd_main': {
+        'header': 'WECARE.DIGITAL',
+        'body': 'Everyday AI, built for Bharat. What do you need?',
+        'button': 'Open Menu',
+        'section': 'Menu',
+        'rows': [
+            {'id': 'wd_home', 'title': '\U0001f3e0 About / Home', 'description': 'Who we are and what we do'},
+            {'id': 'wd_products', 'title': '\U0001f4e6 Products', 'description': 'Explore our products'},
+            {'id': 'wd_request', 'title': '\U0001f9fe Request', 'description': 'Orders, requests, documents'},
+            {'id': 'wd_work', 'title': '\U0001f91d Work with us', 'description': 'Refer, contact, perks'},
+            {'id': 'wd_legal', 'title': '\U0001f4c4 Legal & Extras', 'description': 'Terms, privacy, perks'},
+        ],
+    },
+    # Eleven products do not fit in one 10-row list, so the chooser splits them.
+    'wd_products': {
+        'body': 'Products — choose a set',
+        'button': 'Open Menu',
+        'section': 'Products',
+        'rows': [
+            {'id': 'wd_products_1', 'title': 'Products (1 of 2)', 'description': 'Grahak OS, VayuLok, Bharat Rx…'},
+            {'id': 'wd_products_2', 'title': 'Products (2 of 2)', 'description': 'Clear Closure, Anew, Hunar…'},
+            {'id': 'wd_back', 'title': '\u2b05\ufe0f Back to menu'},
+        ],
+    },
+    'wd_products_1': {
+        'body': 'Products (1 of 2)',
+        'button': 'Open Menu',
+        'section': 'Products',
+        'rows': [
+            {'id': 'wd_grahak_os', 'title': 'Grahak OS'},
+            {'id': 'wd_vayulok', 'title': 'VayuLok'},
+            {'id': 'wd_bharat_rx', 'title': 'Bharat Rx'},
+            {'id': 'wd_elsewhere', 'title': 'Elsewhere'},
+            {'id': 'wd_expo_week', 'title': 'Expo Week'},
+            {'id': 'wd_dastavez', 'title': 'Dastavez'},
+            {'id': 'wd_back', 'title': '\u2b05\ufe0f Back to menu'},
+        ],
+    },
+    'wd_products_2': {
+        'body': 'Products (2 of 2)',
+        'button': 'Open Menu',
+        'section': 'Products',
+        'rows': [
+            {'id': 'wd_clear_closure', 'title': 'Clear Closure'},
+            {'id': 'wd_ritual_guru', 'title': 'Ritual Guru'},
+            {'id': 'wd_anew', 'title': 'Anew'},
+            {'id': 'wd_hunar', 'title': 'Hunar'},
+            {'id': 'wd_niji_setu', 'title': 'Niji Setu'},
+            {'id': 'wd_back', 'title': '\u2b05\ufe0f Back to menu'},
+        ],
+    },
+    'wd_request': {
+        'body': 'Request — orders, requests and documents',
+        'button': 'Open Menu',
+        'section': 'Request',
+        'rows': [
+            {'id': 'wd_orders', 'title': 'Orders'},
+            {'id': 'wd_submit', 'title': 'Submit Request'},
+            {'id': 'wd_amend', 'title': 'Request Amendment'},
+            {'id': 'wd_drop_docs', 'title': 'Drop Docs'},
+            {'id': 'wd_vault', 'title': 'Vault'},
+            {'id': 'wd_shipments', 'title': 'Shipments'},
+            {'id': 'wd_review', 'title': 'Leave Review'},
+            {'id': 'wd_back', 'title': '\u2b05\ufe0f Back to menu'},
+        ],
+    },
+    'wd_work': {
+        'body': 'Work with us',
+        'button': 'Open Menu',
+        'section': 'Work with us',
+        'rows': [
+            {'id': 'wd_refer', 'title': 'Refer & Earn'},
+            {'id': 'wd_contact', 'title': 'Contact us'},
+            {'id': 'wd_perks', 'title': 'Perks'},
+            {'id': 'wd_back', 'title': '\u2b05\ufe0f Back to menu'},
+        ],
+    },
+    'wd_legal': {
+        'body': 'Legal & Extras',
+        'button': 'Open Menu',
+        'section': 'Legal & Extras',
+        'rows': [
+            {'id': 'wd_terms', 'title': 'Terms'},
+            {'id': 'wd_privacy', 'title': 'Privacy'},
+            {'id': 'wd_back', 'title': '\u2b05\ufe0f Back to menu'},
+        ],
+    },
+}
+
+# The leaf reply. Exact copy — it is customer-facing and the only thing a tap
+# produces.
+WD_LEAF_TEMPLATE = "{name}\nOpen it here \U0001f449 {url}\n\nOr just tell me what you need and I'll help."
 
 
 # Deterministic-trigger keywords for the Meta Business Agent hybrid. When the AI
@@ -1428,8 +1576,9 @@ def _process_message(
             logger.info(f"Ignoring call_permission_reply from {mask_phone(sender_phone or '')} — permission auto-granted post-call")
             return  # Discard — no longer forwarded or stored
         # Button reply. The IVR button menu and the follow-up button chooser are both
-        # deleted, so there is no id left to route - a tap on a button still sitting in
-        # a customer's history gets the plain-text placeholder rather than silence.
+        # deleted, so there is no button id left to route - a tap on a button still
+        # sitting in a customer's history opens the site menu rather than answering
+        # with the degraded placeholder.
         elif interactive_type == 'button_reply':
             button_id = interactive.get('button_reply', {}).get('id', '')
             logger.info(json.dumps({
@@ -1438,9 +1587,12 @@ def _process_message(
                 'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
             }))
-            _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
+            _send_wd_main_menu(contact_id, sender_phone, aws_phone_number_id, request_id)
             return
-        # List reply - a tap on a row from a deleted menu still in chat history.
+        # List reply - a tapped row from the site menu, or a stale row from a deleted
+        # menu still in chat history. Three ways out and no fourth: open the next
+        # list, answer with the site link, or re-open the main menu. Nothing falls
+        # through, nothing raises.
         elif interactive_type == 'list_reply':
             list_id = interactive.get('list_reply', {}).get('id', '')
             logger.info(json.dumps({
@@ -1449,7 +1601,7 @@ def _process_message(
                 'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
             }))
-            _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
+            _route_wd_list_reply(list_id, contact_id, sender_phone, aws_phone_number_id, request_id)
             return
         # Native Flow Message reply — India Address Message submission arrives here
         # as nfm_reply with name='address_message' (also used by flow completions).
@@ -1621,8 +1773,8 @@ def _process_message(
             'senderPhone': mask_phone(sender_phone),
             'requestId': request_id,
         }))
-        # The menus are deleted — send the plain-text stand-in
-        _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
+        # Open the site menu
+        _send_wd_main_menu(contact_id, sender_phone, aws_phone_number_id, request_id)
         # Mark welcomeSent so brand-new contact path doesn't double-send
         try:
             dynamodb.Table(CONTACTS_TABLE).update_item(
@@ -1646,27 +1798,27 @@ def _process_message(
             'senderPhone': mask_phone(sender_phone),
             'requestId': request_id,
         }))
-        # Map common button texts to the menu placeholder.
+        # Map common button texts to the site menu.
         # `selfservice` is here because the `Selfservice` ice breaker is live on
         # both numbers and can arrive as `button` rather than `text`. The text
         # branch below is skipped entirely for a button message, so before this
-        # it was a silent tap. THE TRIGGER SET STAYS even though the menus are
-        # deleted: you cannot answer a trigger word without a trigger-word set,
-        # and every one of these is live on Meta's side.
+        # it was a silent tap. THE TRIGGER SET STAYS: you cannot answer a trigger
+        # word without a trigger-word set, and every one of these is live on
+        # Meta's side as a QR prefill, an ice breaker or a slash command.
         BUTTON_MENU_TRIGGERS = {'get started', 'start', 'menu', 'hi', 'hello', 'hey',
                                 'main menu', 'need help!', 'get help',
                                 'selfservice', 'self service', 'self-service'}
         if (button_text_lower in BUTTON_MENU_TRIGGERS
                 or strip_decorative_edges(button_text_lower) in BUTTON_MENU_TRIGGERS
                 or button_text_lower.startswith('get started')):
-            _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
+            _send_wd_main_menu(contact_id, sender_phone, aws_phone_number_id, request_id)
             logger.info(json.dumps({
                 'event': 'button_triggered_menu_sent',
                 'buttonText': button_text_lower,
                 'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
             }))
-            return  # Skip AI automation — placeholder sent via button trigger
+            return  # Skip AI automation — menu sent via button trigger
 
     # ── Keyword triggers (before AI automation) ──
     if msg_type == 'text' and content:
@@ -1919,9 +2071,9 @@ def _process_message(
                 'senderPhone': mask_phone(sender_phone),
                 'requestId': request_id,
             }))
-            # The menus are deleted — send the plain-text stand-in so a greeting
-            # is answered rather than met with silence.
-            _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
+            # Open the site menu so a greeting is answered rather than met with
+            # silence. A Graph failure degrades to MENU_PLACEHOLDER_TEXT.
+            _send_wd_main_menu(contact_id, sender_phone, aws_phone_number_id, request_id)
             logger.info(json.dumps({
                 'event': 'hi_keyword_welcome_sent',
                 'contactId': mask_contact_id(contact_id),
@@ -1951,11 +2103,11 @@ def _process_message(
             return
 
         # ── Ice breaker: "Selfservice" / "[retired public path]" ──
-        # THE KEYWORDS STAY, EVERY MENU GOES. `Selfservice` is a live ice
-        # breaker and `selfservice` a live slash command on BOTH numbers (read
-        # off Meta's conversational_automation on 2026-09-26), so dropping the
-        # trigger would stop answering something customers are actively invited
-        # to tap. It reaches the menu placeholder now.
+        # THE KEYWORDS STAY. `Selfservice` is a live ice breaker and
+        # `selfservice` a live slash command on BOTH numbers (read off Meta's
+        # conversational_automation on 2026-09-26), so dropping the trigger would
+        # stop answering something customers are actively invited to tap. It opens
+        # the same site menu as a greeting — the commands reply says so.
         SELFSERVICE_KEYWORDS = {'self-service', 'selfservice', 'self service', '/selfservice', '/service'}
         if content_lower in SELFSERVICE_KEYWORDS or _content_plain in SELFSERVICE_KEYWORDS:
             logger.info(json.dumps({
@@ -1964,7 +2116,7 @@ def _process_message(
                 'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
             }))
-            _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
+            _send_wd_main_menu(contact_id, sender_phone, aws_phone_number_id, request_id)
             return
 
         # ── The one menu's Help row, typed rather than tapped ──
@@ -2037,10 +2189,9 @@ def _process_message(
     _is_brand_new_contact = not _welcome_already_sent
     if _is_brand_new_contact and msg_type in ('text', 'image', 'audio', 'video', 'document', 'request_welcome'):
         try:
-            # The menus are deleted — a brand-new contact gets the plain-text
-            # stand-in. The welcomeSent write below MUST stay, or this re-sends
-            # on every message from a new contact.
-            _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
+            # A brand-new contact gets the site menu. The welcomeSent write below
+            # MUST stay, or this re-sends on every message from a new contact.
+            _send_wd_main_menu(contact_id, sender_phone, aws_phone_number_id, request_id)
             # Mark contact so welcome isn't sent again
             try:
                 dynamodb.Table(CONTACTS_TABLE).update_item(
@@ -4844,11 +4995,199 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
         }))
 
 
-def _send_menu_placeholder(contact_id: str, phone_number_id: str, request_id: str) -> None:
-    """Send the plain-text stand-in for the deleted menus.
+def _send_wd_list(list_key: str, contact_id: str, sender_phone: str,
+                  aws_phone_number_id: str, request_id: str) -> bool:
+    """Send one WD_LISTS interactive list straight to the Meta Graph API.
 
-    This sits where the interactive-list sender used to, so every former menu
-    send is one call away from being a real menu again.
+    SELF-CONTAINED ON PURPOSE, and not a style preference. The generic interactive
+    sender in `wecare-outbound-whatsapp` was deleted on 2026-10-02 and now answers
+    `interactiveType='list'` with a 400 ("'list' interactive sends were deleted"),
+    so delegating there would fail every menu send. This uses the handler's own
+    existing Graph path instead: `_load_direct_api_token` reads
+    `wecare/meta-system-user-token` lazily, by reference, at request time, and
+    `_send_direct_api_message` owns the POST, the bearer header and the
+    appsecret_proof. No new secret read, no new HTTP code.
+
+    Returns True when the list was sent (or deliberately suppressed by the
+    live-smoke lockdown), False when the caller should fall back. Never raises —
+    a menu send must not break `_process_message`.
+    """
+    try:
+        spec = WD_LISTS.get(list_key)
+        if not spec:
+            logger.warning(json.dumps({
+                'event': 'wd_list_unknown_key',
+                'listKey': list_key,
+                'contactId': mask_contact_id(contact_id),
+                'requestId': request_id,
+            }))
+            return False
+
+        # The direct Graph send bypasses outbound-whatsapp's live_smoke gate, so the
+        # lockdown is re-applied here. With WA_LIVE_SMOKE_TEST absent (the state
+        # today) check_recipient returns (True, 'not_smoke_mode') and nothing changes.
+        allowed, reason = live_smoke.check_recipient(sender_phone)
+        if not allowed:
+            logger.info(json.dumps({
+                'event': 'wd_list_smoke_blocked',
+                'listKey': list_key,
+                'reason': reason,
+                'senderPhone': mask_phone(sender_phone or ''),
+                'contactId': mask_contact_id(contact_id),
+                'requestId': request_id,
+            }))
+            return True  # handled, not failed — do not fall back and send anyway
+
+        rows = []
+        for row in spec.get('rows', [])[:10]:
+            entry = {'id': row['id'], 'title': row['title'][:24]}
+            if row.get('description'):
+                entry['description'] = row['description'][:72]
+            rows.append(entry)
+
+        body_text = spec.get('body', '')[:1024]
+        interactive: Dict[str, Any] = {
+            'type': 'list',
+            'body': {'text': body_text},
+            'action': {
+                'button': spec.get('button', 'Open Menu')[:20],
+                'sections': [{'title': spec.get('section', 'Menu')[:24], 'rows': rows}],
+            },
+        }
+        if spec.get('header'):
+            interactive['header'] = {'type': 'text', 'text': spec['header'][:60]}
+
+        result = _send_direct_api_message(
+            sender_phone,
+            {'type': 'interactive', 'interactive': interactive},
+            meta_phone_id=_get_meta_phone_id_for_direct_api(aws_phone_number_id),
+        )
+
+        if not result.get('success'):
+            # Shape only. Never the token, never the full Graph body.
+            logger.error(json.dumps({
+                'event': 'wd_list_send_failed',
+                'listKey': list_key,
+                'status': result.get('status'),
+                'contactId': mask_contact_id(contact_id),
+                'requestId': request_id,
+            }))
+            return False
+
+        logger.info(json.dumps({
+            'event': 'wd_list_sent',
+            'listKey': list_key,
+            'rowCount': len(rows),
+            'contactId': mask_contact_id(contact_id),
+            'requestId': request_id,
+        }))
+        # A direct Graph send writes no message record, so mirror it into the inbox
+        # the way the deleted outbound path did. Non-blocking by construction.
+        try:
+            put_message(
+                channel='whatsapp',
+                direction='outbound',
+                contact_id=contact_id,
+                content=f'[Menu: {list_key}] {body_text}',
+                status='sent',
+                message_id=result.get('messageId') or None,
+                messageType='interactive_list',
+                raise_on_error=False,
+            )
+        except Exception as _me:
+            logger.warning(f'wd_list inbox mirror skipped: {type(_me).__name__}')
+        return True
+    except Exception as e:
+        logger.error(json.dumps({
+            'event': 'wd_list_error',
+            'listKey': list_key,
+            'error': type(e).__name__,
+            'contactId': mask_contact_id(contact_id),
+            'requestId': request_id,
+        }))
+        return False
+
+
+def _route_wd_list_reply(list_id: str, contact_id: str, sender_phone: str,
+                         aws_phone_number_id: str, request_id: str) -> str:
+    """Route one tapped list row. Three ways out and no fourth.
+
+    Returns a short token naming which way it went ('back', 'list', 'leaf',
+    'unknown') so the behaviour is testable without a live send. The caller has
+    already logged `list_reply_received` with the raw id.
+
+    Nothing falls through and nothing raises: a stale row from a deleted menu, a
+    typo and an empty id all re-open the main menu.
+    """
+    if list_id == 'wd_back':
+        # Explicit, so WD_LISTS stays one key per list rather than gaining an alias.
+        _send_wd_main_menu(contact_id, sender_phone, aws_phone_number_id, request_id)
+        return 'back'
+    if list_id in WD_LISTS:
+        if not _send_wd_list(list_id, contact_id, sender_phone, aws_phone_number_id, request_id):
+            _send_wd_main_menu(contact_id, sender_phone, aws_phone_number_id, request_id)
+        return 'list'
+    if list_id in WD_LEAF_LINKS:
+        _send_wd_leaf_link(list_id, contact_id, aws_phone_number_id, request_id)
+        return 'leaf'
+    # An old cached `menu_*` id, a typo, an empty id. Never silent.
+    logger.info(json.dumps({
+        'event': 'wd_list_reply_unknown',
+        'listId': list_id,
+        'contactId': mask_contact_id(contact_id),
+        'requestId': request_id,
+    }))
+    _send_wd_main_menu(contact_id, sender_phone, aws_phone_number_id, request_id)
+    return 'unknown'
+
+
+def _send_wd_main_menu(contact_id: str, sender_phone: str, aws_phone_number_id: str,
+                       request_id: str) -> None:
+    """Send the main menu, falling back to the plain-text stand-in if Meta refuses.
+
+    The fallback is what keeps "nothing goes silent" true even with no token or a
+    Graph outage.
+    """
+    if not _send_wd_list('wd_main', contact_id, sender_phone, aws_phone_number_id, request_id):
+        _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
+
+
+def _send_wd_leaf_link(leaf_id: str, contact_id: str, aws_phone_number_id: str,
+                       request_id: str) -> None:
+    """Answer a tapped leaf row with the site link as plain text.
+
+    Goes through `_send_ai_auto_reply` rather than the direct Graph path: a text
+    send still works downstream, and routing it through `outbound-whatsapp` keeps
+    the inbox record and the live-smoke lockdown for free.
+    """
+    entry = WD_LEAF_LINKS.get(leaf_id)
+    if not entry:
+        return
+    name, path = entry
+    text = WD_LEAF_TEMPLATE.format(name=name, url=f'{WD_SITE_BASE}{path}')
+    # leafId and path are neither secrets nor phone numbers, so they are logged in
+    # full — the same reasoning the payments steering gives for referenceId.
+    logger.info(json.dumps({
+        'event': 'wd_leaf_link_sent',
+        'leafId': leaf_id,
+        'path': path,
+        'contactId': mask_contact_id(contact_id),
+        'requestId': request_id,
+    }))
+    _send_ai_auto_reply(contact_id, text, aws_phone_number_id, request_id)
+
+
+def _send_menu_placeholder(contact_id: str, phone_number_id: str, request_id: str) -> None:
+    """Send the plain-text stand-in — the DEGRADED FALLBACK, not the menu.
+
+    The real menu is `WD_LISTS` via `_send_wd_list`. This is what a customer gets
+    when that Graph send fails (no token, HTTP error), so a greeting is answered
+    rather than met with silence.
+
+    The string itself must not drift: `tests/test_calling_menu_template_is_gone.py`
+    asserts this Lambda's `MENU_PLACEHOLDER_TEXT` is byte-identical to the
+    `whatsapp-calling` Lambda's own copy, because the two share no module and a
+    drift would make one WABA answer differently from the other.
     """
     logger.info(json.dumps({
         'event': 'menu_placeholder_sent',
