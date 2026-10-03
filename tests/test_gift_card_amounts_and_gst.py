@@ -108,7 +108,8 @@ def digest() -> str:
 
 # ── 87: the fee basis ─────────────────────────────────────────────────────────
 
-@pytest.mark.xfail(strict=True, reason=SEAM_G1)
+# SEAM-G1 landed in d2b1b53f; stale xfail(strict) marker removed 2026-10-03. Body passes; the
+# fee-basis money property is pinned by this test directly.
 def test_the_convenience_fee_is_computed_on_the_full_collection_total():
     """The section 2 worked example, driven through the live cart path with a gift card applied.
 
@@ -486,7 +487,8 @@ def test_a_cart_too_small_for_a_gift_card_refuses_rather_than_redeeming_nothing(
 
 # ── 99 / 100: one card, and the other two rails stay shut ──────────────────────
 
-@pytest.mark.xfail(strict=True, reason=SEAM_G1)
+# SEAM-G1 landed in d2b1b53f; stale xfail(strict) marker removed 2026-10-03. The one-card rule
+# is enforced today and this test pins it.
 def test_only_one_gift_card_is_accepted():
     """Wix: "Carts currently support a single coupon and a single gift card at a time. Attempting to
     add a second returns an error." Enforced by US rather than discovered at runtime.

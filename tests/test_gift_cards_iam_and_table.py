@@ -852,7 +852,8 @@ def test_no_recorded_payment_exceeds_the_verified_capture_for_its_transaction_id
         f"whenever a gift card funds part of the total")
 
 
-@pytest.mark.xfail(strict=True, reason=SEAM_G7B)
+# SEAM-G7(b) landed in d2b1b53f (KNOWN_EFFECTS gained WIX_GIFT_CARD_TENDER, validated in claim());
+# stale xfail(strict) marker removed 2026-10-03. SEAM-G7(a) and SEAM-G14 stay marked - still open.
 def test_the_gift_card_tender_claims_a_different_effect_key_from_the_razorpay_payment():
     """SEAM-G7(b). A second tender record cannot ride on the existing claim.
 

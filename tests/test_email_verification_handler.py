@@ -189,7 +189,10 @@ def test_verify_returns_email_bound_proof_and_never_stamps_body_selected_custome
     proof = fake.Table(OTP_TABLE).get_item(
         Key={'grantId': h.PROOF_PREFIX + body['proof']})['Item']
     assert proof['purpose'] == h.PROOF_PURPOSE
-    assert proof['subjectDigest'] == h._proof_digest(EMAIL)
+    # Proof binds to the NORMALISED email (handler normalises before _issue_proof; the
+    # customer-profile consumer normalises before validating). Asserting raw mixed-case EMAIL was
+    # the stale half, fixed 2026-10-03; the security property was always held.
+    assert proof['subjectDigest'] == h._proof_digest(NORMALISED)
 
 
 def test_a_used_code_cannot_be_replayed(handler_env):
