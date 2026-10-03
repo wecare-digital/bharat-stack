@@ -180,9 +180,25 @@ const VayuLokLive: React.FC = () => {
       } };
     };
 
+    let cancelled = false;
+
+    // Wait up to ~5s for the canvas ref to attach. The effect can fire its init
+    // before React has painted the conditionally-rendered map canvas, in which case
+    // mapHost.current is still null; bailing then left a blank map with no error.
+    const waitForHost = async (): Promise<HTMLDivElement | null> => {
+      for ( let i = 0; i < 50; i++ ) {
+        if ( cancelled ) return null;
+        if ( mapHost.current ) return mapHost.current;
+        await new Promise( r => setTimeout( r, 100 ) );
+      }
+      return mapHost.current;
+    };
+
     const init = async () => {
       const g = w.google?.maps;
-      if ( !mapHost.current || !g ) return;
+      if ( !g ) return;
+      const host = await waitForHost();
+      if ( cancelled || !host ) return;
 
       // WITH loading=async, the google.maps NAMESPACE exists on script load but its
       // constructors (Map, Marker, ...) are NOT populated until the relevant library
@@ -218,9 +234,9 @@ const VayuLokLive: React.FC = () => {
       } catch {
         return; // silent degradation: no map rather than a crash
       }
-      if ( !maps.Map || !mapHost.current ) return;
+      if ( cancelled || !maps.Map || !host ) return;
 
-      const map = new maps.Map( mapHost.current, {
+      const map = new maps.Map( host, {
         center: { lat: DEFAULT_PLACE.lat, lng: DEFAULT_PLACE.lng },
         zoom: 11,
         gestureHandling: 'greedy',
@@ -242,7 +258,7 @@ const VayuLokLive: React.FC = () => {
 
       if ( maps.Geocoder ) geocoder.current = new maps.Geocoder();
       if ( maps.places?.PlacesService ) {
-        placesSvc.current = new maps.places.PlacesService( mapHost.current );
+        placesSvc.current = new maps.places.PlacesService( host );
       }
 
       // First setState via requestAnimationFrame to avoid react-hooks/set-state-in-effect.
@@ -252,11 +268,20 @@ const VayuLokLive: React.FC = () => {
     // init is async (it awaits importLibrary); wrap so no unhandled promise floats.
     const runInit = () => { void init(); };
 
-    if ( w.google?.maps ) { runInit(); return; }
+    // If the loader is already present (namespace or script tag), call init
+    // DIRECTLY - the script's 'load' event has already fired and will not fire
+    // again, so relying on the listener would leave the map unbuilt. init() awaits
+    // importLibrary itself, so it is safe to call before the libraries finish.
+    if ( w.google?.maps ) { runInit(); return () => { cancelled = true; }; }
 
     const ID = 'gmaps-js';
     const existing = document.getElementById( ID );
-    if ( existing ) { existing.addEventListener( 'load', runInit ); return; }
+    if ( existing ) {
+      existing.addEventListener( 'load', runInit );
+      // Also call directly in case 'load' already fired for this existing tag.
+      runInit();
+      return () => { cancelled = true; existing.removeEventListener( 'load', runInit ); };
+    }
 
     const script = document.createElement( 'script' );
     script.id = ID;
@@ -265,6 +290,7 @@ const VayuLokLive: React.FC = () => {
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent( MAPS_KEY )}&libraries=places&loading=async`;
     script.addEventListener( 'load', runInit );
     document.head.appendChild( script );
+    return () => { cancelled = true; };
   }, [] );
 
   /* ---------------------------------------------------------------------------------
