@@ -2249,6 +2249,26 @@ const VayuLokLive: React.FC = () => {
                         <div key="prev-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ Math.round( p.value ) }</span><p className="vl-live-preview-cat">{ p.unit }</p></div>
                       ) ) }
                     </div>
+
+                    { ( bestOutside || previewAir || previewWeather ) && (
+                      <div className="vl-live-preview-insight">
+                        <p>
+                          { bestOutside
+                            ? <>Best outside <strong>{ bestOutside.label }</strong>.</>
+                            : previewWeather?.condition
+                              ? <>Current conditions: <strong>{ previewWeather.condition }</strong>.</>
+                              : <>Live conditions for <strong>{ previewPlace.name }</strong>.</> }
+                        </p>
+                        <span>
+                          { bestOutside
+                            ? bestOutside.note
+                            : previewAir
+                              ? `Air quality is ${previewAir.word.toLowerCase()} right now.`
+                              : 'Open the details for the full weather outlook.' }
+                        </span>
+                      </div>
+                    ) }
+
                     { layer && (
                       <div className="vl-live-preview-scale" aria-label={ layer === 'AQI' ? 'AQI heatmap scale' : 'PM2.5 heatmap scale' }>
                         <p className="vl-live-label">{ layer === 'AQI' ? 'AQI heatmap' : 'PM2.5 heatmap' }</p>
@@ -2446,47 +2466,51 @@ const VayuLokLive: React.FC = () => {
         .vl-live-scale-ends{display:flex;justify-content:space-between;margin-top:6px;gap:8px}
         .vl-live-scale-ends span{font-size:11px;font-weight:700;color:var(--green)}
 
-        /* One map information card, photo-led like the supplied reference. */
-        .vl-live-map-preview{position:absolute;top:16px;right:16px;left:auto;bottom:auto;z-index:4;width:min(390px,calc(100% - 150px));padding:0 18px 18px;border:1px solid rgba(209,244,112,.86);border-radius:20px;background:rgba(255,255,255,.985);box-shadow:0 14px 34px rgba(26,58,42,.16);overflow:visible}
-        .vl-live-map-preview::after{content:'';position:absolute;left:50%;bottom:-10px;width:20px;height:20px;background:#fff;border-right:1px solid rgba(209,244,112,.86);border-bottom:1px solid rgba(209,244,112,.86);transform:translateX(-50%) rotate(45deg);border-radius:0 0 4px 0}
-        .vl-live-photo-shell{position:relative;margin:0 -18px}
+        /* Single map place card: merged photo-led reference + Home design language. */
+        .vl-live-map-preview{position:absolute;top:16px;right:16px;left:auto;bottom:auto;z-index:4;width:min(400px,calc(100% - 150px));padding:0 20px 20px;border:1px solid rgba(209,244,112,.9);border-radius:20px;background:rgba(255,255,255,.99);box-shadow:0 14px 34px rgba(26,58,42,.14);overflow:visible}
+        .vl-live-map-preview::after{content:'';position:absolute;left:50%;bottom:-10px;width:20px;height:20px;background:#fff;border-right:1px solid rgba(209,244,112,.9);border-bottom:1px solid rgba(209,244,112,.9);transform:translateX(-50%) rotate(45deg);border-radius:0 0 4px 0}
+        .vl-live-photo-shell{position:relative;margin:0 -20px}
         .vl-live-place-photos{display:flex;gap:0;overflow-x:auto;overflow-y:hidden;border-radius:20px 20px 0 0;scroll-snap-type:x mandatory;scrollbar-width:none}
         .vl-live-place-photos::-webkit-scrollbar{display:none}
-        .vl-live-photo-page{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);grid-template-rows:1fr 1fr;gap:6px;flex:0 0 100%;height:228px;padding:0;scroll-snap-align:start;background:#fff}
+        .vl-live-photo-page{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);grid-template-rows:1fr 1fr;gap:6px;flex:0 0 100%;height:236px;padding:0;scroll-snap-align:start;background:#fff}
         .vl-live-place-photo{position:relative;width:100%;height:100%;margin:0;overflow:hidden;background:#eef3ef}
         .vl-live-place-photo.is-primary{grid-row:1 / span 2;border-radius:20px 0 0 0}
         .vl-live-place-photo.is-secondary{border-radius:0}
         .vl-live-place-photo.is-secondary:nth-child(2){border-radius:0 20px 0 0}
         .vl-live-place-photo img{display:block;width:100%;height:100%;object-fit:cover}
-        .vl-live-photo-count{position:absolute;top:12px;left:12px;z-index:4;display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;background:var(--lime);color:var(--green);font-size:10px;font-weight:800;line-height:1.1;box-shadow:0 1px 0 rgba(26,58,42,.12)}
-        .vl-live-place-photo-fallback{height:180px;margin:0;border-radius:20px 20px 0 0;display:grid;place-items:center;background:linear-gradient(135deg,rgba(209,244,112,.5),rgba(26,58,42,.08)),#eef3ef}
-        .vl-live-streetview{position:relative;height:180px;margin:0 -18px 12px;border-radius:20px 20px 0 0;overflow:hidden;background:#eef3ef}
+        .vl-live-photo-count{position:absolute;top:12px;left:12px;z-index:4;display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:rgba(209,244,112,.96);color:var(--green);font-size:11px;font-weight:800;line-height:1;box-shadow:0 2px 8px rgba(26,58,42,.12)}
+        .vl-live-place-photo-fallback{height:196px;margin:0;border-radius:20px 20px 0 0;display:grid;place-items:center;background:linear-gradient(135deg,rgba(209,244,112,.5),rgba(26,58,42,.08)),#eef3ef}
+        .vl-live-streetview{position:relative;height:196px;margin:0 -20px 12px;border-radius:20px 20px 0 0;overflow:hidden;background:#eef3ef}
         .vl-live-streetview-host{position:absolute;inset:0;opacity:0;pointer-events:none}
         .vl-live-streetview.is-ready .vl-live-streetview-host{opacity:1}
         .vl-live-streetview .vl-live-place-photo-fallback{position:absolute;inset:0;width:100%;height:100%;margin:0;border-radius:0}
-        .vl-live-media-tag{position:absolute;top:12px;left:12px;z-index:4;padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.92);font-size:10px;font-weight:700;color:var(--green);box-shadow:0 2px 8px rgba(26,58,42,.1)}
+        .vl-live-media-tag{position:absolute;top:12px;left:12px;z-index:4;padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.94);font-size:10px;font-weight:700;color:var(--green);box-shadow:0 2px 8px rgba(26,58,42,.1)}
         .vl-live-place-photo-fallback span{width:26px;height:26px;border:7px solid var(--green);border-radius:50% 50% 50% 0;background:var(--lime);transform:rotate(-45deg)}
-        .vl-live-photo-tabs{display:flex;gap:5px;margin:6px 0 10px;padding:0 1px;height:18px;align-items:center}
-        .vl-live-photo-tab{position:relative;display:block;flex:1 1 0;height:18px;min-width:10px;cursor:pointer;outline:none}
+        .vl-live-photo-tabs{display:flex;gap:5px;margin:7px 0 13px;padding:0 1px;height:14px;align-items:center}
+        .vl-live-photo-tab{position:relative;display:block;flex:1 1 0;height:14px;min-width:10px;cursor:pointer;outline:none}
         .vl-live-photo-tab::after{content:'';position:absolute;left:0;right:0;top:50%;height:2px;border-radius:999px;background:#e7ebe8;transform:translateY(-50%);transition:background-color .18s ease,transform .18s ease}
         .vl-live-photo-tab[aria-selected="true"]::after{background:var(--lime);transform:translateY(-50%) scaleY(1.5)}
-        .vl-live-photo-tab:focus-visible::before{content:'';position:absolute;inset:2px;border:1px solid var(--green);border-radius:999px}
+        .vl-live-photo-tab:focus-visible::before{content:'';position:absolute;inset:1px;border:1px solid var(--green);border-radius:999px}
         .vl-live-map-preview-head{display:block;margin-top:2px}
-        .vl-live-map-preview .vl-live-card-h{margin:0;font-size:20px;line-height:1.2;font-weight:700;letter-spacing:-.02em;color:#1a1a1a}
-        .vl-live-map-address{margin:5px 0 0;font-size:12px;line-height:1.45;color:var(--ink-muted)}
-        .vl-live-map-preview-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-top:9px}
+        .vl-live-map-preview .vl-live-card-h{margin:0;font-size:22px;line-height:1.18;font-weight:700;letter-spacing:-.025em;color:#1a1a1a}
+        .vl-live-map-address{margin:6px 0 0;font-size:12px;line-height:1.45;color:var(--ink-muted)}
+        .vl-live-map-preview-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-top:10px}
         .vl-live-map-preview-meta span,.vl-live-ist{font-size:11px;line-height:1.25;font-weight:700;color:var(--green)}
         .vl-live-map-preview-meta span::before{content:'•';margin-right:10px;color:rgba(26,58,42,.35)}
-        .vl-live-preview-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:14px;padding-top:13px;border-top:1px solid var(--hair)}
-        .vl-live-preview-metrics>div{min-width:0;padding:0 10px 0 0}
-        .vl-live-preview-metrics>div+div{padding-left:10px;border-left:1px solid var(--hair)}
-        .vl-live-preview-metrics .vl-live-label{margin-bottom:4px}
-        .vl-live-preview-metrics .vl-live-metric-md{font-size:18px;line-height:1.05}
-        .vl-live-preview-cat{margin:4px 0 0;font-size:10px;font-weight:700;letter-spacing:.01em;color:var(--ink-muted)}
-        .vl-live-preview-scale{margin-top:14px;padding-top:12px;border-top:1px solid var(--hair)}
+        .vl-live-preview-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:16px;padding-top:14px;border-top:1px solid var(--hair)}
+        .vl-live-preview-metrics>div{min-width:0;padding:0 12px 0 0}
+        .vl-live-preview-metrics>div+div{padding-left:12px;border-left:1px solid var(--hair)}
+        .vl-live-preview-metrics .vl-live-label{margin-bottom:5px}
+        .vl-live-preview-metrics .vl-live-metric-md{font-size:20px;line-height:1.05}
+        .vl-live-preview-cat{margin:5px 0 0;font-size:10px;font-weight:700;letter-spacing:.01em;color:var(--ink-muted)}
+        .vl-live-preview-insight{margin-top:15px;padding-top:14px;border-top:1px solid var(--hair)}
+        .vl-live-preview-insight p{margin:0;font-size:14px;line-height:1.45;color:rgba(0,0,0,.72)}
+        .vl-live-preview-insight p strong{font-weight:700;color:var(--green);box-shadow:inset 0 -.32em 0 rgba(209,244,112,.5)}
+        .vl-live-preview-insight span{display:block;margin-top:4px;font-size:12px;line-height:1.45;color:var(--ink-muted)}
+        .vl-live-preview-scale{margin-top:15px;padding-top:13px;border-top:1px solid var(--hair)}
         .vl-live-preview-scale .vl-live-label{margin-bottom:7px}
-        .vl-live-view-details{display:inline-flex;align-items:center;gap:4px;margin-top:14px;padding:8px 12px;border:0;border-radius:999px;background:var(--lime);color:var(--green);font:inherit;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer;transition:transform .18s ease}
-        .vl-live-view-details:hover{transform:translateY(-1px)}
+        .vl-live-view-details{display:inline-flex;align-items:center;gap:5px;min-height:38px;margin-top:16px;padding:0 15px;border:2px solid transparent;border-radius:999px;background:var(--lime);color:var(--green);font:inherit;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer;transition:background-color .18s ease,border-color .18s ease,transform .18s ease}
+        .vl-live-view-details:hover{border-color:var(--green);background:#fff;transform:translateY(-1px)}
         .vl-live-view-details:focus-visible{outline:3px solid var(--green);outline-offset:2px}
 
         /* Continuous weather workspace: typography + hairlines instead of repeated cards. */
@@ -2641,7 +2665,7 @@ const VayuLokLive: React.FC = () => {
         .vl-live-wa-subscribe:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
 
         @media(max-width:1023px){
-          .vl-live-map-preview{top:12px;right:12px;left:auto;bottom:auto;width:min(360px,calc(100% - 24px));padding:0 14px 14px}
+          .vl-live-map-preview{top:12px;right:12px;left:auto;bottom:auto;width:min(360px,calc(100% - 24px));padding:0 16px 16px}
         }
         @media(max-width:767px){
           .vl-live{padding-bottom:48px}
