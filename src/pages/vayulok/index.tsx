@@ -219,7 +219,8 @@ const VayuLokPage: React.FC = () => {
              is what caused the spread. index.tsx fixed this; these three copies had not. */
           letter-spacing:-0.04em;color:rgba(0,0,0,.95);margin:0;max-width:900px}
         .vl-head-line{display:block}
-        .vl-head-line-two{margin-top:.08em}
+        .vl-head-line-two{display:flex;align-items:baseline;gap:.14em;margin-top:.08em;white-space:nowrap;width:max-content;max-width:100%}
+        .vl-head-tail{display:inline-block;white-space:nowrap}
 
         /* Rotating pill. Same geometry, easing and timings as .hero-mark on the
            Grahak OS page - em-based so it tracks the clamp() headline at every width. */
@@ -306,8 +307,9 @@ const VayuLokPage: React.FC = () => {
            this composition fixed prevents the headline from changing height as the rotating
            word changes and mirrors the home page's deliberate block-line hero treatment. */
         @media(max-width:359px){
-          .vl-head-line-two{display:flex;flex-wrap:wrap;column-gap:.14em;row-gap:.08em}
-          .vl-head-tail{display:inline-block}
+          .vl-head{font-size:clamp(31px,9vw,36px)}
+          .vl-head-line-two{gap:.1em;transform-origin:left center}
+          .vl-mark{padding-inline:.18em .24em}
         }
 
         /* The rotation itself is already disabled in JS; this settles the pill into
