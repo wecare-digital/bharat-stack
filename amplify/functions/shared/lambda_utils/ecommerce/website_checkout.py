@@ -190,7 +190,24 @@ def prepare_checkout(*,
     if not quote.is_payable:
         raise CheckoutRejected("NOT_PAYABLE")
     payable = quote.as_payable_money()
-    amount_paise = payable.paise
+    full_amount_paise = payable.paise
+
+    # Wix-native gift cards are tender, not a discount: the quote remains the full order total.
+    # Cart V2 freezes the authoritative redemption into the snapshot, and only that verified leg
+    # is subtracted from what Razorpay is asked to collect. The convenience fee/GST therefore
+    # remains outside the gift-card-funded Wix collection.
+    payment_data = snapshot.frozen_data.get("payment") if isinstance(snapshot.frozen_data, Mapping) else None
+    payment_data = payment_data if isinstance(payment_data, Mapping) else {}
+    gift_card = payment_data.get("wixGiftCard")
+    gift_card = gift_card if isinstance(gift_card, Mapping) else None
+    gift_card_redeem_paise = int(payment_data.get("wixGiftCardRedeemPaise") or 0)
+    if gift_card_redeem_paise < 0 or gift_card_redeem_paise > quote.collection_before_convenience_paise:
+        raise CheckoutRejected("GIFT_CARD_MISMATCH")
+    pay_now_paise = full_amount_paise - gift_card_redeem_paise
+    if pay_now_paise <= 0:
+        # Wix gift cards fund the Wix collection; WECARE's fee/GST still requires the external
+        # website gateway on every positive cart. A zero external leg would be a different flow.
+        raise CheckoutRejected("NOT_PAYABLE")
 
     fingerprint = intent_fingerprint(snapshot)
 
@@ -200,7 +217,8 @@ def prepare_checkout(*,
     reservation, won = order_keys.reserve_checkout_request_key(
         keys_table, customer_id=customer_id, request_key=request_key,
         intent_fingerprint=fingerprint, payment_attempt_id=attempt_id,
-        extra={"snapshotHash": snapshot.snapshot_hash, "amountPaise": amount_paise},
+        extra={"snapshotHash": snapshot.snapshot_hash, "amountPaise": full_amount_paise,
+               "razorpayChargedPaise": pay_now_paise},
     )
     if not won:
         # A prior click reserved this key. Same intent -> resume; changed intent -> reject.
@@ -228,7 +246,7 @@ def prepare_checkout(*,
     receipt = f"wk_{request_key}"[:order_keys.RAZORPAY_RECEIPT_MAX_LENGTH]
     try:
         order = create_order(
-            amount_paise=amount_paise, receipt=receipt,
+            amount_paise=pay_now_paise, receipt=receipt,
             notes={"paymentAttemptId": attempt_id, "customerId": customer_id,
                    "snapshotHash": snapshot.snapshot_hash},
         )
@@ -236,21 +254,27 @@ def prepare_checkout(*,
         return _recover_ambiguous_create(
             keys_table=keys_table, find_order_by_receipt=find_order_by_receipt,
             receipt=receipt, attempt_id=attempt_id, request_key=request_key,
-            amount_paise=amount_paise, currency="INR", account_mode_of=account_mode_of,
+            pay_now_paise=pay_now_paise, full_amount_paise=full_amount_paise,
+            currency="INR", account_mode_of=account_mode_of,
             prefill=prefill, error=error, reserve_attempt=reserve_attempt,
+            snapshot=snapshot, gift_card=gift_card,
+            gift_card_redeem_paise=gift_card_redeem_paise,
         )
 
     return _bind_and_ready(
         keys_table=keys_table, order=order, attempt_id=attempt_id, request_key=request_key,
-        amount_paise=amount_paise, currency="INR", account_mode_of=account_mode_of,
+        pay_now_paise=pay_now_paise, full_amount_paise=full_amount_paise,
+        currency="INR", account_mode_of=account_mode_of,
         prefill=prefill, reserve_attempt=reserve_attempt, customer_id=customer_id,
-        configuration_name=configuration_name,
+        configuration_name=configuration_name, snapshot=snapshot, gift_card=gift_card,
+        gift_card_redeem_paise=gift_card_redeem_paise,
     )
 
 
-def _bind_and_ready(*, keys_table, order, attempt_id, request_key, amount_paise, currency,
-                    account_mode_of, prefill, reserve_attempt, customer_id,
-                    configuration_name) -> PreparedCheckout:
+def _bind_and_ready(*, keys_table, order, attempt_id, request_key, pay_now_paise,
+                    full_amount_paise, currency, account_mode_of, prefill, reserve_attempt,
+                    customer_id, configuration_name, snapshot, gift_card,
+                    gift_card_redeem_paise) -> PreparedCheckout:
     gateway_order_id = str(order.get("id") or "")
     key_id = str(order.get("key_id") or "")
     if not gateway_order_id or not key_id:
@@ -262,7 +286,7 @@ def _bind_and_ready(*, keys_table, order, attempt_id, request_key, amount_paise,
     try:
         order_keys.bind_gateway_order(
             keys_table, gateway_order_id=gateway_order_id, payment_attempt_id=attempt_id,
-            request_key=request_key, amount_paise=amount_paise, account_key_id=key_id,
+            request_key=request_key, amount_paise=pay_now_paise, account_key_id=key_id,
             account_mode=mode, currency=currency,
         )
     except order_keys.OrderIdentityUnavailable:
@@ -278,15 +302,21 @@ def _bind_and_ready(*, keys_table, order, attempt_id, request_key, amount_paise,
     if reserve_attempt is not None:
         attempt = payment_attempt.build(
             customer_id=customer_id, reference_id=gateway_order_id,
-            amount_paise=amount_paise, configuration_name=configuration_name,
-            payment_attempt_id=attempt_id,
+            amount_paise=full_amount_paise, configuration_name=configuration_name,
+            cart_id=snapshot.cart_id, payment_attempt_id=attempt_id,
         )
         attempt["checkoutMode"] = CHECKOUT_MODE_WEBSITE
         attempt["providerOrderId"] = gateway_order_id
+        attempt["razorpayChargedPaise"] = pay_now_paise
+        attempt["snapshotHash"] = snapshot.snapshot_hash
+        attempt["purchasedSnapshot"] = dict(snapshot.frozen_data)
+        attempt["wixGiftCardRedeemPaise"] = int(gift_card_redeem_paise)
+        if gift_card:
+            attempt["giftCard"] = dict(gift_card)
         reserve_attempt(attempt)
 
     options = _browser_options(
-        key_id=key_id, gateway_order_id=gateway_order_id, amount_paise=amount_paise,
+        key_id=key_id, gateway_order_id=gateway_order_id, amount_paise=pay_now_paise,
         currency=currency, prefill=prefill, payment_attempt_id=attempt_id)
     return PreparedCheckout(status=CHECKOUT_OPTIONS_READY, payment_attempt_id=attempt_id,
                             gateway_order_id=gateway_order_id, options=options)
@@ -326,8 +356,9 @@ def _link_request_key_to_order(keys_table, customer_id, request_key, gateway_ord
 
 
 def _recover_ambiguous_create(*, keys_table, find_order_by_receipt, receipt, attempt_id,
-                              request_key, amount_paise, currency, account_mode_of, prefill,
-                              error, reserve_attempt) -> PreparedCheckout:
+                              request_key, pay_now_paise, full_amount_paise, currency,
+                              account_mode_of, prefill, error, reserve_attempt, snapshot,
+                              gift_card, gift_card_redeem_paise) -> PreparedCheckout:
     """A create raised. Correlate by receipt; NEVER blindly create a second payable order."""
     logger.warning('{"event":"website_checkout_create_ambiguous","error":"%s"}',
                    type(error).__name__)
@@ -341,10 +372,12 @@ def _recover_ambiguous_create(*, keys_table, find_order_by_receipt, receipt, att
         # The first create DID land. Bind to it and expose options; no second order is created.
         return _bind_and_ready(
             keys_table=keys_table, order=landed, attempt_id=attempt_id, request_key=request_key,
-            amount_paise=amount_paise, currency=currency, account_mode_of=account_mode_of,
+            pay_now_paise=pay_now_paise, full_amount_paise=full_amount_paise,
+            currency=currency, account_mode_of=account_mode_of,
             prefill=prefill, reserve_attempt=reserve_attempt,
             customer_id=str(landed.get("notes", {}).get("customerId") or ""),
-            configuration_name=CHECKOUT_MODE_WEBSITE,
+            configuration_name=CHECKOUT_MODE_WEBSITE, snapshot=snapshot,
+            gift_card=gift_card, gift_card_redeem_paise=gift_card_redeem_paise,
         )
     # Could not confirm a landed order. Report ambiguous-pending for reconciliation.
     return PreparedCheckout(status=CHECKOUT_AMBIGUOUS, payment_attempt_id=attempt_id,

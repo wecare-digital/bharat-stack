@@ -3,14 +3,10 @@
 Design reference: `.agents/tasks/wix-coupons-giftcards-20261001/coupons-20261001.md` sections 2,
 2.3 and 3, and the test list in section 7 (tests 42-51).
 
-Two tests here are `xfail(strict=True)` and neither is weakened
---------------------------------------------------------------
-* **SEAM-C1** - `cart_v2.add_coupon` posts the V1 field `couponCode`, where Cart V2 requires
-  `{"coupon": {"code": ...}}` with both `coupon` and `coupon.code` in the schema's `required`
-  array. That file belongs to the cart_v2 workstream. So the request-BODY shape is deferred and
-  the endpoint and the option-(a) claim are asserted UNCONDITIONALLY, which is the whole scope of
-  the mark: without it this suite would land red on arrival and falsify section 3's claim that
-  this work is fully testable today.
+One strict xfail remains
+------------------------
+* **SEAM-C1 is CLOSED** - `cart_v2.add_coupon` now sends the current Cart V2
+  `{"coupon":{"code":...}}` request and enforces Wix's 50-character maximum.
 * **SEAM-C2** - the Wix order payload must carry the convenience fee and its GST in
   `additionalFees[]`, and nothing builds that payload yet. `strict=True` so test 48 converts from
   "pending" to "passing" by the producer's change, and fails loudly if someone satisfies it by
@@ -64,9 +60,7 @@ SEAM_C2_PRODUCER = "build_wix_order_payload"
 SEAM_C2_HOMES = ("website_checkout", "wix_writeback", "initiation", "order_creation",
                  "finalization")
 
-SEAM_C1 = ("SEAM-C1: cart_v2.add_coupon posts the V1 field `couponCode` and belongs to the "
-           "cart_v2 workstream. Only the request-body shape is deferred; the endpoint and the "
-           "option-(a) claim are asserted unconditionally above. strict=True per DECISION 8.")
+SEAM_C1 = "CLOSED: current Cart V2 nested coupon body is implemented."
 SEAM_C2 = ("SEAM-C2: nothing builds attempt['wixOrderPayload'] yet, so the convenience fee and "
            "its GST cannot travel onto the order as an additional fee. strict=True per "
            "DECISION 8, so this converts to passing by the producer's change and fails loudly "
@@ -197,7 +191,6 @@ def test_add_coupon_is_the_method_that_makes_the_wix_total_net():
     assert quote.collection_before_convenience_paise == total
 
 
-@pytest.mark.xfail(strict=True, reason=SEAM_C1)
 def test_add_coupon_sends_the_v2_nested_coupon_body():
     """The deferred half of test 43. `AddCouponRequest.coupon` is `CouponInput`, and the schema's
     `required` array names both `coupon` and `coupon.code`, so today's `{"couponCode": ...}`

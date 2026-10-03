@@ -326,11 +326,11 @@ class CartV2:
         adding a second returns an error.
         https://dev.wix.com/docs/api-reference/business-solutions/e-commerce/purchase-flow/cart-v2/introduction
         """
-        if not isinstance(code, str) or not code.strip() or len(code.strip()) > 100:
+        if not isinstance(code, str) or not code.strip() or len(code.strip()) > 50:
             raise ValueError("a coupon code is required")
         cart_id = identifier(cart_id)
         return self._cart(self.request(f"{BASE}/{cart_id}/add-coupon", method="POST",
-                                       body={"couponCode": code.strip()}), cart_id)
+                                       body={"coupon": {"code": code.strip()}}), cart_id)
 
     def remove_coupon(self, cart_id, coupon_id):
         """Remove Coupon. V2 additionally requires the `couponId`, where V1 took only the cart."""
@@ -339,6 +339,34 @@ class CartV2:
         cart_id = identifier(cart_id)
         return self._cart(self.request(f"{BASE}/{cart_id}/remove-coupon", method="POST",
                                        body={"couponId": coupon_id.strip()}), cart_id)
+
+    def add_gift_card(self, cart_id, code, redeem_amount=None):
+        """Apply one Wix-native gift card to this Cart V2 cart.
+
+        Current Wix Cart V2 supports one gift card. The customer supplies a bearer code only;
+        Wix owns validity, balance and the calculated redemption. An optional exact decimal
+        redeem amount is forwarded only when the server deliberately caps the redemption.
+        """
+        if not isinstance(code, str) or not 8 <= len(code.strip()) <= 20:
+            raise ValueError("gift card code must be 8-20 characters")
+        gift_card = {"code": code.strip()}
+        if redeem_amount is not None:
+            if not isinstance(redeem_amount, str):
+                raise ValueError("gift card redeem amount must be an exact decimal string")
+            Money.from_wix(redeem_amount)
+            gift_card["redeemAmount"] = {"amount": redeem_amount}
+        cart_id = identifier(cart_id)
+        return self._cart(self.request(
+            f"{BASE}/{cart_id}/add-gift-card", method="POST",
+            body={"giftCard": gift_card}), cart_id)
+
+    def remove_gift_card(self, cart_id, gift_card_id):
+        """Remove a Wix-native gift card by the cart-assigned GUID."""
+        gift_card_id = identifier(gift_card_id)
+        cart_id = identifier(cart_id)
+        return self._cart(self.request(
+            f"{BASE}/{cart_id}/remove-gift-card", method="POST",
+            body={"giftCardId": gift_card_id}), cart_id)
 
     def estimate(self, cart_id):
         """A NON-PAYABLE item-subtotal view, for the state before a delivery address exists.
@@ -489,43 +517,57 @@ class CartV2:
                 components["additionalFees"] + components["tax"] != total):
             raise CartContractError("price components do not match the total")
         payment = summary.get("paymentSummary") or {}
-        # GIFT CARDS ARE REFUSED HERE, DELIBERATELY AND PERMANENTLY FOR THIS RELEASE.
-        #
-        # Cart V2 offers Add Gift Card / Remove Gift Card as dedicated new methods, and this
-        # adapter implements NEITHER. Three independent reasons, the second of which is
-        # disqualifying on its own:
-        #
-        # 1. A gift card is a PARTIAL PAYMENT, and partial payment is off for this release. The
-        #    cart carries `payNow` beside `totalAfterGiftCards` precisely because the two differ
-        #    once a card is applied, and Wix omits the payment gateway order id entirely when a
-        #    gift card covers the whole total.
-        # 2. A gift card settles INSIDE WIX. Every verification this system has -- the authoritative
-        #    Razorpay captured-payment readback and the provider-payment binding -- can only verify
-        #    a RAZORPAY capture. The gift-card leg would be money moving on a rail the payment
-        #    integrity work cannot see, which is the exact failure class that work exists to
-        #    prevent. A coupon has none of this problem: it is a discount, so it lowers one number
-        #    and introduces no second rail.
-        # 3. The convenience-fee basis becomes undefined -- is the 2.5% charged on the full
-        #    collection total or on the post-gift-card remainder? That is a commercial and GST
-        #    question against seller GSTIN 19AAFFW7196L1Z8, not an implementation detail.
-        #
-        # To revisit, the owner must decide (a) that partial payment is in scope, (b) how a
-        # Wix-settled leg is authoritatively verified, and (c) the fee basis. Until then this check
-        # stays exactly as it is: do not weaken it to make a gift card pass.
-        if any(payment.get(key) for key in ("giftCards", "memberships", "subscriptionCharges")):
-            raise CartContractError("split or subscription payment is not supported")
-        for field in ("payNow", "totalAfterGiftCards"):
-            if Money.from_wix((payment.get(field) or {}).get("amount")).paise != total:
-                raise CartContractError("full immediate payment required")
+        # Membership/subscription/deferred rails remain outside website checkout. A Wix-native
+        # gift card is the one supported split: Wix calculates the redemption and Razorpay
+        # collects only the remaining external leg plus WECARE's fee/GST added downstream.
+        if any(payment.get(key) for key in ("memberships", "subscriptionCharges")):
+            raise CartContractError("membership or subscription payment is not supported")
         for field in ("payLater", "payAfterFreeTrial"):
-            if field in payment and Money.from_wix(payment[field].get("amount")).paise:
+            if field in payment and Money.from_wix((payment.get(field) or {}).get("amount")).paise:
                 raise CartContractError("deferred payment is not supported")
+
+        gift_cards = payment.get("giftCards") or []
+        if not isinstance(gift_cards, list) or len(gift_cards) > 1:
+            raise CartContractError("only one Wix gift card is supported")
+        pay_now = Money.from_wix((payment.get("payNow") or {}).get("amount")).paise
+        after_cards = Money.from_wix(
+            (payment.get("totalAfterGiftCards") or {}).get("amount")).paise
+        wix_gift_card = None
+        if gift_cards:
+            gift = gift_cards[0] if isinstance(gift_cards[0], dict) else {}
+            gift_id = identifier(gift.get("giftCardId"))
+            redeem = Money.from_wix((gift.get("redeemAmount") or {}).get("amount")).paise
+            if redeem <= 0 or redeem > total:
+                raise CartContractError("gift card redemption is outside the cart total")
+            if pay_now != total - redeem or after_cards != pay_now:
+                raise CartContractError("gift card payment split does not reconcile")
+            expected_requires = pay_now > 0
+            if payment.get("requiresPaymentAfterGiftCard") is not expected_requires:
+                raise CartContractError("gift card payment requirement does not match the remainder")
+            cart_cards = ((cart.get("paymentInfo") or {}).get("giftCards") or [])
+            if len(cart_cards) != 1 or str(cart_cards[0].get("id") or "") != gift_id:
+                raise CartContractError("gift card calculation is not bound to the cart")
+            wix_gift_card = {
+                "giftCardId": gift_id,
+                "redeemPaise": redeem,
+                "obfuscatedCode": str(cart_cards[0].get("obfuscatedCode") or ""),
+                "appId": str(cart_cards[0].get("appId") or ""),
+            }
+        else:
+            if pay_now != total or after_cards != total:
+                raise CartContractError("full immediate payment required")
+            if payment.get("requiresPaymentAfterGiftCard") not in (None, True):
+                raise CartContractError("payment requirement conflicts with the cart total")
+
         delivery = cart.get("deliveryInfo") or {}
         return {"wixCartId": cart_id, "cartRevision": cart["revision"],
                 "purchaseFlowId": cart["purchaseFlowId"],
                 "calculationId": summary["calculationId"],
                 "priceVerificationToken": summary["priceVerificationToken"],
                 "amountPaise": total, "currency": "INR", "componentsPaise": components,
+                "wixGiftCard": wix_gift_card,
+                "wixGiftCardRedeemPaise": int(wix_gift_card["redeemPaise"]) if wix_gift_card else 0,
+                "wixPayNowPaise": pay_now,
                 # Frozen alongside the amount because they are part of WHY it is that amount:
                 # delivery is a component of the total and the address is the place of supply.
                 # `build_snapshot` hashes both, so a changed address yields a different intent

@@ -97,18 +97,20 @@ class ReconciliationOutcome:
     """The verdict, plus the identifiers when an order exists."""
 
     __slots__ = ("outcome", "reason", "order_id", "order_number",
-                 "payment_attempt_id", "provider_payment_id")
+                 "payment_attempt_id", "provider_payment_id", "verified_captured_paise")
 
     def __init__(self, outcome: str, reason: str = "", *,
                  order_id: str = "", order_number: str = "",
                  payment_attempt_id: str = "",
-                 provider_payment_id: str = "") -> None:
+                 provider_payment_id: str = "",
+                 verified_captured_paise: int = 0) -> None:
         self.outcome = outcome
         self.reason = reason
         self.order_id = order_id
         self.order_number = order_number
         self.payment_attempt_id = payment_attempt_id
         self.provider_payment_id = provider_payment_id
+        self.verified_captured_paise = int(verified_captured_paise or 0)
 
     @property
     def has_order(self) -> bool:
@@ -141,6 +143,7 @@ class ReconciliationOutcome:
             "orderId": self.order_id or None,
             "orderNumber": self.order_number or None,
             "paymentAttemptId": self.payment_attempt_id or None,
+            "verifiedCapturedPaise": self.verified_captured_paise or None,
         }
 
     def __repr__(self) -> str:  # pragma: no cover - diagnostics only
@@ -263,7 +266,11 @@ def reconcile_payment(*,
                         provider_payment_id=provider_payment_id)
 
     try:
-        expected_amount = positive_paise(attempt.get("amountPaise"))
+        # A Wix-native gift card funds part of the FULL order total, so the amount Razorpay
+        # is expected to capture can be smaller than amountPaise. Old attempts have no split field
+        # and intentionally fall back to the full amount.
+        expected_amount = positive_paise(
+            attempt.get("razorpayChargedPaise") or attempt.get("amountPaise"))
         provider_amount = positive_paise(provider_amount)
     except ValueError:
         return _blocked(AMOUNT_MISMATCH,
@@ -330,6 +337,7 @@ def reconcile_payment(*,
                 order_id=claimed_id, order_number=number,
                 payment_attempt_id=attempt_id,
                 provider_payment_id=provider_payment_id,
+                verified_captured_paise=provider_amount,
             )
         # Claimed by someone who has not numbered it yet. Finish the job rather than racing:
         # the order id is committed either way.
@@ -349,6 +357,7 @@ def reconcile_payment(*,
             ORDER_CREATED, "verified capture produced exactly one order",
             order_id=outcome.order_id, order_number=outcome.order_number,
             payment_attempt_id=attempt_id, provider_payment_id=provider_payment_id,
+            verified_captured_paise=provider_amount,
         )
     return outcome
 
