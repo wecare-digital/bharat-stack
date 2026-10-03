@@ -280,8 +280,13 @@ def test_the_role_cannot_delete_checkout_evidence(provisioner):
     for statement in statements:
         assert "dynamodb:DeleteItem" not in statement.get("Action", []), (
             f"statement {statement.get('Sid')!r} grants DeleteItem on checkout evidence")
-        assert not (evidence & set(statement.get("Resource", []))) or             set(statement.get("Action", [])) >= {
-                "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"}
+
+    resources = {
+        resource
+        for statement in statements
+        for resource in statement.get("Resource", [])
+    }
+    assert evidence <= resources, "all three checkout evidence tables must remain explicitly named"
 
     actions = {a for s in statements for a in s["Action"]}
     assert actions >= {"dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"}
