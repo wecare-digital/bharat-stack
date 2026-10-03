@@ -1808,21 +1808,21 @@ const VayuLokLive: React.FC = () => {
 
                 {/* Place preview - bottom:76px, never bottom:0: Google's logo and legal
                     notices own the bottom corners. Renders live values when present. */}
-                { ( air || weather ) && (
+                { ( previewAir || previewWeather || mapCandidate ) && (
                   <div className="vl-live-map-preview">
-                    { place.photos?.length ? (
+                    { previewPlace.photos?.length ? (
                       <>
                         <div
                           className="vl-live-place-photos"
-                          aria-label={ `Photos of ${place.name}` }
+                          aria-label={ `Photos of ${previewPlace.name}` }
                           onScroll={ e => {
                             const el = e.currentTarget;
-                            if ( el.clientWidth ) setPhotoIndex( Math.max( 0, Math.min( place.photos!.length - 1, Math.round( el.scrollLeft / el.clientWidth ) ) ) );
+                            if ( el.clientWidth ) setPhotoIndex( Math.max( 0, Math.min( previewPlace.photos!.length - 1, Math.round( el.scrollLeft / el.clientWidth ) ) ) );
                           } }
                         >
-                          { place.photos.map( ( photo, i ) => (
+                          { previewPlace.photos.map( ( photo, i ) => (
                             <figure className="vl-live-place-photo" key={ photo.url + i }>
-                              <img src={ photo.url } alt={ `${place.name} ${i + 1}` } loading={ i === 0 ? 'eager' : 'lazy' } />
+                              <img src={ photo.url } alt={ `${previewPlace.name} ${i + 1}` } loading={ i === 0 ? 'eager' : 'lazy' } />
                               { photo.attributions.length > 0 && (
                                 <figcaption>
                                   { photo.attributions.map( ( a, j ) => a.uri ? (
@@ -1833,38 +1833,48 @@ const VayuLokLive: React.FC = () => {
                             </figure>
                           ) ) }
                         </div>
-                        { place.photos.length > 1 && (
-                          <div className="vl-live-photo-dots" aria-label={ `Photo ${photoIndex + 1} of ${place.photos.length}` }>
-                            { place.photos.map( ( _, i ) => <i key={ i } className={ i === photoIndex ? 'is-active' : '' } aria-hidden="true" /> ) }
+                        { previewPlace.photos.length > 1 && (
+                          <div className="vl-live-photo-dots" aria-label={ `Photo ${photoIndex + 1} of ${previewPlace.photos.length}` }>
+                            { previewPlace.photos.map( ( _, i ) => <i key={ i } className={ i === photoIndex ? 'is-active' : '' } aria-hidden="true" /> ) }
                           </div>
                         ) }
                       </>
                     ) : (
-                      <div className="vl-live-place-photo-fallback" role="img" aria-label={ `VayuLok place preview for ${place.name}` }>
+                      <div className="vl-live-place-photo-fallback" role="img" aria-label={ `VayuLok place preview for ${previewPlace.name}` }>
                         <span aria-hidden="true" />
                       </div>
                     ) }
                     <div className="vl-live-map-preview-head">
                       <div>
-                        <p className="vl-live-card-h">{ place.name }</p>
-                        <p className="vl-live-small">{ place.addr }</p>
+                        <p className="vl-live-card-h">{ previewPlace.name }</p>
+                        <p className="vl-live-small">{ previewPlace.addr }</p>
                       </div>
                       <time className="vl-live-ist" dateTime={ new Date().toISOString() }>{ istClock }</time>
                     </div>
-                    <p className="vl-live-coords">{ place.lat.toFixed( 4 ) }, { place.lng.toFixed( 4 ) }</p>
+                    <p className="vl-live-coords">{ previewPlace.lat.toFixed( 4 ) }, { previewPlace.lng.toFixed( 4 ) }</p>
                     <button
                       className="vl-live-view-details"
                       type="button"
-                      onClick={ () => document.getElementById( 'vl-live-now-place' )?.scrollIntoView( { behavior: 'smooth', block: 'start' } ) }
-                    >View details</button>
+                      onClick={ () => {
+                        if ( mapCandidate ) {
+                          rememberPlace( mapCandidate );
+                          setPlace( mapCandidate );
+                          setQuery( mapCandidate.name );
+                          setMapCandidate( null );
+                          setMapCandidateWeather( null );
+                          setMapCandidateAir( null );
+                        }
+                        document.getElementById( 'vl-live-now-place' )?.scrollIntoView( { behavior: 'smooth', block: 'start' } );
+                      } }
+                    >{ mapCandidate ? 'View details' : 'Jump to details' }</button>
                     <div className="vl-live-preview-metrics">
-                      { Number.isFinite( weather?.temp ) && (
-                        <div><p className="vl-live-label">Temp</p><span className="vl-live-metric-md">{ weather!.temp }°</span></div>
+                      { Number.isFinite( previewWeather?.temp ) && (
+                        <div><p className="vl-live-label">Temp</p><span className="vl-live-metric-md">{ previewWeather!.temp }°</span></div>
                       ) }
-                      { air && (
-                        <div><p className="vl-live-label">AQI</p><span className="vl-live-metric-md">{ air.aqi }</span><p className="vl-live-preview-cat">{ air.word }</p></div>
+                      { previewAir && (
+                        <div><p className="vl-live-label">AQI</p><span className="vl-live-metric-md">{ previewAir.aqi }</span><p className="vl-live-preview-cat">{ previewAir.word }</p></div>
                       ) }
-                      { air && air.pollutants.filter( p => p.code === 'pm25' ).map( p => (
+                      { previewAir && previewAir.pollutants.filter( p => p.code === 'pm25' ).map( p => (
                         <div key="prev-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ Math.round( p.value ) }</span><p className="vl-live-preview-cat">{ p.unit }</p></div>
                       ) ) }
                     </div>
@@ -1995,6 +2005,12 @@ const VayuLokLive: React.FC = () => {
            text drops to the home 17px with the home muted tone. */
         .vl-live-place{margin:0 0 4px;font-size:20px;font-weight:700;line-height:1.25;letter-spacing:-.4px;color:#1a1a1a}
         .vl-live-place-addr{margin:0 0 28px;max-width:62ch;font-size:15px;font-weight:400;line-height:1.5;letter-spacing:0;color:rgba(0,0,0,.54)}
+
+        .vl-live-data-skeleton{display:grid;gap:9px;margin:0 0 24px;padding:18px;border:1px solid var(--hair);border-radius:14px}
+        .vl-live-data-skeleton i{height:12px;border-radius:999px;background:linear-gradient(90deg,#eef1ee,#f7f8f7,#eef1ee);background-size:200% 100%;animation:vl-live-shimmer 1.2s linear infinite}
+        .vl-live-data-skeleton i:nth-child(2){width:72%}.vl-live-data-skeleton i:nth-child(3){width:86%}.vl-live-data-skeleton i:nth-child(4){width:58%}
+        .vl-live-sub-fact.is-stale{color:#8a5a1f}
+        @keyframes vl-live-shimmer{to{background-position:-200% 0}}
         .vl-live-now{padding-top:28px;border-top:1px solid var(--hair)}
         .vl-live-figure{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:8px 0 0}
         .vl-live-metric-xl{font-size:clamp(40px,4.3vw,56px);font-weight:600;line-height:1.04;letter-spacing:-0.04em;color:#1a1a1a}
@@ -2166,6 +2182,7 @@ const VayuLokLive: React.FC = () => {
           .vl-live-map-preview .vl-live-card-h{font-size:17px}
         }
         @media(prefers-reduced-motion:reduce){
+          .vl-live-data-skeleton i{animation:none}
           .vl-live-layer,.vl-live-wa-subscribe{transition:none}
           .vl-live-layer:hover,.vl-live-wa-subscribe:hover,.vl-live-wa-subscribe:focus-visible{transform:none;box-shadow:none}
         }
