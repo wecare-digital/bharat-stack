@@ -44,6 +44,10 @@ CART = "11111111-2222-3333-4444-555555555555"
 COLLECTION_PAISE = 100000
 
 
+#: "remove this attribute", distinct from `None`, which several of these rows need to STORE.
+_ABSENT = object()
+
+
 def _keys():
     """The commerce-keys table, whose partition attribute is `orderId` for every prefix."""
     return FakeTable(key_attr="orderId")
@@ -560,9 +564,41 @@ class _Wix:
         self.mutate = mutate
         self.calculates = 0
         self.calls = []
+        # ── the write-back half, answered only when a row deliberately enables it ──
+        #: The `POST /ecom/v1/orders` bodies, so a test can read WHAT reached Wix.
+        self.wix_orders = []
+        #: The `add-payment` bodies, which is where the per-leg amount is observable.
+        self.wix_payments = []
+        #: The carts `mark-as-completed` closed, by cart id.
+        self.cart_completions = []
+        self.wix_order_id = "wix-order-GRAFT"
+        #: Set to an exception instance to make the next cart completion fail.
+        self.cart_completion_error = None
 
     def __call__(self, endpoint, method="GET", body=None):
         self.calls.append((method.upper(), endpoint))
+        # The three write-back endpoints. `wix_writeback._guarded_call` has already refused
+        # anything off its allowlist by the time a call arrives here, so these are exactly the
+        # calls the reconciliation path can make -- which is the enumeration R7.4 asks for, and
+        # it is why the stub answers no fourth endpoint.
+        if endpoint == "/ecom/v1/orders":
+            self.wix_orders.append(copy.deepcopy(body))
+            return {"order": {"id": self.wix_order_id}}
+        if endpoint.endswith("/add-payment"):
+            self.wix_payments.append(copy.deepcopy(body))
+            wix_order_id = endpoint[len("/ecom/v1/payments/orders/"):-len("/add-payment")]
+            # Echoed verbatim, so the amount Wix "confirms" is the amount we sent and the
+            # readback comparison in `record_external_payment` is a real comparison rather than
+            # a tautology against a constant.
+            return {"orderTransactions": {"orderId": wix_order_id,
+                                          "payments": copy.deepcopy(
+                                              (body or {}).get("payments") or [])}}
+        if endpoint.endswith("/mark-as-completed"):
+            if self.cart_completion_error is not None:
+                raise self.cart_completion_error
+            self.cart_completions.append(
+                endpoint[len("/ecom/v2/carts/"):-len("/mark-as-completed")])
+            return {}
         if endpoint.startswith("/stores/v3/products/"):
             reference = self.base["cart"]["lineItems"][0]["source"]["catalogReference"]
             return {"product": {
@@ -613,6 +649,8 @@ class _Rig:
         self.checkouts = []
         self.identity = _Identity()
         self.quantity = 1
+        #: Kept so `enable_writeback` can scope its env to this test without a second fixture.
+        self.mp = monkeypatch
 
         monkeypatch.setattr(self.h, "_dynamodb", self.db)
         monkeypatch.setattr(self.h, "INITIATION_ENABLED", initiation_enabled)
@@ -716,6 +754,121 @@ class _Rig:
         }
         response = self.h.handler(event, None)
         return response["statusCode"], json.loads(response["body"])
+
+    def status(self, attempt_id):
+        """Drive `/checkout/status/`, which is the CLOSED-TAB finalization path.
+
+        The same front door as `prepare` and `verify`: `_status` is reached through `handler`,
+        so `require_customer` and `authorize_resource` run exactly as they do in production.
+        """
+        event = {
+            "requestContext": {"http": {"method": "POST", "sourceIp": "203.0.113.9"}},
+            "headers": {"origin": "http://localhost:3000", "authorization": "Bearer t"},
+            "body": json.dumps({"action": "status", "paymentAttemptId": attempt_id}),
+        }
+        response = self.h.handler(event, None)
+        return response["statusCode"], json.loads(response["body"])
+
+    # -- the provider stubs the verify/status legs need ------------------------
+    def stub_capture(self, *, paid=True, payment_id="pay_GRAFT_1", amount_paise=0,
+                     currency="INR", raises=None):
+        """Stub the authenticated capture readback. No Razorpay SDK, no charge, ever.
+
+        `raises` makes `verifier_for_event`'s closure raise, which is how the provider-unavailable
+        arms are reached without a network call.
+        """
+        self.mp.setattr(self.h.razorpay_orders, "verify_checkout_signature",
+                        lambda **kwargs: True)
+
+        def verifier(**_kwargs):
+            def _verify(_reference):
+                if raises is not None:
+                    raise raises
+                return (paid, payment_id, amount_paise, currency)
+            return _verify
+
+        self.mp.setattr(self.h.razorpay_verify, "verifier_for_event", verifier)
+
+    def enable_writeback(self):
+        """Turn `wix_writeback.is_enabled()` true for THIS test only.
+
+        All four of its conditions, because it is an AND and a partial set reads as disabled.
+        This is a per-test `monkeypatch.setenv`, scoped and reverted by pytest -- it is NOT a
+        deployed flag: nothing in `amplify/infra/` or `scripts/provision_checkout.py` sets any of
+        these, and `tests/test_wix_writeback.py` has used the same four keys since before this
+        change. Without it `accept_paid` stops at `WIX_WRITE_CONTRACT_REQUIRED` and every line
+        after that gate is unexecuted, which is exactly the hole these rows close.
+        """
+        self.mp.setenv("WIX_WRITEBACK_ENABLED", "true")
+        self.mp.setenv("WIX_ECOM_WRITE_CONFIRMED", "true")
+        self.mp.setenv("WIX_SITE_ID", wix_writeback.CONFIRMED_SITE_ID)
+        self.mp.setenv("WIX_CART_V2_WRITE_CONTRACT", wix_writeback.WRITE_CONTRACT)
+        assert wix_writeback.is_enabled(), (
+            "the write-back gate did not open, so this row would assert against the dormant path")
+
+    # -- post-prepare row surgery, for shapes the fixtures cannot produce -----
+    def attempt_row(self):
+        rows = self.db.rows(ATTEMPTS_TABLE)
+        assert len(rows) == 1, f"expected exactly one attempt row, got {len(rows)}"
+        return rows[0]
+
+    def patch_attempt(self, **fields):
+        table = self.db.Table(ATTEMPTS_TABLE)
+        key = self.attempt_row()["paymentAttemptId"]
+        row = dict(table.rows[key])
+        for name, value in fields.items():
+            if value is _ABSENT:
+                row.pop(name, None)
+            else:
+                row[name] = value
+        table.rows[key] = row
+        return row
+
+    def patch_row(self, prefix, **fields):
+        """Patch the single commerce-keys row under `prefix`."""
+        table = self.db.Table(KEYS_TABLE)
+        matching = [key for key in table.rows if str(key).startswith(prefix)]
+        assert len(matching) == 1, f"expected one {prefix} row, got {len(matching)}"
+        row = dict(table.rows[matching[0]])
+        for name, value in fields.items():
+            if value is _ABSENT:
+                row.pop(name, None)
+            else:
+                row[name] = value
+        table.rows[matching[0]] = row
+        return row
+
+    def make_split_tender(self, redeem_paise):
+        """Rewrite the three stored rows into a WIX-NATIVE SPLIT TENDER, and return the leg.
+
+        WHY SURGERY AND NOT A FIXTURE. The split would ideally arrive the way production makes
+        it -- `tests/fixtures/wix_cart_v2_gift_card_partial.json` through `cart_v2.calculate`,
+        which sets `wixGiftCardRedeemPaise` on the frozen snapshot. `cart_v2.calculate` REFUSES
+        that cart today: that is SEAM-G1, an `xfail(strict=True)` row in
+        `tests/test_gift_card_amounts_and_gst.py` owned by the cart_v2 workstream, and clearing
+        it from here would be unmarking another workstream's marker.
+
+        So the basket is priced for real, the gateway order is created for real, and only the
+        three STORED figures are rewritten afterwards -- which is the same row shape a
+        gift-card-funded prepare would have left:
+
+          attempt.amountPaise            the FULL payable, unchanged (section 8 requires it)
+          attempt.razorpayChargedPaise   the leg
+          attempt.wixGiftCardRedeemPaise the other tender
+          PAYREF#.amountPaise            the leg (what `reconcile_payment` compares a capture to)
+          GATEWAYORDER#.amountPaise      the leg (what `verify_callback` compares it to)
+
+        Everything downstream of the capture -- the two-leg gate, `_tenders_reconcile`, the
+        per-leg `record_external_payment` -- then runs on real code reading real rows.
+        """
+        payable = int(self.attempt_row()["amountPaise"])
+        leg = payable - int(redeem_paise)
+        assert leg > 0, "a split tender still needs a positive Razorpay leg"
+        self.patch_attempt(razorpayChargedPaise=leg,
+                           wixGiftCardRedeemPaise=int(redeem_paise))
+        self.patch_row(order_keys.PAYMENT_REFERENCE_PREFIX, amountPaise=leg)
+        self.patch_row(order_keys.GATEWAY_ORDER_PREFIX, amountPaise=leg)
+        return leg
 
     def age_everything(self, seconds):
         """Push every timestamp on every row back by `seconds`, to cross a window deliberately."""
@@ -1228,9 +1381,23 @@ def test_a_snapshot_with_no_frozen_payload_is_rejected_as_basket_identity_requir
 
 @pytest.mark.parametrize("resolver", ["resolve_cart_basket", "resolve_cart_narrow_basket",
                                       "resolve_cart_payment"])
-def test_a_guard_read_failure_is_a_503_and_never_a_pass(rig, monkeypatch, resolver):
-    """A throttle must never read as "no live payment": the caller acts on that by charging."""
-    r = rig()
+@pytest.mark.parametrize("initiation_enabled", [True, False],
+                         ids=["gate_on", "gate_off"])
+def test_a_guard_read_failure_is_a_503_and_never_a_pass(rig, monkeypatch, resolver,
+                                                        initiation_enabled):
+    """A throttle must never read as "no live payment": the caller acts on that by charging.
+
+    PARAMETRISED OVER THE GATE, so the answer on the path that is LIVE TODAY is a decision
+    rather than a side effect. Step 2a's three consistent reads run BEFORE the initiation gate --
+    deliberately, because a guard that only runs when the gate is on is a guard with no history
+    to resume onto -- so a DynamoDB throttle during a gate-off prepare now answers 503
+    TEMPORARILY_UNAVAILABLE where the pre-graft code answered 200 PAYMENT_INITIATION_DISABLED.
+
+    That is the fail-closed direction and it is the right one: "we could not check" must not be
+    reported as "nothing is live". It is pinned here in both worlds so neither answer can drift
+    unnoticed, and because the gate-off answer is the one a customer can actually reach.
+    """
+    r = rig(initiation_enabled=initiation_enabled)
 
     def raising(*_args, **_kwargs):
         raise order_keys.OrderIdentityUnavailable("simulated throttle")
@@ -1240,6 +1407,9 @@ def test_a_guard_read_failure_is_a_503_and_never_a_pass(rig, monkeypatch, resolv
     assert code == 503
     assert body["error"] == "TEMPORARILY_UNAVAILABLE"
     assert r.creates == []
+    # Nothing was written on either path: the refusal is above step 3's reservation.
+    assert r.db.count_prefix(order_keys.REQUEST_KEY_PREFIX) == 0
+    assert r.db.rows(ATTEMPTS_TABLE) == []
 
 
 def test_a_held_basket_claim_refuses_without_naming_an_attempt(rig, monkeypatch):
@@ -1769,3 +1939,883 @@ def test_no_response_or_log_can_carry_the_key_secret(rig, caplog):
         assert "asha@example.com" not in message
         assert PHONE not in message
         assert "Asha Sen" not in message
+
+
+# ══ steps 9 and 10: finalization, and the handler wiring that reaches it ════════
+#
+# Everything below drives `accept_paid` through `_website_verify` or `_status` and NEVER by
+# calling it directly. The reason is the plan's, and it is the repository's own "correct and
+# unconsulted" failure mode: a test that calls `accept_paid` itself cannot detect that its only
+# production caller refuses to reach it, which is exactly the defect the split two-leg gate
+# exists to avoid re-introducing.
+#
+# The Razorpay SDK is absent from all of it. `create_order`, `verify_checkout_signature` and the
+# authenticated capture readback are stubs; no provider call and no charge is possible.
+
+GATEWAY_ORDER_ID = "order_GRAFT_1"
+
+
+def _paid_flow(r, *, request_key="K_final", redeem_paise=0, writeback=True,
+               payment_id="pay_final_1"):
+    """prepare -> (optional split surgery) -> stubbed capture. Returns `(leg, options)`.
+
+    One helper so every row below starts from the SAME prepared state and differs only in the
+    one thing it is about.
+    """
+    code, body = r.prepare(request_key)
+    assert code == 200 and body["status"] == "CHECKOUT_OPTIONS_READY", body
+    options = body["options"]
+    leg = int(options["amountPaise"])
+    if redeem_paise:
+        leg = r.make_split_tender(redeem_paise)
+    if writeback:
+        r.enable_writeback()
+    r.stub_capture(payment_id=payment_id, amount_paise=leg)
+    return leg, options
+
+
+def _webhook_reconcile(r, *, payment_id="pay_webhook_1", amount_paise=0):
+    """What the razorpay-webhook does, with its own verifier stubbed: claim and number an order.
+
+    Deliberately does NOT touch the attempt row -- measured, the webhook references neither
+    `payment_attempt` nor `finalization` -- so this leaves the exact closed-tab shape: a claim
+    with a public number, and an attempt still PAYMENT_PENDING with no stored capture.
+    """
+    keys = r.h._keys_table()
+    reference_id = r.creates[-1]["notes"]["referenceId"]
+    assert reference_id, "the create carried no referenceId, so the webhook has nothing to resolve"
+    return r.h.order_creation.reconcile_payment(
+        table=keys, reference_id=reference_id,
+        verify_payment=lambda _ref: (True, payment_id, amount_paise, "INR"),
+        load_attempt=r.h._load_attempt_via(keys))
+
+
+def _stage_of(r):
+    attempt = r.attempt_row()
+    return attempt.get("finalizationStage", ""), attempt.get("finalizationReason", "")
+
+
+# ── the baseline: the wiring reaches finalization at all ───────────────────────
+
+def test_a_website_attempt_can_be_finalized_at_all(rig):
+    """The row whose absence made every other finalization claim a reading rather than a test.
+
+    With write-back enabled, `accept_paid` runs to its LAST stage, so the three external calls
+    this path may make are all executed: create the Wix order, record the already-collected
+    payment, close the cart. Before this row the flow stopped at `WIX_WRITE_CONTRACT_REQUIRED`
+    and every line after that gate was unexecuted.
+    """
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_fin_1")
+
+    code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    assert body["orderNumber"], "a finalized order must return its public number"
+
+    # ONE internal order record, and the stage ladder ran to the end.
+    assert len(r.db.rows(ORDERS_TABLE)) == 1
+    stage, reason = _stage_of(r)
+    assert (stage, reason) == ("WIX_CART_COMPLETED", ""), (stage, reason)
+    # The three calls, and only those three.
+    assert len(r.wix.wix_orders) == 1
+    assert len(r.wix.wix_payments) == 1
+    assert r.wix.cart_completions == [r.attempt_row()["cartId"]]
+    # The attempt carries the provider's own confirmed figure, not a derived one.
+    assert r.attempt_row()[finalization_module().VERIFIED_CAPTURED_PAISE_ATTR] == leg
+
+
+def test_only_the_verified_razorpay_leg_reaches_wix(rig):
+    """Under split tender the RECORDED payment is the provider's leg, never the order total.
+
+    This is the defect the graft exists for: `record_external_payment` used to be handed
+    `attempt['amountPaise']`, which on a gift-card-funded basket over-reports the capture to Wix
+    and breaks its payment reconciliation. The anti-vacuity anchor is the second assertion --
+    the leg and the payable must be DIFFERENT numbers, or this row would pass against the old
+    code.
+    """
+    r = rig()
+    redeem = 40000
+    leg, options = _paid_flow(r, request_key="K_fin_2", redeem_paise=redeem)
+    payable = int(r.attempt_row()["amountPaise"])
+    assert leg != payable, "the fixture produced no split, so this row would prove nothing"
+
+    code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+
+    recorded = r.wix.wix_payments[0]["payments"][0]["amount"]["amount"]
+    assert recorded == wix_writeback._paise_to_decimal_string(leg)
+    assert recorded != wix_writeback._paise_to_decimal_string(payable)
+    # And the order total Wix is given is still the full payable the customer agreed to.
+    assert (r.wix.wix_orders[0]["order"]["priceSummary"]["total"]["amount"]
+            == wix_writeback._paise_to_decimal_string(payable))
+    assert _stage_of(r)[0] == "WIX_CART_COMPLETED"
+
+
+def test_a_one_paise_tender_disagreement_fails_closed(rig):
+    """One paise is a mismatch. Exact integers, no tolerance, and nothing external is written.
+
+    The internal order record IS created -- it is evidence that money moved and must survive --
+    but `_tenders_reconcile` refuses before the write-back gate, so no Wix order, no payment
+    record and no cart completion follow.
+    """
+    r = rig()
+    redeem = 40000
+    leg, options = _paid_flow(r, request_key="K_fin_3", redeem_paise=redeem)
+    # The other tender now claims ONE PAISE MORE than the split actually was.
+    r.patch_attempt(wixGiftCardRedeemPaise=redeem + 1)
+
+    code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+
+    assert len(r.db.rows(ORDERS_TABLE)) == 1, "the paid evidence must still be recorded"
+    assert _stage_of(r) == ("NEEDS_RECONCILIATION", "TENDER_SUM_MISMATCH")
+    assert r.wix.wix_orders == [] and r.wix.wix_payments == []
+    assert r.wix.cart_completions == []
+
+
+def test_a_wix_funded_split_tender_order_reaches_accept_paid(rig):
+    """Leg B of the split gate must PASS a readable Wix-native tender, or the graft is unreachable.
+
+    A blanket "refuse any attempt carrying a second tender" would cancel the split-tender work
+    from its only production caller. This row is what makes the per-leg gate a decision.
+    """
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_fin_4", redeem_paise=25000)
+    assert int(r.attempt_row()["wixGiftCardRedeemPaise"]) == 25000
+
+    code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    assert len(r.db.rows(ORDERS_TABLE)) == 1
+    assert _stage_of(r)[0] == "WIX_CART_COMPLETED"
+
+
+def test_an_ordinary_card_free_order_with_a_zero_leg_is_not_refused(rig):
+    """`wixGiftCardRedeemPaise` is written UNCONDITIONALLY, including `0`.
+
+    So the gate tests the VALUE and never the key. A presence test here would refuse every
+    ordinary card-free website order, which is the common case.
+    """
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_fin_5")
+    assert "wixGiftCardRedeemPaise" in r.attempt_row(), (
+        "the producer stopped writing the attribute, so this row no longer tests presence-vs-value")
+    assert int(r.attempt_row()["wixGiftCardRedeemPaise"]) == 0
+
+    code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    assert len(r.db.rows(ORDERS_TABLE)) == 1
+    assert _stage_of(r)[0] == "WIX_CART_COMPLETED"
+
+
+def test_an_unreadable_tender_leg_is_refused(rig, caplog):
+    """An amount we cannot read is not the same as no amount. Refused BEFORE `accept_paid`."""
+    import logging
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_fin_6")
+    r.patch_attempt(wixGiftCardRedeemPaise="not-a-number")
+
+    with caplog.at_level(logging.ERROR):
+        code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    # No order record at all: the gate is above `accept_paid`, so `record_paid` never ran.
+    assert r.db.rows(ORDERS_TABLE) == []
+    assert not r.attempt_row().get("finalizationStage")
+    events = [json.loads(record.getMessage()).get("event")
+              for record in caplog.records if record.getMessage().startswith("{")]
+    assert "checkout_finalize_unreadable_tender" in events, events
+    # The capture is still recorded, because that happens first and unconditionally.
+    assert r.attempt_row()[finalization_module().VERIFIED_CAPTURED_PAISE_ATTR] == leg
+
+
+def test_an_unsettled_wecare_gift_card_is_refused(rig, caplog):
+    """Leg A: the WECARE store card has its own ladder, and `accept_paid` consults none of it."""
+    import logging
+    from lambda_utils.ecommerce import gift_card_settlement
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_fin_7")
+    # A required redemption with no evidence that it happened.
+    r.patch_attempt(**{gift_card_settlement.REQUIRED_PAISE_ATTR: 30000})
+
+    with caplog.at_level(logging.ERROR):
+        code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    assert r.db.rows(ORDERS_TABLE) == []
+    events = [json.loads(record.getMessage()).get("event")
+              for record in caplog.records if record.getMessage().startswith("{")]
+    assert "checkout_finalize_gift_card_unsettled" in events, events
+
+
+def test_a_settled_wecare_gift_card_is_not_refused_by_the_ladder_gate(rig):
+    """The other side of leg A: a card with its stage AND its transaction id passes the gate.
+
+    It then meets `_tenders_reconcile`, which is a fact about money rather than about the ladder,
+    so a settled card whose legs sum correctly finalizes and one whose legs do not fails closed
+    there. Asserted as "not refused BY THE LADDER", which is what this gate decides.
+    """
+    from lambda_utils.ecommerce import gift_card_settlement
+    r = rig()
+    redeem = 30000
+    leg, options = _paid_flow(r, request_key="K_fin_8")
+    # A WECARE card, settled, funding part of the basket. `giftCardRedeemedPaise` is the second
+    # entry in `OTHER_TENDER_PAISE_ATTRS`, so the sum closes against the payable.
+    r.patch_attempt(**{
+        gift_card_settlement.REQUIRED_PAISE_ATTR: redeem,
+        gift_card_settlement.REDEEMED_PAISE_ATTR: redeem,
+        gift_card_settlement.TRANSACTION_ID_ATTR: "gc-txn-fixture",
+        # The stage is derived from the RANK attribute and from nothing else, so the rank is what
+        # a settled card actually carries on the row.
+        gift_card_settlement.RANK_ATTRIBUTE:
+            gift_card_settlement.STAGE_RANK[gift_card_settlement.GC_REDEEMED],
+        "razorpayChargedPaise": leg - redeem,
+    })
+    r.patch_row(order_keys.PAYMENT_REFERENCE_PREFIX, amountPaise=leg - redeem)
+    r.patch_row(order_keys.GATEWAY_ORDER_PREFIX, amountPaise=leg - redeem)
+    r.stub_capture(payment_id="pay_final_1", amount_paise=leg - redeem)
+
+    code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    assert len(r.db.rows(ORDERS_TABLE)) == 1, "a settled card must not be refused by the ladder gate"
+    # The leg that reached Wix is the Razorpay one, not the payable and not the card's.
+    assert (r.wix.wix_payments[0]["payments"][0]["amount"]["amount"]
+            == wix_writeback._paise_to_decimal_string(leg - redeem))
+
+
+# ── convergence, the loader, and the paths where identity is missing ───────────
+
+def test_webhook_and_browser_return_converge_on_one_order(rig):
+    """Two independent finalizers, one order. The webhook claims first; the browser adopts it.
+
+    The webhook reconciles from `notes.referenceId` without touching the attempt row, so the
+    browser's `reconcile_payment` meets an existing claim and returns ORDER_ALREADY_EXISTS. That
+    is resolve-before-generate across two processes: the second arrival resolves onto the order
+    that exists rather than minting a second one.
+    """
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_fin_9", payment_id="pay_conv_1")
+    webhook = _webhook_reconcile(r, payment_id="pay_conv_1", amount_paise=leg)
+    assert webhook.outcome == r.h.order_creation.ORDER_CREATED, webhook.reason
+    assert r.db.count_prefix(order_keys.ORDER_NUMBER_PREFIX) == 1
+    # The webhook wrote no order RECORD and did not touch the attempt row.
+    assert r.db.rows(ORDERS_TABLE) == []
+    assert r.attempt_row()["status"] == payment_attempt.PAYMENT_PENDING
+
+    r.stub_capture(payment_id="pay_conv_1", amount_paise=leg)
+    code, body = r.verify(order_id=options["orderId"], payment_id="pay_conv_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    assert body["orderNumber"] == webhook.order_number, (
+        "the browser must return the number the webhook already reserved, not a second one")
+    assert len(r.db.rows(ORDERS_TABLE)) == 1
+    assert r.db.count_prefix(order_keys.ORDER_NUMBER_PREFIX) == 1
+
+
+def test_the_reconcile_verifier_resolves_a_payref_reference(rig):
+    """`_load_attempt_via` resolves BOTH identifier kinds onto the same six-field projection.
+
+    One loader, two kinds, because `verify_callback` calls its verifier with the stored GATEWAY
+    ORDER id while `reconcile_payment` calls its verifier with the REFERENCE. A loader that
+    resolved only one of them would make every website payment end with a verified capture and
+    no order record.
+    """
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_load_1", writeback=False)
+    keys = r.h._keys_table()
+    reference_id = r.creates[-1]["notes"]["referenceId"]
+
+    by_reference = r.h._load_attempt_via(keys)(reference_id)
+    assert by_reference["paymentAttemptId"] == options["paymentAttemptId"]
+    assert by_reference["amountPaise"] == leg
+    assert by_reference["customerId"] == CUSTOMER
+    assert by_reference["currency"] == "INR"
+    assert by_reference["providerOrderId"] == options["orderId"]
+    # Exactly the webhook's projection, no more.
+    assert set(by_reference) == {"paymentAttemptId", "customerId", "amountPaise",
+                                 "providerPaymentId", "providerOrderId", "currency"}
+
+    by_gateway_order = r.h._load_attempt_via(keys)(options["orderId"])
+    assert by_gateway_order == by_reference, (
+        "the two identifier kinds must resolve onto the same stored authority")
+
+
+def test_a_lost_provider_order_link_still_verifies(rig):
+    """The one best-effort write on the path, and the server-stored fallback that replaces it.
+
+    `_link_reference_to_provider_order` is deliberately best-effort, so the `PAYREF#` row can
+    legitimately carry no `providerOrderId`. `verifier_for_event` raises unless the loaded row has
+    one, so without the fallback a lost link would make the payment unverifiable.
+    """
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_load_2")
+    keys = r.h._keys_table()
+    reference_id = r.creates[-1]["notes"]["referenceId"]
+    # The best-effort link never landed.
+    r.patch_row(order_keys.PAYMENT_REFERENCE_PREFIX, providerOrderId=_ABSENT)
+
+    assert r.h._load_attempt_via(keys)(reference_id)["providerOrderId"] == "", (
+        "the fixture still carries the link, so the fallback below is not what is being tested")
+    recovered = r.h._load_attempt_via(
+        keys, provider_order_id=options["orderId"])(reference_id)
+    assert recovered["providerOrderId"] == options["orderId"]
+
+    code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    assert len(r.db.rows(ORDERS_TABLE)) == 1
+
+
+def test_a_binding_with_no_reference_still_verifies_and_alarms(rig, caplog):
+    """A pre-graft binding carries no reference. The capture is still recorded; the order alarms.
+
+    Deliberately NOT a 503 and not a failure verdict: the money moved, the webhook reconciles
+    from `notes.referenceId` independently, and telling a payer the payment failed after it
+    succeeded is the one answer that cannot be taken back.
+    """
+    import logging
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_load_3")
+    r.patch_row(order_keys.GATEWAY_ORDER_PREFIX, referenceId="")
+
+    with caplog.at_level(logging.ERROR):
+        code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    assert body["orderNumber"] is None
+    assert r.db.rows(ORDERS_TABLE) == []
+    # The capture is recorded regardless, because that is step 1 and it is unconditional.
+    attempt = r.attempt_row()
+    assert attempt["status"] == payment_attempt.PAYMENT_PAID
+    assert attempt[finalization_module().VERIFIED_CAPTURED_PAISE_ATTR] == leg
+    alarms = [json.loads(record.getMessage()) for record in caplog.records
+              if record.getMessage().startswith("{")]
+    assert any(entry.get("event") == "website_checkout_verify_reference_unresolved"
+               and entry.get("alert") == "PAID_BUT_NO_ORDER" for entry in alarms), alarms
+
+
+def test_a_verified_capture_is_recorded_even_when_reconciliation_fails(rig, caplog):
+    """Five reconciliation outcomes return without order identity, so recording comes FIRST.
+
+    Driven through the real failure rather than by stubbing the outcome: the order claim's
+    durable write fails, which is `IDENTITY_UNAVAILABLE` -- money ours, no order, needs a human.
+    """
+    import logging
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_load_4")
+
+    def _unavailable(*_args, **_kwargs):
+        raise order_keys.OrderIdentityUnavailable("the claim could not be written")
+
+    r.mp.setattr(r.h.order_keys, "claim_order_for_payment", _unavailable)
+    with caplog.at_level(logging.ERROR):
+        code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    assert body["orderNumber"] is None
+    assert r.db.rows(ORDERS_TABLE) == []
+    attempt = r.attempt_row()
+    assert attempt["status"] == payment_attempt.PAYMENT_PAID
+    assert attempt[finalization_module().VERIFIED_CAPTURED_PAISE_ATTR] == leg
+    assert attempt["providerPaymentId"] == "pay_final_1"
+    alarms = [json.loads(record.getMessage()) for record in caplog.records
+              if record.getMessage().startswith("{")]
+    assert any(entry.get("alert") == "PAID_BUT_NO_ORDER" for entry in alarms), alarms
+
+
+def test_a_finalization_fault_is_still_a_200(rig, caplog):
+    """A finalization fault must not make a paying customer think the payment failed."""
+    import logging
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_load_5")
+
+    def _boom(**_kwargs):
+        raise RuntimeError("finalization exploded")
+
+    r.mp.setattr(r.h.finalization, "accept_paid", _boom)
+    with caplog.at_level(logging.ERROR):
+        code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    # The reserved public number still reaches the shopper.
+    assert body["orderNumber"], "a finalization fault must not withhold a reserved order number"
+    assert r.db.rows(ORDERS_TABLE) == []
+    alarms = [json.loads(record.getMessage()) for record in caplog.records
+              if record.getMessage().startswith("{")]
+    assert any(entry.get("event") == "website_checkout_finalize_failed"
+               and entry.get("alert") == "PAID_BUT_NO_ORDER_RECORD" for entry in alarms), alarms
+    # And no exception text reached the log; only the type name.
+    assert not any("finalization exploded" in record.getMessage() for record in caplog.records)
+
+
+def test_two_readbacks_disagreeing_on_the_capture_write_nothing(rig, caplog):
+    """Two authenticated readbacks, two stored authorities, and a disagreement writes nothing.
+
+    `verify_callback` compares the capture against `GATEWAYORDER#.amountPaise`;
+    `reconcile_payment` compares it against `PAYREF#.amountPaise`. For a design whose discipline
+    is "fail closed on one paise", silently preferring one of two provider-derived figures is the
+    wrong shape -- so they are compared, and a disagreement records the capture and writes no
+    order record.
+    """
+    import logging
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_load_6", writeback=False)
+    gateway_order_id = options["orderId"]
+    reference_id = r.creates[-1]["notes"]["referenceId"]
+    # The two stored authorities disagree by one paise, which is the only way both comparisons
+    # can pass and still produce two different provider figures.
+    r.patch_row(order_keys.PAYMENT_REFERENCE_PREFIX, amountPaise=leg + 1)
+
+    r.mp.setattr(r.h.razorpay_orders, "verify_checkout_signature", lambda **kwargs: True)
+
+    def verifier(**_kwargs):
+        def _verify(identifier):
+            # Each readback answers the figure its own caller will compare against.
+            if identifier == gateway_order_id:
+                return (True, "pay_split_1", leg, "INR")
+            return (True, "pay_split_1", leg + 1, "INR")
+        return _verify
+
+    r.mp.setattr(r.h.razorpay_verify, "verifier_for_event", verifier)
+
+    with caplog.at_level(logging.ERROR):
+        code, body = r.verify(order_id=gateway_order_id, payment_id="pay_split_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    assert r.db.rows(ORDERS_TABLE) == [], "a capture disagreement must write no order record"
+    assert r.attempt_row()[finalization_module().VERIFIED_CAPTURED_PAISE_ATTR] == leg
+    alarms = [json.loads(record.getMessage()) for record in caplog.records
+              if record.getMessage().startswith("{")]
+    assert any(entry.get("event") == "checkout_verify_capture_disagreement"
+               and entry.get("alert") == "PAID_BUT_NO_ORDER_RECORD" for entry in alarms), alarms
+    assert reference_id, "the reference is what the second readback was keyed on"
+
+
+# ── the closed-tab path: `_status` and `_finalize_from_claim` ──────────────────
+
+def test_the_closed_tab_poll_writes_exactly_one_order_record(rig):
+    """The shape this wiring exists for: the webhook numbered the order, the browser never returned.
+
+    The gate is the CLAIM, not the attempt's status, because the webhook does not touch the
+    attempt row -- so on this path the status is still PAYMENT_PENDING when the claim already
+    exists, and gating on `may_create_order` could never be satisfied.
+    """
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_status_1", payment_id="pay_tab_1")
+    webhook = _webhook_reconcile(r, payment_id="pay_tab_1", amount_paise=leg)
+    assert webhook.outcome == r.h.order_creation.ORDER_CREATED
+    assert not r.attempt_row().get("finalizationStage")
+
+    r.stub_capture(payment_id="pay_tab_1", amount_paise=leg)
+    code, body = r.status(options["paymentAttemptId"])
+    assert code == 200, body
+    assert len(r.db.rows(ORDERS_TABLE)) == 1
+    assert _stage_of(r)[0] == "WIX_CART_COMPLETED"
+    assert r.attempt_row()[finalization_module().VERIFIED_CAPTURED_PAISE_ATTR] == leg
+
+    # A second poll finds `finalizationStage` set and does not run again.
+    code_again, _ = r.status(options["paymentAttemptId"])
+    assert code_again == 200
+    assert len(r.db.rows(ORDERS_TABLE)) == 1
+    assert len(r.wix.wix_orders) == 1
+    assert r.db.count_prefix(order_keys.ORDER_NUMBER_PREFIX) == 1
+
+
+def test_the_status_leg_refuses_rather_than_substituting_the_payable(rig):
+    """With no stored capture the status leg ASKS THE PROVIDER. It never substitutes the payable.
+
+    Under split tender the payable is a different number, and substituting it is exactly the
+    full-amount-instead-of-leg defect this graft removes. Two halves: an unavailable provider
+    writes nothing at all, and an available one stores the LEG.
+    """
+    r = rig()
+    redeem = 35000
+    leg, options = _paid_flow(r, request_key="K_status_2", redeem_paise=redeem,
+                              payment_id="pay_tab_2")
+    payable = int(r.attempt_row()["amountPaise"])
+    assert leg != payable, "no split, so this row would prove nothing"
+    _webhook_reconcile(r, payment_id="pay_tab_2", amount_paise=leg)
+
+    # 1. The provider cannot be reached: nothing is written and nothing is substituted.
+    r.stub_capture(raises=RuntimeError("provider unavailable"))
+    code, _body = r.status(options["paymentAttemptId"])
+    assert code == 200
+    assert r.db.rows(ORDERS_TABLE) == []
+    assert finalization_module().VERIFIED_CAPTURED_PAISE_ATTR not in r.attempt_row()
+
+    # 2. The provider answers: the stored figure is the LEG, never the payable.
+    r.stub_capture(payment_id="pay_tab_2", amount_paise=leg)
+    code, _body = r.status(options["paymentAttemptId"])
+    assert code == 200
+    assert len(r.db.rows(ORDERS_TABLE)) == 1
+    stored = r.attempt_row()[finalization_module().VERIFIED_CAPTURED_PAISE_ATTR]
+    assert stored == leg and stored != payable
+
+
+def test_a_claim_without_a_reference_alarms_once_instead_of_polling_forever(rig, caplog):
+    """An empty reference makes every resolver answer None, so a readback could never succeed.
+
+    The claim exists, so money moved; nothing here can resolve it and repeated polls will not
+    change that. Alarm at ERROR so a human reconciles, and stop -- rather than asking the
+    provider on this poll and on every future poll.
+    """
+    import logging
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_status_3", payment_id="pay_tab_3")
+    _webhook_reconcile(r, payment_id="pay_tab_3", amount_paise=leg)
+    r.patch_attempt(referenceId="")
+
+    def _never(**_kwargs):
+        raise AssertionError("a claim with no reference must not reach the provider at all")
+
+    r.mp.setattr(r.h.razorpay_verify, "verifier_for_event", _never)
+    with caplog.at_level(logging.ERROR):
+        code, _body = r.status(options["paymentAttemptId"])
+        assert code == 200
+        first = [json.loads(record.getMessage()) for record in caplog.records
+                 if record.getMessage().startswith("{")]
+        assert [entry for entry in first
+                if entry.get("event") == "checkout_status_claim_without_reference"
+                and entry.get("alert") == "PAID_BUT_NO_ORDER_RECORD"], first
+        assert r.db.rows(ORDERS_TABLE) == []
+
+
+def test_claim_outcome_satisfies_accept_paid(rig):
+    """`_ClaimOutcome` maps the claim row's MEASURED field names onto one argument contract.
+
+    `orderIdRef`, not `orderId`: on the commerce-keys table `orderId` IS the partition attribute,
+    so a business field of the same name would be overwritten by the key. `accept_paid` reads
+    `orderId` twice, so omitting it from the dict would `KeyError` after `record_paid` had
+    already written PAYMENT_PAID.
+    """
+    r = rig()
+    claim = {"orderIdRef": "ORD-fixture", "orderNumber": "WD-ORD-FIXTURE1",
+             "providerTransactionId": "pay_claim_1"}
+    outcome = r.h._ClaimOutcome(claim, {"paymentAttemptId": "pa-fixture"})
+    assert outcome.has_order
+    assert outcome.order_id == "ORD-fixture"
+    assert outcome.order_number == "WD-ORD-FIXTURE1"
+    assert outcome.provider_payment_id == "pay_claim_1"
+    rendered = outcome.as_dict()
+    # EXACTLY the keys `accept_paid` reads off an outcome, by name.
+    for key in ("hasOrder", "orderId", "orderNumber"):
+        assert key in rendered, key
+    assert rendered["hasOrder"] is True
+    # A claim with no number is NOT an order: the numbering step is mid-flight or crashed, and
+    # inventing a number would burn or duplicate one.
+    unnumbered = r.h._ClaimOutcome({"orderIdRef": "ORD-x"}, {"paymentAttemptId": "pa"})
+    assert not unnumbered.has_order
+
+
+# ══ the money boundaries, as a table ═══════════════════════════════════════════
+#
+# R6.1 forbids float arithmetic anywhere in the payment path, and the reason is specific rather
+# than stylistic: `0.1 + 0.2` is not `0.3` in binary floating point, and a one-paise mismatch
+# against the checkout total must FAIL CLOSED (R6.2) -- so a rounding artefact becomes a refused
+# order. These rows walk the five boundaries every stored amount passes through.
+
+#: The canonical float that is not the number it looks like. Written as the SUM, not as the
+#: literal, so the row fails if Python's arithmetic ever stops being the point.
+_FLOAT_SUM = 0.1 + 0.2
+
+
+def _attempts_fake():
+    table = FakeTable(key_attr="paymentAttemptId")
+    attempt = {"paymentAttemptId": "pa_money_1", "referenceId": "ref_money_1",
+               "customerId": CUSTOMER, "amountPaise": 100, "currency": "INR",
+               "checkoutMode": website_checkout.CHECKOUT_MODE_WEBSITE,
+               "status": payment_attempt.PAYMENT_PENDING,
+               "purchasedSnapshot": {"cart": {"id": CART}}, "snapshotHash": "hash-money"}
+    table.put_item(Item=dict(attempt))
+    return table, attempt
+
+
+@pytest.mark.parametrize("value", [_FLOAT_SUM, 100.0, True, Decimal("1.5"), "abc", None],
+                         ids=["float_sum", "whole_float", "bool", "fractional_decimal",
+                              "non_numeric_string", "none"])
+def test_a_float_amount_is_refused_at_every_money_boundary(value):
+    """Every boundary a stored amount crosses refuses the same six values.
+
+    `bool` is in the table because a `bool` IS an `int` in Python and `True` would read as one
+    paise; `100.0` is in it because a float that happens to be whole is still a float and
+    accepting it would be the crack the discipline exists to close. The two values that must
+    STILL work are in `test_an_exact_integer_amount_is_still_accepted_everywhere`.
+    """
+    fin = finalization_module()
+    # 1. `integer_paise` -- the function every stored amount passes through.
+    assert fin.integer_paise(value) is None, value
+
+    # 2. `record_paid` -- refuses before it writes anything at all.
+    table, attempt = _attempts_fake()
+    with pytest.raises(ValueError):
+        fin.record_paid(table, attempt, "pay_money_1", value)
+    assert table.rows["pa_money_1"].get("status") == payment_attempt.PAYMENT_PENDING, (
+        "record_paid wrote a paid state for an amount it then refused")
+
+    # 3. `accept_paid` -- validated BEFORE `record_paid` runs, so nothing is staged.
+    table, attempt = _attempts_fake()
+    with pytest.raises(ValueError):
+        fin.accept_paid(attempts=table, orders=FakeTable(key_attr="orderId"),
+                        keys=_keys(), attempt=attempt,
+                        outcome={"hasOrder": True, "orderId": "ORD-money",
+                                 "orderNumber": "WD-ORD-MONEY01",
+                                 "providerPaymentId": "pay_money_1"},
+                        verified_captured_paise=value)
+    assert not table.rows["pa_money_1"].get("finalizationStage")
+
+    # 4. `payment_attempt.build` -- the producer boundary. TypeError, not a coercion.
+    with pytest.raises((TypeError, ValueError)):
+        payment_attempt.build(customer_id=CUSTOMER, reference_id="ref_money_1",
+                              amount_paise=value, configuration_name="WEBSITE_RAZORPAY_STANDARD")
+
+    # 5. `wix_writeback._paise_money` -- the last boundary before a figure becomes a Wix money
+    #    object, and the one that decides what an order total says.
+    with pytest.raises(TypeError):
+        wix_writeback._paise_money(value)
+
+
+@pytest.mark.parametrize("value", [100, Decimal("100"), "100"],
+                         ids=["int", "integral_decimal", "integer_string"])
+def test_an_exact_integer_amount_is_still_accepted_everywhere(value):
+    """The must-still-work half. A guard that refuses everything is not a guard.
+
+    `Decimal('100')` is the shape DynamoDB hands a number back as, and `'100'` is the shape a
+    hand-written fixture can produce; both are exactly 100 paise and both must pass.
+    """
+    fin = finalization_module()
+    assert fin.integer_paise(value) == 100
+
+    table, attempt = _attempts_fake()
+    fin.record_paid(table, attempt, "pay_money_ok", value)
+    stored = table.rows["pa_money_1"]
+    assert stored["status"] == payment_attempt.PAYMENT_PAID
+    # Stored as an INT, whatever shape it arrived in.
+    assert stored[fin.VERIFIED_CAPTURED_PAISE_ATTR] == 100
+    assert type(stored[fin.VERIFIED_CAPTURED_PAISE_ATTR]) is int
+
+    # A redelivery agreeing on BOTH the provider id and the amount is idempotent...
+    fin.record_paid(table, attempt, "pay_money_ok", value)
+    assert table.rows["pa_money_1"][fin.VERIFIED_CAPTURED_PAISE_ATTR] == 100
+    # ...and one agreeing on the provider id but NOT the amount is refused by the DATABASE,
+    # rather than overwriting the evidence. This is what the nested condition group buys, and it
+    # is what two sibling OR groups would get wrong.
+    with pytest.raises(Exception) as refused:
+        fin.record_paid(table, attempt, "pay_money_ok", 101)
+    assert order_keys.is_conditional_failure(refused.value), refused.value
+    assert table.rows["pa_money_1"][fin.VERIFIED_CAPTURED_PAISE_ATTR] == 100
+
+
+# ══ the joint attempt-row blob budget ══════════════════════════════════════════
+
+#: DynamoDB's hard per-item ceiling. Not imported from anywhere because nothing in this repo
+#: declares it; it is the provider's number and it is what the budget exists to stay under.
+_DYNAMODB_ITEM_LIMIT_BYTES = 400_000
+
+
+def test_the_attempt_row_fits_one_dynamodb_item():
+    """The two blobs share ONE budget, because they are two attributes on ONE item.
+
+    If the arithmetic is wrong the failure is specific and bad: `reserve_attempt`'s conditional
+    put raises an item-size validation error AFTER `bind_gateway_order` has committed and
+    `create_order` has landed a PAYABLE gateway order, so the handler answers 503 leaving a bound
+    payable order with no attempt row and no cart rows behind it. A same-key retry resumes onto
+    it through the choke point, so it is not a double-charge path -- but it is the exact "payable
+    order with nothing behind it" shape this change exists to eliminate, reached through a size
+    bug rather than a logic bug.
+    """
+    ceiling = website_checkout._ATTEMPT_BLOB_BUDGET_BYTES
+    floor = website_checkout._WIX_PAYLOAD_FLOOR_BYTES
+
+    # An oversized snapshot: many lines, each carrying detail the reduced projection drops.
+    oversized_snapshot = _frozen(items=[
+        {"lineItemId": f"line-{index}", "quantity": 1, "name": f"Item {index}",
+         "totalPrice": {"amount": "1000.00"},
+         "descriptionLines": ["x" * 400, "y" * 400]}
+        for index in range(400)])
+    assert len(json.dumps(oversized_snapshot, default=str)) > ceiling, (
+        "the fixture is not oversized, so nothing below exercises a reduction")
+
+    # An oversized Wix payload, with money components that must survive at ANY size.
+    price_summary = {"subtotal": {"amount": "1000.00"}, "discount": {"amount": "0.00"},
+                     "delivery": {"amount": "0.00"}, "tax": {"amount": "0.00"},
+                     "totalAdditionalFees": {"amount": "20.00"},
+                     "total": {"amount": "1020.00"}}
+    additional_fees = [{"code": "WD-CONVENIENCE", "name": "Convenience fee",
+                        "price": {"amount": "20.00"}}]
+    oversized_payload = {
+        "currency": "INR", "priceSummary": dict(price_summary),
+        "additionalFees": [dict(entry) for entry in additional_fees],
+        "lineItems": [
+            {"productName": {"original": f"Item {index}"}, "quantity": 1,
+             "catalogReference": {"catalogItemId": "p" * 200, "options": {"variantId": "v" * 200}},
+             "price": {"amount": "1000.00"}, "totalPriceAfterTax": {"amount": "1000.00"}}
+            for index in range(400)],
+    }
+    assert len(json.dumps(oversized_payload, default=str)) > ceiling
+
+    # The production ordering, verbatim: the snapshot is measured FIRST and the payload gets
+    # whatever is left, never a second ceiling of its own.
+    snapshot_blob = website_checkout._bounded_snapshot(oversized_snapshot, ceiling)
+    snapshot_bytes = len(json.dumps(snapshot_blob, default=str))
+    remaining = ceiling - snapshot_bytes
+    payload_blob = website_checkout._bounded_wix_order_payload(
+        oversized_payload, max(remaining, floor))
+    payload_bytes = len(json.dumps(payload_blob, default=str))
+
+    # THE PROPERTY. Jointly bounded, so the row fits one item with room for every other field.
+    assert snapshot_bytes + payload_bytes <= ceiling + floor
+    assert snapshot_bytes + payload_bytes <= _DYNAMODB_ITEM_LIMIT_BYTES
+    # And the off-by-one this is written against: a PER-BLOB ceiling of the same size would have
+    # permitted twice it, which is how a guard written to bound an item limit comes to exceed it.
+    assert ceiling + floor < 2 * ceiling
+
+    # Both reductions are FLAGGED, and the flags mean different things.
+    assert snapshot_blob["purchasedSnapshotReduced"] is True
+    assert payload_blob[website_checkout._WIX_PAYLOAD_REDUCED_FLAG] is True
+    # A MONEY FIELD IS NEVER WHAT GETS TRIMMED.
+    assert payload_blob["priceSummary"] == price_summary
+    assert payload_blob["additionalFees"] == additional_fees
+    # `cart` is retained deliberately: `accept_paid`'s own guard is `snapshot.get('cart')`, so
+    # dropping it would REFUSE the order rather than shrink it.
+    assert snapshot_blob["cart"] == oversized_snapshot["cart"]
+
+
+def test_an_ordinary_prepare_stores_a_row_far_inside_the_item_limit(rig):
+    """The same property measured on the row production actually writes, end to end."""
+    r = rig()
+    code, body = r.prepare("K_blob_1")
+    assert code == 200 and body["status"] == "CHECKOUT_OPTIONS_READY", body
+    row_bytes = len(json.dumps(r.attempt_row(), default=str))
+    assert row_bytes <= _DYNAMODB_ITEM_LIMIT_BYTES
+    assert not r.attempt_row()["purchasedSnapshot"].get("purchasedSnapshotReduced")
+    assert not r.attempt_row()["wixOrderPayload"].get(wix_writeback.PAYLOAD_REDUCED_FLAG)
+
+
+def test_a_reduced_wix_payload_is_refused_rather_than_sent(rig):
+    """A payload trimmed to fit the row has lost its catalog references, so it fails closed.
+
+    Sending it would create a Wix order that names no products. The refusal is keyed on the flag
+    the TRIMMER sets, which is why `_WIX_PAYLOAD_REDUCED_FLAG` and
+    `wix_writeback.PAYLOAD_REDUCED_FLAG` are pinned equal elsewhere: a divergence would silently
+    disable this.
+    """
+    r = rig()
+    leg, options = _paid_flow(r, request_key="K_blob_2")
+    payload = dict(r.attempt_row()["wixOrderPayload"])
+    payload[wix_writeback.PAYLOAD_REDUCED_FLAG] = True
+    r.patch_attempt(wixOrderPayload=payload)
+
+    code, body = r.verify(order_id=options["orderId"], payment_id="pay_final_1")
+    assert code == 200 and body["status"] == "VERIFIED_PAID", body
+    # The internal order record still exists -- money moved -- but nothing reached Wix.
+    assert len(r.db.rows(ORDERS_TABLE)) == 1
+    assert _stage_of(r) == ("NEEDS_RECONCILIATION", "WIX_PAYLOAD_REDUCED")
+    assert r.wix.wix_orders == [] and r.wix.wix_payments == []
+
+
+# ══ the two residues the review named, each now pinned ═════════════════════════
+
+def test_a_pointer_with_no_cart_identity_refuses_rather_than_passing():
+    """`_record_cart_pointer` must REFUSE a missing identity, not return "written, carry on".
+
+    Driven at the choke point rather than through a prepare, because the path is UNREACHABLE from
+    a prepare today and that is the point: `build_snapshot` derives `frozen_data['cart']['id']`
+    from the same `cart_id` it puts on `QuoteSnapshot.cart_id`, and step 2a converts a cartless
+    payload into `CheckoutRejected(BASKET_IDENTITY_REQUIRED)` before anything is created. The
+    invariant is stronger as a refusal than as a pass that depends on a precondition two modules
+    away, so the refusal is asserted directly.
+
+    Both arms, because either identity empty means the three keys cannot be composed.
+    """
+    # A STAND-IN rather than a real `QuoteSnapshot`, and the reason is itself worth recording:
+    # `QuoteSnapshot.__post_init__` raises `PricingError('snapshot requires a cart id')`, so an
+    # identity-less snapshot CANNOT BE CONSTRUCTED. That is a third layer above the two named in
+    # the docstring, which is why this arm is unreachable in production -- and why the only
+    # honest way to test the refusal is to hand the function the shape it defends against.
+    class _IdentitylessSnapshot:
+        cart_id = ""
+        snapshot_hash = "hash-identityless"
+        frozen_data = {"customer": CUSTOMER, "items": []}
+
+    empty = _IdentitylessSnapshot()
+
+    class _CustomerlessSnapshot(_IdentitylessSnapshot):
+        cart_id = CART
+
+    for customer_id, cart_snapshot in ((CUSTOMER, empty), ("", _CustomerlessSnapshot())):
+        keys = _keys()
+        refusal = website_checkout._emit_payable_modal(
+            keys_table=keys, customer_id=customer_id, snapshot=cart_snapshot,
+            request_key="K_identity_1", attempt_id="pa_identity", gateway_order_id="order_identity",
+            amount_paise=100000, currency="INR", key_id=FIXTURE_PUBLIC_KEY_ID, prefill={})
+        assert refusal.status == website_checkout.CHECKOUT_AMBIGUOUS
+        assert refusal.reason == website_checkout.CART_POINTER_SAVE_FAILED
+        # NO options, so the modal cannot open and the unused Razorpay order expires.
+        assert refusal.options is None
+        # And no cart row was written, so nothing claims a basket it could not name.
+        assert keys.rows == {}
+
+
+class _CreateRightHostileTable(FakeTable):
+    """Refuses the create-right claim EXACTLY ONCE, as a concurrent click would.
+
+    It then stores the holder's reference on the row, which is the state the loser must read: the
+    holder won the right and `if_not_exists` kept THEIR reference, not ours.
+    """
+
+    HOLDER_REFERENCE = "ref_HOLDER_0001"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.refused = 0
+
+    def update_item(self, **kwargs):
+        expression = str(kwargs.get("UpdateExpression") or "")
+        if "createClaimedAt" in expression and not self.refused:
+            self.refused += 1
+            key = list(kwargs["Key"].values())[0]
+            row = dict(self.rows.get(key) or {})
+            row["referenceId"] = self.HOLDER_REFERENCE
+            row["createClaimedAt"] = int(time.time())
+            self.rows[key] = row
+            raise FakeClientError("ConditionalCheckFailedException")
+        return super().update_item(**kwargs)
+
+
+def test_a_lost_create_right_correlates_on_the_stored_reference(rig):
+    """A create-right loser correlates on the HOLDER's reference and creates no second order.
+
+    `allocate_payment_reference` mints and durably reserves on EVERY call, and the mint cannot
+    move below the create right -- `_reference_and_create_right` claims the right and writes the
+    reference in ONE conditional round trip, so it has to be handed a value. The documented
+    consequence is an orphan `PAYREF#` row, and this row pins both halves of it:
+
+      * the correlation uses the reference read BACK off the row, never the one we minted, so a
+        receipt lookup can find the holder's order;
+      * the orphan exists, carries no provider link, and is garbage rather than a correctness
+        problem -- the webhook resolves on `notes.referenceId`, which only ever carries the
+        winner's value.
+    """
+    hostile = _CreateRightHostileTable(key_attr="orderId")
+    r = rig(keys_table=hostile)
+    receipts = []
+    r.mp.setattr(r.h.razorpay_orders, "find_order_by_receipt",
+                 lambda receipt: receipts.append(receipt) or None)
+
+    code, body = r.prepare("K_right_1")
+    assert hostile.refused == 1, "the create right was never contested, so nothing was tested"
+    # 200 for provider ambiguity: we genuinely do not know whether the holder's create landed.
+    assert code == 200, body
+    assert body["status"] == website_checkout.CHECKOUT_AMBIGUOUS
+    assert body["reason"] == website_checkout.CREATE_IN_FLIGHT
+    assert "options" not in body, "a loser must never be handed a payable modal"
+    # NO second gateway order, which is the whole point.
+    assert r.creates == []
+
+    # The correlation was performed against the HOLDER's reference, not ours.
+    expected = website_checkout._receipt_for(
+        _CreateRightHostileTable.HOLDER_REFERENCE, "K_right_1")
+    assert receipts == [expected], receipts
+
+    # The orphan: exactly one `PAYREF#` row, ours, with no provider link on it.
+    orphans = _rows_with(r, order_keys.PAYMENT_REFERENCE_PREFIX)
+    assert len(orphans) == 1
+    assert not orphans[0].get("providerOrderId"), (
+        "the orphan acquired a provider link, so it is no longer harmless garbage")
+    minted = str(orphans[0]["orderId"])[len(order_keys.PAYMENT_REFERENCE_PREFIX):]
+    assert minted != _CreateRightHostileTable.HOLDER_REFERENCE, (
+        "the loser's mint collided with the holder's reference, so this row proves nothing")
+    # And no cart rows, because the loser never reached the choke point.
+    assert r.db.count_prefix(order_keys.CART_PAYMENT_PREFIX) == 0
+    assert r.db.count_prefix(order_keys.CART_BASKET_PREFIX) == 0
