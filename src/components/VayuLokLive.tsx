@@ -85,10 +85,10 @@ interface SearchResult {
 }
 
 const DEFAULT_PLACE: PlaceState = {
-  name: 'Connaught Place',
-  addr: 'New Delhi, Delhi 110001',
-  lat: 28.6139,
-  lng: 77.2090,
+  name: 'Dawki',
+  addr: 'Dawki, West Jaintia Hills, Meghalaya 793109',
+  lat: 25.18333,
+  lng: 92.01667,
   photos: [],
 };
 
@@ -96,12 +96,22 @@ const DEFAULT_PLACE: PlaceState = {
 const MAP_STYLES = [
   { elementType: 'geometry', stylers: [ { color: '#fafafa' } ] },
   { elementType: 'labels.text.fill', stylers: [ { color: '#1a3a2a' } ] },
-  { elementType: 'labels.text.stroke', stylers: [ { color: '#ffffff' } ] },
-  { featureType: 'poi', elementType: 'labels', stylers: [ { visibility: 'off' } ] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [ { color: '#f5fde0' } ] },
+  { elementType: 'labels.text.stroke', stylers: [ { color: '#ffffff' }, { weight: 3 } ] },
+
+  // Keep the map unmistakably a street map: road names and locality labels stay visible.
   { featureType: 'road', elementType: 'geometry', stylers: [ { color: '#ffffff' } ] },
   { featureType: 'road', elementType: 'geometry.stroke', stylers: [ { color: '#e5e7eb' } ] },
+  { featureType: 'road', elementType: 'labels', stylers: [ { visibility: 'on' } ] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [ { color: '#1a3a2a' } ] },
+  { featureType: 'road.local', elementType: 'labels', stylers: [ { visibility: 'on' } ] },
+  { featureType: 'road.arterial', elementType: 'labels', stylers: [ { visibility: 'on' } ] },
   { featureType: 'road.highway', elementType: 'geometry', stylers: [ { color: '#ffffff' } ] },
+  { featureType: 'road.highway', elementType: 'labels', stylers: [ { visibility: 'on' } ] },
+  { featureType: 'administrative.locality', elementType: 'labels', stylers: [ { visibility: 'on' } ] },
+  { featureType: 'administrative.neighborhood', elementType: 'labels', stylers: [ { visibility: 'on' } ] },
+
+  { featureType: 'poi', elementType: 'labels', stylers: [ { visibility: 'off' } ] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [ { color: '#f5fde0' } ] },
   { featureType: 'transit', stylers: [ { visibility: 'off' } ] },
   { featureType: 'water', elementType: 'geometry', stylers: [ { color: '#e8eeea' } ] },
 ];
@@ -392,6 +402,8 @@ const VayuLokLive: React.FC = () => {
   const [ mapCandidate, setMapCandidate ] = useState<PlaceState | null>( null );
   const [ mapCandidateWeather, setMapCandidateWeather ] = useState<WeatherState | null>( null );
   const [ mapCandidateAir, setMapCandidateAir ] = useState<AirState | null>( null );
+  const [ nearbyPhotos, setNearbyPhotos ] = useState<PlacePhoto[]>( [] );
+  const [ streetViewReady, setStreetViewReady ] = useState( false );
 
   // Search combobox state.
   const [ query, setQuery ] = useState( '' );
@@ -403,6 +415,8 @@ const VayuLokLive: React.FC = () => {
   const [ layer, setLayer ] = useState<'AQI' | 'PM25' | null>( null );
 
   const mapHost = useRef<HTMLDivElement | null>( null );
+  const streetViewHost = useRef<HTMLDivElement | null>( null );
+  const photoRailRef = useRef<HTMLDivElement | null>( null );
   const mapRef = useRef<unknown>( null );
   const markerRef = useRef<unknown>( null );
   const placesLibRef = useRef<Record<string, unknown> | null>( null );
@@ -436,6 +450,8 @@ const VayuLokLive: React.FC = () => {
     setMapCandidate( null );
     setMapCandidateWeather( null );
     setMapCandidateAir( null );
+    setNearbyPhotos( [] );
+    setStreetViewReady( false );
   }, [ place.lat, place.lng ] );
 
   useEffect( () => {
@@ -532,7 +548,8 @@ const VayuLokLive: React.FC = () => {
 
       const map = new maps.Map( host, {
         center: { lat: DEFAULT_PLACE.lat, lng: DEFAULT_PLACE.lng },
-        zoom: 11,
+        zoom: 14,
+        mapTypeId: 'roadmap',
         gestureHandling: 'greedy',
         disableDefaultUI: true,
         zoomControl: false,
@@ -715,6 +732,96 @@ const VayuLokLive: React.FC = () => {
     runInit();
     return () => { cancelled = true; };
   }, [] );
+
+  /* ---------------------------------------------------------------------------------
+     PLACE CARD MEDIA FALLBACK. Exact-place photos are preferred. If none are available,
+     look for nearby photographed Places. Only then use a tightly-contained Street View
+     panorama inside the place card; the main map remains a normal roadmap. */
+  useEffect( () => {
+    if ( !MAPS_KEY || typeof window === 'undefined' || !mapReady ) return;
+    const target = mapCandidate || place;
+    const exactCleanPhotos = ( target.photos || [] ).filter( photo => photo.attributions.length === 0 );
+    if ( exactCleanPhotos.length ) {
+      setNearbyPhotos( [] );
+      setStreetViewReady( false );
+      return;
+    }
+
+    let cancelled = false;
+    setNearbyPhotos( [] );
+    setStreetViewReady( false );
+
+    const loadMedia = async () => {
+      const lib = placesLibRef.current as {
+        Place?: {
+          searchNearby?: ( req: Record<string, unknown> ) => Promise<{ places?: any[] }>;
+        };
+      } | null;
+
+      try {
+        const searchNearby = lib?.Place?.searchNearby;
+        if ( typeof searchNearby === 'function' ) {
+          const out = await searchNearby( {
+            fields: [ 'displayName', 'location', 'photos' ],
+            locationRestriction: { center: { lat: target.lat, lng: target.lng }, radius: 2500 },
+            maxResultCount: 8,
+            rankPreference: 'DISTANCE',
+          } );
+          const photos: PlacePhoto[] = [];
+          ( Array.isArray( out?.places ) ? out.places : [] ).forEach( p => {
+            ( Array.isArray( p?.photos ) ? p.photos : [] ).slice( 0, 2 ).forEach( ( photo: any ) => {
+              const url = photo?.getURI?.( { maxWidth: 1200, maxHeight: 760 } ) || '';
+              if ( !url ) return;
+              const attributions = ( Array.isArray( photo?.authorAttributions ) ? photo.authorAttributions : [] )
+                .map( ( a: any ) => ( { name: String( a?.displayName || 'Photo contributor' ), uri: a?.uri } ) );
+              if ( attributions.length > 0 ) return;
+              photos.push( { url, attributions: [] } );
+            } );
+          } );
+          if ( !cancelled && photos.length ) {
+            setNearbyPhotos( photos.slice( 0, 8 ) );
+            return;
+          }
+        }
+      } catch { /* nearby photo enrichment is optional */ }
+
+      const maps = ( window as any ).google?.maps;
+      const host = streetViewHost.current;
+      if ( cancelled || !maps?.StreetViewService || !maps?.StreetViewPanorama || !host ) return;
+      try {
+        const service = new maps.StreetViewService();
+        service.getPanorama(
+          { location: { lat: target.lat, lng: target.lng }, radius: 120, preference: 'nearest' },
+          ( data: any, status: string ) => {
+            if ( cancelled || status !== 'OK' || !data?.location?.latLng || !streetViewHost.current ) return;
+            new maps.StreetViewPanorama( streetViewHost.current, {
+              position: data.location.latLng,
+              pov: { heading: 0, pitch: 0 },
+              zoom: 0,
+              addressControl: false,
+              clickToGo: false,
+              disableDefaultUI: true,
+              fullscreenControl: false,
+              linksControl: false,
+              motionTracking: false,
+              motionTrackingControl: false,
+              panControl: false,
+              scrollwheel: false,
+              showRoadLabels: false,
+              zoomControl: false,
+            } );
+            setStreetViewReady( true );
+          },
+        );
+      } catch { /* Street View is optional */ }
+    };
+
+    const id = window.setTimeout( () => { void loadMedia(); }, 0 );
+    return () => {
+      cancelled = true;
+      window.clearTimeout( id );
+    };
+  }, [ mapReady, mapCandidate, place ] );
 
   /* ---------------------------------------------------------------------------------
      LIVE DATA for the selected place. Air + Weather + Pollen fire together whenever
@@ -1164,10 +1271,11 @@ const VayuLokLive: React.FC = () => {
      RECENTRE the map + move the marker when the place changes (after the map exists). */
   useEffect( () => {
     const w = window as unknown as { google?: { maps?: { LatLng: new ( a: number, b: number ) => unknown } } };
-    const map = mapRef.current as { setCenter?: ( p: { lat: number; lng: number } ) => void } | null;
+    const map = mapRef.current as { setCenter?: ( p: { lat: number; lng: number } ) => void; setZoom?: ( zoom: number ) => void } | null;
     const marker = markerRef.current as { setPosition?: ( p: { lat: number; lng: number } ) => void; setTitle?: ( t: string ) => void } | null;
     if ( !map || !marker || !w.google?.maps ) return;
     map.setCenter?.( { lat: place.lat, lng: place.lng } );
+    map.setZoom?.( 14 );
     marker.setPosition?.( { lat: place.lat, lng: place.lng } );
     marker.setTitle?.( place.name );
   }, [ place, mapReady ] );
@@ -1384,6 +1492,11 @@ const VayuLokLive: React.FC = () => {
   const previewPlace = mapCandidate || place;
   const previewWeather = mapCandidate ? mapCandidateWeather : weather;
   const previewAir = mapCandidate ? mapCandidateAir : air;
+  const exactCleanPhotos = ( previewPlace.photos || [] ).filter( photo => photo.attributions.length === 0 );
+  const displayPhotos = exactCleanPhotos.length ? exactCleanPhotos : nearbyPhotos;
+  const photoPages = Array.from( { length: Math.ceil( displayPhotos.length / 3 ) }, ( _, page ) =>
+    displayPhotos.slice( page * 3, page * 3 + 3 ),
+  );
   const dotClass = ( sev: Sev ) => `vl-live-dot vl-live-dot-${sev}`;
   const liveActive = Boolean( MAPS_KEY );
   const bestOutside = bestOutsideWindow( weatherHourly, airForecast );
@@ -1933,72 +2046,119 @@ const VayuLokLive: React.FC = () => {
                     className="vl-live-layer"
                     type="button"
                     aria-pressed={ layer === 'AQI' }
-                    onClick={ () => setLayer( l => ( l === 'AQI' ? null : 'AQI' ) ) }
+                    onClick={ () => setLayer( 'AQI' ) }
                   >AQI</button>
                   <button
                     className="vl-live-layer"
                     type="button"
                     aria-pressed={ layer === 'PM25' }
-                    onClick={ () => setLayer( l => ( l === 'PM25' ? null : 'PM25' ) ) }
+                    onClick={ () => setLayer( 'PM25' ) }
                   >PM2.5</button>
                 </div>
               ) }
 
-              { mapReady && (
-                <div className="vl-live-map-legend">
-                  <p className="vl-live-label">AQI heatmap</p>
-                  <div className="vl-live-scale" aria-hidden="true" />
-                  <div className="vl-live-scale-ends"><span>Good</span><span>Severe</span></div>
-                  <p className="vl-live-scale-mid">Good · Satisfactory · Moderate · Poor · Very Poor · Severe</p>
-                </div>
-              ) }
-
-                {/* Place preview - bottom:76px, never bottom:0: Google's logo and legal
-                    notices own the bottom corners. Renders live values when present. */}
+                {/* Single place card in the map's top-right. Google map attribution
+                    remains clear at the bottom of the map. */}
                 { ( previewAir || previewWeather || mapCandidate ) && (
                   <div className="vl-live-map-preview">
-                    { previewPlace.photos?.length ? (
+                    { displayPhotos.length ? (
                       <>
-                        <div
-                          className="vl-live-place-photos"
-                          aria-label={ `Photos of ${previewPlace.name}` }
-                          onScroll={ e => {
-                            const el = e.currentTarget;
-                            if ( el.clientWidth ) setPhotoIndex( Math.max( 0, Math.min( previewPlace.photos!.length - 1, Math.round( el.scrollLeft / el.clientWidth ) ) ) );
-                          } }
-                        >
-                          { previewPlace.photos.map( ( photo, i ) => (
-                            <figure className="vl-live-place-photo" key={ photo.url + i }>
-                              <img src={ photo.url } alt={ `${previewPlace.name} ${i + 1}` } loading={ i === 0 ? 'eager' : 'lazy' } />
-                              { photo.attributions.length > 0 && (
-                                <figcaption>
-                                  { photo.attributions.map( ( a, j ) => a.uri ? (
-                                    <a key={ a.name + j } href={ a.uri } target="_blank" rel="noopener noreferrer">{ a.name }</a>
-                                  ) : <span key={ a.name + j }>{ a.name }</span> ) }
-                                </figcaption>
-                              ) }
-                            </figure>
-                          ) ) }
+                        <div className="vl-live-photo-shell">
+                          <div className="vl-live-photo-count" aria-label={ `${displayPhotos.length} place photos` }>
+                            <span>{ displayPhotos.length } photos</span>
+                          </div>
+                          <div
+                            ref={ photoRailRef }
+                            className="vl-live-place-photos"
+                            aria-label={ `Photos near ${previewPlace.name}` }
+                            onScroll={ e => {
+                              const el = e.currentTarget;
+                              if ( el.clientWidth ) setPhotoIndex( Math.max( 0, Math.min( photoPages.length - 1, Math.round( el.scrollLeft / el.clientWidth ) ) ) );
+                            } }
+                          >
+                            { photoPages.map( ( page, pageIndex ) => (
+                              <div className="vl-live-photo-page" key={ page.map( p => p.url ).join( '|' ) }>
+                                { page.map( ( photo, i ) => (
+                                  <figure className={ `vl-live-place-photo ${i === 0 ? 'is-primary' : 'is-secondary'}`.trim() } key={ photo.url }>
+                                    <img
+                                      src={ photo.url }
+                                      alt={ `${previewPlace.name} area ${pageIndex * 3 + i + 1}` }
+                                      loading={ pageIndex === 0 && i === 0 ? 'eager' : 'lazy' }
+                                    />
+                                  </figure>
+                                ) ) }
+                              </div>
+                            ) ) }
+                          </div>
                         </div>
-                        { previewPlace.photos.length > 1 && (
-                          <div className="vl-live-photo-dots" aria-label={ `Photo ${photoIndex + 1} of ${previewPlace.photos.length}` }>
-                            { previewPlace.photos.map( ( _, i ) => <i key={ i } className={ i === photoIndex ? 'is-active' : '' } aria-hidden="true" /> ) }
+                        { photoPages.length > 1 && (
+                          <div className="vl-live-photo-tabs" role="tablist" aria-label={ `Photo set ${photoIndex + 1} of ${photoPages.length}` }>
+                            { photoPages.map( ( _, i ) => (
+                              <span
+                                key={ i }
+                                className="vl-live-photo-tab"
+                                role="tab"
+                                tabIndex={ 0 }
+                                aria-selected={ i === photoIndex }
+                                aria-label={ `Show photo set ${i + 1}` }
+                                onClick={ () => {
+                                  const el = photoRailRef.current;
+                                  if ( el ) el.scrollTo( { left: el.clientWidth * i, behavior: 'smooth' } );
+                                  setPhotoIndex( i );
+                                } }
+                                onKeyDown={ e => {
+                                  if ( e.key !== 'Enter' && e.key !== ' ' ) return;
+                                  e.preventDefault();
+                                  const el = photoRailRef.current;
+                                  if ( el ) el.scrollTo( { left: el.clientWidth * i, behavior: 'smooth' } );
+                                  setPhotoIndex( i );
+                                } }
+                              />
+                            ) ) }
                           </div>
                         ) }
                       </>
                     ) : (
-                      <div className="vl-live-place-photo-fallback" role="img" aria-label={ `VayuLok place preview for ${previewPlace.name}` }>
-                        <span aria-hidden="true" />
+                      <div className={ `vl-live-streetview ${streetViewReady ? 'is-ready' : ''}`.trim() }>
+                        <div ref={ streetViewHost } className="vl-live-streetview-host" aria-label={ `Street View near ${previewPlace.name}` } />
+                        { !streetViewReady && (
+                          <div className="vl-live-place-photo-fallback" role="img" aria-label={ `VayuLok place preview for ${previewPlace.name}` }>
+                            <span aria-hidden="true" />
+                          </div>
+                        ) }
+                        { streetViewReady && <span className="vl-live-media-tag">Street View nearby</span> }
                       </div>
                     ) }
+
                     <div className="vl-live-map-preview-head">
-                      <div>
-                        <p className="vl-live-card-h">{ previewPlace.name }</p>
-                        <p className="vl-live-small">{ previewPlace.addr }</p>
-                      </div>
-                      <time className="vl-live-ist" dateTime={ new Date().toISOString() }>{ istClock }</time>
+                      <p className="vl-live-card-h">{ previewPlace.name }</p>
+                      <p className="vl-live-map-address">{ previewPlace.addr }</p>
                     </div>
-                    <p className="vl-live-coords">{ previewPlace.lat.toFixed( 4 ) }, { previewPlace.lng.toFixed( 4 ) }</p>
+                    <div className="vl-live-map-preview-meta">
+                      <time className="vl-live-ist" dateTime={ new Date().toISOString() }>{ istClock }</time>
+                      { previewWeather?.condition && <span>{ previewWeather.condition }</span> }
+                    </div>
+                    <div className="vl-live-preview-metrics">
+                      { Number.isFinite( previewWeather?.temp ) && (
+                        <div><p className="vl-live-label">Temp</p><span className="vl-live-metric-md">{ previewWeather!.temp }°</span></div>
+                      ) }
+                      { previewAir && (
+                        <div><p className="vl-live-label">AQI</p><span className="vl-live-metric-md">{ previewAir.aqi }</span><p className="vl-live-preview-cat">{ previewAir.word }</p></div>
+                      ) }
+                      { previewAir && previewAir.pollutants.filter( p => p.code === 'pm25' ).map( p => (
+                        <div key="prev-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ Math.round( p.value ) }</span><p className="vl-live-preview-cat">{ p.unit }</p></div>
+                      ) ) }
+                    </div>
+                    { layer && (
+                      <div className="vl-live-preview-scale" aria-label={ layer === 'AQI' ? 'AQI heatmap scale' : 'PM2.5 heatmap scale' }>
+                        <p className="vl-live-label">{ layer === 'AQI' ? 'AQI heatmap' : 'PM2.5 heatmap' }</p>
+                        <div className="vl-live-scale" aria-hidden="true" />
+                        <div className="vl-live-scale-ends">
+                          <span>{ layer === 'AQI' ? 'Good' : 'Lower' }</span>
+                          <span>{ layer === 'AQI' ? 'Severe' : 'Higher' }</span>
+                        </div>
+                      </div>
+                    ) }
                     <button
                       className="vl-live-view-details"
                       type="button"
@@ -2013,18 +2173,10 @@ const VayuLokLive: React.FC = () => {
                         }
                         document.getElementById( 'vl-live-now-place' )?.scrollIntoView( { behavior: 'smooth', block: 'start' } );
                       } }
-                    >{ mapCandidate ? 'View details' : 'Jump to details' }</button>
-                    <div className="vl-live-preview-metrics">
-                      { Number.isFinite( previewWeather?.temp ) && (
-                        <div><p className="vl-live-label">Temp</p><span className="vl-live-metric-md">{ previewWeather!.temp }°</span></div>
-                      ) }
-                      { previewAir && (
-                        <div><p className="vl-live-label">AQI</p><span className="vl-live-metric-md">{ previewAir.aqi }</span><p className="vl-live-preview-cat">{ previewAir.word }</p></div>
-                      ) }
-                      { previewAir && previewAir.pollutants.filter( p => p.code === 'pm25' ).map( p => (
-                        <div key="prev-pm25"><p className="vl-live-label">PM2.5</p><span className="vl-live-metric-md">{ Math.round( p.value ) }</span><p className="vl-live-preview-cat">{ p.unit }</p></div>
-                      ) ) }
-                    </div>
+                    >
+                      { mapCandidate ? 'View details' : 'Jump to details' }
+                      <span aria-hidden="true"> →</span>
+                    </button>
                   </div>
                 ) }
             </div>
@@ -2087,7 +2239,7 @@ const VayuLokLive: React.FC = () => {
         .vl-live-left > .vl-live-section{margin-top:64px;padding-top:0;border-top:0}
 
         .vl-live-map-sticky{display:flex;flex-direction:column;gap:10px}
-        .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid var(--hair);border-radius:14px;background:var(--ground)}
+        .vl-live-map-stage{position:relative;height:340px;overflow:hidden;border:1px solid rgba(209,244,112,.92);border-radius:14px;background:var(--ground);box-shadow:none}
         .vl-live-map-fallback{
           position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;gap:14px;
           width:100%;height:100%;padding:24px;border:0;border-radius:inherit;overflow:hidden;
@@ -2111,7 +2263,7 @@ const VayuLokLive: React.FC = () => {
           /* Two equal columns with a fixed gap so they cannot overlap. The earlier
              track definition summed past the container width once the gap was added,
              so the right map column slid over the left content. */
-          .vl-live-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:40px;row-gap:0}
+          .vl-live-grid{grid-template-columns:minmax(0,.72fr) minmax(0,1.08fr);column-gap:36px;row-gap:0}
           .vl-live-map-sticky{position:sticky;top:96px;height:calc(100vh - 120px)}
           .vl-live-map-stage{flex:1 1 auto;min-height:0;height:auto}
         }
@@ -2190,57 +2342,52 @@ const VayuLokLive: React.FC = () => {
         .vl-live-layer:focus-visible{outline:3px solid var(--green);outline-offset:3px}
         .vl-live-layer[aria-pressed="true"]{border-color:var(--green);background:var(--lime)}
 
-        .vl-live-map-legend{position:absolute;top:16px;right:16px;z-index:4;width:224px;padding:16px;border:1px solid var(--hair);border-radius:14px;background:var(--paper)}
-        .vl-live-scale{height:10px;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--aqi-good) 0%,var(--aqi-sat) 22%,var(--aqi-mod) 48%,var(--aqi-poor) 74%,var(--aqi-worst) 100%)}
-        .vl-live-scale-ends{display:flex;justify-content:space-between;margin-top:8px;gap:8px}
-        .vl-live-scale-ends span{font-size:12px;font-weight:700;color:var(--green)}
-        .vl-live-scale-mid{margin:8px 0 0;font-size:12px;line-height:1.4;color:var(--ink-muted)}
+        .vl-live-scale{height:8px;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--aqi-good) 0%,var(--aqi-sat) 22%,var(--aqi-mod) 48%,var(--aqi-poor) 74%,var(--aqi-worst) 100%)}
+        .vl-live-scale-ends{display:flex;justify-content:space-between;margin-top:6px;gap:8px}
+        .vl-live-scale-ends span{font-size:11px;font-weight:700;color:var(--green)}
 
-        /* Keep the preview above Google's bottom legal/attribution area. */
-        .vl-live-map-preview{position:absolute;left:16px;bottom:76px;z-index:4;width:320px;padding:0 16px 16px;border:1px solid var(--hair);border-radius:14px;background:var(--paper);overflow:hidden}
-        .vl-live-place-photos{display:flex;gap:0;overflow-x:auto;margin:0 -16px;scroll-snap-type:x mandatory;scrollbar-width:none}
+        /* One map information card, photo-led like the supplied reference. */
+        .vl-live-map-preview{position:absolute;top:16px;right:16px;left:auto;bottom:auto;z-index:4;width:min(390px,calc(100% - 150px));padding:0 18px 18px;border:1px solid rgba(209,244,112,.86);border-radius:20px;background:rgba(255,255,255,.985);box-shadow:0 14px 34px rgba(26,58,42,.16);overflow:visible}
+        .vl-live-map-preview::after{content:'';position:absolute;left:50%;bottom:-10px;width:20px;height:20px;background:#fff;border-right:1px solid rgba(209,244,112,.86);border-bottom:1px solid rgba(209,244,112,.86);transform:translateX(-50%) rotate(45deg);border-radius:0 0 4px 0}
+        .vl-live-photo-shell{position:relative;margin:0 -18px}
+        .vl-live-place-photos{display:flex;gap:0;overflow-x:auto;overflow-y:hidden;border-radius:20px 20px 0 0;scroll-snap-type:x mandatory;scrollbar-width:none}
         .vl-live-place-photos::-webkit-scrollbar{display:none}
-        .vl-live-place-photo{position:relative;flex:0 0 100%;width:100%;height:132px;margin:0;scroll-snap-align:start;background:#eef3ef}
-        .vl-live-place-photo img{display:block;width:100%;height:132px;object-fit:cover}
-        .vl-live-place-photo figcaption{position:absolute;left:8px;bottom:7px;max-width:calc(100% - 16px);padding:4px 6px;border-radius:6px;background:rgba(0,0,0,.62);font-size:9px;line-height:1.25;color:#fff}
-        .vl-live-place-photo figcaption a,.vl-live-place-photo figcaption span{color:#fff}
-        .vl-live-place-photo figcaption a+span,.vl-live-place-photo figcaption a+a,.vl-live-place-photo figcaption span+a,.vl-live-place-photo figcaption span+span{margin-left:5px}
-        .vl-live-place-photo-fallback{height:112px;margin:0 -16px 14px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(209,244,112,.5),rgba(26,58,42,.08)),#eef3ef}
+        .vl-live-photo-page{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);grid-template-rows:1fr 1fr;gap:6px;flex:0 0 100%;height:228px;padding:0;scroll-snap-align:start;background:#fff}
+        .vl-live-place-photo{position:relative;width:100%;height:100%;margin:0;overflow:hidden;background:#eef3ef}
+        .vl-live-place-photo.is-primary{grid-row:1 / span 2;border-radius:20px 0 0 0}
+        .vl-live-place-photo.is-secondary{border-radius:0}
+        .vl-live-place-photo.is-secondary:nth-child(2){border-radius:0 20px 0 0}
+        .vl-live-place-photo img{display:block;width:100%;height:100%;object-fit:cover}
+        .vl-live-photo-count{position:absolute;top:12px;left:12px;z-index:4;display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;background:var(--lime);color:var(--green);font-size:10px;font-weight:800;line-height:1.1;box-shadow:0 1px 0 rgba(26,58,42,.12)}
+        .vl-live-place-photo-fallback{height:180px;margin:0;border-radius:20px 20px 0 0;display:grid;place-items:center;background:linear-gradient(135deg,rgba(209,244,112,.5),rgba(26,58,42,.08)),#eef3ef}
+        .vl-live-streetview{position:relative;height:180px;margin:0 -18px 12px;border-radius:20px 20px 0 0;overflow:hidden;background:#eef3ef}
+        .vl-live-streetview-host{position:absolute;inset:0;opacity:0;pointer-events:none}
+        .vl-live-streetview.is-ready .vl-live-streetview-host{opacity:1}
+        .vl-live-streetview .vl-live-place-photo-fallback{position:absolute;inset:0;width:100%;height:100%;margin:0;border-radius:0}
+        .vl-live-media-tag{position:absolute;top:12px;left:12px;z-index:4;padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.92);font-size:10px;font-weight:700;color:var(--green);box-shadow:0 2px 8px rgba(26,58,42,.1)}
         .vl-live-place-photo-fallback span{width:26px;height:26px;border:7px solid var(--green);border-radius:50% 50% 50% 0;background:var(--lime);transform:rotate(-45deg)}
-        .vl-live-photo-dots{display:flex;justify-content:center;gap:5px;margin:7px 0 12px}
-        .vl-live-photo-dots i{width:5px;height:5px;border-radius:50%;background:#cfd6d0}
-        .vl-live-photo-dots i.is-active{background:var(--green);transform:scale(1.25)}
-        .vl-live-map-preview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-        .vl-live-ist{flex:0 0 auto;font-size:11px;font-weight:700;color:var(--green);white-space:nowrap}
-        .vl-live-coords{margin:5px 0 0;font-size:10px;color:var(--ink-muted);font-variant-numeric:tabular-nums}
-        .vl-live-view-details{margin-top:8px;padding:0;border:0;background:transparent;color:var(--green);font:inherit;font-size:12px;font-weight:700;text-decoration:underline;cursor:pointer}
-        .vl-live-preview-metrics{display:grid;grid-template-columns:repeat(3,1fr);margin-top:14px;border-top:1px solid var(--hair)}
-        .vl-live-preview-metrics>div{padding:12px 0 0}
-        .vl-live-preview-metrics>div+div{padding-left:14px;border-left:1px solid var(--hair)}
+        .vl-live-photo-tabs{display:flex;gap:5px;margin:6px 0 10px;padding:0 1px;height:18px;align-items:center}
+        .vl-live-photo-tab{position:relative;display:block;flex:1 1 0;height:18px;min-width:10px;cursor:pointer;outline:none}
+        .vl-live-photo-tab::after{content:'';position:absolute;left:0;right:0;top:50%;height:2px;border-radius:999px;background:#e7ebe8;transform:translateY(-50%);transition:background-color .18s ease,transform .18s ease}
+        .vl-live-photo-tab[aria-selected="true"]::after{background:var(--lime);transform:translateY(-50%) scaleY(1.5)}
+        .vl-live-photo-tab:focus-visible::before{content:'';position:absolute;inset:2px;border:1px solid var(--green);border-radius:999px}
+        .vl-live-map-preview-head{display:block;margin-top:2px}
+        .vl-live-map-preview .vl-live-card-h{margin:0;font-size:20px;line-height:1.2;font-weight:700;letter-spacing:-.02em;color:#1a1a1a}
+        .vl-live-map-address{margin:5px 0 0;font-size:12px;line-height:1.45;color:var(--ink-muted)}
+        .vl-live-map-preview-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-top:9px}
+        .vl-live-map-preview-meta span,.vl-live-ist{font-size:11px;line-height:1.25;font-weight:700;color:var(--green)}
+        .vl-live-map-preview-meta span::before{content:'•';margin-right:10px;color:rgba(26,58,42,.35)}
+        .vl-live-preview-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:14px;padding-top:13px;border-top:1px solid var(--hair)}
+        .vl-live-preview-metrics>div{min-width:0;padding:0 10px 0 0}
+        .vl-live-preview-metrics>div+div{padding-left:10px;border-left:1px solid var(--hair)}
         .vl-live-preview-metrics .vl-live-label{margin-bottom:4px}
-        .vl-live-preview-metrics .vl-live-metric-md{font-size:17px}
-        .vl-live-preview-cat{margin:4px 0 0;font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--ink-muted)}
-
-        /* Continuous weather workspace: typography + hairlines instead of repeated cards. */
-        .vl-live-signal-stack{padding-top:0;padding-bottom:0}
-        .vl-live-signal{padding:34px 0;border-top:1px solid var(--hair)}
-        .vl-live-signal:last-child{border-bottom:1px solid var(--hair)}
-        .vl-live-signal-head{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:end}
-        .vl-live-signal-head .vl-live-eyebrow{margin-bottom:10px}
-        .vl-live-signal-head .vl-live-h2{margin-bottom:0}
-        .vl-live-signal-summary{margin:0;max-width:34ch;font-size:14px;line-height:1.45;color:var(--ink-muted)}
-        .vl-live-signal-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:24px;border-top:1px solid var(--hair)}
-        .vl-live-signal-facts>div{padding:16px 14px 0 0}
-        .vl-live-signal-facts>div:nth-child(even){padding-left:14px;border-left:1px solid var(--hair)}
-        .vl-live-signal-facts strong{font-size:17px;line-height:1.25;color:#1a1a1a}
-        @container vllive (min-width:620px){
-          .vl-live-signal-head{grid-template-columns:minmax(0,1fr) minmax(180px,.45fr);gap:24px}
-          .vl-live-signal-summary{text-align:right;justify-self:end}
-          .vl-live-signal-facts{grid-template-columns:repeat(4,minmax(0,1fr))}
-          .vl-live-signal-facts>div{padding:16px 16px 0}
-          .vl-live-signal-facts>div:first-child{padding-left:0}
-          .vl-live-signal-facts>div+div{border-left:1px solid var(--hair)}
-        }
+        .vl-live-preview-metrics .vl-live-metric-md{font-size:18px;line-height:1.05}
+        .vl-live-preview-cat{margin:4px 0 0;font-size:10px;font-weight:700;letter-spacing:.01em;color:var(--ink-muted)}
+        .vl-live-preview-scale{margin-top:14px;padding-top:12px;border-top:1px solid var(--hair)}
+        .vl-live-preview-scale .vl-live-label{margin-bottom:7px}
+        .vl-live-view-details{display:inline-flex;align-items:center;gap:4px;margin-top:14px;padding:8px 12px;border:0;border-radius:999px;background:var(--lime);color:var(--green);font:inherit;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer;transition:transform .18s ease}
+        .vl-live-view-details:hover{transform:translateY(-1px)}
+        .vl-live-view-details:focus-visible{outline:3px solid var(--green);outline-offset:2px}
 
         .vl-live-best-outside{display:grid;gap:10px;padding:24px;border:2px solid var(--lime);border-radius:14px;background:var(--lime-tint);color:var(--ink-base)}
         .vl-live-best-outside .vl-live-metric-lg,.vl-live-best-outside .vl-live-body{color:var(--ink-head)}
@@ -2333,7 +2480,7 @@ const VayuLokLive: React.FC = () => {
         @media(max-width:1023px){
           .vl-live-map-legend{top:12px;right:12px;width:168px;padding:12px}
           .vl-live-map-legend .vl-live-scale-mid{display:none}
-          .vl-live-map-preview{left:12px;bottom:72px;width:244px;padding:0 14px 14px}
+          .vl-live-map-preview{top:12px;right:12px;left:auto;bottom:auto;width:min(360px,calc(100% - 24px));padding:0 14px 14px}
         }
         @media(max-width:767px){
           .vl-live{padding-bottom:48px}
@@ -2348,7 +2495,7 @@ const VayuLokLive: React.FC = () => {
           .vl-live-left > .vl-live-section{margin-top:64px}
           .vl-live-map-controls{top:12px;left:12px}
           .vl-live-map-legend{width:136px}
-          .vl-live-map-preview{width:min(244px,calc(100% - 24px))}
+          .vl-live-map-preview{width:calc(100% - 24px);max-width:360px}
           .vl-live-map-preview .vl-live-card-h{font-size:17px}
         }
         @media(prefers-reduced-motion:reduce){
