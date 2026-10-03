@@ -302,7 +302,7 @@ describe( 'the error copy is the owner\'s table and nothing else', () => {
       session: 'sess-D', destination: '+971 ******3210', registered: true,
     } as Awaited<ReturnType<typeof customerAuth.requestOtp>> );
     render( <SignIn /> );
-    fireEvent.change( screen.getByLabelText( 'Country code' ), { target: { value: '+971' } } );
+    fireEvent.change( screen.getByLabelText( 'Calling code' ), { target: { value: '+971' } } );
     await enterPhone( '9876543210' );
     await waitFor( () => expect( requestOtp ).toHaveBeenCalledWith( '+9719876543210' ) );
     expect( requestOtp ).not.toHaveBeenCalledWith( '+919876543210' );
@@ -329,7 +329,7 @@ describe( 'the error copy is the owner\'s table and nothing else', () => {
      * segment shows it directly now, so the number box starts empty and nobody edits around a prefix.
      */
     render( <SignIn /> );
-    expect( ( screen.getByLabelText( 'Country code' ) as HTMLSelectElement ).value ).toBe( '+91' );
+    expect( ( screen.getByLabelText( 'Calling code' ) as HTMLSelectElement ).value ).toBe( '+91' );
     expect( ( screen.getByLabelText( 'WhatsApp number' ) as HTMLInputElement ).value ).toBe( '' );
   } );
 
