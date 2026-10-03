@@ -192,6 +192,20 @@ describe( 'VayuLokLive - Maps script injection guard (key present)', () => {
     await act( async () => { await Promise.resolve(); } );
     expect( scripts() ).toHaveLength( 1 );
   } );
+
+  it( 'initialises when google.maps appears asynchronously without a script load event', async () => {
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( { ok: false, json: async () => ( {} ) } ) );
+    const VayuLokLive = await loadComponent();
+
+    render( <VayuLokLive /> );
+    await act( async () => { await Promise.resolve(); } );
+
+    // Reproduce the real loading=async path: the script exists first, then the
+    // Maps namespace appears later. Deliberately DO NOT dispatch a DOM load event.
+    const rec = installGoogleMaps();
+
+    await waitFor( () => expect( rec.mapOpts ).not.toBeNull() );
+  } );
 } );
 
 describe( 'VayuLokLive - map wiring, heatmap on user action, India scoping (key + google stub)', () => {
