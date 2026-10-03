@@ -258,6 +258,12 @@ def test_the_environment_holds_secret_names_not_values(provisioner):
     assert env["ORDERS_TABLE"] == "stack-wecare-digital-OrderTable"
 
 
+def test_readiness_set_message_is_only_for_gate_off(provisioner):
+    """Do not report the gate as OFF when CHECKOUT_INITIATION_ENABLED is actually truthy."""
+    body = SCRIPT.read_text(encoding="utf-8").split("def verify(")[1].split("\ndef ")[0]
+    assert 'if not readiness_empty and initiation not in ("1", "true", "yes", "on"):' in body
+
+
 def test_the_role_cannot_delete_checkout_evidence(provisioner):
     """Payment attempts, commerce-key reservations and internal orders are evidence.
 
