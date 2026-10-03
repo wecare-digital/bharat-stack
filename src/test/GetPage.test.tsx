@@ -93,7 +93,7 @@ describe( 'Get page', () => {
     // ONE LIME SURFACE, ONE LABEL. The pill was a two-tone control with a dark "Collect" half and
     // a mint action half; the owner retired that on 2026-10-02 ("old multi colour out of date")
     // in favour of a single lime pill, so only the action text is rendered now.
-    expect( container.querySelector( '.pill-action' )?.textContent ).toBe( 'Send code' );
+    expect( container.querySelector( '.pill-action' )?.textContent ).toBe( 'Send OTP on WhatsApp' );
     expect( container.querySelector( '.pill-label' ) ).toBeNull();
 
     // THE RETIRED BESPOKE CONTROL MUST NOT COME BACK. .sf-cta was a lime-on-lime CTA that could
@@ -113,7 +113,7 @@ describe( 'Get page', () => {
     const number = container.querySelector( '.pf-num' ) as HTMLInputElement;
     const { fireEvent } = await import( '@testing-library/react' );
     fireEvent.change( number, { target: { value: '9876543210' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Send OTP on WhatsApp' } ) );
 
     await waitFor( () => expect( container.querySelector( '#code' ) ).toBeTruthy() );
 
@@ -122,7 +122,7 @@ describe( 'Get page', () => {
     const pill = container.querySelector( '.pill' );
     expect( pill ).toBeTruthy();
     expect( pill?.classList.contains( 'pill-block' ) ).toBe( true );
-    expect( container.querySelector( '.pill-action' )?.textContent ).toBe( 'Verify' );
+    expect( container.querySelector( '.pill-action' )?.textContent ).toBe( 'Verify WhatsApp OTP' );
     expect( container.querySelector( '.pill-label' ) ).toBeNull();
     expect( container.querySelector( '.sf-cta' ) ).toBeNull();
   } );
@@ -140,7 +140,7 @@ describe( 'Get page', () => {
     const number = container.querySelector( '.pf-num' ) as HTMLInputElement;
     const { fireEvent } = await import( '@testing-library/react' );
     fireEvent.change( number, { target: { value: '9876543210' } } );
-    fireEvent.click( screen.getByRole( 'button', { name: 'Send code' } ) );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Send OTP on WhatsApp' } ) );
 
     await waitFor( () => expect( screen.getByRole( 'alert' ) ).toBeTruthy() );
     expect( screen.getByRole( 'alert' ).textContent ).toMatch( /No files are registered/i );
