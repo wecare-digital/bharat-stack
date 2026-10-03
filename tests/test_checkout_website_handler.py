@@ -1,5 +1,6 @@
 """HTTP checkout handler wiring for website Razorpay Standard Checkout."""
 
+import copy
 import importlib.util
 import json
 import os
@@ -119,10 +120,74 @@ def test_disabled_gate_never_calls_razorpay(env):
     assert fake.count(ATTEMPTS) == 0
 
 
+# ── the Cart V2 harness these three prepare/verify rows now need ───────────────
+#
+# `_website_snapshot` REFUSES the Checkout V1 branch when the initiation gate is on, because V1
+# mints a NEW Wix checkout id per prepare (`wix_ecom.create_checkout` is a create, not a resolve)
+# so the one-live-payment-per-basket guard has no stable cart identity to key on. These rows drive
+# a REAL prepare with the gate on, so they have to go through Cart V2, which is the serving path
+# on the live function anyway (`WIX_CART_V2_ENABLED=true` on `wecare-checkout`).
+#
+# The fixtures and the stub shape are the ones `tests/test_checkout_cart_v2_authority.py` already
+# owns, reused rather than re-derived so the two files cannot disagree about what a calculate
+# response looks like.
+FIXTURES = ROOT / "tests/fixtures"
+#: Wix collection 25499.00 = items 24999.00 + delivery 500.00, from the shared fixture.
+V2_COLLECTION_PAISE = 2549900
+OWNED_ADDRESS = {"addressLine1": "12 Dalhousie Square", "city": "Kolkata",
+                 "state": "West Bengal", "postalCode": "700001"}
+
+
+def _delivery_complete():
+    return json.loads((FIXTURES / "wix_cart_v2_delivery_complete.json").read_text())
+
+
+class _RecordingWix:
+    """Replays a Cart V2 calculate response and records every call."""
+
+    def __init__(self):
+        self.response = _delivery_complete()
+        self.calls = []
+
+    def __call__(self, endpoint, method="GET", body=None):
+        self.calls.append((method.upper(), endpoint))
+        if endpoint.startswith("/stores/v3/products/"):
+            reference = self.response["cart"]["lineItems"][0]["source"]["catalogReference"]
+            return {"product": {
+                "id": reference["catalogItemId"], "visible": True,
+                "variantsInfo": {"variants": [{
+                    "id": reference["options"]["variantId"], "visible": True,
+                    "inventoryStatus": {"inStock": True}}]}}}
+        return copy.deepcopy(self.response)
+
+    def paths(self):
+        return [path for _method, path in self.calls]
+
+
+def enable_cart_v2(h, monkeypatch):
+    """Switch the handler onto the Cart V2 price authority and stub its Wix transport."""
+    monkeypatch.setenv("WIX_CART_V2_ENABLED", "true")
+    monkeypatch.delenv("WIX_CART_V2_DISABLED", raising=False)
+    wix = _RecordingWix()
+    monkeypatch.setattr(h, "_wix_request", wix)
+    monkeypatch.setattr(h.wix_ecom, "_request", wix)
+    monkeypatch.setattr(h, "LOAD_OWNED_ADDRESS", lambda customer_id: dict(OWNED_ADDRESS))
+    return wix
+
+
+def v2_line_items():
+    reference = _delivery_complete()["cart"]["lineItems"][0]["source"]["catalogReference"]
+    return [{"catalogReference": {"appId": reference["appId"],
+                                  "catalogItemId": reference["catalogItemId"],
+                                  "options": {"variantId": reference["options"]["variantId"]}},
+             "quantity": 1}]
+
+
 def test_prepare_uses_wix_plus_central_fee_not_browser_money(env):
     h, fake, monkeypatch = env
     profile(fake)
     monkeypatch.setattr(h, "INITIATION_ENABLED", True)
+    enable_cart_v2(h, monkeypatch)
 
     created = {}
     def create_order(*, amount_paise, receipt, notes):
@@ -141,13 +206,13 @@ def test_prepare_uses_wix_plus_central_fee_not_browser_money(env):
     monkeypatch.setattr(h.razorpay_orders, "account_mode", lambda key_id: "live")
 
     resp = h.handler(event(
-        "prepare", lineItems=line_items(), requestKey="request-fixture-3",
+        "prepare", lineItems=v2_line_items(), requestKey="request-fixture-3",
         amountPaise=1, currency="USD"), None)
     assert resp["statusCode"] == 200
     body = json.loads(resp["body"])
     assert body["status"] == "CHECKOUT_OPTIONS_READY"
 
-    expected = compute_quote(59900).total_payable_paise
+    expected = compute_quote(V2_COLLECTION_PAISE).total_payable_paise
     assert created["amount"] == expected
     assert body["options"]["amountPaise"] == expected
     assert body["options"]["currency"] == "INR"
@@ -169,7 +234,8 @@ def test_verified_callback_requires_owned_attempt_and_authoritative_capture(env)
     h, fake, monkeypatch = env
     profile(fake)
     monkeypatch.setattr(h, "INITIATION_ENABLED", True)
-    expected = compute_quote(59900).total_payable_paise
+    enable_cart_v2(h, monkeypatch)
+    expected = compute_quote(V2_COLLECTION_PAISE).total_payable_paise
 
     monkeypatch.setattr(h.razorpay_orders, "create_order", lambda **kwargs: {
         "id": "order-handler-verify",
@@ -182,7 +248,7 @@ def test_verified_callback_requires_owned_attempt_and_authoritative_capture(env)
     monkeypatch.setattr(h.razorpay_orders, "find_order_by_receipt", lambda receipt: None)
     monkeypatch.setattr(h.razorpay_orders, "account_mode", lambda key_id: "live")
     prepared = h.handler(event(
-        "prepare", lineItems=line_items(), requestKey="request-fixture-4"), None)
+        "prepare", lineItems=v2_line_items(), requestKey="request-fixture-4"), None)
     assert json.loads(prepared["body"])["status"] == "CHECKOUT_OPTIONS_READY"
 
     monkeypatch.setattr(h.razorpay_orders, "verify_checkout_signature", lambda **kwargs: True)
@@ -211,6 +277,7 @@ def test_signature_valid_but_not_captured_does_not_mark_paid(env):
     h, fake, monkeypatch = env
     profile(fake)
     monkeypatch.setattr(h, "INITIATION_ENABLED", True)
+    enable_cart_v2(h, monkeypatch)
 
     monkeypatch.setattr(h.razorpay_orders, "create_order", lambda **kwargs: {
         "id": "order-handler-pending",
@@ -223,7 +290,7 @@ def test_signature_valid_but_not_captured_does_not_mark_paid(env):
     monkeypatch.setattr(h.razorpay_orders, "find_order_by_receipt", lambda receipt: None)
     monkeypatch.setattr(h.razorpay_orders, "account_mode", lambda key_id: "live")
     h.handler(event(
-        "prepare", lineItems=line_items(), requestKey="request-fixture-5"), None)
+        "prepare", lineItems=v2_line_items(), requestKey="request-fixture-5"), None)
 
     monkeypatch.setattr(h.razorpay_orders, "verify_checkout_signature", lambda **kwargs: True)
     monkeypatch.setattr(
@@ -245,6 +312,7 @@ def test_callback_for_another_customer_is_opaque_401(env):
     h, fake, monkeypatch = env
     profile(fake)
     monkeypatch.setattr(h, "INITIATION_ENABLED", True)
+    enable_cart_v2(h, monkeypatch)
     monkeypatch.setattr(h.razorpay_orders, "create_order", lambda **kwargs: {
         "id": "order-handler-owner",
         "amount": kwargs["amount_paise"],
@@ -256,7 +324,7 @@ def test_callback_for_another_customer_is_opaque_401(env):
     monkeypatch.setattr(h.razorpay_orders, "find_order_by_receipt", lambda receipt: None)
     monkeypatch.setattr(h.razorpay_orders, "account_mode", lambda key_id: "live")
     h.handler(event(
-        "prepare", lineItems=line_items(), requestKey="request-fixture-6"), None)
+        "prepare", lineItems=v2_line_items(), requestKey="request-fixture-6"), None)
 
     monkeypatch.setattr(h.customer_auth, "require_customer",
                         lambda event: (Identity(customer_id="CUS_other"), None))

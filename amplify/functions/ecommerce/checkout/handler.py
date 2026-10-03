@@ -91,8 +91,9 @@ from boto3.dynamodb.conditions import Key
 
 from lambda_utils import customer_auth, payment_readiness
 from lambda_utils.ecommerce import (
-    cart_v2, checkout_pricing, customer_cart, order_keys, payment_attempt,
-    purchase_intent, website_checkout)
+    cart_v2, checkout_pricing, customer_cart, finalization, gift_card_settlement,
+    order_creation, order_keys, payment_attempt, purchase_intent, website_checkout,
+    wix_writeback)
 from lambda_utils.integrations import razorpay_orders, razorpay_verify
 from lambda_utils import wix_ecom
 from lambda_utils.logging import get_logger
@@ -107,7 +108,16 @@ PAYMENT_ATTEMPTS_TABLE = os.environ.get(
     "PAYMENT_ATTEMPTS_TABLE", payment_attempt.DEFAULT_TABLE_NAME)
 COMMERCE_KEYS_TABLE = os.environ.get("COMMERCE_KEYS_TABLE", "")
 CONTACTS_TABLE = os.environ.get("CONTACTS_TABLE", "stack-wecare-digital-ContactsTable")
+#: The internal order record. An order exists ONLY after an authoritative capture, and this is
+#: where that record lands. Granted `GetItem`/`PutItem`/`UpdateItem` and explicitly NOT
+#: `DeleteItem`: an order record is evidence that money moved.
+ORDERS_TABLE = os.environ.get("ORDERS_TABLE", "stack-wecare-digital-OrderTable")
 WEBSITE_SNAPSHOT_TTL_SECONDS = 15 * 60
+
+#: Reasons that mean "we refuse", as opposed to "we do not know". 409 for the first; 200 for the
+#: provider-ambiguity reasons, where a claim either way about a charge would be dishonest.
+_CART_BLOCKED = (website_checkout.CART_ALREADY_PAID,
+                 website_checkout.CART_PAYMENT_IN_FLIGHT)
 
 #: Checkout mode marker on the attempt, so this path is distinguishable from any other and a test
 #: can assert which flow created it. Headless WhatsApp/Razorpay, not the (set-aside) Velo provider.
@@ -163,6 +173,10 @@ def _attempts_table():
 
 def _keys_table():
     return _table(COMMERCE_KEYS_TABLE or order_keys.commerce_keys_table_name())
+
+
+def _orders_table():
+    return _table(ORDERS_TABLE)
 
 
 def _lambda_client():
@@ -309,15 +323,31 @@ def _checkout_profile(identity: customer_auth.CustomerIdentity) -> Optional[Dict
 
 def _website_snapshot(identity: customer_auth.CustomerIdentity, line_items: list,
                       now: int):
-    """Build the server-authoritative website payment snapshot.
+    """`(snapshot, calculated_or_None)`. `None` on the V1 branch, which has no Cart V2 result.
 
-    Cart V2 uses its existing owned-cart producer. Until V2 has an owned delivery address loader,
-    the deployed V1 branch is converted into the same immutable QuoteSnapshot using Wix's
-    authoritative checkout total, then the one central convenience-fee calculator.
+    Cart V2 uses its existing owned-cart producer and hands back the calculation it already
+    performed, so the Wix order payload is built from the SAME figures the price was quoted from.
+    The deployed V1 branch is converted into the same immutable QuoteSnapshot using Wix's
+    authoritative checkout total, then the one central convenience-fee calculator -- and is
+    refused outright when the initiation gate is on, because it has no stable cart identity.
     """
     if cart_v2.is_enabled():
-        snapshot, _ = _v2_snapshot(identity, line_items)
-        return snapshot
+        snapshot, _items, calculated = _v2_snapshot(identity, line_items)
+        return snapshot, calculated
+
+    if INITIATION_ENABLED:
+        # V1 mints a NEW Wix checkout id on every prepare -- `wix_ecom.create_checkout` is a
+        # create, not a resolve -- so there is no stable cart identity for the one-live-payment
+        # guard to key on and no `CUSTOMERCART#` row behind it. The guard cannot run, which means
+        # a second prepare on the same basket would be indistinguishable from the first. Refused
+        # BEFORE any Wix checkout is minted, so nothing is created and nothing is written.
+        #
+        # With the gate OFF this branch is not reached and the V1 body below stays byte-identical,
+        # still answering 200 PAYMENT_INITIATION_DISABLED. That is what every existing test
+        # exercises, and `WIX_CART_V2_ENABLED` is set on the live function anyway, so V2 is the
+        # serving path.
+        logger.warning(json.dumps({"event": "website_checkout_v1_refused_when_enabled"}))
+        raise website_checkout.CheckoutRejected(website_checkout.CART_V2_REQUIRED)
 
     checkout = wix_ecom.create_checkout(line_items)
     currency = wix_ecom.checkout_currency(checkout)
@@ -328,7 +358,7 @@ def _website_snapshot(identity: customer_auth.CustomerIdentity, line_items: list
     checkout_id = str(checkout.get("id") or "")
     if not checkout_id:
         raise checkout_pricing.PricingError("Wix checkout id missing")
-    return checkout_pricing.build_snapshot(
+    built = checkout_pricing.build_snapshot(
         customer_id=identity.customer_id,
         cart_id=checkout_id,
         cart_revision=0,
@@ -340,6 +370,9 @@ def _website_snapshot(identity: customer_auth.CustomerIdentity, line_items: list
         address=None,
         delivery=None,
     )
+    # No Wix order payload is synthesised for V1: it has no `summary.lineItems` with the fields
+    # `build_wix_order_payload` relays, and guessing them is how a Wix order gets the wrong total.
+    return built, None
 
 
 def _reserve_website_attempt(attempt: Dict[str, Any]) -> None:
@@ -376,15 +409,55 @@ def _website_prepare(identity: customer_auth.CustomerIdentity, body: Dict[str, A
         }, origin)
 
     now = int(time.time())
+    keys = _keys_table()
     try:
-        snapshot = _website_snapshot(identity, line_items, now)
+        snapshot, calculated = _website_snapshot(identity, line_items, now)
+        wix_order_payload = None
+        if calculated is not None:
+            # Built from the SAME frozen calculation the price was quoted from, at the same
+            # instant. Deriving it later from the stored projection would reintroduce the
+            # recompute this exists to prevent, and the projection has no `catalogReference` to
+            # derive it from.
+            wix_order_payload = wix_writeback.build_wix_order_payload(
+                cart=calculated, quote=snapshot.quote)
+
+        def _allocate_reference(attempt_id: str, leg_paise: int,
+                                gift_card_paise: int) -> str:
+            """Mint and durably reserve the `PAYREF#` row the webhook reconciles on.
+
+            The amounts are ARGUMENTS rather than captured from the enclosing scope, because both
+            are computed INSIDE `prepare_checkout` -- a closure could not see them, and
+            recomputing the gift-card split here would mean two readings of one split.
+            """
+            return order_keys.allocate_payment_reference(
+                keys, payment_attempt_id=attempt_id,
+                extra={
+                    "customerId": identity.customer_id,
+                    # THE RAZORPAY LEG, which is what a capture will be compared against.
+                    "amountPaise": leg_paise,
+                    # The frozen payable, beside it, so the split stays auditable rather than
+                    # being inferred from a difference. `_tenders_reconcile` reads the payable off
+                    # the ATTEMPT row, not this one.
+                    "payablePaise": snapshot.quote.total_payable_paise,
+                    "giftCardRedeemPaise": gift_card_paise,
+                    "currency": "INR",
+                    "checkoutMode": website_checkout.CHECKOUT_MODE_WEBSITE,
+                    "wixCartId": snapshot.cart_id,
+                    "cartRevision": snapshot.cart_revision,
+                    "quoteHash": snapshot.snapshot_hash,
+                    "collectionPaise":
+                        snapshot.quote.collection_before_convenience_paise,
+                    "quoteExpiresAt": snapshot.expires_at,
+                    "policyVersion": snapshot.policy_version,
+                })
+
         prepared = website_checkout.prepare_checkout(
             customer_id=identity.customer_id,
             snapshot=snapshot,
             presented_snapshot_hash=snapshot.snapshot_hash,
             request_key=request_key,
             now=now,
-            keys_table=_keys_table(),
+            keys_table=keys,
             create_order=razorpay_orders.create_order,
             find_order_by_receipt=razorpay_orders.find_order_by_receipt,
             account_mode_of=razorpay_orders.account_mode,
@@ -396,6 +469,12 @@ def _website_prepare(identity: customer_auth.CustomerIdentity, body: Dict[str, A
             },
             configuration_name=website_checkout.CHECKOUT_MODE_WEBSITE,
             reserve_attempt=_reserve_website_attempt,
+            # The read-only attempt store the one-live-payment guard needs. Without it the guard
+            # can tell a basket has a recorded attempt but not whether that attempt was paid.
+            attempts_table=_attempts_table(),
+            allocate_reference=_allocate_reference,
+            purchased_snapshot=snapshot.frozen_data,
+            wix_order_payload=wix_order_payload,
         )
     except purchase_intent.DeliveryDetailsRequired:
         return cors_response(409, {"error": "DELIVERY_DETAILS_REQUIRED"}, origin)
@@ -404,6 +483,12 @@ def _website_prepare(identity: customer_auth.CustomerIdentity, body: Dict[str, A
             "status": website_checkout.CHECKOUT_REJECTED,
             "reason": exc.reason,
         }, origin)
+    except order_keys.OrderIdentityUnavailable:
+        # A read or a durable write the guard depends on failed. 503, never a pass: the caller
+        # acts on "no live payment" by creating a payable order. The generic arm below already
+        # answered this way by accident; this makes it intentional and testable.
+        logger.error(json.dumps({"event": "website_checkout_identity_unavailable"}))
+        return cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin)
     except (checkout_pricing.PricingError, wix_ecom.AmountNotWhole):
         return cors_response(409, {"error": "AMOUNT_NOT_SETTLED"}, origin)
     except wix_ecom.WixEcomError:
@@ -421,12 +506,285 @@ def _website_prepare(identity: customer_auth.CustomerIdentity, body: Dict[str, A
         payload["options"] = prepared.options
     if prepared.reason:
         payload["reason"] = prepared.reason
-    status_code = 200 if prepared.status in (
-        website_checkout.PAYMENT_INITIATION_DISABLED,
-        website_checkout.CHECKOUT_OPTIONS_READY,
-        website_checkout.CHECKOUT_AMBIGUOUS,
-    ) else 409
+    if prepared.status == website_checkout.CHECKOUT_AMBIGUOUS:
+        # 409 for a deliberate refusal; 200 for the provider-ambiguity reasons
+        # (BINDING_SAVE_FAILED, CREATE_UNCONFIRMED, CREATE_IN_FLIGHT, BINDING_OWNED_ELSEWHERE,
+        # CART_POINTER_SAVE_FAILED) and for PAYABLE_MODAL_UNRESOLVED, where we genuinely do not
+        # know. The browser branches on `status`, not on the code, so this is observable in logs
+        # and alarms and nowhere else.
+        status_code = 409 if prepared.reason in _CART_BLOCKED else 200
+    elif prepared.status in (website_checkout.PAYMENT_INITIATION_DISABLED,
+                             website_checkout.CHECKOUT_OPTIONS_READY):
+        # PAYMENT_INITIATION_DISABLED must stay 200: `cart.tsx` answers it with the "no charge was
+        # made" copy, which is only honest because the server stopped before the payment rail.
+        # CHECKOUT_OPTIONS_READY must stay 200: it opens the modal.
+        status_code = 200
+    else:
+        status_code = 409
     return cors_response(status_code, payload, origin)
+
+
+def _load_attempt_via(keys, *, provider_order_id: str = ""):
+    """The attempt loader BOTH the signature check and the reconciler use.
+
+    A SUPERSET of the webhook's `_load_attempt`: it resolves a `PAYREF#` row by reference id, and
+    ALSO by a GATEWAY ORDER id, because `verify_callback` calls its capture verifier with the
+    stored gateway order id rather than with the reference while `order_creation.reconcile_payment`
+    calls its verifier with the reference. One loader, two identifier kinds -- the alternative is
+    a loader that resolves only one of them, which makes every website payment end with a
+    verified capture and no order record.
+
+    It returns exactly the webhook's six-field projection, so both callers compare the provider's
+    answer against the same stored authority and not against the event.
+
+    `provider_order_id` is an optional SERVER-STORED fallback for the `providerOrderId` field.
+    `verifier_for_event` raises unless `providerPaymentId` or `providerOrderId` is present, and
+    the only writer of either onto the `PAYREF#` row is deliberately best-effort. The fallback
+    removes that dependency. It is SAFE because every value it can take is ours -- the
+    `gatewayOrderId` off the binding we wrote at create time, or `CallbackResult.gateway_order_id`,
+    which `verify_callback` read off that same stored binding. It is NEVER the browser's
+    `presented_order_id` and never anything from the event body, and it only selects which
+    provider order's payments are read; the HMAC check and both amount comparisons are untouched.
+
+    A storage failure propagates as `order_keys.OrderIdentityUnavailable` rather than becoming
+    `None`: a read failure must never be reported as absence, because absence here means "no
+    attempt exists for this reference", which is a refusal.
+    """
+    def _load_attempt(ref: str) -> Optional[Dict[str, Any]]:
+        row = order_keys.resolve_payment_reference(keys, ref)
+        bound_order = provider_order_id
+        if row is None:
+            binding = order_keys.resolve_gateway_order(keys, ref) or {}
+            bound_reference = str(binding.get("referenceId") or "")
+            bound_order = bound_order or str(binding.get("gatewayOrderId") or "")
+            if bound_reference:
+                row = order_keys.resolve_payment_reference(keys, bound_reference)
+        if not row or not row.get("paymentAttemptId"):
+            # NO PAYREF# row resolved. Degrade to the FULL attempt row behind the binding -- which
+            # is exactly what this handler passed before the reference existed, and which always
+            # carries `providerOrderId` because `_bind_and_ready` writes it. Without this arm,
+            # replacing the loader REMOVES a path that works today: any attempt whose binding
+            # carries no `referenceId` could no longer be verified by the browser at all.
+            #
+            # Losing the projection costs nothing here: `verifier_for_event` reads only
+            # `providerPaymentId` / `providerOrderId` off the loaded row, and this arm is reached
+            # only when NO reference resolved, so `reconcile_payment` -- which is called with a
+            # reference and compares `amountPaise` -- is never handed the fallback.
+            return _attempt_for_gateway_order(ref) or None
+        return {"paymentAttemptId": row["paymentAttemptId"],
+                "customerId": row.get("customerId", ""),
+                "amountPaise": row.get("amountPaise"),
+                "providerPaymentId": row.get("providerPaymentId", ""),
+                "providerOrderId": str(row.get("providerOrderId") or bound_order or ""),
+                "currency": row.get("currency", "")}
+    return _load_attempt
+
+
+def _record_verified_capture(*, owned: Dict[str, Any], payment_attempt_id: str,
+                             provider_payment_id: str, provider_order_id: str,
+                             amount_paise: int) -> None:
+    """Persist the proven capture on the attempt row. Monotonic, and the FIRST thing done once a
+    capture is proven, so no downstream failure can leave money recorded nowhere.
+
+    Extracted and performed first because five reconciliation outcomes return without order
+    identity -- PROVIDER_UNAVAILABLE, AMOUNT_MISMATCH, CURRENCY_MISMATCH, IDENTITY_UNAVAILABLE,
+    PROVIDER_PAYMENT_CONFLICT -- so `accept_paid` is never reached on any of them, and a proven
+    capture would otherwise be recorded nowhere at all.
+
+    `amount_paise` is the PROVIDER's confirmed figure. Never the order total and never a
+    subtraction. `int()` is safe rather than a coercion of unknown input: `razorpay_verify` has
+    already passed the figure through `money.positive_paise` and `verify_callback` has already
+    asserted it equals the stored binding by integer equality.
+
+    Raises on failure. Both callers treat a failure as 503 / "not finalized", never as paid.
+    """
+    advanced = payment_attempt.transition(
+        owned, payment_attempt.PAYMENT_PAID,
+        provider_payment_id=provider_payment_id, provider_order_id=provider_order_id)
+    _attempts_table().update_item(
+        Key={"paymentAttemptId": payment_attempt_id},
+        UpdateExpression=(
+            "SET #s=:s, attemptRank=:rank, paidAt=if_not_exists(paidAt,:paid), "
+            "updatedAt=:u, providerPaymentId=:pid, providerOrderId=:oid, "
+            + finalization.VERIFIED_CAPTURED_PAISE_ATTR + "=:vcp"),
+        # Unchanged: rank-based, forwards-only, so a late arrival cannot move the attempt back.
+        ConditionExpression=payment_attempt.condition_expression(),
+        ExpressionAttributeNames={"#s": "status"},
+        ExpressionAttributeValues={
+            ":s": advanced["status"], ":rank": advanced[payment_attempt.RANK_ATTRIBUTE],
+            ":paid": advanced["paidAt"], ":u": advanced["updatedAt"],
+            ":pid": provider_payment_id, ":oid": provider_order_id,
+            ":vcp": int(amount_paise)},
+    )
+
+
+class _ClaimOutcome:
+    """The attributes `_finalize` and `accept_paid` read, built from a stored order claim.
+
+    `reconcile_payment`'s `ReconciliationOutcome` exists only on the verify path. On `status` the
+    authority is the claim row, whose MEASURED field names are `orderIdRef` (NOT `orderId` --
+    that is the commerce-keys table's own partition attribute, so a business field of the same
+    name would be overwritten by the key), `orderNumber` and `providerTransactionId`. Mapping
+    them here keeps `_finalize` to ONE argument contract rather than two.
+    """
+
+    __slots__ = ("payment_attempt_id", "order_id", "order_number", "provider_payment_id")
+
+    def __init__(self, claim: Dict[str, Any], attempt: Dict[str, Any]) -> None:
+        self.payment_attempt_id = str(attempt.get("paymentAttemptId") or "")
+        self.order_id = str(claim.get("orderIdRef") or "")
+        self.order_number = str(claim.get("orderNumber") or "")
+        self.provider_payment_id = str(claim.get("providerTransactionId") or "")
+
+    @property
+    def has_order(self) -> bool:
+        return bool(self.order_id and self.order_number)
+
+    def as_dict(self) -> Dict[str, Any]:
+        # EXACTLY the keys `accept_paid` reads -- hasOrder, orderId, orderNumber -- plus the two
+        # carried for `_finalize` and the providerPaymentId merge. `orderId` is read TWICE by
+        # `accept_paid` (the order record and the conditional-failure get_item), so omitting it
+        # would KeyError after money had moved and `record_paid` had written PAYMENT_PAID.
+        return {"hasOrder": True, "orderId": self.order_id, "orderNumber": self.order_number,
+                "providerPaymentId": self.provider_payment_id,
+                "paymentAttemptId": self.payment_attempt_id}
+
+
+def _finalize(identity: customer_auth.CustomerIdentity, outcome,
+              *, verified_captured_paise: int) -> None:
+    """Write the internal order record for an outcome that already HAS order identity.
+
+    Reads the FULL attempt row, not the six-field projection the verifier uses: `record_paid`
+    needs `referenceId`, and the order record needs `currency`, `amountPaise`, `customerId`,
+    `checkoutMode`, `purchasedSnapshot` and `snapshotHash`. `ConsistentRead` because on a
+    browser-return sequence the row was written microseconds earlier on this same request.
+
+    `accept_paid` is safe to re-enter -- its `put_item` is conditional with an explicit
+    field-agreement check on the adopted row -- so running this from both `verify` and `status`
+    cannot write two records.
+    """
+    attempt = _attempts_table().get_item(
+        Key={"paymentAttemptId": outcome.payment_attempt_id},
+        ConsistentRead=True).get("Item")
+    if not attempt:
+        # `authorize_resource(identity, None)` raises `CustomerNotAuthorized`, and an opaque 401
+        # is the wrong answer for a customer whose capture has just been proven. A missing attempt
+        # row here is an internal fault. Alarm and return; the order NUMBER still reaches the
+        # shopper.
+        logger.error(json.dumps({"event": "checkout_finalize_attempt_row_missing",
+                                 "alert": "PAID_BUT_NO_ORDER_RECORD",
+                                 "paymentAttemptId": outcome.payment_attempt_id}))
+        return
+    # The third ownership check, and the only one that sees the attempt row itself.
+    customer_auth.authorize_resource(identity, attempt, owner_field="customerId")
+
+    # ── the two-leg gate, SPLIT, because there are two different second legs ──
+    #
+    # A blanket "refuse every attempt carrying a non-zero second tender" would cancel the
+    # split-tender graft from its ONLY production caller: `accept_paid` is called from nowhere
+    # else, so `_tenders_reconcile`, the verified-leg `record_external_payment` and
+    # `mark_cart_completed` would never run for the order the graft was written for. "Correct and
+    # unconsulted" is the exact failure this wiring exists to prevent, so the gate is per-leg.
+    #
+    # LEG A -- the WECARE gift card. It has its OWN forward-only stage ladder and its OWN
+    # redemption evidence in our own table, and `accept_paid` consults neither, so this leg is
+    # refused until that workstream wires the ladder into finalization.
+    required = finalization.integer_paise(
+        attempt.get(gift_card_settlement.REQUIRED_PAISE_ATTR)) or 0
+    if required and (
+            gift_card_settlement.stage(attempt) != gift_card_settlement.GC_REDEEMED
+            or not attempt.get(gift_card_settlement.TRANSACTION_ID_ATTR)):
+        logger.error(json.dumps({"event": "checkout_finalize_gift_card_unsettled",
+                                 "alert": "PAID_BUT_NO_ORDER_RECORD",
+                                 "paymentAttemptId": outcome.payment_attempt_id}))
+        return
+    #
+    # LEG B -- the WIX-NATIVE gift card. There is NO ladder to consult and nothing to wire: the
+    # closure for this leg IS `finalization._tenders_reconcile`, exact integers, fail closed on
+    # one paise. A basket that satisfies it is fully funded by construction, so refusing it here
+    # would refuse a correct order.
+    #
+    # What IS still refused is an UNREADABLE leg: `None` means a listed tender attribute is
+    # present but not integer paise, and an amount we cannot read is not the same as no amount.
+    # Note this is a non-zero / unreadable test and never a PRESENCE test --
+    # `website_checkout._bind_and_ready` writes `wixGiftCardRedeemPaise` unconditionally,
+    # including 0, so a presence test would refuse every ordinary card-free website order.
+    if finalization.other_tender_paise(attempt) is None:
+        logger.error(json.dumps({"event": "checkout_finalize_unreadable_tender",
+                                 "alert": "PAID_BUT_NO_ORDER_RECORD",
+                                 "paymentAttemptId": outcome.payment_attempt_id}))
+        return
+    finalization.accept_paid(
+        attempts=_attempts_table(), orders=_orders_table(), keys=_keys_table(),
+        attempt=attempt,
+        # `ReconciliationOutcome.as_dict()` omits the provider payment id, and the attempt carries
+        # no verified one before `record_paid` runs, so without this merge the first call raises
+        # `ValueError('verified provider payment id required')`.
+        outcome={**outcome.as_dict(), "providerPaymentId": outcome.provider_payment_id},
+        verified_captured_paise=verified_captured_paise)
+
+
+def _finalize_from_claim(identity: customer_auth.CustomerIdentity,
+                         attempt: Dict[str, Any]) -> bool:
+    """Finish an order record the verify leg never got to write. True when it ran.
+
+    The gate is the CLAIM, not the attempt's status: the webhook reconciles and reserves the
+    public number without ever touching the attempt row -- measured, it references neither
+    `payment_attempt` nor `finalization` -- so on the closed-tab path the status is still
+    PAYMENT_PENDING when the claim already exists. Gating on `may_create_order` could therefore
+    never be satisfied on the one path this exists for.
+
+    A claimed-but-UNNUMBERED claim (`orderIdRef` present, `orderNumber` absent) is LEFT ALONE:
+    the numbering step is mid-flight or crashed, and writing a record with no public number -- or
+    inventing one -- would burn or duplicate a number, which cannot be undone invisibly.
+    """
+    attempt_id = str(attempt.get("paymentAttemptId") or "")
+    keys = _keys_table()
+    claim = order_keys.resolve_order_for_payment(keys, attempt_id) or {}
+    if not claim.get("orderIdRef") or not claim.get("orderNumber"):
+        return False
+    if not str(attempt.get("referenceId") or ""):
+        # Explicit rather than falling through to the readback. With an empty reference every
+        # resolver answers None, the inner verify raises, and the except arm would return False on
+        # this poll and every future poll, indefinitely. The claim exists, so money moved; nothing
+        # here can resolve it and repeated polls will not change that. Alarm ONCE, at ERROR, so a
+        # human reconciles, and stop.
+        logger.error(json.dumps({"event": "checkout_status_claim_without_reference",
+                                 "alert": "PAID_BUT_NO_ORDER_RECORD",
+                                 "paymentAttemptId": attempt_id}))
+        return False
+    verified = finalization.integer_paise(
+        attempt.get(finalization.VERIFIED_CAPTURED_PAISE_ATTR))
+    if verified is None:
+        # No provider-confirmed amount is stored, which is exactly the closed-tab shape. ASK THE
+        # PROVIDER rather than substituting the frozen payable: under split tender the payable is
+        # a different number, and substituting it is precisely the full-amount-instead-of-leg
+        # defect the split-tender graft removes.
+        provider_payment_id = str(claim.get("providerTransactionId") or "")
+        if not provider_payment_id:
+            return False
+        try:
+            paid, _pid, amount, currency = razorpay_verify.verifier_for_event(
+                payment_id=provider_payment_id,
+                load_attempt=_load_attempt_via(
+                    keys, provider_order_id=str(attempt.get("providerOrderId") or "")),
+            )(str(attempt.get("referenceId") or ""))
+        except Exception as error:  # noqa: BLE001
+            logger.warning(json.dumps({"event": "checkout_status_capture_readback_failed",
+                                       "error": type(error).__name__}))
+            return False
+        if not paid or currency != "INR":
+            # Compared explicitly against INR, never inferred from the amount.
+            return False
+        verified = amount
+        # Persist it, so the next poll does not ask the provider again.
+        _record_verified_capture(
+            owned=attempt, payment_attempt_id=attempt_id,
+            provider_payment_id=provider_payment_id,
+            provider_order_id=str(attempt.get("providerOrderId") or ""),
+            amount_paise=verified)
+    _finalize(identity, _ClaimOutcome(claim, attempt), verified_captured_paise=verified)
+    return True
 
 
 def _website_verify(identity: customer_auth.CustomerIdentity, body: Dict[str, Any],
@@ -437,22 +795,20 @@ def _website_verify(identity: customer_auth.CustomerIdentity, body: Dict[str, An
     if not order_id or not payment_id or not signature:
         return cors_response(400, {"error": "CALLBACK_FIELDS_REQUIRED"}, origin)
 
+    keys = _keys_table()
     try:
         attempt = _attempt_for_gateway_order(order_id)
         owned = customer_auth.authorize_resource(identity, attempt, owner_field="customerId")
-        verify_capture = razorpay_verify.verifier_for_event(
-            payment_id=payment_id,
-            order_id=order_id,
-            load_attempt=lambda ref: _attempt_for_gateway_order(ref),
-        )
         result = website_checkout.verify_callback(
             customer_id=identity.customer_id,
             presented_order_id=order_id,
             payment_id=payment_id,
             signature=signature,
-            keys_table=_keys_table(),
+            keys_table=keys,
             verify_signature=razorpay_orders.verify_checkout_signature,
-            verify_capture=verify_capture,
+            verify_capture=razorpay_verify.verifier_for_event(
+                payment_id=payment_id, order_id=order_id,
+                load_attempt=_load_attempt_via(keys)),
             account_mode_of=razorpay_orders.account_mode,
         )
     except customer_auth.CustomerNotAuthorized:
@@ -462,42 +818,99 @@ def _website_verify(identity: customer_auth.CustomerIdentity, body: Dict[str, An
                                  "error": type(error).__name__}))
         return cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin)
 
-    if result.status == website_checkout.CALLBACK_VERIFIED_PAID:
-        # The authoritative capture has been proven. Persist the provider binding + paid state so
-        # status survives a lost browser response; the webhook still owns downstream order
-        # reconciliation and is safe to replay against this monotonic state.
-        advanced = payment_attempt.transition(
-            owned,
-            payment_attempt.PAYMENT_PAID,
+    if result.status != website_checkout.CALLBACK_VERIFIED_PAID:
+        return cors_response(200, {"status": result.status,
+                                   "paymentAttemptId": result.payment_attempt_id}, origin)
+
+    # ── STEP 1: record the capture, FIRST, so no later failure strands proven money. ──
+    try:
+        _record_verified_capture(
+            owned=owned, payment_attempt_id=result.payment_attempt_id,
             provider_payment_id=result.payment_id,
             provider_order_id=result.gateway_order_id,
-        )
-        try:
-            _attempts_table().update_item(
-                Key={"paymentAttemptId": result.payment_attempt_id},
-                UpdateExpression=(
-                    "SET #s=:s, attemptRank=:rank, paidAt=if_not_exists(paidAt,:paid), "
-                    "updatedAt=:u, providerPaymentId=:pid, providerOrderId=:oid"
-                ),
-                ConditionExpression=payment_attempt.condition_expression(),
-                ExpressionAttributeNames={"#s": "status"},
-                ExpressionAttributeValues={
-                    ":s": advanced["status"],
-                    ":rank": advanced[payment_attempt.RANK_ATTRIBUTE],
-                    ":paid": advanced["paidAt"],
-                    ":u": advanced["updatedAt"],
-                    ":pid": result.payment_id,
-                    ":oid": result.gateway_order_id,
-                },
-            )
-        except Exception as error:  # noqa: BLE001
-            logger.error(json.dumps({"event": "website_checkout_paid_persist_failed",
-                                     "error": type(error).__name__}))
-            return cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin)
+            amount_paise=result.amount_paise)
+    except Exception as error:  # noqa: BLE001
+        # 503, because the paid state is the one thing that must survive a lost browser response
+        # and we could not write it. The webhook reconciles independently from
+        # `notes.referenceId`, so this is recoverable without the browser.
+        logger.error(json.dumps({"event": "website_checkout_paid_persist_failed",
+                                 "error": type(error).__name__}))
+        return cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin)
+
+    # ── STEP 2: order identity and the internal order record. Never changes the verdict. ──
+    outcome = None                      # bound BEFORE the try; see the final return
+    try:
+        binding = order_keys.resolve_gateway_order(keys, result.gateway_order_id) or {}
+        reference_id = str(binding.get("referenceId") or "")
+        if not reference_id:
+            # A pre-graft attempt, or a binding written before the reference existed. The webhook
+            # reconciles from `notes.referenceId` independently, so this is recoverable without
+            # the browser -- and the capture is already recorded above.
+            logger.error(json.dumps({"event": "website_checkout_verify_reference_unresolved",
+                                     "alert": "PAID_BUT_NO_ORDER",
+                                     "paymentAttemptId": result.payment_attempt_id}))
+        else:
+            reconcile_loader = _load_attempt_via(
+                keys, provider_order_id=result.gateway_order_id)
+            outcome = order_creation.reconcile_payment(
+                table=keys, reference_id=reference_id,
+                # A REFERENCE-keyed verifier. The one built above is keyed on the gateway order
+                # id, which `reconcile_payment` never passes.
+                verify_payment=razorpay_verify.verifier_for_event(
+                    payment_id=result.payment_id, order_id=result.gateway_order_id,
+                    load_attempt=reconcile_loader),
+                load_attempt=reconcile_loader,
+                # The proven session id, so a CUSTOMER_MISMATCH refuses BEFORE an order number is
+                # reserved. The PAYREF# row carries `customerId`, so this is checkable.
+                expected_customer_id=identity.customer_id)
+            if outcome.outcome == order_creation.CUSTOMER_MISMATCH:
+                # Unreachable by construction once the binding carries its owner, and kept as
+                # defence in depth. It does NOT become a 401: ownership was already proven against
+                # the attempt ROW before verify ran, so a third disagreement is our own bookkeeping
+                # contradicting itself, and telling a payer "not authorised" after their money
+                # moved is the one answer that cannot be taken back.
+                logger.error(json.dumps({"event": "checkout_verify_customer_mismatch",
+                                         "alert": "PAID_BUT_NO_ORDER",
+                                         "paymentAttemptId": result.payment_attempt_id}))
+                outcome = None
+            elif outcome.needs_human:
+                logger.error(json.dumps({"event": "checkout_verify_paid_but_blocked",
+                                         "alert": "PAID_BUT_NO_ORDER",
+                                         "outcome": outcome.outcome,
+                                         "paymentAttemptId": result.payment_attempt_id}))
+            if outcome is not None and outcome.has_order:
+                # TWO provider-derived figures, from two separate authenticated readbacks:
+                # `result.amount_paise` (already asserted equal to GATEWAYORDER#.amountPaise) and
+                # `outcome.verified_captured_paise` (already asserted equal to the attempt's
+                # authoritative amount). For a design whose discipline is "fail closed on one
+                # paise", silently preferring one is the wrong shape -- so they are compared, and
+                # a disagreement writes nothing rather than choosing.
+                reconciled = int(outcome.verified_captured_paise or 0)
+                if reconciled and reconciled != result.amount_paise:
+                    logger.error(json.dumps({
+                        "event": "checkout_verify_capture_disagreement",
+                        "alert": "PAID_BUT_NO_ORDER_RECORD",
+                        "paymentAttemptId": result.payment_attempt_id}))
+                else:
+                    # Zero means `reconcile_payment` carried no figure, not that it carried zero:
+                    # the outcome object coerces `int(verified_captured_paise or 0)`, so absence
+                    # and zero are the same value on it. `result.amount_paise` stays the only
+                    # source either way.
+                    _finalize(identity, outcome,
+                              verified_captured_paise=result.amount_paise)
+    except Exception as error:  # noqa: BLE001
+        # Money moved AND is recorded. The order number, if one was reserved, is still returned: a
+        # finalization fault must not make a paying customer think the payment failed.
+        logger.error(json.dumps({"event": "website_checkout_finalize_failed",
+                                 "alert": "PAID_BUT_NO_ORDER_RECORD",
+                                 "error": type(error).__name__}))
 
     return cors_response(200, {
         "status": result.status,
         "paymentAttemptId": result.payment_attempt_id,
+        # `outcome` is None on every failure arm, so this is a plain attribute read on a value
+        # that is always bound.
+        "orderNumber": (outcome.order_number if outcome is not None else "") or None,
     }, origin)
 
 
@@ -563,7 +976,13 @@ def _require_same_basket(cart: Dict[str, Any], requested: list) -> None:
 
 
 def _v2_snapshot(identity: customer_auth.CustomerIdentity, line_items: list):
-    """The Cart V2 price authority. Returns `(snapshot, price_free_items)`.
+    """The Cart V2 price authority. Returns `(snapshot, price_free_items, calculated)`.
+
+    `calculated` is the `cart_v2.calculate` result the snapshot was frozen from, returned rather
+    than discarded so `wix_writeback.build_wix_order_payload` can be built from the SAME figures
+    the price was quoted from. A second `calculate` could drift from the charge by a paise, and
+    the frozen snapshot keeps `summary.lineItems` but not `cart.lineItems`, so it carries no
+    `catalogReference` to rebuild a payload from.
 
     This is the producer half of the chain `website_checkout` and `customer_receipt` already
     consume, and which nothing in production produced before. `QuoteSnapshot.quote`'s
@@ -600,7 +1019,7 @@ def _v2_snapshot(identity: customer_auth.CustomerIdentity, line_items: list):
         _require_same_basket(adapter.get(cart_id), requested)
 
     prepared = purchase_intent.prepare_delivery(adapter, cart_id, owned)
-    snapshot = purchase_intent.build_intent(
+    snapshot, calculated = purchase_intent.build_intent_with_calculation(
         adapter, customer_id=identity.customer_id, cart_id=cart_id,
         owned_address=owned, now=int(time.time()), site=wix_ecom.WIX_SITE_ID)
     # Names and quantities only, for the payment request and the receipt. Line money never
@@ -609,7 +1028,7 @@ def _v2_snapshot(identity: customer_auth.CustomerIdentity, line_items: list):
     items = [{"name": _translatable(line.get("name")),
               "quantity": int((line.get("quantityInfo") or {}).get("confirmedQuantity") or 1)}
              for line in (prepared.get("lineItems") or [])]
-    return snapshot, items
+    return snapshot, items, calculated
 
 
 def _translatable(value: Any) -> str:
@@ -640,7 +1059,9 @@ def _create(identity: customer_auth.CustomerIdentity, body: Dict[str, Any],
     snapshot = None
     if cart_v2.is_enabled():
         try:
-            snapshot, item_summary = _v2_snapshot(identity, line_items)
+            # `_calculated` is deliberately discarded here: this is the retained in-WhatsApp
+            # path, which never reaches `accept_paid` and so needs no Wix order payload.
+            snapshot, item_summary, _calculated = _v2_snapshot(identity, line_items)
             # The amount a customer pays is the CALCULATOR total -- Wix's collection total plus
             # our convenience fee plus the GST on that fee -- not the raw Wix total. That is the
             # contract section 8 of this module's docstring states for the website path, and
@@ -825,17 +1246,37 @@ def _status(identity: customer_auth.CustomerIdentity, body: Dict[str, Any],
 
     try:
         stored = _attempts_table().get_item(
-            Key={"paymentAttemptId": attempt_id}).get("Item")
+            Key={"paymentAttemptId": attempt_id},
+            # Consistent now, because this read decides whether to write an order record.
+            ConsistentRead=True).get("Item")
     except Exception as error:  # noqa: BLE001
         logger.error(json.dumps({"event": "checkout_status_read_failed",
                                  "error": type(error).__name__}))
         return cors_response(503, {"error": "TEMPORARILY_UNAVAILABLE"}, origin)
 
     owned = customer_auth.authorize_resource(identity, stored, owner_field="customerId")
+    order_number = ""
+    if not owned.get("finalizationStage"):
+        # Not yet finalized -- which is the closed-tab shape, where the webhook gave the attempt
+        # order identity and nothing wrote the order record. `_finalize_from_claim` decides from
+        # the CLAIM row and returns False cheaply when there is none, so an ordinary in-flight
+        # poll costs one extra get_item. Once it succeeds, `finalizationStage` is set and this
+        # never runs again.
+        try:
+            if _finalize_from_claim(identity, owned):
+                owned = _attempts_table().get_item(
+                    Key={"paymentAttemptId": attempt_id},
+                    ConsistentRead=True).get("Item") or owned
+                order_number = str(owned.get("orderNumber") or "")
+        except Exception as error:  # noqa: BLE001
+            # The poll must still answer. A failure here leaves the attempt exactly as it was.
+            logger.error(json.dumps({"event": "checkout_status_finalize_failed",
+                                     "alert": "PAID_BUT_NO_ORDER_RECORD",
+                                     "error": type(error).__name__}))
     # payment_history_entry never carries an order number for a non-paid attempt, and collapses a
     # failed one to the "Payment failed — no order created" label. It is the exact customer-facing
-    # projection the status UI needs; the order number itself (when paid) is resolved elsewhere.
-    entry = payment_attempt.payment_history_entry(owned)
+    # projection the status UI needs.
+    entry = payment_attempt.payment_history_entry(owned, order_number=order_number)
     return cors_response(200, {"status": entry.get("status"), "attempt": entry}, origin)
 
 

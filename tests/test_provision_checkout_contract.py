@@ -234,7 +234,7 @@ def _policy(provisioner) -> dict:
     """The inline policy document as the script writes it, without calling AWS."""
     source = SCRIPT.read_text(encoding="utf-8")
     body = source.split("least_privilege = ")[1].split("\n    iam().put_role_policy")[0]
-    # The literal interpolates REGION, the account and seven constants.
+    # The literal interpolates REGION, the account and eight constants.
     namespace = {
         "REGION": provisioner.REGION, "acct": "775261844268",
         "WIX_API_KEY_SECRET": provisioner.WIX_API_KEY_SECRET,
@@ -244,6 +244,7 @@ def _policy(provisioner) -> dict:
         "COMMERCE_KEYS_TABLE": provisioner.COMMERCE_KEYS_TABLE,
         "COUPONS_TABLE": provisioner.COUPONS_TABLE,
         "GIFT_CARDS_TABLE": provisioner.GIFT_CARDS_TABLE,
+        "ORDERS_TABLE": provisioner.ORDERS_TABLE,
         "SENDER_FUNCTION": provisioner.SENDER_FUNCTION,
         "LIVE_ALIAS": provisioner.LIVE_ALIAS,
     }
@@ -270,6 +271,7 @@ def test_the_environment_holds_secret_names_not_values(provisioner):
     assert env["RAZORPAY_SECRET_ID"] == "wecare/razorpay/api"
     assert env["WIX_API_KEY_SECRET"] == "wecare/wix/headless-api-key"
     assert env["CONTACTS_TABLE"] == "stack-wecare-digital-ContactsTable"
+    assert env["ORDERS_TABLE"] == "stack-wecare-digital-OrderTable"
 
 
 def test_the_role_cannot_delete_a_payment_attempt(provisioner):
@@ -308,8 +310,15 @@ def test_the_role_cannot_delete_a_payment_attempt(provisioner):
 
 
 def test_the_role_names_only_the_known_tables_and_contact_index(provisioner):
-    """Four writable tables plus the one read-only Contacts phone index. Still an EXACT list:
-    the interesting failure is a table nobody here decided to add."""
+    """Five writable tables plus the one read-only Contacts phone index. Still an EXACT list:
+    the interesting failure is a table nobody here decided to add.
+
+    The sixth entry is the OrderTable, and it is here because `finalization.accept_paid` now has
+    production callers in the browser legs -- the internal order record is what makes a verified
+    capture into exactly one order. It is granted GetItem/PutItem/UpdateItem and deliberately not
+    DeleteItem, which `test_the_role_cannot_delete_a_payment_attempt` and the provisioner's own
+    `_EXPECTED_DENY` both pin.
+    """
     tables = [r for s in _policy(provisioner)["Statement"]
               for r in s["Resource"] if ":table/" in r]
     prefix = "arn:aws:dynamodb:us-east-1:775261844268:table/stack-wecare-digital-"
@@ -318,6 +327,7 @@ def test_the_role_names_only_the_known_tables_and_contact_index(provisioner):
         prefix + "WixOrderIds",
         prefix + "CouponsTable",
         prefix + "GiftCardsTable",
+        prefix + "OrderTable",
         prefix + "ContactsTable/index/phone-index"])
     for table in tables:
         assert not table.endswith("*"), f"{table} is a wildcard over the fleet's tables"
@@ -528,7 +538,11 @@ def test_the_verdict_is_keyed_on_the_action_and_the_resource(provisioner):
     assert "dynamodb:DeleteItem" in provisioner._SIMULATED_ACTIONS
     assert provisioner._EXPECTED_DENY == {
         ("dynamodb:DeleteItem", provisioner.PAYMENT_ATTEMPTS_TABLE),
-        ("dynamodb:DeleteItem", provisioner.COMMERCE_KEYS_TABLE)}
+        ("dynamodb:DeleteItem", provisioner.COMMERCE_KEYS_TABLE),
+        # The OrderTable joins them for the same reason, and WITHOUT this pair `--verify` reports
+        # a false "GRANTED BY THE INLINE POLICY BUT DENIED IN SIMULATION" and exits non-zero on a
+        # correctly provisioned role.
+        ("dynamodb:DeleteItem", provisioner.ORDERS_TABLE)}
 
     body = SCRIPT.read_text(encoding="utf-8") \
         .split("def report_required_grants")[1].split("\ndef ")[0]
@@ -717,11 +731,18 @@ def test_the_verdict_is_never_anonymous(provisioner):
 
 # ── the IaC declaration matches what the script creates ───────────────────────
 
-def test_the_template_declares_the_same_two_routes():
+def test_the_template_declares_the_same_four_routes():
+    """`ROUTE_KEYS` has held four since the website path landed; the template declared two.
+
+    That mismatch is not cosmetic: the template is the declaration of record, and two of the four
+    routes the script grants had no declaration at all -- including
+    POST /ecommerce/verify-callback, which is the route a paying browser returns to.
+    """
     template = json.loads(TEMPLATE.read_text(encoding="utf-8"))
     keys = sorted(r["Properties"]["RouteKey"] for r in template["Resources"].values()
                   if r["Type"] == "AWS::ApiGatewayV2::Route")
-    assert keys == ["POST /ecommerce/checkout", "POST /ecommerce/checkout/status"]
+    assert keys == ["POST /ecommerce/checkout", "POST /ecommerce/checkout/status",
+                    "POST /ecommerce/prepare-checkout", "POST /ecommerce/verify-callback"]
 
 
 def test_the_template_keeps_the_gate_absent():
@@ -737,7 +758,7 @@ def test_the_template_qualifies_every_invoke_permission():
     template = json.loads(TEMPLATE.read_text(encoding="utf-8"))
     permissions = {name: r["Properties"] for name, r in template["Resources"].items()
                    if r["Type"] == "AWS::Lambda::Permission"}
-    assert len(permissions) == 2, "one statement per route - see WhyOneStatementPerRoute"
+    assert len(permissions) == 4, "one statement per route - see WhyOneStatementPerRoute"
     for name, permission in permissions.items():
         assert permission["Qualifier"] == "live", name
         assert permission["Principal"] == "apigateway.amazonaws.com", name

@@ -360,6 +360,105 @@ def _stable_hash(payload: Any) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def basket_hash(frozen_payload: Mapping[str, Any]) -> str:
+    """Identity of the BASKET a quote was taken from, with Wix's revision counter removed.
+
+    `snapshot_hash` cannot answer "is this the same basket?", and the reason is measured rather
+    than theoretical. `_snapshot_payload` hashes `"cart": {"id": cart_id, "revision":
+    cart_revision}`, and the website prepare path WRITES TO THE WIX CART on every call:
+    `purchase_intent.prepare_delivery` PATCHes the cart, then `cart_v2.calculate` refreshes it and
+    asserts the returned `summary.cartRevision` equals the cart's own `revision`. Wix's `revision`
+    is the optimistic-concurrency counter on that resource, so a second prepare of an UNEDITED
+    basket can present a different `snapshot_hash` — and a guard keyed on a value that may always
+    differ is a guard that never fires.
+
+    Built from the SAME payload `snapshot_hash` was built from, through the SAME `_stable_hash`,
+    with exactly ONE term dropped. That is the whole design: deriving it from the frozen payload
+    rather than from re-assembled parts means there is no second reading of "what a basket is" to
+    drift from the first, and a new term added to `_snapshot_payload` later is covered here
+    automatically instead of being silently excluded.
+
+    `cart.id` stays IN. Dropping it too would make the identity global-per-basket, so two
+    different carts would share one.
+    """
+    if not isinstance(frozen_payload, Mapping):
+        raise PricingError("basket identity requires the frozen snapshot payload")
+    cart = frozen_payload.get("cart")
+    cart_id = str(cart.get("id") or "") if isinstance(cart, Mapping) else ""
+    if not cart_id:
+        # Never fall back to hashing a payload with no cart: that would make two different carts
+        # share one identity, which is the opposite failure and a worse one.
+        raise PricingError("basket identity requires a cart id")
+    payload = {key: value for key, value in frozen_payload.items() if key != "cart"}
+    payload["cart"] = {"id": cart_id}
+    return _stable_hash(payload)
+
+
+def narrow_basket_hash(frozen_payload: Mapping[str, Any]) -> str:
+    """The shopper-visible basket: cart id, line ids and quantities, quote components, tender.
+
+    Deliberately POSITIVE where `basket_hash` is subtractive. `basket_hash` cannot prove that
+    `items` / `address` / `delivery` carry no per-calculation field, because those are Wix's raw
+    shapes straight out of `cart_v2.calculate`. Everything enumerated HERE is contract-checked by
+    us on every calculate:
+
+      * `{lineItemId: quantity}` — `calculate` raises unless it equals the cart's own
+        `quantityInfo.confirmedQuantity` per line, and unless the line totals sum to
+        `priceSummary.subtotal`;
+      * `components` — our own `quote.components()`, computed by `compute_quote` from the
+        authoritative collection total, not relayed from Wix;
+      * the tender split — `calculate` raises unless `payNow == total - redeem`,
+        `totalAfterGiftCards == payNow` and the card is bound to the cart by id.
+
+    So a per-calculation field cannot enter this hash. It is COARSER than `basket_hash` — it
+    ignores the address, the delivery method and every non-enumerated line-item field — which is
+    why it is used ONLY TO REFUSE and never to allow. Returns "" when the payload carries no
+    usable line items, meaning "no narrow identity available", which the guard treats as "cannot
+    help" and falls back to `basket_hash` alone.
+
+    The tender terms are deliberately included. `components` is derived from the COLLECTION total,
+    which a gift card does not change — only the split does — so with the tender excluded, a
+    basket paid with a gift card and the same items later paid WITHOUT one would hash equal and be
+    refused permanently. Including the three reconciled integers keeps the identity deterministic
+    per basket while keeping that purchase payable. The risk traded for is nil in the dangerous
+    direction: more terms can only make the narrow hash DIFFER more readily, and a difference
+    never becomes a pass.
+    """
+    if not isinstance(frozen_payload, Mapping):
+        raise PricingError("basket identity requires the frozen snapshot payload")
+    cart = frozen_payload.get("cart")
+    cart_id = str(cart.get("id") or "") if isinstance(cart, Mapping) else ""
+    if not cart_id:
+        raise PricingError("basket identity requires a cart id")
+    items = frozen_payload.get("items")
+    if not isinstance(items, list) or not items:
+        return ""
+    lines = []
+    for line in items:
+        if not isinstance(line, Mapping):
+            return ""
+        line_id = str(line.get("lineItemId") or "")
+        if not line_id:
+            return ""
+        lines.append([line_id, line.get("quantity")])
+    payment = frozen_payload.get("payment")
+    payment = payment if isinstance(payment, Mapping) else {}
+    card = payment.get("wixGiftCard")
+    card = card if isinstance(card, Mapping) else {}
+    return _stable_hash({
+        "cart": cart_id,
+        # Sorted, so a reordered `summary.lineItems` is the SAME basket. `_snapshot_payload`
+        # preserves Wix's order deliberately for the quote hash; here order is not identity.
+        "lines": sorted(lines, key=lambda pair: pair[0]),
+        "components": frozen_payload.get("components"),
+        # The money split, by the three values `calculate` reconciles. `obfuscatedCode` and
+        # `appId` are deliberately NOT here: they are raw Wix strings and not amounts.
+        "tender": {"giftCardId": str(card.get("giftCardId") or ""),
+                   "redeemPaise": payment.get("wixGiftCardRedeemPaise"),
+                   "payNowPaise": payment.get("wixPayNowPaise")},
+    })
+
+
 @dataclass(frozen=True)
 class QuoteSnapshot:
     """An immutable, customer-owned purchase-intent snapshot.

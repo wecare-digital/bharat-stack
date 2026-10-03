@@ -66,7 +66,7 @@
 
 import Head from 'next/head';
 import Link from 'next/link';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import PageTopBand from '../components/PageTopBand';
 import PillButton from '../components/PillButton';
@@ -467,6 +467,12 @@ export default function Cart (): React.ReactElement {
   const [ checkoutAccessToken, setCheckoutAccessToken ] = useState<string>( '' );
   const [ profile, setProfile ] = useState<CheckoutProfileValue | null>( null );
   const [ paymentBlocked, setPaymentBlocked ] = useState<boolean>( false );
+  // The payment rail was entered and returned a RESULT. A ref for the decision, so `proceed` is
+  // never a render behind; a state for the render. DEFENCE IN DEPTH, NOT THE GUARANTEE: the latch
+  // dies with the page, so a reload or a second tab walks straight past it. The server-side
+  // one-live-payment-per-basket guard is the guarantee.
+  const railTerminalRef = useRef<boolean>( false );
+  const [ railTerminal, setRailTerminal ] = useState<boolean>( false );
 
   useEffect( () => {
     setItems( readCart() );
@@ -482,6 +488,9 @@ export default function Cart (): React.ReactElement {
   }, [] );
 
   const proceed = useCallback( async (): Promise<void> => {
+    // AHEAD of the notice reset, deliberately: a re-entry -- from CheckoutProfile's onSaved, or
+    // a stray click -- must neither re-enter the rail nor wipe the explanation already on screen.
+    if ( railTerminalRef.current ) return;
     setNotice( { kind: 'none' } );
 
     // AUTH GATE. No session -> sign-in first, cart preserved in localStorage. No create call.
@@ -593,6 +602,11 @@ export default function Cart (): React.ReactElement {
           description: 'Order payment',
           prefill: options.prefill,
           handler: async ( result: RazorpaySuccess ) => {
+            // Latched BEFORE verify runs. This is what makes it hold on a LOST response: the
+            // request throwing is exactly the case where money may have moved and there is no
+            // body to read. Setting it after the fetch would leave the catch arm with a live CTA.
+            railTerminalRef.current = true;
+            setRailTerminal( true );
             try {
               const verified = await fetch( VERIFY_CHECKOUT_URL, {
                 method: 'POST',
@@ -859,17 +873,28 @@ export default function Cart (): React.ReactElement {
                   only the accessible name moved. Real type="button" running proceed(), disabled
                   while busy. */}
               <div className="cart-pill">
-                <PillButton
-                  as="button"
-                  type="button"
-                  label={ profile && !paymentBlocked ? 'Secure checkout' : 'Checkout' }
-                  action={ busy
-                    ? 'Preparing…'
-                    : ( profile ? ( paymentBlocked ? 'Try again' : 'Pay securely' ) : 'Proceed' ) }
-                  onClick={ proceed }
-                  disabled={ busy }
-                  busy={ busy }
-                />
+                { railTerminal
+                  /* A way off a finished page. A LINK, never a button, with words that cannot
+                     read as "pay again". */
+                  ? <p className="cart-back"><Link href="/orders/">Check your orders</Link></p>
+                  : <PillButton
+                      as="button"
+                      type="button"
+                      label={ profile && !paymentBlocked ? 'Secure checkout' : 'Checkout' }
+                      action={ busy
+                        ? 'Preparing…'
+                        : ( profile ? ( paymentBlocked ? 'Try again' : 'Pay securely' ) : 'Proceed' ) }
+                      onClick={ proceed }
+                      /* `railTerminal` is kept here even though the branch above makes it
+                         unreachable: belt-and-braces ACROSS THE RENDER BOUNDARY. The two
+                         mechanisms fail independently, and if a later edit reinstates the button
+                         on the latched branch -- the obvious way to "improve" this -- the
+                         disabled term is what keeps it dead. `busy` is left alone: the spinner
+                         means "a request is in flight", and a latched page is not busy, it is
+                         finished. */
+                      disabled={ busy || railTerminal }
+                      busy={ busy }
+                    /> }
               </div>
 
               <p className="cart-back"><Link href="/shop/">Keep shopping</Link></p>
