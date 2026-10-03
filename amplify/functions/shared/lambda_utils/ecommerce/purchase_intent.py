@@ -56,7 +56,7 @@ is integer equality. A one-paise discrepancy fails closed rather than being abso
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from .checkout_pricing import (
     CALCULATION_POLICY_VERSION,
@@ -122,7 +122,35 @@ def build_intent(adapter, *, customer_id: str, cart_id: str, owned_address: Dict
                  now: int, site: Any = None, buyer_gstin: Optional[str] = None,
                  ttl_seconds: int = QUOTE_TTL_SECONDS,
                  quote_fn: Callable[..., Any] = compute_quote) -> QuoteSnapshot:
-    """Calculate a Cart V2 cart and freeze the result into a payable `QuoteSnapshot`.
+    """Unchanged contract: the snapshot only. ONE `adapter.calculate` call, via the sibling below.
+
+    The signature is forwarded explicitly rather than through `**kwargs`: `**kwargs` would drop
+    `ttl_seconds` and `quote_fn` from the public surface, where a reader and a type checker both
+    look for them, and would turn an argument typo into a `TypeError` one frame deeper.
+    """
+    snapshot, _calculated = build_intent_with_calculation(
+        adapter, customer_id=customer_id, cart_id=cart_id, owned_address=owned_address,
+        now=now, site=site, buyer_gstin=buyer_gstin, ttl_seconds=ttl_seconds,
+        quote_fn=quote_fn)
+    return snapshot
+
+
+def build_intent_with_calculation(adapter, *, customer_id: str, cart_id: str,
+                                  owned_address: Dict[str, Any], now: int, site: Any = None,
+                                  buyer_gstin: Optional[str] = None,
+                                  ttl_seconds: int = QUOTE_TTL_SECONDS,
+                                  quote_fn: Callable[..., Any] = compute_quote,
+                                  ) -> Tuple[QuoteSnapshot, Dict[str, Any]]:
+    """`(snapshot, calculated)` from ONE `adapter.calculate` call.
+
+    The Wix order payload must be built from the same calculation the price was quoted from, and
+    `build_intent` was throwing that calculation away. Returning it is strictly cheaper than any
+    way of getting it back later: a second `calculate` can drift by a paise, and the frozen
+    snapshot keeps `summary.lineItems` but not `cart.lineItems`, so it has no `catalogReference`
+    to rebuild a payload from.
+
+    Raises exactly what `build_intent` raised, from the same places: `PricingError`,
+    `DeliveryDetailsRequired`, and any other `CartContractError` unchanged.
 
     The cart must already carry a delivery address and method -- call `prepare_delivery` first.
     This does not set them itself, deliberately: choosing a delivery method is a customer
@@ -171,7 +199,7 @@ def build_intent(adapter, *, customer_id: str, cart_id: str, owned_address: Dict
         # mismatch, so a calculator that altered the collection total must not reach a gateway.
         raise PricingError("the quote altered the authoritative collection total")
 
-    return build_snapshot(
+    snapshot = build_snapshot(
         customer_id=customer_id,
         cart_id=calculated["wixCartId"],
         cart_revision=_revision(calculated["cartRevision"]),
@@ -188,6 +216,7 @@ def build_intent(adapter, *, customer_id: str, cart_id: str, owned_address: Dict
             "wixPayNowPaise": int(calculated.get("wixPayNowPaise") or 0),
         },
     )
+    return snapshot, calculated
 
 
 def _intra_state(delivery_state_code: Optional[str]) -> Optional[bool]:
@@ -235,4 +264,5 @@ __all__ = [
     "apply_coupon",
     "prepare_delivery",
     "build_intent",
+    "build_intent_with_calculation",
 ]

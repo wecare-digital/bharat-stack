@@ -48,7 +48,8 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import Any, Callable, Dict, Optional
+from copy import deepcopy
+from typing import Any, Callable, Dict, Mapping, Optional
 
 from lambda_utils.ecommerce import side_effect_guard
 from lambda_utils.ecommerce.money import Money, positive_paise
@@ -302,6 +303,142 @@ def _paise_to_decimal_string(amount_paise: int) -> str:
     return Money(amount_paise).to_wix()
 
 
+# ── the Wix order payload, built once from the frozen quote ────────────────────
+
+#: Our convenience fee as it travels onto a Wix order. The code and the label are OURS: the fee
+#: is this application's, not Wix's, and `additionalFees[]` is the only writable place an order
+#: can account for it. `PriceSummary.totalAdditionalFees` is what Wix sums.
+CONVENIENCE_FEE_CODE = "WD-CONVENIENCE"
+CONVENIENCE_FEE_NAME = "Convenience fee"
+
+#: Set on a payload whose line-item detail had to be trimmed to fit the attempt row. A reduced
+#: payload is NOT sendable - it has lost its catalog references - so `finalization.accept_paid`
+#: refuses it rather than creating a Wix order from it.
+PAYLOAD_REDUCED_FLAG = "lineItemsReduced"
+
+
+def _relayed_money(prices: Mapping[str, Any], key: str) -> Dict[str, str]:
+    """One Wix money component, RELAYED verbatim rather than recomputed.
+
+    `Money.from_wix` is called for its refusal, not its value: it raises unless the string is an
+    exact decimal, so a malformed component fails here instead of becoming a wrong order total.
+    The string itself is passed through untouched, which is what makes "relayed" literally true
+    - there is one number and both sides read it.
+    """
+    raw = (prices.get(key) or {}).get("amount")
+    Money.from_wix(raw)
+    return {"amount": raw}
+
+
+def _paise_money(amount_paise: int) -> Dict[str, str]:
+    """Integer paise -> a Wix money object, through `Money.to_wix` and never through a float."""
+    if isinstance(amount_paise, bool) or type(amount_paise) is not int:
+        raise TypeError("a money component must be an int of minor units")
+    return {"amount": Money(amount_paise).to_wix()}
+
+
+def build_wix_order_payload(*, cart: Mapping[str, Any], quote: Any,
+                            coupon: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+    """The Create Order payload for a verified-paid order, built from the FROZEN quote.
+
+    `cart` is the Cart V2 Calculate Cart result - `{"cart": ..., "summary": ...}`, which is a
+    subset of what `cart_v2.CartV2.calculate` returns, so the same call shape serves production
+    and the fixtures. `quote` is the `CheckoutQuote` the price was quoted from.
+
+    NOTHING HERE RECOMPUTES A PRICE, and that is the whole contract. Wix's own components
+    (subtotal, discount, delivery, tax) are relayed verbatim from the calculation the customer
+    was quoted against; the payable total is `quote.total_payable_paise`, the one figure the
+    customer agreed to and the one Razorpay captured. A fresh calculation here could drift from
+    the charge by a paise, and a one-paise drift on this path is an order whose total does not
+    reconcile with its payment.
+
+    `appliedDiscounts[]` is DELIBERATELY OMITTED. That is SEAM-C2 and it belongs to the coupon
+    workstream (`.agents/tasks/wix-coupons-giftcards-20261001/`), which owns the relay of
+    `priceSummary.discount` onto the order. `coupon` is accepted so the signature this function
+    is already looked up by does not have to change when that work lands, and is ignored here.
+
+    `priceSummary` is `readOnly: true` on Create Order, so what we send there is informational
+    and Wix recomputes it from the writable fields. It is sent anyway because it is the record of
+    what the payload was built to mean.
+
+    HONEST LIMIT: the line-item and shipping shapes below are relays of the cart's own data onto
+    the Order API's documented paths, and have never been exercised against a live Create Order
+    call - nothing in this build sends this payload, because `is_enabled()` is false on all four
+    of its conditions. Treat them as unverified until the first real write.
+    """
+    if getattr(quote, "currency", "") != "INR":
+        # Compared explicitly, never inferred from an amount.
+        raise ValueError("only INR orders can be built")
+    summary = cart.get("summary") or {}
+    cart_body = cart.get("cart") or {}
+    prices = summary.get("priceSummary") or {}
+
+    fee_paise = quote.convenience_fee_paise
+    gst_paise = quote.convenience_gst_paise
+    # Integer addition on two integer-paise figures the calculator already reconciled against
+    # `total_payable_paise`. No float, no rounding, nothing re-derived.
+    fee_with_tax_paise = fee_paise + gst_paise
+
+    # Wix's own additional fees are relayed first, then ours is appended. Relaying them matters:
+    # they are inside `collection_before_convenience_paise`, so dropping them would leave the
+    # order short by exactly their value.
+    additional_fees = [deepcopy(entry) for entry in (summary.get("additionalFees") or [])
+                       if isinstance(entry, Mapping)]
+    additional_fees.append({
+        "code": CONVENIENCE_FEE_CODE,
+        "name": CONVENIENCE_FEE_NAME,
+        # All three price fields, because `totalAdditionalFees` is what Wix sums and nothing
+        # documents which of them it derives from. `priceBeforeTax` is the fee; `price` and
+        # `priceAfterTax` are the fee plus its GST.
+        "price": _paise_money(fee_with_tax_paise),
+        "priceBeforeTax": _paise_money(fee_paise),
+        "priceAfterTax": _paise_money(fee_with_tax_paise),
+    })
+    total_additional_paise = sum(
+        Money.from_wix((entry.get("price") or {}).get("amount")).paise
+        for entry in additional_fees)
+
+    calculated_lines = {str(line.get("lineItemId")): line
+                        for line in (summary.get("lineItems") or [])
+                        if isinstance(line, Mapping)}
+    line_items = []
+    for item in cart_body.get("lineItems") or []:
+        if not isinstance(item, Mapping):
+            continue
+        calculated = calculated_lines.get(str(item.get("id"))) or {}
+        line_items.append({
+            "catalogReference": deepcopy((item.get("source") or {}).get("catalogReference") or {}),
+            "productName": deepcopy(item.get("name") or {}),
+            "quantity": int((item.get("quantityInfo") or {}).get("confirmedQuantity")
+                            or calculated.get("quantity") or 0),
+            "price": deepcopy(calculated.get("unitPrice") or {}),
+            "totalPriceAfterTax": deepcopy(calculated.get("totalPrice") or {}),
+        })
+
+    delivery = cart_body.get("deliveryInfo") or {}
+    payload: Dict[str, Any] = {
+        "currency": "INR",
+        "lineItems": line_items,
+        "additionalFees": additional_fees,
+        "priceSummary": {
+            # Relayed, so the order side cannot have re-derived the pre-discount figure.
+            "subtotal": _relayed_money(prices, "subtotal"),
+            "discount": _relayed_money(prices, "discount"),
+            "delivery": _relayed_money(prices, "delivery"),
+            "tax": _relayed_money(prices, "tax"),
+            "totalAdditionalFees": _paise_money(total_additional_paise),
+            # The one figure that is ours: what the customer agreed to pay and what was captured.
+            "total": _paise_money(quote.total_payable_paise),
+        },
+        "shippingInfo": {
+            "title": str((delivery.get("method") or {}).get("title") or ""),
+            "logistics": {"shippingDestination": {
+                "address": deepcopy(delivery.get("address") or {})}},
+        },
+    }
+    return payload
+
+
 def mark_cart_completed(table: Any, wix_request: Callable[..., Dict[str, Any]], *,
                         order_id: str, cart_id: str, wix_order_id: str,
                         key_attr: str = "orderId") -> Dict[str, Any]:
@@ -370,4 +507,8 @@ __all__ = [
     "create_wix_order",
     "record_external_payment",
     "mark_cart_completed",
+    "CONVENIENCE_FEE_CODE",
+    "CONVENIENCE_FEE_NAME",
+    "PAYLOAD_REDUCED_FLAG",
+    "build_wix_order_payload",
 ]
