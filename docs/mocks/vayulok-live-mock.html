@@ -55,7 +55,10 @@ html,body{margin:0;background:#fff}
   --paper:#fff;                      /* .home-shell{background:#fff} index.tsx:1013 */
   --ground:#fafafa;                  /* the site's alternate section ground - SMALL PARTS ONLY */
   --lime:#d1f470;                    /* brand lime - index.tsx, 8 occurrences - PUNCTUATION ONLY */
-  --lime-tint:rgba(209,244,112,.22); /* .blog-subscribe background, BlogSubscribe.tsx:331 */
+  /* --lime-tint was deleted with the .vl-subscribe panel it existed for. The live
+     post page has no tinted panel, so there is nothing left to tint and this file
+     does not keep dormant tokens. BlogSubscribe.tsx:331 remains the source if a
+     lime-tint surface is ever wanted again. */
   --lime-solid:#f5fde0;              /* that tint composited over white, for map geometry */
   --green:#1a3a2a;                   /* brand type - index.tsx, 13 occurrences - ACCENT, never a surface */
   --green-dot:#3da35a;               /* .home-mark-dot, index.tsx:1139 */
@@ -200,6 +203,21 @@ html,body{margin:0;background:#fff}
      ROLE 5  map control     .vl-layer, .vl-map-btn   38px / 999px / 13px-700 / 1px
      ROLE 6  tab             .vl-tab                  40px / 999px / 15px-700 / no border
      ROLE 7  result option   .vl-search-option        52px / no radius / 16px-600 + 13px / lime active
+     ROLE 8  subscribe pill  .vl-wa-subscribe         47px measured / 999px / 17px-700 / NO border / lime
+     ROLE 9  contribute pill .vl-pill + .vl-pill-action  52px / 999px / 17px-700 / 2px #1a3a2a / lime
+     ROLE 10 share icon      .vl-share-btn            44x44 / 50% / 2px #e5e7eb, .is-primary lime + #1a3a2a
+
+   ROLES 8, 9 AND 10 ARE NEW IN THIS PASS and all three exist for one reason:
+   they are the shapes the SHIPPED components actually have, and this mock's job
+   is to match the real site. ROLE 8 is src/pages/post/[slug].tsx:772-782
+   (.blog-wa-subscribe), ROLE 9 is src/components/PillButton.tsx:202-258
+   (.pill/.pill-action, as used by BlogContribution's submit) and ROLE 10 is the
+   styled-jsx in src/components/ShareLinks.tsx:157-256 (.share-btn). Each was
+   previously flattened into ROLE 1 or absent; porting them is the fix.
+   ROLE 8's 47px is MEASURED (padding 12px twice plus a 17px/700 line box), not
+   declared, so it is asserted as >= 44 - the AAA 2.5.5 bar every control here
+   holds - rather than pinned to 47, which would make the suite brittle against a
+   font-fallback change. ROLE 9's 52px IS declared (min-height) and is pinned.
 
    ROLE 7 IS NEW IN THIS PASS, added under this block's own standing
    instruction - a seventh shape gets a seventh role. It is the only role that
@@ -219,15 +237,18 @@ html,body{margin:0;background:#fff}
    shares its geometry exactly. Both defects fixed in this pass were breaches
    of that rule, not of the role table.
 
-   ROLE 1 - REAL ACTION ('Load', 'Subscribe on WhatsApp', 'Contribute').
-   ONE RULE DEFINES THIS SHAPE and all three controls carry the class, so the
-   shape stays switchable in a single edit - that is a standing requirement on
-   this role while it is under review, not a tidiness preference. 'Subscribe on
-   WhatsApp' is an <a>, which is why the rule carries text-decoration:none: a
-   UA underlines an anchor and not a button, so without it the one navigating
-   member of the role would render differently from the two submitting ones.
-   It changes nothing for Load or Contribute, whose computed
-   text-decoration-line was already `none`.
+   ROLE 1 - REAL ACTION. IT NOW HAS EXACTLY ONE MEMBER, 'Load', AND THAT IS BY
+   DESIGN - do not "fix" it by re-flattening the pills back into it. 'Subscribe
+   on WhatsApp' moved to ROLE 8 and 'Contribute' moved to ROLE 9 in this pass,
+   because the shipped controls behind them are 999px pills (17px/700) and ROLE
+   1 is a 13px-radius 16px/500 control. Keeping all three on one class kept this
+   file's role table tidy while making the mock DISAGREE WITH THE REAL SITE,
+   which is the defect that was being fixed. 'Load' stays here because it is
+   mock furniture inside .vl-keygate - it mirrors no shipped blog control - and
+   .vl-keygate is left exactly as it is, being load-bearing for zero-network.
+   The rule still carries text-decoration:none, which is now inert for 'Load'
+   (a <button> is not underlined by a UA) and is kept because the declaration
+   comes from the repo's .btn and costs nothing.
    Geometry from src/styles/button.css:31 (.btn) + :52 (.btn-lg): 13px radius,
    52px tall, 16px/500, line-height 1. The 13px radius IS the repo's token.
    Fill from .btn-primary (button.css:78-82): #d1f470 with #1a3a2a type and a
@@ -314,24 +335,14 @@ html,body{margin:0;background:#fff}
 }
 .vl-input:focus-visible{outline:3px solid var(--green);outline-offset:2px;border-color:var(--green)}
 
-/* ---- ROLE 3, DIVIDED FORM: RETIRED IN THIS PASS. ------------------------
-   There is deliberately no rule here. It was `.vl-pf` plus `.vl-pf-code`,
-   `.vl-pf-num`, their two inset focus rings, the :focus-within lime layer and
-   a max-width:360px padding tweak - a port of src/components/PhoneField.tsx,
-   which PR #196 reworked to replace a country dropdown with a searchable
-   calling code: one outlined container, split by a hairline, holding a
-   calling-code segment and a national-number segment.
-
-   The rules were faithful; the field has no users left. Subscribing moved to
-   a WhatsApp deep link, so this page collects no number and has no divided
-   field to put one in. With no users, the group is DELETED rather than left
-   dormant - this stylesheet's own standing instruction, applied to itself.
-
+/* ---- ROLE 3, DIVIDED FORM: RETIRED. ------------------------------------
+   The divided calling-code field is gone with the subscribe form that used it:
+   this page collects no number, so there is nothing to put in one. No rule and
+   no dead class name is kept here.
    src/components/PhoneField.tsx AND src/lib/dialCodes.ts REMAIN THE SOURCE if
-   a divided calling-code field is ever wanted again. Take it from there rather
-   than from this file's history, and give it a fresh role number; do not
-   revive this one. ROLE 3 keeps its number and its box, whose two users are
-   now .vl-input and .vl-search-field. */
+   a divided calling-code field is ever wanted again - take it from there, not
+   from this file's history, and give it a fresh role number. ROLE 3 keeps its
+   number and its box, whose two users are now .vl-input and .vl-search-field. */
 
 /* ROLE 4 - AMOUNT CHIP. src/components/BlogContribution.tsx:277
    `.bc-choice-face`, verbatim: 999px, padding 8px 16px, 2px solid #e5e7eb,
@@ -424,12 +435,15 @@ html,body{margin:0;background:#fff}
    SUBSCRIBE, WHATSAPP ONLY, AND NOW NOT A FORM AT ALL.
 
    THERE ARE NO RULES IN THIS BLOCK ANY MORE, and that is the fix rather than an
-   omission. The panel is one framing head (.vl-sub-head: eyebrow, heading, one
-   line of copy) and ONE ROLE 1 anchor on .vl-btn, followed by the
-   .vl-placeholder note. No field grid, no cell, no label, no action wrapper and
-   no status line - so there is no second control for the first to drift against
-   and no wrapper box to mis-size. The row is single-role BY CONSTRUCTION, which
-   is a stronger guarantee than a rule that has to stay correct.
+   omission. The whole of subscribe is now ONE ROLE 8 anchor sitting on the page
+   background, separated by the column's hairline - no panel, no framing head, no
+   field grid, no cell, no label, no action wrapper and no status line. So there
+   is no second control for the first to drift against and no wrapper box to
+   mis-size: the row is single-role BY CONSTRUCTION, which is a stronger
+   guarantee than a rule that has to stay correct. (This note previously
+   described a .vl-sub-head panel and a ROLE 1 .vl-btn anchor; both are gone -
+   the panel because the live page has none, the class because the shipped
+   control is a pill.)
 
    WHAT WAS DELETED HERE, in this pass and the one before it:
      .vl-sub-fields / -single       the 2x2 then 1-col field grid
@@ -460,7 +474,23 @@ html,body{margin:0;background:#fff}
 
 /* The two moved sections sit inside the left column now, so they take the
    column's measure and only need vertical separation from the block above. */
-.vl-app-left > .vl-section{margin-top:56px;padding-top:40px;border-top:1px solid var(--hair)}
+/* THE SEPARATORS, AND THE MARGINS ARE THE SHIPPED ONES, NOT THIS MOCK'S.
+   The rhythm used to be 56px/40px - invented for this column. The real page
+   declares the SAME rule twice, once per block, and both read
+   `margin-top:44px;padding-top:24px;border-top:1px solid #e5e7eb`:
+     .bc          src/components/BlogContribution.tsx:253-254
+     .post-share  src/pages/post/[slug].tsx:787
+   #e5e7eb is var(--hair), so the colour and the 1px thickness already matched;
+   only the spacing was this mock's own. It now comes from the source too, which
+   is what "take the rule's real colour, thickness and margins from the shipped
+   page" asks for.
+   ONE RULE STILL DRAWS ALL THREE HAIRLINES. Every member of the ported stack is
+   a .vl-section in this column, so Subscribe / Contribute / Share get identical
+   separators from a single declaration and cannot drift apart - which is the
+   defect this file keeps being bitten by. The hairline above Subscribe separates
+   the stack from the content higher up the column; the other two are the dividers
+   BETWEEN the three blocks. */
+.vl-app-left > .vl-section{margin-top:44px;padding-top:24px;border-top:1px solid var(--hair)}
 
 /* ============================================================================
    THE ASYMMETRIC BAND - .home-flow's own proportion: a wide primary measure
@@ -847,27 +877,48 @@ html,body{margin:0;background:#fff}
 .vl-chart-axis span{font-size:12px;font-weight:700;letter-spacing:.01em;color:var(--ink-muted)}
 
 /* ============================================================================
-   SUBSCRIBE - mirrors src/components/BlogSubscribe.tsx.
-   THE ONE LIME-TINT PANEL IN THE BLOCK, and only because the shipped
-   component genuinely is one: .blog-subscribe{border:2px solid #d1f470;
-   background:rgba(209,244,112,.22);border-radius:14px} (BlogSubscribe.tsx:331).
+   SUBSCRIBE - mirrors the .blog-wa-subscribe anchor in src/pages/post/[slug].tsx.
+   THERE IS NO PANEL HERE ANY MORE, AND THAT IS THE POINT. This block used to
+   open with ".vl-subscribe - THE ONE LIME-TINT PANEL IN THE BLOCK", ported from
+   BlogSubscribe.tsx:331. That component is NOT what ships on a post page now:
+   the subscribe UI is a single anchor sitting on the plain page background,
+   following the tags </nav> with no wrapper and no heading. So the panel rule,
+   the .vl-sub-head flex row, the .vl-sub-title h2 rule and the .vl-sub-head>p
+   rule are all DELETED - their markup is gone and this file does not keep dead
+   rules. .vl-eyebrow is NOT deleted: it has a second, live user ("Health
+   advisory") further up the page, which a grep of every occurrence confirmed
+   before anything was removed.
    ========================================================================= */
 .vl-section{padding-block:56px}
-.vl-subscribe{
-  padding:24px;border:2px solid var(--lime);border-radius:var(--r-panel);
-  background:var(--lime-tint);
+/* ROLE 8, ported from src/pages/post/[slug].tsx:772-782
+   (.blog-wa-subscribe). It is NO LONGER a ROLE 1 .vl-btn. The shipped anchor is a
+   999px pill, 17px/700, padding 12px 20px, lime fill, dark-green type and NO
+   BORDER; ROLE 1 is a 13px-radius 16px/500 control with a 2px edge. Those are
+   different shapes, and this mock's job is to match the real site rather than to
+   keep its own role table tidy, so the control gets its own role instead of being
+   flattened into ROLE 1.
+   THE ABSENCE OF A BORDER IS THE SHIPPED VALUE, not an omission. ROLE 1's note
+   that "the border is the only thing giving the control an edge" is about lime
+   type on a lime fill; this anchor sets #1a3a2a type on #d1f470, which measures
+   10.04:1, so the fill itself is the edge.
+   margin-top:44px from the source is DELIBERATELY DROPPED, and the reason has
+   changed now the panel is gone: the anchor is the first child of its
+   .vl-section, and that section already carries the shipped 44px margin-top
+   plus 24px padding-top (see the left-column rhythm rule). Porting the anchor's
+   own 44px on top of the section's 44px would double the gap. On the real page
+   the anchor needs that margin because it follows the tags nav with no rule
+   above it; here the section supplies it. */
+.vl-wa-subscribe{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:12px 20px;border-radius:999px;
+  background:var(--lime);color:var(--green);font-weight:700;font-size:17px;
+  text-decoration:none;transition:transform .2s,box-shadow .2s;
 }
-.vl-sub-head{display:flex;gap:24px;justify-content:space-between;align-items:flex-end;margin-bottom:20px}
-.vl-sub-head>div{min-width:0}
-.vl-sub-title{margin:0;font-size:clamp(24px,3vw,32px);font-weight:700;line-height:1.08;letter-spacing:-.8px;color:var(--ink-head)}
-.vl-sub-head>p{margin:0;max-width:38ch;font-size:15px;line-height:1.5;color:var(--ink-second)}
-/* THE PANEL'S ONE CONTROL is the .vl-btn anchor and it needs no rule of its own
-   here - that is the point of it carrying the shared ROLE 1 class. It is a
-   direct child of .vl-subscribe, after .vl-sub-head's 20px margin-bottom and
-   before .vl-placeholder's `margin:20px 0 0`, so the existing rhythm spaces it
-   on both sides and no new margin is introduced. MEASURED after the form came
-   out: head 20px above the pill, 20px below it to the placeholder rule - even,
-   and no collapsed or doubled gap. */
+.vl-wa-subscribe svg{flex:0 0 auto}
+.vl-wa-subscribe:hover,.vl-wa-subscribe:focus-visible{
+  transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.18);
+}
+.vl-wa-subscribe:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
 
 /* .vl-sub-fields, .vl-cell, .vl-cell-wide, .vl-cell>span/>label,
    .vl-sub-status[.is-done], .vl-verify-row AND BOTH .vl-sub-action COPIES WERE
@@ -880,14 +931,21 @@ html,body{margin:0;background:#fff}
 
 /* ============================================================================
    CONTRIBUTE - mirrors src/components/BlogContribution.tsx.
-   THE VISIBLE LABEL IS 'Contribute'. Not 'Contribution'. There is deliberately
-   NO text-transform on .vl-bc-title, so CSS cannot uppercase it either -
-   uppercasing it in CSS would be the same defect wearing a different hat.
+   THE WORD IS 'Contribute', NOT 'Contribution' - that is what the owner
+   rejected, and the DOM text is and stays the word `Contribute`.
+   THE CASING IS A DIFFERENT QUESTION, AND IT IS UPPERCASE. An earlier note
+   here forbade text-transform on the grounds that uppercasing in CSS "would be
+   the same defect wearing a different hat". That conflated two things: the
+   rejected item was the WORD, not the letter case. BlogContribution.tsx:260-263
+   declares text-transform:uppercase on .bc-title, so the real site renders
+   CONTRIBUTE at the eyebrow rung - the same rung Breadcrumbs, the post pager
+   and the related heading use - and a mock that renders it in sentence case
+   simply does not match the site. The declaration is ported.
    ========================================================================= */
 .vl-contribute{padding-top:24px;border-top:1px solid var(--hair)}
 .vl-bc-title{
   margin:0 0 12px;font-size:12px;font-weight:700;line-height:1.2;
-  letter-spacing:.08em;color:var(--ink-muted);
+  letter-spacing:.08em;text-transform:uppercase;color:var(--ink-muted);
 }
 .vl-bc-copy{margin:0 0 20px;max-width:60ch;font-size:18px;font-weight:400;line-height:1.5;letter-spacing:-.125px;color:var(--ink-body)}
 .vl-bc-fieldset{border:0;margin:0;padding:0}
@@ -911,6 +969,37 @@ html,body{margin:0;background:#fff}
 .vl-bc-radio:focus-visible + .vl-bc-choice-face{outline:3px solid #1a3a2a;outline-offset:2px}
 .vl-bc-submit-wrap{margin-top:20px;display:flex;align-items:center}
 
+/* ROLE 9 - THE CONTRIBUTE ACTION, ported from src/components/PillButton.tsx:202-258.
+   The shipped Contribute is <PillButton as="button" type="submit" action="Contribute">,
+   i.e. .pill wrapping a .pill-action span - a 999px pill, min-height 52px, padding
+   0 28px, 2px #1a3a2a, lime fill. It is NOT the 13px-radius ROLE 1 .vl-btn it used to
+   carry, for the same reason ROLE 8 is not: the real control is a pill.
+   THE TYPE LIVES ON THE INNER SPAN, AND THAT IS THE TRAP. .vl-pill is a <button>, so
+   the pill box itself computes the UA's 13.33px/400 - the 17px/700 is declared on
+   .vl-pill-action. Read the font off the pill and you measure Arial 13.33px and
+   conclude the port failed; the harness asserts the type on the span for this reason.
+   The source qualifies :hover/:active with :not([disabled]):not([aria-disabled='true']);
+   those qualifiers are DROPPED here because this mock's pill is never disabled and this
+   file has no disabled state anywhere, and .pill:disabled / .pill[aria-busy] (:246-247)
+   are not ported for the same reason. Recorded rather than silently skipped. */
+.vl-pill{
+  display:inline-flex;align-items:center;justify-content:center;isolation:isolate;
+  min-height:52px;box-sizing:border-box;
+  border:2px solid #1a3a2a;border-radius:999px;background:#d1f470;
+  padding:0 28px;cursor:pointer;
+  font-family:inherit;text-decoration:none;
+  transition:background-color .2s,transform .2s,box-shadow .2s;
+}
+.vl-pill-action{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-inline-size:0;
+  color:#1a3a2a;font-size:17px;font-weight:700;line-height:1.2;
+  text-align:center;
+}
+.vl-pill:hover{background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.18)}
+.vl-pill:active{transform:translateY(0)}
+.vl-pill:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
+
 /* The real components carry consent / limits microcopy here. It is NOT
    invented: this is a labelled placeholder, which is the honest thing a mock
    can show. */
@@ -920,6 +1009,94 @@ html,body{margin:0;background:#fff}
   font-size:13px;line-height:1.45;color:var(--ink-muted);
 }
 .vl-placeholder b{color:var(--green);letter-spacing:.08em}
+
+/* ============================================================================
+   SHARE - ROLE 10, mirrors src/components/ShareLinks.tsx.
+   WHERE THE REAL DECLARATIONS LIVE: styled-jsx INSIDE that component, lines
+   157-256. They are NOT in src/styles/inner-pages.css. That file does contain a
+   .share-btn (1947-1968) but it is scoped under .layout .main-content .pay-page /
+   .pay-link-page and is a 13px-radius white pay-page button with !important - a
+   DIFFERENT control, and nothing here is taken from it.
+   ALL THREE CONTROLS ARE INERT in this mock: no clipboard write, no navigator.share,
+   no navigation. They are focusable, they show their tips and they carry their
+   aria-labels, but nothing happens on activation.
+   THE PRIMARY IS A <button>, NOT AN <a>, and that is a deliberate divergence. The
+   shipped primary is an anchor to api.whatsapp.com - a SECOND remote host - and this
+   file is permitted exactly one external reference (the wa.me subscribe href). A
+   <button type="button"> renders identically (.vl-share-btn styles both and declares
+   font:inherit), stays keyboard-focusable and keeps its accessible name.
+   ========================================================================= */
+.vl-share-row{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.vl-share-label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#1a3a2a;margin-inline-end:2px}
+/* 44px EXACTLY, not a minimum: a circle has to be square to be round, and 44px is the
+   WCAG 2.5.8 floor every other control here holds. font:inherit is not optional on a
+   button - a bare button takes the UA's 13.33px Arial, and the tip is text. */
+.vl-share-btn{
+  position:relative;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:44px;height:44px;flex:0 0 auto;padding:0;box-sizing:border-box;
+  border:2px solid #e5e7eb;border-radius:50%;background:#fff;
+  color:#1a3a2a;font:inherit;cursor:pointer;
+  transition:background-color .2s,border-color .2s,transform .2s,box-shadow .2s;
+}
+.vl-share-btn:hover{
+  border-color:#1a3a2a;background:#d1f470;
+  transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12);
+}
+/* WHATSAPP LEADS AND IT IS LIME AT REST, inverting to white on hover - the pairing
+   SupportWidget already uses for its own WhatsApp button. */
+.vl-share-btn.is-primary{background:#d1f470;border-color:#1a3a2a}
+.vl-share-btn.is-primary:hover{background:#fff;border-color:#1a3a2a}
+.vl-share-btn:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
+.vl-share-btn svg{width:19px;height:19px;flex:0 0 auto;display:block}
+/* THE TIP IS THE LABEL, shown on hover AND on keyboard focus - hover alone leaves a
+   keyboard reader with a bare icon, focus alone leaves a mouse user with one. It is
+   aria-hidden because the button's aria-label already says the same word.
+   This rule carries a `+` inside calc(), in <head> CSS. The harness's "no + survives
+   in the section" probe walks text nodes and attributes under .vl-vayulok, not the
+   stylesheet, so this is safe - but do not introduce a `+` into any DOM text or
+   attribute. */
+.vl-share-tip{
+  position:absolute;bottom:calc(100% + 8px);left:50%;
+  padding:5px 9px;border-radius:8px;
+  background:#1a3a2a;color:#fff;
+  font-size:12px;font-weight:600;letter-spacing:.01em;line-height:1.3;
+  white-space:nowrap;pointer-events:none;
+  opacity:0;transform:translateX(-50%) translateY(4px);
+  transition:opacity .2s,transform .2s;
+}
+.vl-share-btn:hover .vl-share-tip,
+.vl-share-btn:focus-visible .vl-share-tip{opacity:1;transform:translateX(-50%) translateY(0)}
+/* .is-done HAS NO USER IN THIS MOCK and is ported anyway - the ONE place this file's
+   "unused roles are deleted rather than left dormant" rule is deliberately bent. It is
+   the resting half of the .is-primary/.is-done pair the shipped CSS declares together,
+   and deleting half of a state pair is precisely how the duplicate .vl-sub-action
+   defect started. This is a decision, not an oversight. */
+.vl-share-btn.is-done .vl-share-tip{opacity:1;transform:translateX(-50%) translateY(0)}
+.vl-share-btn.is-done{background:#d1f470;border-color:#1a3a2a}
+/* MANDATORY. The two drawn icons are stroked and the WhatsApp mark is filled and sets
+   its own fill on the path, so a blanket fill would flatten it. Without this rule the
+   native-share circles render as solid black discs. */
+.vl-share-btn svg circle,.vl-share-btn svg line,.vl-share-btn svg polyline,.vl-share-btn svg path:not([fill]){
+  fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+}
+/* HIDDEN UNTIL THE API IS CONFIRMED - display:none so the control is out of the tab
+   order as well as out of sight. The real component adds .is-native / .is-clip from a
+   useEffect after feature-detecting navigator.share and navigator.clipboard; this mock
+   HARD-CLASSES BOTH on the row, because that is exactly the state a browser with both
+   APIs renders, which is the state the real page shows. The rules are ported unmodified
+   rather than deleted to force the buttons visible. */
+.vl-share-native,.vl-share-copy{display:none}
+.vl-share-row.is-native .vl-share-native{display:inline-flex}
+.vl-share-row.is-clip .vl-share-copy{display:inline-flex}
+/* The live region is for screen readers. It is EMPTY AND INERT here - nothing copies,
+   so nothing ever writes to it - but it is 1x1 clipped rather than display:none so it
+   keeps the shipped clip technique and occupies no layout. */
+.vl-share-status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* .share-fallback (ShareLinks.tsx:240-244) is NOT ported: it exists only for the real
+   onCopy catch path, which cannot happen with no handler; it is `hidden`, so it renders
+   nothing; and its value={url} would put a second absolute-URL literal in a file that is
+   allowed exactly one (the wa.me href). */
 
 /* ============================================================================
    BREAKPOINTS. Below 1024 the grid is OFF: one column, DOM order, the map at
@@ -942,14 +1119,27 @@ html,body{margin:0;background:#fff}
   .vl-map-legend{width:136px}
   .vl-map-preview{width:190px}
   .vl-map-preview .vl-card-h{font-size:17px}
-  .vl-sub-head{display:block}
-  .vl-sub-head>p{margin-top:10px}
-  .vl-subscribe{padding:20px 16px}
+}
+/* NARROW VIEWPORTS, from PillButton.tsx:250-253. Tighten the padding rather than shrink
+   the 52px target. NOTE: 360px is below BOTH harness viewports (1280 and 390), so this
+   block is ported for fidelity and is NOT covered by an assertion. */
+@media(max-width:360px){
+  .vl-pill{padding:0 18px}
+  .vl-pill-action{font-size:16px}
 }
 @media(prefers-reduced-motion:reduce){
-  .vl-layer,.vl-map-btn,.vl-btn,.vl-tab,.vl-bc-choice-face,.vl-advisory-rule{transition:none}
+  .vl-layer,.vl-map-btn,.vl-btn,.vl-tab,.vl-bc-choice-face,.vl-advisory-rule,
+  .vl-wa-subscribe,.vl-pill,.vl-share-btn,.vl-share-tip{transition:none}
   .vl-btn:active{transform:none}
   .vl-bc-radio:hover + .vl-bc-choice-face{transform:none;box-shadow:none}
+  .vl-wa-subscribe:hover,.vl-wa-subscribe:focus-visible{transform:none;box-shadow:none}
+  .vl-pill:hover{transform:none;box-shadow:none}
+  .vl-share-btn:hover{transform:none;box-shadow:none}
+  /* THE TIP STILL APPEARS - it is the button's label, not decoration. Only the 4px
+     slide goes; the translateX is the centring, not the animation. */
+  .vl-share-btn:hover .vl-share-tip,
+  .vl-share-btn:focus-visible .vl-share-tip,
+  .vl-share-btn.is-done .vl-share-tip{transform:translateX(-50%)}
 }
 </style>
 </head>
@@ -1259,22 +1449,27 @@ html,body{margin:0;background:#fff}
              .vl-app-left means the sticky map on the right now spans the
              ENTIRE block including these two, so the whole thing reads as one
              section rather than an app block with two strays underneath. -->
-      <section class="vl-section" aria-labelledby="vl-sub-title">
-        <div class="vl-subscribe">
-          <div class="vl-sub-head">
-            <div>
-              <p class="vl-eyebrow">VayuLok alerts</p>
-              <h2 class="vl-sub-title" id="vl-sub-title">Get air-quality alerts for your place</h2>
-            </div>
-            <!-- THE SUB-HEADING SENTENCE IS GONE ENTIRELY. It last read "Pick the
-                 places you want watched.", itself the remains of "Verify your
-                 WhatsApp number once, then pick the places you want watched." - a
-                 promise of a verification step that no longer exists. Subscribing is
-                 now a single anchor that opens WhatsApp, so the sentence described
-                 neither a real step nor a real place-picker and was deleted rather
-                 than reworded. The h2 above carries the section's meaning on its own. -->
-          </div>
-
+      <!-- THE LIME PANEL, THE EYEBROW AND THE HEADING ARE ALL GONE, and this is the
+           owner's correction after comparing the mock against the live page
+           (/post/hear-the-story-without-turning-the-person-into-the-story/).
+           WHAT WAS HERE: a .vl-subscribe panel (2px #d1f470 border, rgba(209,244,112,.22)
+           fill, 14px radius) wrapping a .vl-sub-head with a "VayuLok alerts" eyebrow and
+           an h2 "Get air-quality alerts for your place".
+           WHY IT WENT: the real page has NONE of it. In src/pages/post/[slug].tsx the
+           .blog-wa-subscribe anchor follows the tags </nav> IMMEDIATELY - no wrapping
+           element, no heading before it - and sits on the plain page background,
+           separated from what follows by a hairline. A panel and a heading the site does
+           not have were the single largest remaining mismatch.
+           THE h2 REMOVAL REVERSES AN EARLIER INSTRUCTION TO KEEP IT. It was kept on the
+           grounds that it "carries the section's meaning"; the owner has since asked
+           repeatedly for an exact match, and the site has no heading here.
+           ARIA: the section used aria-labelledby="vl-sub-title", which pointed at that
+           h2's id. Deleting the h2 would have left a DANGLING REFERENCE - an
+           aria-labelledby naming an absent id gives the region no accessible name at all,
+           which is worse than having none, because it reads as wired when it is not. The
+           relationship is replaced with an explicit aria-label naming the region after
+           its one control. -->
+      <section class="vl-section" aria-label="Subscribe on WhatsApp">
           <!-- SUBSCRIBING LEAVES THE PAGE NOW, on the owner's instruction, so there is
                no form here at all. What stood here was an inline one-step form: a
                'WhatsApp number' label, a divided calling-code field ported from
@@ -1289,10 +1484,19 @@ html,body{margin:0;background:#fff}
                exactly how .vl-sub-action came to hold a 52px button in a 91px box. That
                rule is gone with the element it governed.
 
-               AN <a>, NOT A <button>, because this navigates. It carries ROLE 1's
-               .vl-btn - the SAME class Contribute and Load carry, not a copy of its
-               declarations - so the three cannot drift apart; see the ROLE 1 block at
-               the top of the stylesheet, which is the single place the shape is defined.
+               AN <a>, NOT A <button>, because this navigates - it must stay
+               middle-clickable, long-pressable and copyable, which is the reason the
+               shipped component gives for the same choice.
+               THE MARKUP IS NOW THE SHIPPED .blog-wa-subscribe, ported from
+               src/pages/post/[slug].tsx:512-523: the inline WhatsApp mark followed by a
+               <span> label, carrying ROLE 8's .vl-wa-subscribe rather than ROLE 1's
+               .vl-btn. The glyph's `d` is copied VERBATIM from :520 - the same path
+               SupportWidget and ShareLinks draw - and is filled with currentColor so it
+               inherits the anchor's type colour in every state instead of carrying its
+               own. aria-label duplicates the visible span text because the shipped
+               anchor does exactly that; it is mild WCAG 2.5.3 redundancy rather than a
+               violation (the accessible name contains the visible label) and it is not
+               "fixed" here, because the point is to mirror shipped markup.
                target=_blank keeps the mock open behind it, and rel="noopener noreferrer"
                is not optional with it: without noopener the opened tab gets a
                window.opener handle back into this document.
@@ -1300,8 +1504,13 @@ html,body{margin:0;background:#fff}
                ZERO NETWORK IS UNAFFECTED. The wa.me URL is a navigation TARGET in an
                href - nothing fetches it on load, and the harness asserts the document
                is still the only request. It is the one http(s) string in the file. -->
-          <a class="vl-btn" id="vl-sub-wa" href="https://wa.me/message/BEA3HNW3LNM3A1"
-             target="_blank" rel="noopener noreferrer">Subscribe on WhatsApp</a>
+          <a class="vl-wa-subscribe" id="vl-sub-wa" href="https://wa.me/message/BEA3HNW3LNM3A1"
+             target="_blank" rel="noopener noreferrer" aria-label="Subscribe on WhatsApp">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="20" height="20">
+              <path fill="currentColor" d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z" />
+            </svg>
+            <span>Subscribe on WhatsApp</span>
+          </a>
 
           <!-- THE CONSENT PLACEHOLDER THAT STOOD HERE WAS DELETED, NOT FILLED IN.
                It claimed "consent and purpose-of-use microcopy sits here in the real
@@ -1309,7 +1518,6 @@ html,body{margin:0;background:#fff}
                anchor in src/pages/post/[slug].tsx: a link, no form, no fields, and
                therefore no consent or purpose-of-use microcopy anywhere to mirror. It
                was standing in for copy that does not exist, so it is gone. -->
-        </div>
       </section>
       <section class="vl-section vl-contribute" aria-labelledby="vl-bc-title">
         <h2 class="vl-bc-title" id="vl-bc-title">Contribute</h2>
@@ -1350,8 +1558,12 @@ html,body{margin:0;background:#fff}
             </div>
           </fieldset>
 
+          <!-- ROLE 9. Mirrors PillButton's own markup - the pill is the box, the
+               .vl-pill-action span is the one label - so what is read aloud and what is
+               on screen are the same string. See the ROLE 9 CSS block for why the type
+               is declared on the span and not on the button. -->
           <div class="vl-bc-submit-wrap">
-            <button class="vl-btn" type="submit">Contribute</button>
+            <button class="vl-pill" type="submit"><span class="vl-pill-action">Contribute</span></button>
           </div>
         </form>
 
@@ -1362,6 +1574,47 @@ html,body{margin:0;background:#fff}
              aria-label "Contribution amount" and "Amount in rupees". There is no amount
              limit notice, no payment-provider notice and no receipt wording to mirror, so
              the placeholder was standing in for copy that does not exist. -->
+      </section>
+      <!-- ===== SHARE - ROLE 10, mirrors src/components/ShareLinks.tsx ======
+           It is a .vl-section sibling, which is what draws the SECOND hairline
+           divider: .vl-app-left > .vl-section already carries
+           margin-top:56px;padding-top:40px;border-top:1px solid var(--hair), so
+           Subscribe / Contribute / Share come out in screenshot order with two
+           dividers between them and NO new layout rule. The shipped .post-share
+           rhythm (44px/24px) is deliberately not ported - this column owns its own
+           vertical spacing, and two competing rhythms in one column is the defect,
+           not the fidelity.
+           NO HEADING, mirroring the shipped <div className="post-share"><ShareLinks/></div>:
+           the SHARE eyebrow beside the icons is the label for the group.
+           is-native and is-clip are HARD-CLASSED - see the SHARE CSS block. -->
+      <section class="vl-section vl-share" aria-labelledby="vl-share-label">
+        <div class="vl-share-row is-native is-clip">
+          <span class="vl-share-label" id="vl-share-label">Share</span>
+
+          <button type="button" class="vl-share-btn is-primary" aria-label="Share this page on WhatsApp">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z" />
+            </svg>
+            <span class="vl-share-tip" aria-hidden="true">WhatsApp</span>
+          </button>
+
+          <button type="button" class="vl-share-btn vl-share-native" aria-label="Share this page using your device">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="18" cy="5" r="2.6" /><circle cx="6" cy="12" r="2.6" /><circle cx="18" cy="19" r="2.6" />
+              <line x1="8.4" y1="13.4" x2="15.6" y2="17.6" /><line x1="15.6" y1="6.4" x2="8.4" y2="10.6" />
+            </svg>
+            <span class="vl-share-tip" aria-hidden="true">Share</span>
+          </button>
+
+          <button type="button" class="vl-share-btn vl-share-copy" aria-label="Copy link to this page">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M9 17H7.5a5 5 0 0 1 0-10H9" /><path d="M15 7h1.5a5 5 0 0 1 0 10H15" /><line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
+            <span class="vl-share-tip" aria-hidden="true">Copy link</span>
+          </button>
+
+          <span class="vl-share-status" role="status" aria-live="polite"></span>
+        </div>
       </section>
       </div><!-- /.vl-app-left -->
 
@@ -1439,9 +1692,13 @@ html,body{margin:0;background:#fff}
 
 
   <!-- 3. CONTRIBUTE ======================================================== -->
-  <!-- THE VISIBLE LABEL IS 'Contribute'. The owner corrected 'CONTRIBUTION'
-       explicitly, and there is no text-transform on .vl-bc-title, so CSS
-       cannot uppercase it either. -->
+  <!-- THE WORD IS 'Contribute'. The owner corrected 'Contribution' explicitly,
+       and the DOM text is the word `Contribute` wherever it appears.
+       THE LETTER CASE IS SEPARATE AND IS NOW UPPERCASE, ported from
+       BlogContribution.tsx:260-263, which is what makes the real site render
+       CONTRIBUTE at the eyebrow rung. The word that was rejected and the casing
+       of the word that replaced it are two different questions; see the
+       CONTRIBUTE CSS block for the full note. -->
 
 
   <!-- CONTEXT, NOT THE DELIVERABLE ========================================= -->
