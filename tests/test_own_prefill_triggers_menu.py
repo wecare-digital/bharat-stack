@@ -1,4 +1,4 @@
-"""Our own QR / widget prefill messages must open the menu.
+"""Our own QR / widget prefill messages must reach the menu placeholder.
 
 The bug this pins, found 2026-09-26: both business numbers carry a Cloud API QR deep
 link with a prefilled first message, and `SupportWidget.tsx`,
@@ -9,10 +9,15 @@ through them. Measured live against Meta:
     WABA2  1055232054343117  QR DPESCFW7U4FXO1  prefilled "Hi 👋"
 
 Neither matched ANY keyword set in the inbound handler. It looked like it worked
-because a first-ever contact still receives the menu from the brand-new-contact path.
+because a first-ever contact still gets a reply from the brand-new-contact path.
 A RETURNING visitor tapping the same widget fell through every keyword set to the
 unmatched-text path, which deliberately sends nothing — so the second visit was
 silence.
+
+Every menu was deleted on 2026-10-02, so what these keywords now reach is the
+plain-text placeholder rather than an interactive list (see
+tests/test_menus_are_deleted.py). That changes the destination, not the bug: a
+prefill that matches no set is still silence.
 
 Both halves are tested here, and the second is the one that matters:
 
@@ -83,10 +88,10 @@ def _literal_set_members(source: str, name: str) -> set:
     return set(re.findall(r"'([^']*)'", match.group(1)))
 
 
-class TestOwnPrefillsReachTheMenu:
+class TestOwnPrefillsReachThePlaceholder:
     @pytest.mark.parametrize('prefill', OWN_PREFILLS)
     def test_hi_keywords_contains_prefill(self, handler_source, prefill):
-        """The greeting set is what actually sends the main menu."""
+        """The greeting set is what actually answers a prefill."""
         assert prefill in _literal_set_members(handler_source, 'HI_KEYWORDS')
 
     def test_button_triggers_contains_get_help(self, handler_source):
@@ -95,7 +100,7 @@ class TestOwnPrefillsReachTheMenu:
 
     @pytest.mark.parametrize('prefill', OWN_PREFILLS)
     def test_bot_takes_control_from_the_ai(self, wa, prefill):
-        """Standby routing: our deterministic menu must win over the Meta AI agent."""
+        """Standby routing: our deterministic reply must win over the Meta AI agent."""
         assert prefill in wa._STANDBY_TEXT_TRIGGERS
 
     def test_deterministic_keywords_contains_get_help(self, wa):
@@ -104,7 +109,7 @@ class TestOwnPrefillsReachTheMenu:
 
 class TestNoEarlierSetSwallowsThem:
     """Precedence. Every set below is evaluated BEFORE HI_KEYWORDS, and each one
-    returns, so a match there would mean the customer never sees the menu."""
+    returns, so a match there would mean the greeting is never answered."""
 
     @pytest.mark.parametrize('prefill', OWN_PREFILLS)
     def test_not_claimed_by_an_earlier_exact_match_set(self, handler_source, prefill):
@@ -187,14 +192,14 @@ class TestDecorativeEdgeNormalisation:
             assert guard in handler_source, f'missing decoration fallback: {guard}'
 
     def test_money_and_record_creating_sets_do_not_use_the_fallback(self, handler_source):
-        """Scope guard. A false positive on a menu is harmless; one that pulls an
-        invoice, opens a paid flow or discloses subscriber details is not."""
+        """Scope guard. A false positive on the placeholder is harmless; one that
+        pulls an invoice, opens a paid flow or discloses subscriber details is not."""
         for forbidden in ('_content_plain in PAY_KEYWORDS',
                           '_content_plain in MY_ID_KEYWORDS'):
             assert forbidden not in handler_source, \
                 f'decoration fallback must not be applied here: {forbidden}'
 
     def test_standby_gate_normalises_too(self, wa):
-        """A standby 'Hi 👋' must be taken by our menu, not handed to the Meta AI."""
+        """A standby 'Hi 👋' must be taken by our own flow, not handed to the Meta AI."""
         assert wa._is_deterministic_trigger(
             {'type': 'text', 'text': {'body': 'Hi \U0001f44b'}}) is True

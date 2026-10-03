@@ -132,6 +132,12 @@ def _get_welcome_config_key(phone_number_id: str) -> str:
 
 DEFAULT_FALLBACK_MESSAGE = "Thanks for your message! Type 'menu' to see available options, or 'subscribe' to get started."
 
+# Every path that used to send an interactive menu sends this plain text instead.
+# The menus are deleted, not replaced, so a greeting / QR prefill / ice-breaker tap
+# must still get an answer rather than silence or a crash. One constant, one helper,
+# so putting a real menu back later is a localised change.
+MENU_PLACEHOLDER_TEXT = "We're refreshing our menu - please type *menu* and we'll help you."
+
 
 # Deterministic-trigger keywords for the Meta Business Agent hybrid. When the AI
 # holds control (standby), we take control + run OUR flow only for these; free-form
@@ -267,7 +273,7 @@ def _is_deterministic_trigger(message: dict) -> bool:
 #    silently truncating those would be a worse bug than the one being fixed.
 #  * ASCII punctuation is NOT stripped, because '/menu' must survive intact.
 #  * Applied ONLY to the greeting / self-service / commands sets, where a false
-#    positive shows a menu. NOT to PAY_KEYWORDS (money), DEFAULT_FLOW_TRIGGERS
+#    positive costs a stray reply. NOT to PAY_KEYWORDS (money), DEFAULT_FLOW_TRIGGERS
 #    (creates records) or MY_ID_KEYWORDS (discloses subscriber details).
 #
 # The ranges cover every emoji this codebase actually puts in a menu row or a
@@ -1434,12 +1440,7 @@ def _process_message(
                 return  # Stop processing  -  IVR button handled
             # Follow-up buttons: Explore More / Done for Now
             if button_id == 'followup_explore':
-                _send_interactive_list(
-                    contact_id=contact_id,
-                    phone_number_id=aws_phone_number_id,
-                    list_config=_get_welcome_config(),
-                    request_id=request_id,
-                )
+                _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
                 return
             if button_id == 'followup_done':
                 _send_ai_auto_reply(contact_id,
@@ -1620,7 +1621,7 @@ def _process_message(
                 request_id=request_id
             )
     
-    # ── request_welcome: user tapped "Start"  -  always send welcome + menu ──
+    # ── request_welcome: user tapped "Start"  -  always answer ──
     if msg_type == 'request_welcome':
         logger.info(json.dumps({
             'event': 'request_welcome_triggered',
@@ -1628,13 +1629,8 @@ def _process_message(
             'senderPhone': mask_phone(sender_phone),
             'requestId': request_id,
         }))
-        # Send ONLY the main menu (header/body already contains greeting)
-        _send_interactive_list(
-            contact_id=contact_id,
-            phone_number_id=aws_phone_number_id,
-            list_config=_get_welcome_config(),
-            request_id=request_id
-        )
+        # The menus are deleted — send the plain-text stand-in
+        _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
         # Mark welcomeSent so brand-new contact path doesn't double-send
         try:
             dynamodb.Table(CONTACTS_TABLE).update_item(
@@ -1658,31 +1654,27 @@ def _process_message(
             'senderPhone': mask_phone(sender_phone),
             'requestId': request_id,
         }))
-        # Map common button texts to menu trigger.
+        # Map common button texts to the menu placeholder.
         # `selfservice` is here because the `Selfservice` ice breaker is live on
         # both numbers and can arrive as `button` rather than `text`. The text
         # branch below is skipped entirely for a button message, so before this
-        # it was a silent tap. It opens the one menu, same as every other
-        # entry — which is the whole point of having one menu.
+        # it was a silent tap. THE TRIGGER SET STAYS even though the menus are
+        # deleted: you cannot answer a trigger word without a trigger-word set,
+        # and every one of these is live on Meta's side.
         BUTTON_MENU_TRIGGERS = {'get started', 'start', 'menu', 'hi', 'hello', 'hey',
                                 'main menu', 'need help!', 'get help',
                                 'selfservice', 'self service', 'self-service'}
         if (button_text_lower in BUTTON_MENU_TRIGGERS
                 or strip_decorative_edges(button_text_lower) in BUTTON_MENU_TRIGGERS
                 or button_text_lower.startswith('get started')):
-            _send_interactive_list(
-                contact_id=contact_id,
-                phone_number_id=aws_phone_number_id,
-                list_config=_get_welcome_config(),
-                request_id=request_id
-            )
+            _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
             logger.info(json.dumps({
                 'event': 'button_triggered_menu_sent',
                 'buttonText': button_text_lower,
                 'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
             }))
-            return  # Skip AI automation — menu sent via button trigger
+            return  # Skip AI automation — placeholder sent via button trigger
 
     # ── Keyword triggers (before AI automation) ──
     if msg_type == 'text' and content:
@@ -1936,14 +1928,9 @@ def _process_message(
                 'senderPhone': mask_phone(sender_phone),
                 'requestId': request_id,
             }))
-            # Send ONLY the main menu interactive list (no separate welcome text)
-            # The menu header/body already contains the greeting
-            _send_interactive_list(
-                contact_id=contact_id,
-                phone_number_id=aws_phone_number_id,
-                list_config=_get_welcome_config(),
-                request_id=request_id
-            )
+            # The menus are deleted — send the plain-text stand-in so a greeting
+            # is answered rather than met with silence.
+            _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
             logger.info(json.dumps({
                 'event': 'hi_keyword_welcome_sent',
                 'contactId': mask_contact_id(contact_id),
@@ -1974,13 +1961,11 @@ def _process_message(
             return
 
         # ── Ice breaker: "Selfservice" / "[retired public path]" ──
-        # THE KEYWORDS STAY, THE SECOND MENU GOES. `Selfservice` is a live ice
+        # THE KEYWORDS STAY, EVERY MENU GOES. `Selfservice` is a live ice
         # breaker and `selfservice` a live slash command on BOTH numbers (read
         # off Meta's conversational_automation on 2026-09-26), so dropping the
         # trigger would stop answering something customers are actively invited
-        # to tap. It opens the one menu now. This was the last reachable second
-        # menu: the self-service list was the only other interactive list a
-        # customer could actually get to.
+        # to tap. It reaches the menu placeholder now.
         SELFSERVICE_KEYWORDS = {'self-service', 'selfservice', 'self service', '/selfservice', '/service'}
         if content_lower in SELFSERVICE_KEYWORDS or _content_plain in SELFSERVICE_KEYWORDS:
             logger.info(json.dumps({
@@ -1989,12 +1974,7 @@ def _process_message(
                 'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
             }))
-            _send_interactive_list(
-                contact_id=contact_id,
-                phone_number_id=aws_phone_number_id,
-                list_config=_get_welcome_config(),
-                request_id=request_id
-            )
+            _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
             return
 
         # ── The one menu's Help row, typed rather than tapped ──
@@ -2067,14 +2047,10 @@ def _process_message(
     _is_brand_new_contact = not _welcome_already_sent
     if _is_brand_new_contact and msg_type in ('text', 'image', 'audio', 'video', 'document', 'request_welcome'):
         try:
-            # Send ONLY the main menu (header/body already contains greeting)
-            # No separate welcome text  -  the menu IS the welcome
-            _send_interactive_list(
-                contact_id=contact_id,
-                phone_number_id=aws_phone_number_id,
-                list_config=_get_welcome_config(),
-                request_id=request_id
-            )
+            # The menus are deleted — a brand-new contact gets the plain-text
+            # stand-in. The welcomeSent write below MUST stay, or this re-sends
+            # on every message from a new contact.
+            _send_menu_placeholder(contact_id, aws_phone_number_id, request_id)
             # Mark contact so welcome isn't sent again
             try:
                 dynamodb.Table(CONTACTS_TABLE).update_item(
@@ -5001,53 +4977,18 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
         }))
 
 
-def _send_interactive_list(contact_id: str, phone_number_id: str, list_config: Dict, request_id: str) -> None:
+def _send_menu_placeholder(contact_id: str, phone_number_id: str, request_id: str) -> None:
+    """Send the plain-text stand-in for the deleted menus.
+
+    This sits where the interactive-list sender used to, so every former menu
+    send is one call away from being a real menu again.
     """
-    Send a WhatsApp interactive list message.
-    list_config should have: header, body, footer, buttonText, sections.
-    """
-    if not contact_id or not list_config.get('sections'):
-        return
-
-    try:
-        payload = {
-            'body': json.dumps({
-                'contactId': contact_id,
-                'phoneNumberId': phone_number_id,
-                'isInteractive': True,
-                'interactiveType': 'list',
-                'interactiveData': {
-                    'header': list_config.get('header', ''),
-                    'body': list_config.get('body', 'Please select an option'),
-                    'footer': list_config.get('footer', ''),
-                    'buttonText': list_config.get('buttonText', 'Menu'),
-                    'sections': list_config.get('sections', []),
-                }
-            })
-        }
-
-        response = lambda_client.invoke(
-            FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
-            InvocationType='Event',
-            Payload=json.dumps(payload)
-        )
-
-        logger.info(json.dumps({
-            'event': 'interactive_list_sent',
-            'contactId': mask_contact_id(contact_id),
-            'buttonText': list_config.get('buttonText', 'Menu'),
-            'sectionsCount': len(list_config.get('sections', [])),
-            'statusCode': response.get('StatusCode'),
-            'requestId': request_id
-        }))
-
-    except Exception as e:
-        logger.error(json.dumps({
-            'event': 'interactive_list_error',
-            'contactId': mask_contact_id(contact_id),
-            'error': str(e),
-            'requestId': request_id
-        }))
+    logger.info(json.dumps({
+        'event': 'menu_placeholder_sent',
+        'contactId': mask_contact_id(contact_id),
+        'requestId': request_id,
+    }))
+    _send_ai_auto_reply(contact_id, MENU_PLACEHOLDER_TEXT, phone_number_id, request_id)
 
 
 def _send_cta_button(contact_id: str, phone_number_id: str, cta_text: str, cta_url: str, request_id: str,
@@ -6275,8 +6216,10 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
 # ============================================================================
 
 # Default flow triggers config  -  keyword-to-flow mapping
-# Keywords MUST include: exact keyword, selfservice menu row title (without emoji),
-# natural variations, and the list_reply action keyword from MENU_TO_KEYWORD.
+# These drive TYPED keywords and are untouched by the menu wipe. Keywords MUST
+# include the exact keyword plus natural variations. The former menus' row ids no
+# longer dispatch here — a tapped row gets the menu placeholder — so the one-time
+# "row title without emoji" entries are kept only because people type them.
 DEFAULT_FLOW_TRIGGERS = {
     'submit_request': {
         'keywords': [
@@ -6641,9 +6584,12 @@ def _handle_address_submission(nfm: Dict, contact_id: str, sender_phone: str,
 
 def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
                       sender_phone: str, request_id: str) -> None:
-    """
-    Handle interactive list_reply selections from main menu and self-service menu.
-    Maps row IDs to keyword triggers or sub-menus.
+    """Answer a tap on a list row that is still sitting in a customer's history.
+
+    Every menu and the whole row-id dispatch table are deleted, so there is no
+    action to route to any more: a tap gets the plain-text placeholder. The
+    five-parameter signature is unchanged because callers pass by keyword, and
+    `sender_phone` is deliberately kept unused for the same reason.
     """
     logger.info(json.dumps({
         'event': 'list_reply_received',
@@ -6651,267 +6597,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         'contactId': mask_contact_id(contact_id),
         'requestId': request_id,
     }))
-
-    # ── Row id → action ──────────────────────────────────────────────────────
-    # There is ONE menu now (DEFAULT_ONE_MENU), but every id this business has
-    # EVER rendered has to stay in this table. An interactive list already
-    # delivered to a handset stays tappable in the customer's chat history for
-    # months, so ids are only ever ADDED or RETARGETED here — never removed.
-    # A missing id logs `list_reply_unhandled` and the customer gets silence.
-    #
-    # Nothing below maps to None. Three ids used to (`menu_audio`,
-    # `menu_notifications`, `menu_human`) plus the six Bharat Stack rows, and a
-    # tap on any of them produced no reply at all.
-    MENU_TO_KEYWORD = {
-        # ── The one menu ─────────────────────────────────────────────────────
-        # Requests
-        'menu_request_new': 'submit request',
-        'menu_request_track': 'track request',
-        'menu_request_change': 'amend request',
-        # Visits
-        'menu_visit_book': 'schedule appointment',
-        'menu_visit_rx': 'rx slot',
-        # Documents & Payment
-        'menu_docs_send': 'drop docs',
-        'menu_pay': 'pay',
-        # Business & Account
-        'menu_business': 'enterprise assist',
-        'menu_subscribe': 'subscribe',
-        # Help
-        'menu_help': '_cta_help',
-
-        # ── Retired rows, still live on handsets ─────────────────────────────
-        # The self-service submenu is gone. Its openers reopen the one menu
-        # instead of a second list; its nine rows keep their original actions,
-        # so a cached self-service menu still works row for row.
-        'menu_selfservice': '_main_menu',
-        'menu_self_service': '_main_menu',
-        'ss_main_menu': '_main_menu',
-        'menu_back': '_main_menu',
-        'ss_submit_request': 'submit request',
-        'ss_amend_request': 'amend request',
-        'ss_track_request': 'track request',
-        'ss_order_notes': 'order notes',
-        'ss_subscribe': 'subscribe',
-        'ss_rx_slot': 'rx slot',
-        'ss_drop_docs': 'drop docs',
-        'ss_schedule_appointment': 'schedule appointment',
-        'ss_enterprise_assist': 'enterprise assist',
-        'ss_leave_review': 'leave review',
-        'ss_faq': '_cta_help',
-        # Older self-service ids
-        'ss_orders': 'track request',
-        'ss_payments': 'pay',
-        'ss_support': 'submit request',
-        # Previous main menu (9 rows) — dropped from the menu, still reachable
-        # by keyword, and these rows keep doing exactly what they did.
-        'menu_find_id': 'find id',
-        'menu_store': '_cta_store',
-        'menu_gift_card': '_cta_gift_card',
-        'menu_bharat_stack': '_cta_bharat_stack',
-        'menu_faq': '_cta_faq',
-        'menu_about': '_cta_about',
-        # Bharat Stack submenu. Never sent (nothing maps to _bharat_stack_menu)
-        # but all six ids answered with silence, so they answer for real now.
-        'bs_aadhaar': '_cta_bharat_stack',
-        'bs_upi': '_cta_bharat_stack',
-        'bs_digilocker': '_cta_bharat_stack',
-        'bs_esign': '_cta_bharat_stack',
-        'bs_ondc': '_cta_bharat_stack',
-        'bs_account_aggregator': '_cta_bharat_stack',
-        # AI-era menu (ai-generate-response DEFAULT_BOT_FLOW, now deleted). Its
-        # delivery path was dead code, but a handset that received one of those
-        # lists can still tap it, and 19 of its ids resolved to nothing here.
-        'menu_app': '_cta_about',
-        'menu_audio': '_main_menu',
-        'menu_notifications': '_main_menu',
-        'menu_human': '_cta_help',
-        'menu_hours': '_cta_help',
-        'menu_submit_request': 'submit request',
-        'menu_amend_request': 'amend request',
-        'menu_track_request': 'track request',
-        'menu_rx_slot': 'rx slot',
-        'menu_drop_docs': 'drop docs',
-        'menu_enterprise': 'enterprise assist',
-        'store_gift_card': '_cta_gift_card',
-        'store_bnb_club': '_cta_store',
-        'store_no_fault': '_cta_store',
-        'store_expo_week': '_cta_store',
-        'store_ritual_guru': '_cta_store',
-        'store_legal_champ': '_cta_store',
-        'store_swdhya': '_cta_store',
-        # `menu_language` used to open the region picker. The picker's own four
-        # region rows resolve to nothing in this table, so tapping it produced a
-        # list where every option was silent — a worse outcome than not offering
-        # it. It reopens the one menu until language switching is decided on
-        # (see docs/whatsapp-experience-structure.md §9 #13). The picker code and
-        # its config key are untouched, so this is a one-line reversal.
-        'menu_language': '_main_menu',
-    }
-
-    action = MENU_TO_KEYWORD.get(list_id)
-
-    # RETIRED submenu branches. No row id maps to `_selfservice_menu` or
-    # `_bharat_stack_menu` any more, so neither of these can fire. They are kept
-    # so that reverting to the two-menu shape is a one-line change in
-    # MENU_TO_KEYWORD above, and they go in step 6 of the build order.
-    if action == '_selfservice_menu':
-        _send_interactive_list(
-            contact_id=contact_id,
-            phone_number_id=phone_number_id,
-            list_config=_get_selfservice_menu(),
-            request_id=request_id,
-        )
-        return
-
-    if action == '_bharat_stack_menu':
-        _send_interactive_list(
-            contact_id=contact_id,
-            phone_number_id=phone_number_id,
-            list_config=_get_bharat_stack_menu(),
-            request_id=request_id,
-        )
-        return
-
-    if action == '_main_menu':
-        _send_interactive_list(
-            contact_id=contact_id,
-            phone_number_id=phone_number_id,
-            list_config=_get_welcome_config(),
-            request_id=request_id,
-        )
-        return
-
-    if action == '_language_menu':
-        _send_interactive_list(
-            contact_id=contact_id,
-            phone_number_id=phone_number_id,
-            list_config=_get_language_picker_config(),
-            request_id=request_id,
-        )
-        return
-
-    # ── CTA URL buttons (Store, Gift Card, FAQ, Bharat Stack) ──
-    # Each sends ONE interactive CTA message with body + button + footer
-    # Then followup reply buttons as second message
-    if action == '_cta_faq':
-        _send_cta_button(contact_id, phone_number_id, 'Open FAQs', 'https://wecare.digital/contact/', request_id,
-            body_text="Find quick answers about requests, payments, appointments, business hours, the app, and more.\n\nTap below to open the FAQ page. \U0001f447",
-            footer_text='WECARE.DIGITAL')
-        _send_followup_buttons(contact_id, phone_number_id, request_id)
-        return
-
-    if action == '_cta_gift_card':
-        _send_cta_button(contact_id, phone_number_id, 'View Gift Cards', 'https://wecare.digital/perks/', request_id,
-            body_text="Send a digital gift card in just a few taps \u2014 quick, easy, and thoughtful.\n\nTap below to continue. \U0001f447",
-            footer_text='WECARE.DIGITAL')
-        _send_followup_buttons(contact_id, phone_number_id, request_id)
-        return
-
-    if action == '_cta_store':
-        _send_cta_button(contact_id, phone_number_id, 'Visit Store', 'https://wecare.digital', request_id,
-            body_text="Browse WECARE.DIGITAL services, brands, and offers \u2014 all in one place.\n\nTap below to explore. \U0001f447",
-            footer_text='WECARE.DIGITAL')
-        _send_followup_buttons(contact_id, phone_number_id, request_id)
-        return
-
-    if action == '_cta_bharat_stack':
-        _send_cta_button(contact_id, phone_number_id, 'Explore Bharat Stack', 'https://wecare.digital', request_id,
-            body_text="Explore Bharat Stack and discover services designed for everyday Bharat.",
-            footer_text='WECARE.DIGITAL')
-        _send_followup_buttons(contact_id, phone_number_id, request_id)
-        return
-
-    # About WECARE.DIGITAL  -  text only, no CTA + follow-up buttons
-    if action == '_cta_about':
-        about_text = (
-            "*Building digital railroads for everyday Bharat*\n\n"
-            "WECARE.DIGITAL is a network of microservice brands serving everyday Bharat\u2014"
-            "across travel, paperwork, disputes, rituals, and reflection.\n\n"
-            "We focus on simple access, transparent pricing, and reliable service through "
-            "Bnb Club, Expo Week, Legal Champ, No Fault, Ritual Guru, Swdhya, and Bharat Stack.\n\n"
-            "Made to serve what matters most."
-        )
-        _send_ai_auto_reply(contact_id, about_text, phone_number_id, request_id)
-        _send_followup_buttons(contact_id, phone_number_id, request_id)
-        return
-
-    # Help & About  -  the one menu's single help row
-    if action == '_cta_help':
-        _send_help_about(contact_id, phone_number_id, request_id)
-        return
-
-    # Keyword-triggered flows
-    if action and action != 'pay':
-        flow_triggers = _get_flow_triggers_config()
-        for flow_key, trigger in flow_triggers.items():
-            if not trigger.get('enabled', True):
-                continue
-            keywords = [k.lower() for k in trigger.get('keywords', [])]
-            if action.lower() in keywords:
-                flow_id = trigger.get('flowId', '')
-                if flow_id:
-                    _send_generic_flow(
-                        contact_id=contact_id,
-                        phone_number_id=phone_number_id,
-                        sender_phone=sender_phone,
-                        request_id=request_id,
-                        flow_config=trigger,
-                        flow_key=flow_key,
-                    )
-                    return
-        # Fallback: send the keyword as text so it gets picked up by keyword matching
-        _send_ai_auto_reply(contact_id, f"You selected: {action.title()}. Processing...", phone_number_id, request_id)
-        return
-
-    # Pay keyword
-    if action == 'pay':
-        # Phone 2: send CTA link to Phone 1 for payment
-        if phone_number_id == PHONE_NUMBER_ID_2:
-            _send_cta_button(
-                contact_id=contact_id,
-                phone_number_id=phone_number_id,
-                cta_text='Pay Now',
-                cta_url='https://wecare.digital/r/pay',
-                request_id=request_id,
-                body_text='\U0001f4b3 Make your payment quickly and securely online.',
-                footer_text='WECARE.DIGITAL',
-            )
-            _send_followup_buttons(contact_id, phone_number_id, request_id)
-            return
-        # Phone 1: trigger pay flow directly
-        _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], phone_number_id, request_id)
-        try:
-            inv_payload = {
-                'rawPath': '/invoices/send-pending-by-phone',
-                'requestContext': {'http': {'method': 'POST'}},
-                'body': json.dumps({
-                    'customerPhone': sender_phone,
-                    'phoneNumberId': phone_number_id,
-                }),
-            }
-            inv_response = lambda_client.invoke(
-                FunctionName='wecare-invoice-engine',
-                InvocationType='RequestResponse',
-                Payload=json.dumps(inv_payload),
-            )
-            inv_result = json.loads(inv_response['Payload'].read())
-            inv_body = json.loads(inv_result.get('body', '{}'))
-            if inv_body.get('total', 0) == 0:
-                _send_ai_auto_reply(contact_id, PAY_MSG['no_dues'], phone_number_id, request_id)
-        except Exception as e:
-            logger.warning(f"List reply pay flow error: {e}")
-            _send_ai_auto_reply(contact_id, PAY_MSG['error'], phone_number_id, request_id)
-        return
-
-    # Unhandled list ID  -  log it
-    if not action:
-        logger.info(json.dumps({
-            'event': 'list_reply_unhandled',
-            'listId': list_id,
-            'contactId': mask_contact_id(contact_id),
-            'requestId': request_id,
-        }))
+    _send_menu_placeholder(contact_id, phone_number_id, request_id)
 
 
 def _get_flow_triggers_config() -> Dict:
@@ -6941,347 +6627,6 @@ def _get_flow_triggers_config() -> Dict:
         return {k: v.copy() for k, v in DEFAULT_FLOW_TRIGGERS.items()}
     except Exception:
         return {k: v.copy() for k, v in DEFAULT_FLOW_TRIGGERS.items()}
-
-# ── THE one menu ────────────────────────────────────────────────────────────
-# Meta caps an interactive list at 10 rows across all sections, so "one menu"
-# is a choice of 10, not a merge. The previous main menu (9 rows) plus the
-# self-service submenu (9 rows) came to 18; the 8 that did not make the cut are
-# reachable by keyword and are named in the `_cta_help` reply so they stay
-# discoverable. Row titles are capped at 24 chars and descriptions at 72 by
-# Meta; tests/test_one_menu.py asserts every limit.
-#
-# `menu_pay` and `menu_subscribe` deliberately keep their old ids — they are
-# already sitting in menus on customers' handsets, and reusing the id means
-# those taps land on the same action instead of on nothing.
-DEFAULT_ONE_MENU = {
-    # MENU REMOVED by owner decision 2026-10-03: no interactive menu is sent on a
-    # greeting / QR / new-contact for now. `sections` is empty, so
-    # `_send_interactive_list` returns without sending anything (it short-circuits
-    # on an empty `sections`). The header/body/footer/buttonText are kept so that
-    # re-enabling a menu later is just a matter of putting rows back here — nothing
-    # else in the dispatch path changed. MENU_TO_KEYWORD still answers every id a
-    # customer may tap in a list already sitting in their chat history.
-    'header': 'WECARE.DIGITAL',
-    'body': "What would you like to do? Everything is in this one menu \u2014 or just type what you need.",
-    'footer': 'Tap an option to continue.',
-    'buttonText': 'Open Menu',
-    'sections': []
-}
-
-# ── RETIRED: the previous main menu ─────────────────────────────────────────
-# Superseded by DEFAULT_ONE_MENU. Kept only so that reverting is a one-line
-# change in _get_welcome_config() if the QA send looks wrong; it is scheduled
-# for deletion in step 6 of the build order in
-# docs/whatsapp-experience-structure.md §11. Nothing sends it.
-DEFAULT_MAIN_MENU = {
-    'header': 'Welcome to WECARE.DIGITAL',
-    'body': "Choose what you\u2019d like to do \u2014 get started, explore our services, or find quick answers.",
-    'footer': 'Tap an option to continue.',
-    'buttonText': 'Get Started',
-    'sections': [
-        {
-            'title': 'Start Here',
-            'rows': [
-                {'id': 'menu_selfservice', 'title': '\U0001f680 Selfservice', 'description': 'Requests, appointments, documents, and support'},
-                {'id': 'menu_subscribe', 'title': '\U0001f514 Subscribe for Updates', 'description': 'Get updates, offers, and service news'},
-                {'id': 'menu_find_id', 'title': '\U0001f194 Find Profile ID', 'description': 'Locate your subscription or profile ID'},
-                {'id': 'menu_pay', 'title': '\U0001f4b3 Make a Payment', 'description': 'Pay an invoice or complete a pending payment'},
-            ]
-        },
-        {
-            'title': 'Explore WECARE',
-            'rows': [
-                {'id': 'menu_store', 'title': '\U0001f6cd\ufe0f Explore Store', 'description': 'Browse services, brands, and offers'},
-                {'id': 'menu_gift_card', 'title': '\U0001f381 Gift Cards', 'description': 'Send a digital gift card'},
-                {'id': 'menu_bharat_stack', 'title': '\U0001f1ee\U0001f1f3 Bharat Stack', 'description': 'Discover Bharat Stack and services'},
-            ]
-        },
-        {
-            'title': 'Help & Answers',
-            'rows': [
-                {'id': 'menu_faq', 'title': '\u2753 FAQs', 'description': 'Find answers to common questions'},
-                {'id': 'menu_about', 'title': '\U0001f49b About WECARE.DIGITAL', 'description': 'Learn more about WECARE.DIGITAL'},
-            ]
-        },
-    ]
-}
-
-DEFAULT_LANGUAGE_PICKER = {
-    'header': '\U0001f310 Choose Region',
-    'body': 'Please select a language group.\n\n\u0915\u0943\u092a\u092f\u093e \u092d\u093e\u0937\u093e \u0938\u092e\u0942\u0939 \u091a\u0941\u0928\u0947\u0902\u0964',
-    'footer': 'You can change anytime by typing "language <name>"',
-    'buttonText': 'Regions',
-    'sections': [
-        {
-            'title': 'Select Region',
-            'rows': [
-                {'id': 'region_popular', 'title': '\u2b50 Popular', 'description': 'English, Hindi, Bengali, Tamil & more'},
-                {'id': 'region_asian', 'title': '\U0001f30f Asian', 'description': '\u4e2d\u6587, \u65e5\u672c\u8a9e, \ud55c\uad6d\uc5b4, \u0e44\u0e17\u0e22 & more'},
-                {'id': 'region_middle_east', 'title': '\U0001f30d Middle East', 'description': '\u0627\u0644\u0639\u0631\u0628\u064a\u0629, T\u00fcrk\u00e7e, \u0420\u0443\u0441\u0441\u043a\u0438\u0439, \u0627\u0631\u062f\u0648'},
-                {'id': 'region_european', 'title': '\U0001f1ea\U0001f1fa European', 'description': 'Fran\u00e7ais, Espa\u00f1ol, Portugu\u00eas'},
-            ]
-        }
-    ]
-}
-
-# Step 2: Language lists per region (used when ai-generate-response returns regionLanguages)
-REGION_LANGUAGE_LISTS = {
-    'region_popular': {
-        'header': '\u2b50 Popular Languages',
-        'body': 'Choose your language \U0001f447',
-        'footer': 'wecare.digital',
-        'buttonText': 'Languages',
-        'sections': [{'title': 'Languages', 'rows': [
-            {'id': 'lang_english', 'title': 'English', 'description': 'Respond in English'},
-            {'id': 'lang_hindi', 'title': '\u0939\u093f\u0928\u094d\u0926\u0940 / Hindi', 'description': '\u0939\u093f\u0902\u0926\u0940 \u092e\u0947\u0902 \u091c\u0935\u093e\u092c \u0926\u0947\u0902'},
-            {'id': 'lang_hinglish', 'title': 'Hinglish', 'description': 'Hindi + English mix'},
-            {'id': 'lang_bengali', 'title': '\u09ac\u09be\u0982\u09b2\u09be / Bengali', 'description': '\u09ac\u09be\u0982\u09b2\u09be\u09af\u09bc \u0989\u09a4\u09cd\u09a4\u09b0 \u09a6\u09bf\u09a8'},
-            {'id': 'lang_tamil', 'title': '\u0ba4\u0bae\u0bbf\u0bb4\u0bcd / Tamil', 'description': '\u0ba4\u0bae\u0bbf\u0bb4\u0bbf\u0bb2\u0bcd \u0baa\u0ba4\u0bbf\u0bb2\u0bb3\u0bbf\u0b95\u0bcd\u0b95\u0bb5\u0bc1\u0bae\u0bcd'},
-            {'id': 'lang_telugu', 'title': '\u0c24\u0c46\u0c32\u0c41\u0c17\u0c41 / Telugu', 'description': '\u0c24\u0c46\u0c32\u0c41\u0c17\u0c41\u0c32\u0c4b \u0c38\u0c2e\u0c3e\u0c27\u0c3e\u0c28\u0c02'},
-            {'id': 'lang_gujarati', 'title': '\u0a97\u0ac1\u0a9c\u0ab0\u0abe\u0aa4\u0ac0 / Gujarati', 'description': '\u0a97\u0ac1\u0a9c\u0ab0\u0abe\u0aa4\u0ac0\u0aae\u0abe\u0a82 \u0a9c\u0ab5\u0abe\u0aac'},
-            {'id': 'lang_marathi', 'title': '\u092e\u0930\u093e\u0920\u0940 / Marathi', 'description': '\u092e\u0930\u093e\u0920\u0940\u0924 \u0909\u0924\u094d\u0924\u0930 \u0926\u094d\u092f\u093e'},
-            {'id': 'lang_kannada', 'title': '\u0c95\u0ca8\u0ccd\u0ca8\u0ca1 / Kannada', 'description': '\u0c95\u0ca8\u0ccd\u0ca8\u0ca1\u0ca6\u0cb2\u0ccd\u0cb2\u0cbf \u0c89\u0ca4\u0ccd\u0ca4\u0cb0'},
-            {'id': 'lang_malayalam', 'title': '\u0d2e\u0d32\u0d2f\u0d3e\u0d33\u0d02 / Malayalam', 'description': '\u0d2e\u0d32\u0d2f\u0d3e\u0d33\u0d24\u0d4d\u0d24\u0d3f\u0d7d \u0d2e\u0d31\u0d41\u0d2a\u0d1f\u0d3f'},
-        ]}]
-    },
-    'region_asian': {
-        'header': '\U0001f30f Asian Languages',
-        'body': 'Choose your language \U0001f447',
-        'footer': 'wecare.digital',
-        'buttonText': 'Languages',
-        'sections': [{'title': 'Languages', 'rows': [
-            {'id': 'lang_chinese', 'title': '\u7b80\u4f53\u4e2d\u6587 / Chinese', 'description': '\u7528\u4e2d\u6587\u56de\u590d'},
-            {'id': 'lang_japanese', 'title': '\u65e5\u672c\u8a9e / Japanese', 'description': '\u65e5\u672c\u8a9e\u3067\u5fdc\u7b54'},
-            {'id': 'lang_korean', 'title': '\ud55c\uad6d\uc5b4 / Korean', 'description': '\ud55c\uad6d\uc5b4\ub85c \ub2f5\ubcc0'},
-            {'id': 'lang_thai', 'title': '\u0e44\u0e17\u0e22 / Thai', 'description': '\u0e15\u0e2d\u0e1a\u0e40\u0e1b\u0e47\u0e19\u0e20\u0e32\u0e29\u0e32\u0e44\u0e17\u0e22'},
-            {'id': 'lang_vietnamese', 'title': 'Ti\u1ebfng Vi\u1ec7t / Vietnamese', 'description': 'Tr\u1ea3 l\u1eddi b\u1eb1ng ti\u1ebfng Vi\u1ec7t'},
-            {'id': 'lang_indonesian', 'title': 'Indonesia / Indonesian', 'description': 'Balas dalam Bahasa Indonesia'},
-            {'id': 'lang_sinhala', 'title': '\u0dc3\u0dd2\u0d82\u0dc4\u0dbd / Sinhala', 'description': '\u0dc3\u0dd2\u0d82\u0dc4\u0dbd\u0dd9\u0db1\u0dca \u0db4\u0dd2\u0dc5\u0dd2\u0dad\u0dd4\u0dbb\u0dd4'},
-        ]}]
-    },
-    'region_middle_east': {
-        'header': '\U0001f30d Middle East Languages',
-        'body': 'Choose your language \U0001f447',
-        'footer': 'wecare.digital',
-        'buttonText': 'Languages',
-        'sections': [{'title': 'Languages', 'rows': [
-            {'id': 'lang_arabic', 'title': '\u0627\u0644\u0639\u0631\u0628\u064a\u0629 / Arabic', 'description': '\u0627\u0644\u0631\u062f \u0628\u0627\u0644\u0639\u0631\u0628\u064a\u0629'},
-            {'id': 'lang_turkish', 'title': 'T\u00fcrk\u00e7e / Turkish', 'description': 'T\u00fcrk\u00e7e yan\u0131t verin'},
-            {'id': 'lang_russian', 'title': '\u0420\u0443\u0441\u0441\u043a\u0438\u0439 / Russian', 'description': '\u041e\u0442\u0432\u0435\u0442 \u043d\u0430 \u0440\u0443\u0441\u0441\u043a\u043e\u043c'},
-            {'id': 'lang_urdu', 'title': '\u0627\u0631\u062f\u0648 / Urdu', 'description': '\u0627\u0631\u062f\u0648 \u0645\u06cc\u06ba \u062c\u0648\u0627\u0628 \u062f\u06cc\u06ba'},
-            {'id': 'lang_punjabi', 'title': '\u0a2a\u0a70\u0a1c\u0a3e\u0a2c\u0a40 / Punjabi', 'description': '\u0a2a\u0a70\u0a1c\u0a3e\u0a2c\u0a40 \u0a35\u0a3f\u0a71\u0a1a \u0a1c\u0a35\u0a3e\u0a2c'},
-        ]}]
-    },
-    'region_european': {
-        'header': '\U0001f1ea\U0001f1fa European Languages',
-        'body': 'Choose your language \U0001f447',
-        'footer': 'wecare.digital',
-        'buttonText': 'Languages',
-        'sections': [{'title': 'Languages', 'rows': [
-            {'id': 'lang_french', 'title': 'Fran\u00e7ais / French', 'description': 'R\u00e9pondre en fran\u00e7ais'},
-            {'id': 'lang_spanish', 'title': 'Espa\u00f1ol / Spanish', 'description': 'Responder en espa\u00f1ol'},
-            {'id': 'lang_portuguese', 'title': 'Portugu\u00eas / Portuguese', 'description': 'Responder em portugu\u00eas'},
-        ]}]
-    },
-}
-
-
-def _get_welcome_config() -> Dict:
-    """The one menu, overridable from SystemConfigTable (id: 'welcome_message_config').
-
-    Every path that shows a menu calls this — greeting keywords, `/menu`, the
-    ice-breaker taps, the brand-new-contact welcome, `request_welcome`,
-    `followup_explore`, and the retired self-service openers. There is
-    deliberately no second menu getter.
-
-    Takes no phone argument, so WABA1 and WABA2 render the identical menu. What
-    differs between the numbers is what happens after a tap: 9 of the 10 flows
-    have no `flowId2`, so WABA2 degrades to a CTA URL, and `menu_pay` routes to
-    wecare.digital/r/pay instead of native WhatsApp Pay.
-
-    The config key is unchanged so the dashboard editor at
-    /dm/whatsapp/auto-response keeps working. Note it is a shallow merge: an
-    override that carries `sections` replaces all of them.
-    """
-    try:
-        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        response = config_table.get_item(Key={'id': 'welcome_message_config'})
-        if 'Item' in response:
-            config_value = response['Item'].get('configValue', '{}')
-            config = json.loads(config_value) if isinstance(config_value, str) else config_value
-            merged = DEFAULT_ONE_MENU.copy()
-            merged.update(config)
-            return merged
-        return DEFAULT_ONE_MENU.copy()
-    except Exception:
-        return DEFAULT_ONE_MENU.copy()
-
-
-# ── Bharat Stack sub-menu ──
-DEFAULT_BHARAT_STACK_MENU = {
-    'header': 'Bharat Stack',
-    'body': 'Explore India\u2019s digital public infrastructure \U0001f1ee\U0001f1f3',
-    'footer': 'wecare.digital',
-    'buttonText': 'Explore',
-    'sections': [
-        {
-            'title': 'Bharat Stack Services',
-            'rows': [
-                {'id': 'bs_aadhaar', 'title': 'Aadhaar Services', 'description': 'Verify, link, update Aadhaar'},
-                {'id': 'bs_upi', 'title': 'UPI Payments', 'description': 'Send, receive, check balance'},
-                {'id': 'bs_digilocker', 'title': 'DigiLocker', 'description': 'Access digital documents'},
-                {'id': 'bs_esign', 'title': 'eSign', 'description': 'Digital signature services'},
-                {'id': 'bs_ondc', 'title': 'ONDC', 'description': 'Open Network for Digital Commerce'},
-                {'id': 'bs_account_aggregator', 'title': 'Account Aggregator', 'description': 'Consent-based financial data'},
-            ]
-        }
-    ]
-}
-
-
-def _get_bharat_stack_menu() -> Dict:
-    """Load Bharat Stack menu config from SystemConfigTable."""
-    try:
-        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        response = config_table.get_item(Key={'id': 'bharat_stack_menu_config'})
-        if 'Item' in response:
-            config_value = response['Item'].get('configValue', '{}')
-            config = json.loads(config_value) if isinstance(config_value, str) else config_value
-            merged = DEFAULT_BHARAT_STACK_MENU.copy()
-            merged.update(config)
-            return merged
-        return DEFAULT_BHARAT_STACK_MENU.copy()
-    except Exception:
-        return DEFAULT_BHARAT_STACK_MENU.copy()
-
-
-# ── RETIRED: the self-service sub-menu ─────────────────────────────────────
-# Folded into DEFAULT_ONE_MENU. Nothing sends this: `[retired public path]`, the
-# `Selfservice` ice breaker and the `menu_selfservice` row all open the one menu
-# now. Kept for the one-line revert only; deleted in step 6 of the build order.
-DEFAULT_SELFSERVICE_MENU = {
-    'header': 'Selfservice',
-    'body': "Choose what you'd like to do. You can submit or track a request, book a visit, upload documents, or get business support.",
-    'footer': 'Tap an option to continue.',
-    'buttonText': 'Browse Services',
-    'sections': [
-        {
-            'title': 'New Request',
-            'rows': [
-                {'id': 'ss_submit_request', 'title': '\U0001f4cb Submit Request', 'description': 'Start a new support request'},
-            ]
-        },
-        {
-            'title': 'Request Status',
-            'rows': [
-                {'id': 'ss_track_request', 'title': '\U0001f50d Track Request', 'description': 'Check the status of your request'},
-            ]
-        },
-        {
-            'title': 'Existing Request',
-            'rows': [
-                {'id': 'ss_amend_request', 'title': '\u270f\ufe0f Amend Request', 'description': 'Edit or correct a submitted request'},
-            ]
-        },
-        {
-            'title': 'Schedule Appointments',
-            'rows': [
-                {'id': 'ss_schedule_appointment', 'title': '\U0001f4c5 Appointment', 'description': 'Schedule a consultation or service visit'},
-            ]
-        },
-        {
-            'title': 'Medical Tourism',
-            'rows': [
-                {'id': 'ss_rx_slot', 'title': '\U0001fa7a RX Slot', 'description': 'Schedule a medical tourism or prescription-related visit'},
-            ]
-        },
-        {
-            'title': 'Documents',
-            'rows': [
-                {'id': 'ss_drop_docs', 'title': '\U0001f4c4 Drop Docs', 'description': 'Send supporting documents for your request'},
-            ]
-        },
-        {
-            'title': 'Business Support',
-            'rows': [
-                {'id': 'ss_enterprise_assist', 'title': '\U0001f3e2 Enterprise Assist', 'description': 'Corporate, B2B, and bulk enquiries'},
-            ]
-        },
-        {
-            'title': 'Feedback',
-            'rows': [
-                {'id': 'ss_leave_review', 'title': '\u2b50 Leave Review', 'description': 'Share your experience with our service'},
-            ]
-        },
-        {
-            'title': 'Help',
-            'rows': [
-                {'id': 'ss_faq', 'title': '\u2753 FAQ', 'description': 'View frequently asked questions'},
-            ]
-        },
-    ]
-}
-
-
-def _get_selfservice_menu() -> Dict:
-    """Load self-service menu config from SystemConfigTable."""
-    try:
-        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        response = config_table.get_item(Key={'id': 'selfservice_menu_config'})
-        if 'Item' in response:
-            config_value = response['Item'].get('configValue', '{}')
-            config = json.loads(config_value) if isinstance(config_value, str) else config_value
-            merged = DEFAULT_SELFSERVICE_MENU.copy()
-            merged.update(config)
-            return merged
-        return DEFAULT_SELFSERVICE_MENU.copy()
-    except Exception:
-        return DEFAULT_SELFSERVICE_MENU.copy()
-
-
-def _get_language_picker_config() -> Dict:
-    """Load language picker config from SystemConfigTable (id: 'bot_language_picker_config')."""
-    try:
-        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        response = config_table.get_item(Key={'id': 'bot_language_picker_config'})
-        if 'Item' in response:
-            config_value = response['Item'].get('configValue', '{}')
-            config = json.loads(config_value) if isinstance(config_value, str) else config_value
-            # Region picker (Step 1)  -  override rows if provided
-            if 'regionPicker' in config:
-                region_rows = config['regionPicker']
-                return {
-                    'header': config.get('regionHeader', DEFAULT_LANGUAGE_PICKER['header']),
-                    'body': config.get('regionBody', DEFAULT_LANGUAGE_PICKER['body']),
-                    'footer': config.get('regionFooter', DEFAULT_LANGUAGE_PICKER['footer']),
-                    'buttonText': config.get('regionButtonText', DEFAULT_LANGUAGE_PICKER['buttonText']),
-                    'sections': [{'title': 'Select Region', 'rows': region_rows}]
-                }
-            merged = DEFAULT_LANGUAGE_PICKER.copy()
-            merged.update(config)
-            return merged
-        return DEFAULT_LANGUAGE_PICKER.copy()
-    except Exception:
-        return DEFAULT_LANGUAGE_PICKER.copy()
-
-
-def _get_region_language_list(region_id: str) -> Optional[Dict]:
-    """
-    Get the language list for a specific region.
-    Checks SystemConfigTable first (dashboard-manageable), falls back to REGION_LANGUAGE_LISTS.
-    """
-    try:
-        config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        response = config_table.get_item(Key={'id': 'bot_language_picker_config'})
-        if 'Item' in response:
-            config_value = response['Item'].get('configValue', '{}')
-            config = json.loads(config_value) if isinstance(config_value, str) else config_value
-            db_region_lists = config.get('regionLanguageLists', {})
-            if region_id in db_region_lists:
-                return db_region_lists[region_id]
-    except Exception as e:
-        logger.debug(f'Region language config lookup failed: {e}')
-    return REGION_LANGUAGE_LISTS.get(region_id)
 
 
 def _send_read_receipt(whatsapp_message_id: str, phone_number_id: str, request_id: str) -> None:
@@ -7402,438 +6747,6 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
     This function is kept as a no-op stub so callers don't break.
     """
     return None
-    # Get AI config from SystemConfig table
-    ai_config = _get_ai_config()
-    ai_enabled = ai_config.get('enabled', False) and ai_config.get('autoReplyEnabled', False)
-    
-    # Check if this message type should trigger AI
-    type_config_map = {
-        'text': 'respondToText',
-        'interactive': 'respondToInteractive',
-        'button': 'respondToInteractive',
-        'location': 'respondToLocation',
-        'image': 'respondToMedia',
-        'audio': 'respondToMedia',
-        'video': 'respondToMedia',
-        'document': 'respondToMedia',
-    }
-    config_key = type_config_map.get(message_type, 'respondToText')
-    should_respond = ai_config.get(config_key, True)
-    
-    logger.info(json.dumps({
-        'event': 'ai_automation_check',
-        'aiEnabled': ai_enabled,
-        'messageType': message_type,
-        'shouldRespond': should_respond,
-        'hasMedia': bool(s3_key),
-        'messageId': message_id,
-        'contentLength': len(content) if content else 0,
-        'requestId': request_id
-    }))
-    
-    if not ai_enabled or not should_respond:
-        return None
-
-    # Fix #6: Circuit breaker  -  skip AI if too many recent failures
-    global _ai_fail_count, _ai_fail_reset_time
-    if _ai_fail_count >= AI_CIRCUIT_BREAKER_THRESHOLD:
-        if time.time() < _ai_fail_reset_time:
-            logger.warning(json.dumps({
-                'event': 'ai_circuit_breaker_open',
-                'failCount': _ai_fail_count,
-                'resetAt': _ai_fail_reset_time,
-                'requestId': request_id
-            }))
-            return None
-        # Cooldown expired  -  reset and retry
-        _ai_fail_count = 0
-    
-    try:
-        # Send typing indicator before AI processing
-        _send_typing_indicator(
-            sender_phone=sender_phone,
-            phone_number_id=phone_number_id,
-            request_id=request_id
-        )
-        
-        # Skip separate KB query  -  the ai-generate-response function now handles
-        # KB retrieval internally via the Converse API path
-        
-        # Invoke AI generate response with multimodal payload
-        ai_response = _invoke_ai_generate_response_v2(
-            content=content,
-            message_id=message_id,
-            contact_id=contact_id,
-            sender_phone=sender_phone,
-            message_type=message_type,
-            s3_key=s3_key,
-            mime_type=mime_type,
-            request_id=request_id,
-            phone_number_id=phone_number_id,
-        )
-        
-        # Check if processing was locked (another message being processed)
-        # Fix #6: Reset circuit breaker on success
-        if ai_response and not ai_response.get('locked'):
-            _ai_fail_count = 0
-        if ai_response and ai_response.get('locked'):
-            _send_ai_auto_reply(
-                contact_id=contact_id,
-                content="I'm still working on your previous message, one moment... ⏳",
-                phone_number_id=phone_number_id,
-                request_id=request_id
-            )
-            return ai_response
-        
-        # Check if AI flagged for human escalation (from intent classification, NOT from menu handoff)
-        if ai_response and ai_response.get('escalate') and not ai_response.get('humanHandoff'):
-            escalation_text = ai_response.get('suggestion', '') or ai_response.get('suggestedResponse', '')
-            if escalation_text and len(escalation_text) > 5:
-                _send_ai_auto_reply(
-                    contact_id=contact_id,
-                    content=escalation_text,
-                    phone_number_id=phone_number_id,
-                    request_id=request_id
-                )
-            logger.info(json.dumps({
-                'event': 'ai_escalation_triggered',
-                'intent': ai_response.get('intent', 'unknown'),
-                'confidence': ai_response.get('confidence', 0),
-                'messageId': message_id,
-                'contactId': mask_contact_id(contact_id),
-                'escalationTextSent': bool(escalation_text),
-                'requestId': request_id
-            }))
-            return ai_response
-        
-        # ── Bot flow handling ──
-        flow_action = ai_response.get('flowAction', '') if ai_response else ''
-        flow_config = ai_response.get('flowConfig', {}) if ai_response else {}
-
-        # Welcome: send welcome text + main menu
-        if ai_response and ai_response.get('sendWelcomeMenu'):
-            welcome_text = ai_response.get('suggestion', '') or ai_response.get('suggestedResponse', '')
-            if welcome_text:
-                _send_ai_auto_reply(
-                    contact_id=contact_id,
-                    content=welcome_text,
-                    phone_number_id=phone_number_id,
-                    request_id=request_id
-                )
-            # Send the main menu interactive list
-            main_menu = flow_config.get('mainMenu') or _get_welcome_config()
-            _send_interactive_list(
-                contact_id=contact_id,
-                phone_number_id=phone_number_id,
-                list_config=main_menu,
-                request_id=request_id
-            )
-            return ai_response
-
-        # Language picker requested (two-step: region → languages)
-        if ai_response and ai_response.get('showLanguagePicker'):
-            picker_step = ai_response.get('languagePickerStep', 'region')
-
-            if picker_step == 'languages':
-                # Step 2: Show languages for the selected region
-                region_id = ai_response.get('regionId', '')
-                region_list = _get_region_language_list(region_id)
-                if region_list:
-                    _send_interactive_list(
-                        contact_id=contact_id,
-                        phone_number_id=phone_number_id,
-                        list_config=region_list,
-                        request_id=request_id
-                    )
-                else:
-                    # Fallback: show region picker again
-                    _send_interactive_list(
-                        contact_id=contact_id,
-                        phone_number_id=phone_number_id,
-                        list_config=_get_language_picker_config(),
-                        request_id=request_id
-                    )
-            else:
-                # Step 1: Show region picker
-                _send_interactive_list(
-                    contact_id=contact_id,
-                    phone_number_id=phone_number_id,
-                    list_config=_get_language_picker_config(),
-                    request_id=request_id
-                )
-            return ai_response
-
-        # Send text response first (menu item response, language confirmation, etc.)
-        if ai_response and (ai_response.get('suggestion') or ai_response.get('suggestedResponse')):
-            suggestion = ai_response.get('suggestion', '') or ai_response.get('suggestedResponse', '')
-            max_length = ai_config.get('maxResponseLength', 1000)
-            if suggestion and len(suggestion) > 5:
-                if len(suggestion) > max_length:
-                    suggestion = suggestion[:max_length] + '...'
-                
-                response_delay = ai_config.get('responseDelay', 0)
-                if response_delay > 0:
-                    time.sleep(min(response_delay, 5))
-                
-                _send_ai_auto_reply(
-                    contact_id=contact_id,
-                    content=suggestion,
-                    phone_number_id=phone_number_id,
-                    request_id=request_id
-                )
-
-        # Send CTA button if present
-        if ai_response and ai_response.get('cta'):
-            cta = ai_response['cta']
-            _send_cta_button(
-                contact_id=contact_id,
-                phone_number_id=phone_number_id,
-                cta_text=cta.get('text', 'Start Now'),
-                cta_url=cta.get('url', 'https://wecare.digital/submit-request/'),
-                request_id=request_id
-            )
-
-        # Follow-up flow actions
-        if flow_action == 'showOptions':
-            _send_reply_buttons(
-                contact_id=contact_id,
-                phone_number_id=phone_number_id,
-                button_config={
-                    'body': "What\u2019s next?",
-                    'footer': 'wecare.digital',
-                    'buttons': [
-                        {'id': 'opt_do_more', 'title': '\U0001f9ed Do more'},
-                        {'id': 'opt_done', 'title': '\u270c\ufe0f Done here'},
-                    ],
-                },
-                request_id=request_id
-            )
-        elif flow_action == 'showMainMenu':
-            main_menu = _get_welcome_config()
-            _send_interactive_list(
-                contact_id=contact_id,
-                phone_number_id=phone_number_id,
-                list_config=main_menu,
-                request_id=request_id
-            )
-        elif flow_action == 'showSubMenu':
-            sub_menu_config = ai_response.get('subMenuConfig', {}) if ai_response else {}
-            if sub_menu_config:
-                _send_interactive_list(
-                    contact_id=contact_id,
-                    phone_number_id=phone_number_id,
-                    list_config=sub_menu_config,
-                    request_id=request_id
-                )
-        elif flow_action == 'showRating':
-            _send_reply_buttons(
-                contact_id=contact_id,
-                phone_number_id=phone_number_id,
-                button_config={
-                    'body': "How was your experience? \U0001faf6",
-                    'footer': 'wecare.digital',
-                    'buttons': [
-                        {'id': 'rate_good', 'title': '\U0001f64c Great'},
-                        {'id': 'rate_ok', 'title': '\U0001f610 Just okay'},
-                        {'id': 'rate_mid', 'title': '\U0001fae4 Could be better'},
-                    ],
-                },
-                request_id=request_id
-            )
-        elif flow_action == 'sendPayment':
-            # Send WhatsApp Pay order_details message with GST breakdown
-            payment_amount = ai_response.get('paymentAmount', 0) if ai_response else 0
-            if payment_amount > 0:
-                _send_payment_request(
-                    contact_id=contact_id,
-                    phone_number_id=phone_number_id,
-                    amount=payment_amount,
-                    request_id=request_id,
-                    item_name=ai_response.get('paymentItemName', 'Services/Goods'),
-                    gst_rate=ai_response.get('paymentGstRate', 18),
-                    shipping=ai_response.get('paymentShipping', 49),
-                    sender_phone=sender_phone,
-                    quantity=ai_response.get('paymentQuantity', 1),
-                    discount=ai_response.get('paymentDiscount', 0),
-                    payment_purpose=ai_response.get('paymentPurpose', ''),
-                    due_ref=ai_response.get('paymentDueRef', ''),
-                    order_id=ai_response.get('paymentOrderId', 'Offline'),
-                    customer_name=ai_response.get('paymentCustomerName', ''),
-                    customer_phone=ai_response.get('paymentCustomerPhone', sender_phone),
-                    customer_email=ai_response.get('paymentCustomerEmail', ''),
-                    shipping_address=ai_response.get('paymentShippingAddress', ''),
-                    billing_address=ai_response.get('paymentBillingAddress', ''),
-                    pay_for=ai_response.get('paymentPayFor', 'self'),
-                )
-        elif flow_action == 'sendPendingPayments':
-            # ── Payment flow (hardcoded, LLM-independent  -  edit PAY_MSG at top of file) ──
-            customer_phone = ai_response.get('paymentCustomerPhone', sender_phone) if ai_response else sender_phone
-
-            # Payments are handled on whichever phone received the message. That is correct
-            # behaviour and it is now the only behaviour: replying from a number the customer
-            # never contacted leaves the 24-hour customer service window and reads as an
-            # unsolicited message from a stranger. See _resolve_meta_phone_id in
-            # outbound-whatsapp for the same rule stated as a fail-closed guard.
-            #
-            # The dead `if False:` branch that used to sit here redirected payments to Phone 1
-            # on the grounds that it was "DISCONNECTED". That claim was wrong. Measured live
-            # 2026-09-30: phone id 1016149501586345 / +919330994400 is quality GREEN, platform
-            # CLOUD_API, an official business account, on a WABA with accountReviewStatus
-            # APPROVED. `codeVerificationStatus` is EXPIRED, which concerns display-name
-            # verification rather than connectivity, and is most likely what the original note
-            # misread. Removed rather than left commented, because a disabled branch carrying a
-            # false explanation is worse than no branch: two separate audits treated it as
-            # evidence that the primary sender was down.
-            _send_ai_auto_reply(contact_id, PAY_MSG['pulling'], phone_number_id, request_id)
-            try:
-                inv_payload = {
-                    'rawPath': '/invoices/send-pending-by-phone',
-                    'requestContext': {'http': {'method': 'POST'}},
-                    'body': json.dumps({
-                        'customerPhone': customer_phone,
-                        'phoneNumberId': phone_number_id,
-                    }),
-                }
-                inv_response = lambda_client.invoke(
-                    FunctionName='wecare-invoice-engine',
-                    InvocationType='RequestResponse',
-                    Payload=json.dumps(inv_payload),
-                )
-                inv_result = json.loads(inv_response['Payload'].read())
-                inv_body = json.loads(inv_result.get('body', '{}'))
-                sent_count = inv_body.get('sent', 0)
-                total_count = inv_body.get('total', 0)
-                invoices_sent = inv_body.get('invoices', [])
-                send_error = inv_body.get('error', '')
-
-                if total_count == 0:
-                    _send_ai_auto_reply(contact_id, PAY_MSG['no_dues'], phone_number_id, request_id)
-                elif sent_count == 0:
-                    _send_ai_auto_reply(contact_id, PAY_MSG['send_failed'], phone_number_id, request_id)
-                    logger.warning(json.dumps({
-                        'event': 'send_pending_payment_link_failed',
-                        'sent': 0, 'total': total_count,
-                        'error': send_error, 'phone': mask_phone(customer_phone),
-                        'requestId': request_id,
-                    }))
-
-                logger.info(json.dumps({
-                    'event': 'send_pending_payments_complete',
-                    'sent': sent_count, 'total': total_count,
-                    'phone': mask_phone(customer_phone), 'requestId': request_id,
-                }))
-            except Exception as e:
-                logger.error(json.dumps({
-                    'event': 'send_pending_payments_error',
-                    'error': str(e), 'requestId': request_id,
-                }))
-                _send_ai_auto_reply(contact_id, PAY_MSG['error'], phone_number_id, request_id)
-
-        elif flow_action == 'humanHandoff':
-            # Flag conversation for human agent in CRM
-            try:
-                contacts_table = dynamodb.Table(CONTACTS_TABLE)
-                contacts_table.update_item(
-                    Key={'id': contact_id},
-                    UpdateExpression='SET humanHandoff = :h, handoffAt = :t',
-                    ExpressionAttributeValues={
-                        ':h': True,
-                        ':t': Decimal(str(int(time.time()))),
-                    }
-                )
-            except Exception as hh_err:
-                logger.warning(json.dumps({
-                    'event': 'human_handoff_flag_error',
-                    'contactId': mask_contact_id(contact_id),
-                    'error': str(hh_err),
-                    'requestId': request_id
-                }))
-            logger.info(json.dumps({
-                'event': 'human_handoff_requested',
-                'contactId': mask_contact_id(contact_id),
-                'requestId': request_id
-            }))
-        elif flow_action == 'end':
-            # Rating submitted  -  nothing more to do, message already sent
-            pass
-
-        # ── Safety net: if AI returned but nothing was sent to user, send fallback ──
-        if ai_response and not ai_response.get('locked') and not ai_response.get('showLanguagePicker'):
-            suggestion_sent = ai_response.get('suggestion', '') or ai_response.get('suggestedResponse', '')
-            has_flow_action = flow_action in ('showMainMenu', 'showSubMenu', 'showOptions', 'showRating', 'sendPayment', 'sendPendingPayments', 'humanHandoff', 'end')
-            if not suggestion_sent and not has_flow_action and not ai_response.get('sendWelcomeMenu'):
-                fallback_msg = "Hi! 👋 I'm here to help. Type *menu* to see options, or just ask me anything. 😊"
-                logger.warning(json.dumps({
-                    'event': 'ai_blank_response_fallback',
-                    'contactId': mask_contact_id(contact_id),
-                    'messageId': message_id,
-                    'aiResponseKeys': list(ai_response.keys()) if ai_response else [],
-                    'requestId': request_id
-                }))
-                _send_ai_auto_reply(
-                    contact_id=contact_id,
-                    content=fallback_msg,
-                    phone_number_id=phone_number_id,
-                    request_id=request_id
-                )
-
-        # ── Audio response: if user has audioEnabled, send TTS version ──
-        if ai_response and not ai_response.get('locked') and not ai_response.get('escalate'):
-            suggestion_text = ai_response.get('suggestion', '') or ai_response.get('suggestedResponse', '')
-            if suggestion_text and len(suggestion_text) > 10:
-                try:
-                    # Load user preferences to check audioEnabled
-                    # Fix #2: Use same hash as AI handler  -  sha256(clean_phone)[:32]
-                    from hashlib import sha256
-                    clean_phone = sender_phone.replace('+', '').replace(' ', '').replace('-', '') if sender_phone else ''
-                    ph = sha256(clean_phone.encode()).hexdigest()[:32] if clean_phone else ''
-                    if ph:
-                        conv_table = dynamodb.Table(os.environ.get('CONVERSATION_HISTORY_TABLE', 'stack-wecare-digital-ConversationHistoryTable'))
-                        pref_resp = conv_table.get_item(Key={'phoneHash': ph})
-                        pref_item = pref_resp.get('Item', {})
-                        audio_enabled = pref_item.get('audioEnabled', False)
-                        user_lang = pref_item.get('preferredLanguage', 'English')
-                        if audio_enabled:
-                            _send_audio_response(
-                                contact_id=contact_id,
-                                phone_number_id=phone_number_id,
-                                text=suggestion_text,
-                                language=user_lang,
-                                request_id=request_id,
-                                sender_phone=sender_phone,
-                                sender_bsuid=sender_bsuid,
-                            )
-                except Exception as audio_err:
-                    logger.warning(json.dumps({
-                        'event': 'audio_check_error',
-                        'contactId': mask_contact_id(contact_id),
-                        'error': str(audio_err),
-                        'requestId': request_id
-                    }))
-        
-        return ai_response
-    except Exception as e:
-        logger.error(json.dumps({
-            'event': 'ai_automation_error',
-            'messageId': message_id,
-            'messageType': message_type,
-            'error': str(e),
-            'requestId': request_id
-        }))
-        # Fix #5: Send fallback message so customer doesn't get silence
-        # Fix #6: Increment circuit breaker
-        _ai_fail_count += 1
-        _ai_fail_reset_time = time.time() + AI_CIRCUIT_BREAKER_COOLDOWN
-        try:
-            _send_ai_auto_reply(
-                contact_id=contact_id,
-                content="Thanks for your message! 🙏 We're experiencing a brief delay. Please try again in a moment, or call us at +91 9330994400.",
-                phone_number_id=phone_number_id,
-                request_id=request_id
-            )
-        except Exception as e:
-            logger.warning(f'AI fallback auto-reply send failed: {e}')
-        return None
 
 
 def _invoke_ai_query_kb(query: str, message_id: str, request_id: str) -> Optional[Dict]:
