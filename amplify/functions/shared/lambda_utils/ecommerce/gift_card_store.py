@@ -46,21 +46,27 @@ a permanent `AlreadyVoided` with no operator path back. Both strands of the ledg
 and recover identically, which is the same reason payment status lives behind one module rather
 than being compared string by string in each handler.
 
-A recoverable move must also be a move that cannot happen twice, and those two flags cannot supply
-that on their own. `settled` is on the claim row and `credited` is on the transaction row, so both
-live on a DIFFERENT item from the balance and can only be written after the money has already
-moved. Failing just that second write therefore leaves a state - unsettled claim, or
-`credited: False` - that a retry cannot distinguish from "the move never ran", and re-driving on
-the strength of that read debits or credits the card a second time. So each money move also writes
-its own marker on the CARD row, in the same expression:
+A recoverable move must also be a move that cannot happen twice, and a flag on a SECOND item
+cannot supply that on its own. `settled` is on the claim row and `credited` is on the transaction
+row, so both used to be written after the money had already moved. Failing just that second write
+left a state - unsettled claim, or `credited: False` - that a retry could not distinguish from
+"the move never ran", and re-driving on the strength of that read debited or credited the card a
+second time.
 
-    ADD balancePaise :neg  SET #applied = :at      under   attribute_not_exists(#applied)
+So each money move and the flag that records it are **one `TransactWriteItems` with two `Update`
+items**:
 
-`appliedClaim#<paymentAttemptId>` for a redemption, `appliedVoid#<voidTransactionId>` for a void.
-One item, one commit, so the balance and the record of having moved it cannot diverge no matter
-where a process dies. The flags remain what make the recovery REACHABLE; the marker is what makes
-it SAFE. `_drop_applied_marker` removes each marker once its flag has landed, so the card row stays
-bounded by in-flight moves rather than by their lifetime count.
+    redeem   card:  ADD balancePaise :neg   under  balancePaise >= :amount AND #status = :active
+             claim: SET settled = :true     under  settled = :false
+
+    void     card:  ADD balancePaise :amount  under  balancePaise <= :ceiling
+             txn:   SET credited = :true      under  attribute_exists(credited) AND credited = :false
+
+One commit, so the balance and the record of having moved it cannot diverge no matter where a
+process dies, and no interleaving exists in which the money has moved and the flag has not. The
+flags remain what make the recovery REACHABLE; the transaction is what makes it SAFE. There are
+no applied-move markers any more and nothing to clean up, so a card row's size is bounded by
+construction rather than by a best-effort delete.
 
 Every access is an exact-key operation
 --------------------------------------
@@ -181,24 +187,20 @@ HOLD_CONDITION = ("attribute_not_exists(activeHoldAttemptId) "
 #: finishes paying. The authoritative single-redemption guarantee is the conditional claim put.
 HOLD_TTL_SECONDS = 900
 
-#: Attribute-NAME prefixes for the applied-move markers, written on the CARD row. Not key
-#: prefixes, and that is the whole point: a marker set by the SAME conditional `UpdateItem` that
-#: moves the balance makes the money move its own idempotency record on ONE item, so no
-#: interleaving can leave money moved with the marker unset. A marker on a second item - the
-#: claim row's `settled`, the voided transaction's `credited` - can only ever be written after
-#: the money has moved, which leaves a window where a retry replays the move.
-#:
-#: Both `_identifier` and `_transaction_id` refuse a value containing `#`, so a marker name can
-#: neither collide across the two namespaces nor be split ambiguously. The longest possible name
-#: is 141 bytes, inside DynamoDB's 255-byte attribute-name bound.
-APPLIED_CLAIM_PREFIX = "appliedClaim#"
-APPLIED_VOID_PREFIX = "appliedVoid#"
+#: Bounded retry for a transaction the database cancelled for CONTENTION rather than for a
+#: condition. Two retries, three attempts, worst case roughly 200 ms added - well inside any
+#: Lambda timeout on this path.
+TRANSACTION_ATTEMPTS = 3
+
+#: Cancellation reason codes that mean *try again*, as opposed to *the condition decided*.
+RETRYABLE_CANCELLATION_REASONS = frozenset(
+    {"TransactionConflict", "ThrottlingError", "ProvisionedThroughputExceeded"})
 
 #: Every attribute a card row may carry, per section 6.4 plus DECISION 5's three. Enumerated so a
-#: test can assert the code itself is not among them. The applied-move markers above are
-#: deliberately absent: their names are composed from an identifier, so they cannot be enumerated,
-#: and they are LOCKS rather than attributes of the card - `_drop_applied_marker` removes each one
-#: as soon as the move it guards is recorded elsewhere.
+#: test can assert the code itself is not among them. There are no applied-move markers any more:
+#: the balance move and the flag that records it commit in ONE `TransactWriteItems`, so a marker
+#: whose whole job was to make the money its own idempotency record on one item has nothing left
+#: to do. That also bounds a card row's size by construction rather than by a cleanup step.
 CARD_ATTRIBUTES = (
     KEY_ATTRIBUTE, "giftCardId", "codeLast4", "pinHash", "initialValuePaise", "balancePaise",
     "currency", STATUS_ATTRIBUTE, "issuedAtMs", "expiresAtMs", "issuedToContactId",
@@ -375,13 +377,113 @@ def _now_seconds(clock: Clock) -> int:
 
 
 def _is_conditional_failure(error: BaseException) -> bool:
-    """True only for DynamoDB's conditional-check failure, however the client spells it."""
+    """True only for DynamoDB's conditional-check failure, however the client spells it.
+
+    Left EXACTLY as it was by the transaction change. It is consulted by `_put`, `hold`,
+    `credit`, `disable`, `release` and `_delete_hold`, none of which opens a transaction, so
+    broadening it to also recognise a cancellation would only ever be correct there by accident.
+    `_is_transaction_cancellation` answers that question instead.
+    """
     if type(error).__name__ == "ConditionalCheckFailedException":
         return True
     response = getattr(error, "response", None)
     if isinstance(response, dict):
         return (response.get("Error") or {}).get("Code") == "ConditionalCheckFailedException"
     return False
+
+
+def _is_transaction_cancellation(error: BaseException) -> bool:
+    """True only for a `TransactWriteItems` cancellation, however the client spells it."""
+    if type(error).__name__ == "TransactionCanceledException":
+        return True
+    response = getattr(error, "response", None)
+    if isinstance(response, dict):
+        return (response.get("Error") or {}).get("Code") == "TransactionCanceledException"
+    return False
+
+
+def _cancellation_reason_codes(error: BaseException) -> list:
+    """The documented `CancellationReasons[].Code` list, or `[]` if the shape is absent.
+
+    botocore puts this list at the TOP LEVEL of the response, a sibling of `"Error"` - NOT
+    inside it. Reading it from `response["Error"]` yields `[]` on every real cancellation and
+    converts the main path of the transaction fix into a 5xx.
+
+    Reading a structured response field is not the banned pattern. The ban is on parsing an
+    exception's MESSAGE; `CancellationReasons[].Code` is in the same class as
+    `response["Error"]["Code"]`, which `_is_conditional_failure` already reads.
+    """
+    response = getattr(error, "response", None)
+    if not isinstance(response, dict):
+        return []
+    return [str((reason or {}).get("Code") or "")
+            for reason in (response.get("CancellationReasons") or [])]
+
+
+def _marshal(value: Any) -> Dict[str, Any]:
+    """The AttributeValue form of the three types this module's transactions carry.
+
+    Hand-written because `boto3.dynamodb.types` may not be imported here - see
+    `test_the_store_holds_no_boto3_client_and_reads_no_secret_itself`, which walks every
+    `ast.Import`/`ast.ImportFrom` in this module, so moving the import inside a function body
+    would not help either. That gate is the structural form of this module's central claim, and
+    weakening a gate to land a change is not available. Pinned byte-for-byte against
+    `TypeSerializer` by a test in `tests/`, where botocore is already a dependency.
+
+    The float refusal is the point rather than a side effect: `TypeSerializer` refuses a float
+    with `TypeError`, and `type(value) is int` additionally refuses a `Decimal` and a
+    `bool`-as-amount, which `TypeSerializer` would accept and quietly convert.
+    """
+    if isinstance(value, bool):          # BEFORE int: bool IS an int in Python
+        return {"BOOL": value}
+    if type(value) is int:               # exact type, so Decimal/float cannot slip through
+        return {"N": str(value)}
+    if isinstance(value, str):
+        return {"S": value}
+    # `GiftCardValidationError`, NOT `GiftCardStoreUnavailable`: an unmarshalable value is a
+    # programming error that recurs identically on every retry, so labelling it retriable turns
+    # one defect into a retry storm against a money path. A constant code plus prose, because
+    # `.code` is the field handlers branch on and the SPI maps through `SPI_ERRORS` - an
+    # interpolated code is unbranchable.
+    raise GiftCardValidationError(
+        "UNMARSHALABLE_VALUE", f"cannot marshal {type(value).__name__}")
+
+
+#: Module-level alias so the transaction item expressions stay readable.
+_ser = _marshal
+
+
+def _transact_with_retry(table: Any, items: list, *,
+                         sleep: Callable[[float], None] = time.sleep) -> None:
+    """The ONLY call site of `transact_write_items` in this module.
+
+    Both committers route through here, so the bounded retry, the jitter and the injected
+    sleeper exist once. A cancellation that is not a retryable conflict is re-raised UNCHANGED,
+    so the caller's decide-from-data branch is unaffected by this wrapper.
+
+    `secrets` rather than `random` for the jitter, because `random`'s PRNG state is a documented
+    SnapStart hazard in this fleet - a snapshot freezes it and every restored environment
+    produces the same sequence. The sleeper is injected so the covering test runs at full speed.
+    """
+    for attempt in range(TRANSACTION_ATTEMPTS):
+        try:
+            table.meta.client.transact_write_items(TransactItems=items)
+            return
+        except Exception as error:  # noqa: BLE001
+            if not _is_transaction_cancellation(error):
+                raise
+            reasons = set(_cancellation_reason_codes(error))
+            if not reasons & RETRYABLE_CANCELLATION_REASONS:
+                # Either a condition decided it, or the reason set is empty/unrecognised. A
+                # cancellation is by definition a condition outcome unless a reason says
+                # otherwise, so it goes back to the caller's decide-from-data branch - never
+                # reported as an outage.
+                raise
+            if attempt == TRANSACTION_ATTEMPTS - 1:
+                raise GiftCardStoreUnavailable(
+                    f"a gift-card transaction kept losing to contention after "
+                    f"{TRANSACTION_ATTEMPTS} attempts: {type(error).__name__}") from error
+            sleep(0.05 * 2 ** attempt + _secrets.randbelow(25) / 1000)
 
 
 # ── the pepper, read by reference and lazily ───────────────────────────────────
@@ -948,65 +1050,45 @@ def issue(table: Any, *, initial_value_paise: Any, pepper: str, code: Optional[s
     return {"card": item, "code": plain, "codeHash": digest}
 
 
-def credit(table: Any, *, code_hash: Any, amount_paise: Any, once_key: Optional[str] = None,
+def credit(table: Any, *, code_hash: Any, amount_paise: Any,
            clock: Clock = _default_clock) -> int:
     """Add to a balance, with the SPI ceiling asserted IN THE CONDITION.
 
     The ceiling is a condition rather than a pre-read check for the same reason the floor is: two
     concurrent credits that each pass a read-time check can together exceed it.
 
-    `once_key` makes the credit IDEMPOTENT on one item. When given, the same `UpdateItem` that
-    moves the money also writes `appliedVoid#<once_key>` under `attribute_not_exists`, so a
-    replay of the same logical credit loses the condition instead of handing the balance back
-    twice. Without it a credit is a plain addition, which is correct for a top-up - two top-ups
-    of the same size are two different events - and wrong for a void, where a retry is the SAME
-    event arriving again. `void` is the only caller that passes it.
+    A PLAIN ADDITION, and that is the only correct shape for this function. It used to take an
+    `once_key` that made the credit idempotent on one item, for the void path's benefit. That
+    parameter is gone: a genuine top-up must NOT be idempotent, because two top-ups of the same
+    size are two different events and nothing should collapse them. The void path's idempotency
+    now lives where it belongs - in `_commit_void`'s `credited = :false` condition, committed in
+    the same transaction as the money.
 
-    On a replayed credit the returned balance is the card's balance AS AT THE REPLAY, not as at
-    the original move, because the marker records that the move happened and not what it left
-    behind. The two differ only if another move interleaved, and the figure is used for a record
-    rather than for a decision.
+    SO A CALLER MUST BRING ITS OWN IDEMPOTENCY, AND HERE IS WHERE IT GOES. There is no
+    production caller today, which is what made removing `once_key` safe; a future top-up route
+    inherits a non-idempotent money function, so state the obligation rather than leave it to be
+    rediscovered. The guard belongs in the SAME `TransactWriteItems` as the balance move, as a
+    second `Update` item on a row keyed by the top-up's own event id and conditioned on
+    `attribute_not_exists` - the shape `_commit_redemption` and `_commit_void` already use, and
+    the only shape where a replay cannot move money and then fail to record that it did. A
+    pre-read "has this already happened" check in the caller is not a substitute: two concurrent
+    replays both pass it.
     """
     digest = _hash_hex(code_hash)
     amount = value_paise(amount_paise)
     now = _now_seconds(clock)
-    marker = (APPLIED_VOID_PREFIX + _transaction_id(once_key)) if once_key else ""
     try:
-        if marker:
-            # Spelled out as a second call site rather than assembled into kwargs: a `**request`
-            # splat is invisible to the access-pattern enumeration test, and an unused
-            # `ExpressionAttributeNames` entry is a DynamoDB ValidationException, so the name can
-            # only be passed on the branch that uses it.
-            updated = table.update_item(
-                Key={KEY_ATTRIBUTE: PREFIX_CARD + digest},
-                UpdateExpression="ADD balancePaise :amount SET updatedAt = :at, #applied = :at",
-                ConditionExpression=(f"attribute_exists({KEY_ATTRIBUTE}) "
-                                     "AND balancePaise <= :ceiling "
-                                     "AND attribute_not_exists(#applied)"),
-                ExpressionAttributeNames={"#applied": marker},
-                ExpressionAttributeValues={":amount": amount, ":at": now,
-                                           ":ceiling": MAX_VALUE_PAISE - amount},
-                ReturnValues="ALL_NEW",
-            ).get("Attributes") or {}
-        else:
-            updated = table.update_item(
-                Key={KEY_ATTRIBUTE: PREFIX_CARD + digest},
-                UpdateExpression="ADD balancePaise :amount SET updatedAt = :at",
-                ConditionExpression=(f"attribute_exists({KEY_ATTRIBUTE}) "
-                                     "AND balancePaise <= :ceiling"),
-                ExpressionAttributeValues={":amount": amount, ":at": now,
-                                           ":ceiling": MAX_VALUE_PAISE - amount},
-                ReturnValues="ALL_NEW",
-            ).get("Attributes") or {}
+        updated = table.update_item(
+            Key={KEY_ATTRIBUTE: PREFIX_CARD + digest},
+            UpdateExpression="ADD balancePaise :amount SET updatedAt = :at",
+            ConditionExpression=(f"attribute_exists({KEY_ATTRIBUTE}) "
+                                 "AND balancePaise <= :ceiling"),
+            ExpressionAttributeValues={":amount": amount, ":at": now,
+                                       ":ceiling": MAX_VALUE_PAISE - amount},
+            ReturnValues="ALL_NEW",
+        ).get("Attributes") or {}
     except Exception as error:  # noqa: BLE001
         if _is_conditional_failure(error):
-            if marker:
-                card = get_card(table, code_hash=digest)
-                if card is not None and marker in card:
-                    # This credit ALREADY LANDED and only the bookkeeping that follows it failed.
-                    # Reported as the success it was, because the alternative - raising, or
-                    # re-driving the addition - is the double credit this marker exists to stop.
-                    return int(card.get("balancePaise") or 0)
             raise GiftCardValidationError(
                 "BALANCE_CEILING_EXCEEDED",
                 f"a balance may not exceed {MAX_VALUE_PAISE} paise, the SPI maximum") from None
@@ -1171,35 +1253,51 @@ def bind_wix_order(table: Any, *, wix_order_id: Any, attempt_id: Any,
 
 def redeem(table: Any, *, code_hash: Any, attempt_id: Any, amount_paise: Any,
            source: str = SOURCE_OURS, reference_id: str = "", wix_order_id: str = "",
-           clock: Clock = _default_clock) -> Dict[str, Any]:
+           clock: Clock = _default_clock,
+           sleep: Callable[[float], None] = time.sleep) -> Dict[str, Any]:
     """Move balance, exactly once per `(codeHash, paymentAttemptId)`.
 
-    ORDER IS LOAD-BEARING, and it is: claim, then decrement, then the transaction records.
+    ORDER IS LOAD-BEARING: claim, then ONE TRANSACTION that moves the balance and settles the
+    claim together, then the ledger records.
 
     1. `GCORDER#<codeHash>#<paymentAttemptId>` is a conditional put with
        `attribute_not_exists(giftCardKey)`, written BEFORE the balance moves and carrying the
        `transactionId` of the redemption that won. A replay loses the put, reads the winning row
        and returns that same `transactionId` with the balance untouched.
-    2. The decrement is a single atomic `ADD balancePaise :neg` under
-       `ConditionExpression balancePaise >= :amount`. A read-then-write would let two concurrent
-       redemptions both pass a `balance >= amount` check and overdraw the card.
+    2. The balance move and the claim's `settled` flag are **two `Update` items in one
+       `TransactWriteItems`**: the card under `balancePaise >= :amount AND #status = :active`,
+       the claim under `settled = :false`. A read-then-write would let two concurrent
+       redemptions both pass a `balance >= amount` check and overdraw the card; two separate
+       writes would leave a window in which the money has moved and the claim is unsettled, and
+       a retry arriving in that window used to debit the card a second time for one
+       `paymentAttemptId`.
 
-    The claim is written UNSETTLED and marked settled by the decrement, which is what makes an
-    insufficient balance recoverable: a retry finds an unsettled claim and re-attempts the
-    decrement rather than reporting a redemption that never moved money. The claim row is never
-    deleted, so the window cannot be closed by removing evidence.
+    `settled = :false` IS the idempotency guard, and it now commits with the money. A racing
+    second redemption fails that condition, the whole transaction is cancelled, nothing moves,
+    and it takes the replay branch. The guarantee no longer depends on any marker's lifetime, so
+    there is no `appliedClaim#` and nothing to clean up.
 
-    `settled` lives on the claim row, so it can only be written AFTER the money has moved, and a
-    retry that re-reads it cannot tell "the decrement never ran" from "the decrement ran and the
-    settle write failed". That is why the decrement carries its own marker on the CARD row, set
-    in the same expression as the balance move: the retry is still free to re-drive, and the
-    re-drive now loses a condition instead of debiting the card a second time for one
-    `paymentAttemptId`. The claim row makes the REQUEST idempotent; the marker makes the MONEY
-    idempotent, and only the second one is on the item the money is on.
+    The ordinary duplicate is answered EARLIER and more cheaply, by the pre-read: the conditional
+    claim put loses, the existing claim is read, and a `settled` claim returns the replay answer
+    with no transaction opened at all. The transaction's conditions are the CONCURRENCY
+    RE-CHECK, not the primary decision.
+
+    INVARIANT, because this figure is customer-visible - the SPI emits it as
+    `remainingBalance`, which is what Wix shows and settles against:
+
+        `remainingBalancePaise` and `GCTXN#.balanceAfterPaise` are the card's balance **as at
+        the read that followed the commit**, which may already include a later interleaved move.
+        They are observations, not the result of this transaction. `TransactWriteItems` returns
+        no `ALL_NEW`, so an exact post-this-transaction figure is not obtainable. The figure
+        that IS exact is `amountPaise`, and the authoritative balance is always a fresh
+        consistent read of the card row.
 
     `source` records whether this was ours or a Wix `/v1/redeem`. Section 1.3 predicts `WIX_SPI`
     never appears, so its appearance is the detector for that prediction being wrong, and
     `wecare-gift-card-wix-spi-redemption` alarms on a single occurrence.
+
+    `sleep` is injected for the bounded retry inside `_transact_with_retry`, exactly as `clock`
+    is injected, so the covering test runs at full speed. No production caller passes it.
     """
     digest = _hash_hex(code_hash)
     attempt = _identifier(attempt_id, "INVALID_ATTEMPT_ID")
@@ -1245,12 +1343,21 @@ def redeem(table: Any, *, code_hash: Any, attempt_id: Any, amount_paise: Any,
         # Re-driven under the SAME transaction id, so a retry cannot mint a second one. The amount
         # is already known to match, by the conflict check above.
 
-    balance_after = _decrement(table, digest=digest, amount=amount, attempt=attempt, now=now)
-    _mark_settled(table, claim_row_key, balance_after=balance_after, now=now)
-    # The decrement's own marker has done its job: `settled` now short-circuits the replay before
-    # it reaches the money move at all. Dropped so the card row cannot grow one attribute per
-    # redemption for the life of the card.
-    _drop_applied_marker(table, digest, APPLIED_CLAIM_PREFIX + attempt)
+    balance_after, committed = _commit_redemption(
+        table, digest=digest, claim_row_key=claim_row_key, amount=amount, attempt=attempt,
+        now=now, sleep=sleep)
+    if not committed:
+        # A concurrent redemption under this same attempt won. It owns the ledger rows; writing
+        # them from here would be a second `GCTXN#` for one money move. Answered exactly as the
+        # ordinary settled replay is, from the claim row the winner settled.
+        settled_claim = _get(table, claim_row_key) or {}
+        card = get_card(table, code_hash=digest) or {}
+        return {"committed": False,
+                "transactionId": str(settled_claim.get("transactionId") or transaction_id),
+                "remainingBalancePaise": balance_after,
+                "codeLast4": str(card.get("codeLast4") or ""),
+                "paymentAttemptId": attempt}
+    _record_balance_after(table, claim_row_key, balance_after=balance_after, now=now)
 
     record = {
         KEY_ATTRIBUTE: PREFIX_TRANSACTION + digest + "#" + transaction_id,
@@ -1274,125 +1381,162 @@ def redeem(table: Any, *, code_hash: Any, attempt_id: Any, amount_paise: Any,
             "amountPaise": amount, "source": source}
 
 
-def _decrement(table: Any, *, digest: str, amount: int, attempt: str, now: int) -> int:
-    """The one atomic balance move, and it gates on the BALANCE rather than on the claim.
+def _commit_redemption(table: Any, *, digest: str, claim_row_key: str, amount: int,
+                       attempt: str, now: int,
+                       sleep: Callable[[float], None] = time.sleep) -> tuple:
+    """The balance move and the claim's settle, as ONE `TransactWriteItems`. Two `Update` items.
 
-    Deliberately NOT conditioned on `activeClaimAttemptId`: a second, genuinely different purchase
-    of the same card SHOULD deduct again, and the claim row is what makes a REPLAY idempotent. The
-    `AlreadyRedeemed` refusal is a different rule with a different owner - it applies only to a
-    WIX-originated `/v1/redeem`, is decided in the SPI handler through `reserved_by`, and exists
-    because our `paymentAttemptId` and Wix's `orderId` are not comparable. Folding it in here would
-    make a customer's second purchase refuse.
+    Returns `(balance_after, committed)`. `committed` is `False` when this call lost the race to
+    a CONCURRENT redemption under the same `paymentAttemptId` - the transaction was cancelled on
+    `settled = :false` and the money moved exactly once, but it was not moved by us. Returning a
+    bare balance here would let both racing callers answer `committed: True`, which is two
+    callers each believing they moved money that moved once: a self-consistent ledger saying
+    something false, which is the failure class this whole section exists to remove.
+
+    The card item gates on the BALANCE rather than on the claim, deliberately: a second,
+    genuinely different purchase of the same card SHOULD deduct again, and the claim row is what
+    makes a REPLAY idempotent. The `AlreadyRedeemed` refusal is a different rule with a
+    different owner - it applies only to a WIX-originated `/v1/redeem`, is decided in the SPI
+    handler through `reserved_by`, and exists because our `paymentAttemptId` and Wix's `orderId`
+    are not comparable. Folding it in here would make a customer's second purchase refuse.
 
     `activeHoldAttemptId` is set through `if_not_exists` so a Wix-originated redemption with no
-    prior hold still leaves the card reading as spoken-for to the NEXT `/v1/redeem` - which is what
-    makes that refusal a single `GetItem` rather than a prefix query.
+    prior hold still leaves the card reading as spoken-for to the NEXT `/v1/redeem` - which is
+    what makes that refusal a single `GetItem` rather than a prefix query.
 
-    It also writes `appliedClaim#<attempt>` under `attribute_not_exists`, in THIS expression, and
-    that is what makes the move happen exactly once per attempt rather than merely once per
-    request that gets this far. The claim row's `settled` flag is a second item, so it can only be
-    written after the money has already moved; failing only that write used to leave the claim
-    unsettled with the balance already down, and the retry re-drove the decrement and debited the
-    card twice for one `paymentAttemptId`. `balancePaise >= :amount` stops an OVERDRAW, not a
-    second deduction while funds remain. The marker is on the same item as the balance, so the two
-    cannot diverge.
+    The claim item's `settled = :false` is the money's idempotency guard, and it commits in the
+    same transaction as the balance. `balancePaise >= :amount` stops an OVERDRAW; `settled =
+    :false` stops a SECOND DEDUCTION for one `paymentAttemptId`. Before they were one
+    transaction the second guard lived on a second item, so it could only be written after the
+    money had already moved, and a retry arriving in that window debited twice.
 
-    `activeClaimAttemptId = :me` could not do this job: the next attempt's decrement overwrites
-    it, so a stalled retry arriving after another purchase would find its own id gone and deduct
-    again. The marker is keyed on the attempt and nothing overwrites it.
+    `TransactWriteItems` is a CLIENT operation, so this is the real boto3 shape:
+    AttributeValue-typed maps through `_marshal`, with `TableName=table.name`. There is no
+    fake-shaped branch - the test fake supplies `.name` and `.meta.client`.
     """
-    marker = APPLIED_CLAIM_PREFIX + attempt
+    card_item = {"Update": {
+        "TableName": table.name,
+        "Key": {KEY_ATTRIBUTE: _ser(PREFIX_CARD + digest)},
+        "UpdateExpression": ("ADD balancePaise :neg SET updatedAt = :at, "
+                             "activeClaimAttemptId = :me, "
+                             "activeHoldAttemptId = if_not_exists(activeHoldAttemptId, :me)"),
+        "ConditionExpression": (f"attribute_exists({KEY_ATTRIBUTE}) AND balancePaise >= :amount "
+                                "AND #status = :active"),
+        "ExpressionAttributeNames": {"#status": STATUS_ATTRIBUTE},
+        "ExpressionAttributeValues": {":neg": _ser(-amount), ":amount": _ser(amount),
+                                      ":me": _ser(attempt), ":at": _ser(now),
+                                      ":active": _ser(STATUS_ACTIVE)},
+    }}
+    claim_item = {"Update": {
+        "TableName": table.name,
+        "Key": {KEY_ATTRIBUTE: _ser(claim_row_key)},
+        "UpdateExpression": "SET settled = :true, settledAt = :at",
+        "ConditionExpression": f"attribute_exists({KEY_ATTRIBUTE}) AND settled = :false",
+        "ExpressionAttributeValues": {":true": _ser(True), ":false": _ser(False),
+                                      ":at": _ser(now)},
+    }}
     try:
-        updated = table.update_item(
-            Key={KEY_ATTRIBUTE: PREFIX_CARD + digest},
-            UpdateExpression=("ADD balancePaise :neg "
-                              "SET activeClaimAttemptId = :me, updatedAt = :at, "
-                              "activeHoldAttemptId = if_not_exists(activeHoldAttemptId, :me), "
-                              "#applied = :at"),
-            ConditionExpression=(f"attribute_exists({KEY_ATTRIBUTE}) "
-                                 "AND balancePaise >= :amount "
-                                 "AND #status = :active "
-                                 "AND attribute_not_exists(#applied)"),
-            ExpressionAttributeNames={"#status": STATUS_ATTRIBUTE, "#applied": marker},
-            ExpressionAttributeValues={":neg": -amount, ":amount": amount, ":me": attempt,
-                                       ":at": now, ":active": STATUS_ACTIVE},
-            ReturnValues="ALL_NEW",
-        ).get("Attributes") or {}
+        _transact_with_retry(table, [card_item, claim_item], sleep=sleep)
+    except GiftCardStoreUnavailable:
+        raise
     except Exception as error:  # noqa: BLE001
-        if _is_conditional_failure(error):
+        if _is_transaction_cancellation(error):
+            # Decide from the data, by exact key. A cancellation whose reasons are empty or
+            # unrecognised arrives here too, by `_transact_with_retry`'s own fallback rule: a
+            # cancellation is a condition outcome unless a reason says otherwise, and reporting
+            # a successful replay detection as an outage is the wrong failure.
+            claim = _get(table, claim_row_key) or {}
             card = get_card(table, code_hash=digest)
-            if card is not None and marker in card:
-                # This attempt's decrement ALREADY LANDED; only the settle that follows it failed.
-                # Answered with the current balance so the caller can finish the bookkeeping,
-                # BEFORE `assert_spendable`, because a card disabled or expired since the move
-                # does not un-move the money - and because re-driving would be the double debit.
-                return int(card.get("balancePaise") or 0)
+            if claim.get("settled"):
+                # Lost the race to a concurrent redemption under the SAME attempt. The money
+                # moved exactly once and it was not us, so this is the replay answer.
+                return int((card or {}).get("balancePaise") or 0), False
             assert_spendable(card, now_ms=now * 1000)
             raise InsufficientFunds("this gift card does not hold that much") from None
         raise GiftCardStoreUnavailable(
             f"could not move a gift-card balance: {type(error).__name__}") from error
-    return int(updated.get("balancePaise") or 0)
+    card = get_card(table, code_hash=digest) or {}
+    return int(card.get("balancePaise") or 0), True
 
 
-def _drop_applied_marker(table: Any, digest: str, marker: str) -> None:
-    """Remove one applied-move marker from the card row. BEST EFFORT, and deliberately silent.
+def _commit_void(table: Any, *, digest: str, transaction_key: str, amount: int, now: int,
+                 sleep: Callable[[float], None] = time.sleep) -> int:
+    """The void twin of `_commit_redemption`. The credit and its flag, as ONE transaction.
 
-    The marker is a LOCK, not a record - the `GCTXN#` transaction row is the record. Once the
-    claim reads `settled` (or the voided transaction reads `credited`), the replay short-circuits
-    before it reaches the money move, so nothing consults the marker again. Dropping it keeps the
-    card row bounded by the number of IN-FLIGHT moves instead of by the lifetime count of them,
-    which matters because a DynamoDB item is capped at 400 KB and a card row that cannot be
-    written is a liability that cannot be paid.
+    `attribute_exists(credited)` is written EXPLICITLY and is not redundant. A bare
+    `credited = :false` already fails when the attribute is absent, so the two conditions accept
+    the same set - but they are not diagnosable the same way. With `attribute_exists` named, the
+    post-cancellation read can distinguish *absent* from *`True`* and answer each correctly;
+    without it, "absent" matches no row, falls through to `GiftCardStoreUnavailable`, and every
+    retry cancels again - so a card whose void predates the flag becomes PERMANENTLY
+    UN-VOIDABLE. That is the mirror image of the irreversibility the uncredited-latch retry
+    exists to prevent.
+    """
+    card_item = {"Update": {
+        "TableName": table.name,
+        "Key": {KEY_ATTRIBUTE: _ser(PREFIX_CARD + digest)},
+        "UpdateExpression": "ADD balancePaise :amount SET updatedAt = :at",
+        "ConditionExpression": (f"attribute_exists({KEY_ATTRIBUTE}) "
+                                "AND balancePaise <= :ceiling"),
+        "ExpressionAttributeValues": {":amount": _ser(amount), ":at": _ser(now),
+                                      ":ceiling": _ser(MAX_VALUE_PAISE - amount)},
+    }}
+    transaction_item = {"Update": {
+        "TableName": table.name,
+        "Key": {KEY_ATTRIBUTE: _ser(transaction_key)},
+        "UpdateExpression": "SET credited = :true, creditedAt = :at",
+        "ConditionExpression": (f"attribute_exists({KEY_ATTRIBUTE}) "
+                                "AND attribute_exists(credited) AND credited = :false"),
+        "ExpressionAttributeValues": {":true": _ser(True), ":false": _ser(False),
+                                      ":at": _ser(now)},
+    }}
+    try:
+        _transact_with_retry(table, [card_item, transaction_item], sleep=sleep)
+    except GiftCardStoreUnavailable:
+        raise
+    except Exception as error:  # noqa: BLE001
+        if _is_transaction_cancellation(error):
+            original = _get(table, transaction_key) or {}
+            card = get_card(table, code_hash=digest)
+            if card is None:
+                raise GiftCardNotFound("no such gift card") from None
+            if original.get("credited") is not False:
+                # Either already credited, or latched by code predating the flag. Reachable here
+                # only through a race, since the pre-read answers the ordinary duplicate.
+                raise AlreadyVoided("this transaction was already voided") from None
+            raise GiftCardValidationError(
+                "BALANCE_CEILING_EXCEEDED",
+                f"a balance may not exceed {MAX_VALUE_PAISE} paise, the SPI maximum") from None
+        raise GiftCardStoreUnavailable(
+            f"could not return a gift-card balance: {type(error).__name__}") from error
+    card = get_card(table, code_hash=digest) or {}
+    return int(card.get("balancePaise") or 0)
 
-    A failure here is swallowed, and that is the point rather than a shortcut: it leaves a stale
-    attribute, changes no decision, and the alternative is reporting a money move that succeeded
-    as a failure. A marker left behind by a process that died here is harmless for the same
-    reason - the move it guarded is already recorded.
+
+def _record_balance_after(table: Any, row_key: str, *, balance_after: int, now: int,
+                          attribute: str = "balanceAfterPaise") -> None:
+    """The post-commit balance, as a BEST-EFFORT follow-up `UpdateItem`.
+
+    It cannot go inside the transaction, because `TransactWriteItems` has no
+    `ReturnValues: ALL_NEW`. Nothing reads it to make a decision - every site that touches
+    `balanceAfterPaise` is a write - so if this fails the claim is still settled and the money
+    has still moved exactly once. Swallowed deliberately: the alternative is reporting a money
+    move that succeeded as a failure.
     """
     try:
         table.update_item(
-            Key={KEY_ATTRIBUTE: PREFIX_CARD + digest},
-            UpdateExpression="REMOVE #applied",
+            Key={KEY_ATTRIBUTE: row_key},
+            UpdateExpression="SET #observed = :balance, observedAt = :at",
             ConditionExpression=f"attribute_exists({KEY_ATTRIBUTE})",
-            ExpressionAttributeNames={"#applied": marker},
+            ExpressionAttributeNames={"#observed": attribute},
+            ExpressionAttributeValues={":balance": balance_after, ":at": now},
         )
     except Exception:  # noqa: BLE001
         return
 
 
-def _mark_settled(table: Any, claim_row_key: str, *, balance_after: int, now: int) -> None:
-    try:
-        table.update_item(
-            Key={KEY_ATTRIBUTE: claim_row_key},
-            UpdateExpression="SET settled = :true, balanceAfterPaise = :balance, settledAt = :at",
-            ConditionExpression=f"attribute_exists({KEY_ATTRIBUTE})",
-            ExpressionAttributeValues={":true": True, ":balance": balance_after, ":at": now},
-        )
-    except Exception as error:  # noqa: BLE001
-        raise GiftCardStoreUnavailable(
-            f"could not settle a gift-card claim: {type(error).__name__}") from error
-
-
-def _mark_credited(table: Any, transaction_key: str, *, balance_after: int, now: int) -> None:
-    """`credited = True` on the voided redemption, written only AFTER the balance returned.
-
-    `_mark_settled` for the void path, and the ordering is the same: the flag follows the money,
-    so the one thing it can never say is that a credit landed when it did not.
-    """
-    try:
-        table.update_item(
-            Key={KEY_ATTRIBUTE: transaction_key},
-            UpdateExpression=("SET credited = :true, voidBalanceAfterPaise = :balance, "
-                              "creditedAt = :at"),
-            ConditionExpression=f"attribute_exists({KEY_ATTRIBUTE})",
-            ExpressionAttributeValues={":true": True, ":balance": balance_after, ":at": now},
-        )
-    except Exception as error:  # noqa: BLE001
-        raise GiftCardStoreUnavailable(
-            f"could not record a gift-card void credit: {type(error).__name__}") from error
-
-
-def void(table: Any, *, transaction_id: Any, clock: Clock = _default_clock) -> Dict[str, Any]:
+def void(table: Any, *, transaction_id: Any, clock: Clock = _default_clock,
+         sleep: Callable[[float], None] = time.sleep) -> Dict[str, Any]:
     """Reverse one redemption, resolved from the transaction id ALONE.
 
     `VoidRequest` carries no `code`, so this walks `GCTXNID#<transactionId>` to the card and - per
@@ -1417,14 +1561,18 @@ def void(table: Any, *, transaction_id: Any, clock: Clock = _default_clock) -> D
     credit landed, and re-driving a credit that already happened would hand the balance back
     twice. Only an explicit `False` - which only this function writes - re-drives.
 
-    And the re-drive is safe to take at face value because the credit carries `once_key=void_id`,
-    which puts its idempotency marker on the CARD row in the same expression as the money. The
-    `credited` flag alone is sound in one direction only - it can never claim a credit landed when
-    it did not - so `credited: False` covers both "the credit never ran" and "the credit ran and
-    this write failed". A read-modify-write that replayed the balance move on the strength of that
-    read is exactly the double credit the guard-before-credit ordering exists to prevent, reached
-    by retry instead of by race. The marker decides it on the item that holds the balance, so the
-    flag no longer has to.
+    And the re-drive is safe to take at face value because the credit and the `credited` flag
+    commit in ONE `TransactWriteItems` (`_commit_void`), under `credited = :false`. The flag
+    alone is sound in one direction only - it can never claim a credit landed when it did not -
+    so `credited: False` used to cover both "the credit never ran" and "the credit ran and this
+    write failed", and a retry on the strength of that read handed the balance back twice. With
+    both in one transaction there is no second state to distinguish: either the money came back
+    and the flag is `True`, or neither happened.
+
+    The ordinary duplicate is answered by the PRE-READ below, with no transaction opened - one
+    condition cheaper than opening a conditional transaction only to cancel it. The
+    transaction's conditions are the concurrency re-check for a second `void()` that commits
+    between this one's pre-read and its transaction.
     """
     pointer = resolve_transaction(table, transaction_id=transaction_id)
     digest = _hash_hex(pointer["codeHash"])
@@ -1462,16 +1610,12 @@ def void(table: Any, *, transaction_id: Any, clock: Clock = _default_clock) -> D
                 f"could not void a gift-card transaction: {type(error).__name__}") from error
 
     amount = int(original.get("amountPaise") or 0)
-    # `once_key=void_id`, which is stable across retries because an uncredited latch is re-driven
-    # under the void id read back off the latch. That is what makes the credit and its marker one
-    # commit on one item: `credited` is on the TRANSACTION row, so it can only be written after
-    # the money has come back, and failing only that write used to leave `credited: False` with
-    # the balance already returned - a state the retry branch above cannot distinguish from "the
-    # credit never ran", so it re-drove the credit and handed the balance back twice.
-    balance_after = credit(table, code_hash=digest, amount_paise=amount, once_key=void_id,
-                           clock=clock)
-    _mark_credited(table, original_key, balance_after=balance_after, now=now)
-    _drop_applied_marker(table, digest, APPLIED_VOID_PREFIX + void_id)
+    # One transaction: the balance comes back and `credited` flips together, so there is no
+    # window in which the money has returned and the flag still reads `False`.
+    balance_after = _commit_void(table, digest=digest, transaction_key=original_key,
+                                 amount=amount, now=now, sleep=sleep)
+    _record_balance_after(table, original_key, balance_after=balance_after, now=now,
+                          attribute="voidBalanceAfterPaise")
     _put(table, {KEY_ATTRIBUTE: PREFIX_TRANSACTION + digest + "#" + void_id,
                  "kind": KIND_VOID, "codeHash": digest, "transactionId": void_id,
                  "paymentAttemptId": pointer["paymentAttemptId"], "amountPaise": amount,
@@ -1488,7 +1632,6 @@ def void(table: Any, *, transaction_id: Any, clock: Clock = _default_clock) -> D
 
 
 __all__ = [
-    "APPLIED_CLAIM_PREFIX", "APPLIED_VOID_PREFIX",
     "AlreadyRedeemed", "AlreadyVoided", "CARD_ATTRIBUTES", "CLAIM_ATTEMPT_ATTRIBUTE",
     "CODE_ALPHABET", "CODE_LENGTH", "CODE_PATTERN", "CURRENCY", "CurrencyNotSupported",
     "DEFAULT_TABLE_NAME", "GiftCardDisabled", "GiftCardError", "GiftCardExpired",

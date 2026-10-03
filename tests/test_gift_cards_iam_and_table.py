@@ -309,6 +309,39 @@ def test_the_spi_role_has_no_delete_item(roles):
         "both functions reach an attempt only by its exact paymentAttemptId")
 
 
+def test_the_ledger_statements_grant_exactly_what_the_store_needs_and_no_more(roles):
+    """The two ledger grants, pinned to an EXACT action set, so a widening must be deliberate.
+
+    The ledger was pinned by nothing before this: the existing exact-action assertion covers
+    `AdvanceGiftCardStageOnAPaymentAttempt` on **PaymentAttemptsTable**, not on
+    `GiftCardsTable`.
+
+    NO IAM CHANGE IS NEEDED for the two-item `TransactWriteItems` the store now uses, and this
+    test is where that is recorded rather than assumed. `TransactWriteItems` is authorized
+    through its ITEMS' actions, so two `Update` items need `dynamodb:UpdateItem` - which both
+    roles already grant. `dynamodb:ConditionCheckItem` is required only for a `ConditionCheck`
+    item, and this transaction has none; `assert_transaction_items_are_exact_key_updates` in
+    `tests/test_gift_card_store.py` is what keeps it that way. There is no
+    `dynamodb:TransactWriteItems` action to grant - the API is not its own permission.
+    """
+    ledger = {
+        "GiftCardLedger": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
+                           "dynamodb:DeleteItem", "dynamodb:Query"],
+        "GiftCardLedgerNoDelete": ["dynamodb:GetItem", "dynamodb:PutItem",
+                                   "dynamodb:UpdateItem", "dynamodb:Query"],
+    }
+    statements = (roles.gift_cards_policy()["Statement"] + roles.spi_policy()["Statement"])
+    found = {statement["Sid"]: statement["Action"] for statement in statements
+             if statement.get("Sid") in ledger}
+    assert set(found) == set(ledger), f"expected both ledger statements, found {sorted(found)}"
+    for sid, expected in ledger.items():
+        assert found[sid] == expected, (
+            f"{sid} grants {found[sid]}; a widening here is a deliberate edit, because this "
+            f"role reaches a liability ledger")
+    assert "dynamodb:ConditionCheckItem" not in found["GiftCardLedger"]
+    assert "dynamodb:ConditionCheckItem" not in found["GiftCardLedgerNoDelete"]
+
+
 def test_no_wildcard_was_added_to_the_shared_lambda_role(roles):
     """`wecare-digital-lambda-role` is attached to ~65 functions. A statement added there would
     grant every one of them access to a liability ledger.
