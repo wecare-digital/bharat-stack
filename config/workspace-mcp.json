@@ -92,7 +92,7 @@
       "endpoint": "https://mcp.facebook.com/ads",
       "clientId": "2238810740192680",
       "clientMode": "existing-meta-app",
-      "loginConfigId": "",
+      "loginConfigId": "1718783392517600",
       "scopes": [
         "ads_read",
         "business_management",
