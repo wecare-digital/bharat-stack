@@ -1039,7 +1039,10 @@ html,body{margin:0;background:#fff}
    and the related heading use - and a mock that renders it in sentence case
    simply does not match the site. The declaration is ported.
    ========================================================================= */
-.vl-contribute{padding-top:24px;border-top:1px solid var(--hair)}
+/* .vl-contribute's separator rule was DELETED: padding-top:24px;border-top were
+   fully shadowed by the more-specific `.vl-app-left > .vl-section` rule with
+   identical values, so it did nothing. Removed per the file's "unused rules are
+   deleted" convention. The class name stays on the <section> as a block marker. */
 .vl-bc-title{
   margin:0 0 12px;font-size:12px;font-weight:700;line-height:1.2;
   letter-spacing:.08em;text-transform:uppercase;color:var(--ink-muted);
@@ -1622,6 +1625,15 @@ html,body{margin:0;background:#fff}
       </section>
       <section class="vl-section vl-contribute" aria-labelledby="vl-bc-title">
         <h2 class="vl-bc-title" id="vl-bc-title">Contribute</h2>
+        <!-- COPY IS OWNER-SET FOR THIS MOCK (2026-10-03), NOT the shipped sentence.
+             The shipped BlogContribution.tsx:162-165 reads "If this article was useful,
+             you can make a small voluntary contribution to support more independent
+             writing and practical guides from WECARE.DIGITAL." - which is blog-specific
+             and does not fit a VayuLok air-quality page. The owner supplied this exact
+             replacement sentence; it is reproduced verbatim (not invented), so the
+             file's no-invented-copy rule holds. The apostrophe is U+2019 (&#8217;) and
+             must render curly. For the SITE to follow this mock, BlogContribution.tsx
+             would change too - that is not authorised here. -->
         <p class="vl-bc-copy">
           If you found this useful, you&#8217;re welcome to make a small voluntary contribution.
         </p>
@@ -1678,13 +1690,15 @@ html,body{margin:0;background:#fff}
       </section>
       <!-- ===== SHARE - ROLE 10, mirrors src/components/ShareLinks.tsx ======
            It is a .vl-section sibling, which is what draws the SECOND hairline
-           divider: .vl-app-left > .vl-section already carries
-           margin-top:56px;padding-top:40px;border-top:1px solid var(--hair), so
+           divider: .vl-app-left > .vl-section carries
+           margin-top:44px;padding-top:24px;border-top:1px solid var(--hair), so
            Subscribe / Contribute / Share come out in screenshot order with two
-           dividers between them and NO new layout rule. The shipped .post-share
-           rhythm (44px/24px) is deliberately not ported - this column owns its own
-           vertical spacing, and two competing rhythms in one column is the defect,
-           not the fidelity.
+           dividers between them and NO new layout rule. That 44px/24px rhythm IS
+           the shipped one, ported verbatim: .bc (BlogContribution.tsx:253-254) and
+           .post-share ([slug].tsx:787) both declare margin-top:44px;padding-top:24px;
+           border-top:1px solid #e5e7eb, and #e5e7eb is var(--hair). The column's
+           earlier invented 56px/40px rhythm was replaced with the shipped one so the
+           mock and the live page share one vertical spacing, not two.
            NO HEADING, mirroring the shipped <div className="post-share"><ShareLinks/></div>:
            the SHARE eyebrow beside the icons is the label for the group.
            is-native and is-clip are HARD-CLASSED - see the SHARE CSS block. -->

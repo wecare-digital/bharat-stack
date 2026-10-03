@@ -742,6 +742,22 @@ const run = async ( browser, mock ) => {
     record( scope, 'the last chip is "Other"',
       amounts.faces.length === 4 && amounts.faces[ 3 ].text === 'Other',
       amounts.faces.length ? amounts.faces[ 3 ].text : 'none' );
+    /* THE POSITIVE CLAIM: the three owner-set faces are exactly Rs50 / Rs200 / Rs400 in
+       order, and Rs50 is the checked one. Without this the suite proved only what the
+       amounts are NOT (not 99/249/499) and the chip count, so the values could silently
+       drift to any other number and still report green. The owner set these on
+       2026-10-03; they deliberately diverge from CONTRIBUTION_PRESETS_PAISE (Rs200/400/600). */
+    const EXPECTED_FACES = [ '\u20B950', '\u20B9200', '\u20B9400' ];
+    for ( let i = 0; i < EXPECTED_FACES.length; i++ ) {
+      record( scope, `amount chip ${ i + 1 } face is ${ EXPECTED_FACES[ i ] }`,
+        amounts.faces.length === 4 && amounts.faces[ i ].text === EXPECTED_FACES[ i ],
+        amounts.faces.length ? amounts.faces[ i ].text : 'none' );
+    }
+    record( scope, 'the checked amount value is 50',
+      amounts.checkedValue === '50', `${ amounts.checkedValue }` );
+    record( scope, 'the checked amount face is \u20B950',
+      amounts.checkedFace && amounts.checkedFace.text === '\u20B950',
+      amounts.checkedFace ? amounts.checkedFace.text : 'none' );
     /* THE NEGATIVE CLAIM: none of the mock's old invented amounts survives, as a face
        text or as a radio value. */
     const facesText = amounts.faces.map( f => f.text );
