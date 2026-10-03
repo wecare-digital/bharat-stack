@@ -240,14 +240,14 @@ const BlogSubscribe: React.FC = () => {
                     disabled={ phoneStep === 'verifying' }
                   />
                   <button type="button" onClick={ verifyPhone } disabled={ phoneStep === 'verifying' }>
-                    { phoneStep === 'verifying' ? 'Checking…' : 'Verify' }
+                    { phoneStep === 'verifying' ? 'Checking…' : 'Verify WhatsApp OTP' }
                   </button>
                 </>
               ) : phoneStep === 'verified' ? (
                 <span className="verified">✓ WhatsApp verified</span>
               ) : (
                 <button type="button" onClick={ requestPhone } disabled={ phoneStep === 'sending' || !phoneValid }>
-                  { phoneStep === 'sending' ? 'Sending…' : 'Send code' }
+                  { phoneStep === 'sending' ? 'Sending…' : 'Send OTP on WhatsApp' }
                 </button>
               ) }
             </div>
@@ -278,14 +278,14 @@ const BlogSubscribe: React.FC = () => {
                     disabled={ emailStep === 'verifying' }
                   />
                   <button type="button" onClick={ verifyEmail } disabled={ emailStep === 'verifying' }>
-                    { emailStep === 'verifying' ? 'Checking…' : 'Verify' }
+                    { emailStep === 'verifying' ? 'Checking…' : 'Verify email code' }
                   </button>
                 </>
               ) : emailStep === 'verified' ? (
                 <span className="verified">✓ Email verified</span>
               ) : (
                 <button type="button" onClick={ requestEmail } disabled={ emailStep === 'sending' || !emailValid }>
-                  { emailStep === 'sending' ? 'Sending…' : 'Send code' }
+                  { emailStep === 'sending' ? 'Sending…' : 'Send verification code by email' }
                 </button>
               ) }
             </div>
@@ -326,22 +326,23 @@ const BlogSubscribe: React.FC = () => {
           font-size:12px;font-weight:700;letter-spacing:.01em;color:#1a3a2a
         }
         .blog-subscribe-cell>input,.verify-row .otp{
-          min-height:52px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:10px;
+          min-height:52px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:999px;
           padding:0 14px;background:#fff;color:#1a1a1a;font:inherit;font-size:16px;outline:none
         }
         .blog-subscribe-cell>input:focus-visible,.verify-row .otp:focus-visible{
           outline:3px solid #1a3a2a;outline-offset:2px;border-color:#1a3a2a
         }
         .phone-cell :global(.pf){margin-bottom:0}
-        .verify-row{display:flex;align-items:center;gap:8px;min-height:32px}
+        .verify-row{display:flex;align-items:center;gap:8px;min-height:44px;flex-wrap:wrap}
         .verify-row button{
-          min-height:32px;padding:0 12px;border:1px solid #1a3a2a;border-radius:999px;
-          background:#fff;color:#1a3a2a;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap
+          min-height:44px;padding:0 16px;border:2px solid #1a3a2a;border-radius:999px;
+          background:#d1f470;color:#1a3a2a;font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;
+          transition:background-color .2s,transform .2s,box-shadow .2s
         }
-        .verify-row button:hover:not(:disabled){background:#d1f470}
-        .verify-row button:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
-        .verify-row button:disabled{opacity:.55;cursor:default}
-        .verify-row .otp{min-height:32px;width:92px;font-size:14px;padding:0 10px}
+        .verify-row button:hover:not(:disabled){background:#fff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+        .verify-row button:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
+        .verify-row button:disabled{opacity:.55;cursor:default;transform:none;box-shadow:none}
+        .verify-row .otp{min-height:44px;width:112px;font-size:15px;padding:0 14px}
         .verified{font-size:12px;font-weight:700;color:#1a3a2a;white-space:nowrap}
         .blog-subscribe-action{display:flex;align-items:center;min-height:91px}
         .blog-subscribe-status{min-height:22px;margin:12px 0 0;font-size:14px;line-height:1.45;color:rgba(0,0,0,.7)}
