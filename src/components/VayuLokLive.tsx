@@ -403,7 +403,6 @@ const VayuLokLive: React.FC = () => {
   const [ mapCandidateWeather, setMapCandidateWeather ] = useState<WeatherState | null>( null );
   const [ mapCandidateAir, setMapCandidateAir ] = useState<AirState | null>( null );
   const [ nearbyPhotos, setNearbyPhotos ] = useState<PlacePhoto[]>( [] );
-  const [ streetViewReady, setStreetViewReady ] = useState( false );
 
   // Search combobox state.
   const [ query, setQuery ] = useState( '' );
@@ -415,7 +414,6 @@ const VayuLokLive: React.FC = () => {
   const [ layer, setLayer ] = useState<'AQI' | 'PM25' | null>( null );
 
   const mapHost = useRef<HTMLDivElement | null>( null );
-  const streetViewHost = useRef<HTMLDivElement | null>( null );
   const photoRailRef = useRef<HTMLDivElement | null>( null );
   const mapRef = useRef<unknown>( null );
   const markerRef = useRef<unknown>( null );
@@ -451,7 +449,6 @@ const VayuLokLive: React.FC = () => {
     setMapCandidateWeather( null );
     setMapCandidateAir( null );
     setNearbyPhotos( [] );
-    setStreetViewReady( false );
   }, [ place.lat, place.lng ] );
 
   useEffect( () => {
@@ -743,13 +740,11 @@ const VayuLokLive: React.FC = () => {
     const exactCleanPhotos = ( target.photos || [] ).filter( photo => photo.attributions.length === 0 );
     if ( exactCleanPhotos.length ) {
       setNearbyPhotos( [] );
-      setStreetViewReady( false );
-      return;
+        return;
     }
 
     let cancelled = false;
     setNearbyPhotos( [] );
-    setStreetViewReady( false );
 
     const loadMedia = async () => {
       const lib = placesLibRef.current as {
@@ -774,8 +769,7 @@ const VayuLokLive: React.FC = () => {
               if ( !url ) return;
               const attributions = ( Array.isArray( photo?.authorAttributions ) ? photo.authorAttributions : [] )
                 .map( ( a: any ) => ( { name: String( a?.displayName || 'Photo contributor' ), uri: a?.uri } ) );
-              if ( attributions.length > 0 ) return;
-              photos.push( { url, attributions: [] } );
+              photos.push( { url, attributions } );
             } );
           } );
           if ( !cancelled && photos.length ) {
@@ -785,35 +779,8 @@ const VayuLokLive: React.FC = () => {
         }
       } catch { /* nearby photo enrichment is optional */ }
 
-      const maps = ( window as any ).google?.maps;
-      const host = streetViewHost.current;
-      if ( cancelled || !maps?.StreetViewService || !maps?.StreetViewPanorama || !host ) return;
-      try {
-        const service = new maps.StreetViewService();
-        service.getPanorama(
-          { location: { lat: target.lat, lng: target.lng }, radius: 120, preference: 'nearest' },
-          ( data: any, status: string ) => {
-            if ( cancelled || status !== 'OK' || !data?.location?.latLng || !streetViewHost.current ) return;
-            new maps.StreetViewPanorama( streetViewHost.current, {
-              position: data.location.latLng,
-              pov: { heading: 0, pitch: 0 },
-              zoom: 0,
-              addressControl: false,
-              clickToGo: false,
-              disableDefaultUI: true,
-              fullscreenControl: false,
-              linksControl: false,
-              motionTracking: false,
-              motionTrackingControl: false,
-              panControl: false,
-              scrollwheel: false,
-              showRoadLabels: false,
-              zoomControl: false,
-            } );
-            setStreetViewReady( true );
-          },
-        );
-      } catch { /* Street View is optional */ }
+      // No Street View fallback here. A native panorama brings its own chrome and
+      // visual language into the card; the neutral fallback below keeps the VayuLok card stable.
     };
 
     const id = window.setTimeout( () => { void loadMedia(); }, 0 );
@@ -1492,8 +1459,8 @@ const VayuLokLive: React.FC = () => {
   const previewPlace = mapCandidate || place;
   const previewWeather = mapCandidate ? mapCandidateWeather : weather;
   const previewAir = mapCandidate ? mapCandidateAir : air;
-  const exactCleanPhotos = ( previewPlace.photos || [] ).filter( photo => photo.attributions.length === 0 );
-  const displayPhotos = exactCleanPhotos.length ? exactCleanPhotos : nearbyPhotos;
+  const exactPhotos = previewPlace.photos || [];
+  const displayPhotos = exactPhotos.length ? exactPhotos : nearbyPhotos;
   const photoPages = Array.from( { length: Math.ceil( displayPhotos.length / 3 ) }, ( _, page ) =>
     displayPhotos.slice( page * 3, page * 3 + 3 ),
   );
@@ -1516,72 +1483,6 @@ const VayuLokLive: React.FC = () => {
       <div className="vl-live-wrap vl-live-grid">
         {/* ===== LEFT COLUMN: all content, stacked ===== */}
         <div className="vl-live-left">
-
-          {/* SEARCH - drives the map. Inert/hidden when there is no key. */}
-          { liveActive && (
-            <div className="vl-live-block vl-live-block-top">
-              <label className="vl-live-label" htmlFor="vl-live-search">Search a city or place</label>
-              <div className="vl-live-search">
-                <div className="vl-live-search-field">
-                  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                    <circle cx="9" cy="9" r="6.25" stroke="#1a3a2a" strokeWidth="2" />
-                    <path d="M13.8 13.8 L18.5 18.5" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                  <input
-                    className="vl-live-search-input"
-                    id="vl-live-search"
-                    type="text"
-                    role="combobox"
-                    aria-controls="vl-live-search-results"
-                    aria-expanded={ open }
-                    aria-autocomplete="list"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    spellCheck={ false }
-                    placeholder="Search a city or place"
-                    value={ query }
-                    onChange={ onQueryChange }
-                    onFocus={ () => {
-                      if ( query.trim() ) return;
-                      const recent = recentPlaces().map( place => ( { name: place.name, addr: place.addr, place } ) );
-                      setResults( recent );
-                      setActive( recent.length ? 0 : -1 );
-                      setOpen( recent.length > 0 );
-                      setSearchStatus( 'idle' );
-                    } }
-                    onKeyDown={ onKeyDown }
-                  />
-                </div>
-                <ul
-                  className="vl-live-search-results"
-                  id="vl-live-search-results"
-                  role="listbox"
-                  aria-label="Matching places"
-                  hidden={ !open || !results.length }
-                >
-                  { results.map( ( r, i ) => (
-                    <li
-                      key={ `${r.name}-${r.addr}-${i}` }
-                      className="vl-live-search-option"
-                      role="option"
-                      aria-selected={ i === active }
-                      onMouseDown={ e => { e.preventDefault(); void choose( r ); } }
-                    >
-                      <span className="vl-live-search-option-name">{ r.name }</span>
-                      { r.addr && <span className="vl-live-search-option-addr">{ r.addr }</span> }
-                    </li>
-                  ) ) }
-                </ul>
-                { searchStatus === 'searching' && <p className="vl-live-search-status" role="status">Searching India…</p> }
-                { searchStatus === 'no-results' && <p className="vl-live-search-status" role="status">Place not found in India.</p> }
-                { searchStatus === 'unavailable' && (
-                  <p className="vl-live-search-status vl-live-search-status-error" role="status">
-                    Place search is temporarily unavailable. <button type="button" onClick={ () => { if ( query.trim() ) void runSearch( query ); } }>Retry</button>
-                  </p>
-                ) }
-              </div>
-            </div>
-          ) }
 
           {/* NOW - editorial display type. The whole block is gated on a key: with no key
               there is no map and no live data, so a bare place name would be misleading.
@@ -2137,6 +2038,71 @@ const VayuLokLive: React.FC = () => {
                 />
               ) }
 
+              { liveActive && (
+                <div className="vl-live-map-search">
+                  <label className="vl-live-sr-only" htmlFor="vl-live-search">Search a city or place</label>
+                  <div className="vl-live-search">
+                    <div className="vl-live-search-field">
+                      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <circle cx="9" cy="9" r="6.25" stroke="#1a3a2a" strokeWidth="2" />
+                        <path d="M13.8 13.8 L18.5 18.5" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                      <input
+                        className="vl-live-search-input"
+                        id="vl-live-search"
+                        type="text"
+                        role="combobox"
+                        aria-controls="vl-live-search-results"
+                        aria-expanded={ open }
+                        aria-autocomplete="list"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={ false }
+                        placeholder="Search a city or place"
+                        value={ query }
+                        onChange={ onQueryChange }
+                        onFocus={ () => {
+                          if ( query.trim() ) return;
+                          const recent = recentPlaces().map( place => ( { name: place.name, addr: place.addr, place } ) );
+                          setResults( recent );
+                          setActive( recent.length ? 0 : -1 );
+                          setOpen( recent.length > 0 );
+                          setSearchStatus( 'idle' );
+                        } }
+                        onKeyDown={ onKeyDown }
+                      />
+                    </div>
+                    <ul
+                      className="vl-live-search-results"
+                      id="vl-live-search-results"
+                      role="listbox"
+                      aria-label="Matching places"
+                      hidden={ !open || !results.length }
+                    >
+                      { results.map( ( r, i ) => (
+                        <li
+                          key={ `${r.name}-${r.addr}-${i}` }
+                          className="vl-live-search-option"
+                          role="option"
+                          aria-selected={ i === active }
+                          onMouseDown={ e => { e.preventDefault(); void choose( r ); } }
+                        >
+                          <span className="vl-live-search-option-name">{ r.name }</span>
+                          { r.addr && <span className="vl-live-search-option-addr">{ r.addr }</span> }
+                        </li>
+                      ) ) }
+                    </ul>
+                    { searchStatus === 'searching' && <p className="vl-live-search-status" role="status">Searching India…</p> }
+                    { searchStatus === 'no-results' && <p className="vl-live-search-status" role="status">Place not found in India.</p> }
+                    { searchStatus === 'unavailable' && (
+                      <p className="vl-live-search-status vl-live-search-status-error" role="status">
+                        Place search is temporarily unavailable. <button type="button" onClick={ () => { if ( query.trim() ) void runSearch( query ); } }>Retry</button>
+                      </p>
+                    ) }
+                  </div>
+                </div>
+              ) }
+
               {/* Heatmap controls only make sense once the Maps JS canvas exists.
                   On the fallback map they stay hidden rather than implying a layer
                   can be toggled when there is no ImageMapType to receive it. */}
@@ -2185,6 +2151,18 @@ const VayuLokLive: React.FC = () => {
                                       alt={ `${previewPlace.name} area ${pageIndex * 3 + i + 1}` }
                                       loading={ pageIndex === 0 && i === 0 ? 'eager' : 'lazy' }
                                     />
+                                    { photo.attributions.length > 0 && (
+                                      <figcaption className="vl-live-photo-credit">
+                                        { photo.attributions.slice( 0, 2 ).map( ( credit, creditIndex ) => (
+                                          <React.Fragment key={ `${credit.name}-${creditIndex}` }>
+                                            { creditIndex > 0 ? ' · ' : '' }
+                                            { credit.uri
+                                              ? <a href={ credit.uri } target="_blank" rel="noreferrer">{ credit.name }</a>
+                                              : credit.name }
+                                          </React.Fragment>
+                                        ) ) }
+                                      </figcaption>
+                                    ) }
                                   </figure>
                                 ) ) }
                               </div>
@@ -2219,14 +2197,8 @@ const VayuLokLive: React.FC = () => {
                         ) }
                       </>
                     ) : (
-                      <div className={ `vl-live-streetview ${streetViewReady ? 'is-ready' : ''}`.trim() }>
-                        <div ref={ streetViewHost } className="vl-live-streetview-host" aria-label={ `Street View near ${previewPlace.name}` } />
-                        { !streetViewReady && (
-                          <div className="vl-live-place-photo-fallback" role="img" aria-label={ `VayuLok place preview for ${previewPlace.name}` }>
-                            <span aria-hidden="true" />
-                          </div>
-                        ) }
-                        { streetViewReady && <span className="vl-live-media-tag">Street View nearby</span> }
+                      <div className="vl-live-place-photo-fallback" role="img" aria-label={ `VayuLok place preview for ${previewPlace.name}` }>
+                        <span aria-hidden="true" />
                       </div>
                     ) }
 
@@ -2401,12 +2373,14 @@ const VayuLokLive: React.FC = () => {
         }
 
         /* Search. */
-        .vl-live-search{position:relative;max-width:520px}
+        .vl-live-map-search{position:absolute;top:16px;left:16px;z-index:7;width:min(360px,calc(100% - 32px))}
+        .vl-live-search{position:relative;width:100%;max-width:360px}
+        .vl-live-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
         /* One control, matching the shipped BlogSearch field: a single bordered box
            (2px rgba(26,58,42,.22), 12px radius, 52px) that darkens its border and
            shows a lime ring on focus. The field owns the ONLY border and the ONLY
            focus ring; the input inside is fully neutralised below. */
-        .vl-live-search-field{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;border:2px solid var(--hair);border-radius:12px;background:#fff}
+        .vl-live-search-field{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 18px;border:2px solid rgba(26,58,42,.34);border-radius:999px;background:rgba(255,255,255,.88);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 22px rgba(26,58,42,.10)}
         .vl-live-search-field:focus-within{border-color:#1a3a2a;box-shadow:none;outline:3px solid #1a3a2a;outline-offset:3px}
         /* The input is neutralised against the site's GLOBAL input:focus rules
            (inner-pages.css / Dashboard.css), which were drawing a second rounded
@@ -2460,18 +2434,18 @@ const VayuLokLive: React.FC = () => {
 
         /* Map overlays - inset from the bottom corners (Maps Platform ToS). No rule
            anywhere targets .gm-style-cc, a[href*="google"] or img[alt="Google"]. */
-        .vl-live-map-controls{position:absolute;top:16px;left:16px;z-index:4;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-        .vl-live-layer{min-height:44px;padding:0 18px;border:2px solid var(--hair);border-radius:var(--r-pill);background:var(--paper);color:var(--green);font:inherit;font-size:14px;font-weight:600;letter-spacing:-.125px;cursor:pointer;transition:background-color .2s,border-color .2s,transform .2s,box-shadow .2s}
+        .vl-live-map-controls{position:absolute;top:80px;left:16px;z-index:6;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+        .vl-live-layer{min-height:44px;padding:0 18px;border:2px solid rgba(26,58,42,.28);border-radius:var(--r-pill);background:rgba(255,255,255,.58);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);color:var(--green);font:inherit;font-size:14px;font-weight:600;letter-spacing:-.125px;cursor:pointer;transition:background-color .2s,border-color .2s,transform .2s,box-shadow .2s}
         .vl-live-layer:hover{border-color:var(--lime);background:var(--lime-tint);transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
         .vl-live-layer:focus-visible{outline:3px solid var(--green);outline-offset:3px}
-        .vl-live-layer[aria-pressed="true"]{border-color:var(--green);background:var(--lime)}
+        .vl-live-layer[aria-pressed="true"]{border-color:rgba(26,58,42,.55);background:rgba(209,244,112,.72)}
 
         .vl-live-scale{height:8px;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--aqi-good) 0%,var(--aqi-sat) 22%,var(--aqi-mod) 48%,var(--aqi-poor) 74%,var(--aqi-worst) 100%)}
         .vl-live-scale-ends{display:flex;justify-content:space-between;margin-top:6px;gap:8px}
         .vl-live-scale-ends span{font-size:11px;font-weight:700;color:var(--green)}
 
         /* Single map place card: merged photo-led reference + Home design language. */
-        .vl-live-map-preview{position:absolute;top:16px;right:16px;left:auto;bottom:auto;z-index:4;width:min(400px,calc(100% - 150px));padding:0 20px 20px;border:1px solid rgba(209,244,112,.9);border-radius:20px;background:rgba(255,255,255,.99);box-shadow:0 14px 34px rgba(26,58,42,.14);overflow:visible}
+        .vl-live-map-preview{position:absolute;top:80px;right:16px;left:auto;bottom:auto;z-index:4;width:min(400px,calc(100% - 150px));padding:0 20px 20px;border:1px solid rgba(209,244,112,.9);border-radius:20px;background:rgba(255,255,255,.99);box-shadow:0 14px 34px rgba(26,58,42,.14);overflow:visible}
         .vl-live-map-preview::after{content:'';position:absolute;left:50%;bottom:-10px;width:20px;height:20px;background:#fff;border-right:1px solid rgba(209,244,112,.9);border-bottom:1px solid rgba(209,244,112,.9);transform:translateX(-50%) rotate(45deg);border-radius:0 0 4px 0}
         .vl-live-photo-shell{position:relative;margin:0 -20px}
         .vl-live-place-photos{display:flex;gap:0;overflow-x:auto;overflow-y:hidden;border-radius:20px 20px 0 0;scroll-snap-type:x mandatory;scrollbar-width:none}
@@ -2482,13 +2456,11 @@ const VayuLokLive: React.FC = () => {
         .vl-live-place-photo.is-secondary{border-radius:0}
         .vl-live-place-photo.is-secondary:nth-child(2){border-radius:0 20px 0 0}
         .vl-live-place-photo img{display:block;width:100%;height:100%;object-fit:cover}
+        .vl-live-photo-credit{position:absolute;right:6px;bottom:5px;left:6px;z-index:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 6px;border-radius:7px;background:rgba(255,255,255,.76);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-size:8px;line-height:1.2;color:rgba(26,58,42,.78)}
+        .vl-live-photo-credit a{color:inherit;text-decoration:none}
+        .vl-live-photo-credit a:hover{text-decoration:underline}
         .vl-live-photo-count{position:absolute;top:12px;left:12px;z-index:4;display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:rgba(209,244,112,.96);color:var(--green);font-size:11px;font-weight:800;line-height:1;box-shadow:0 2px 8px rgba(26,58,42,.12)}
         .vl-live-place-photo-fallback{height:196px;margin:0;border-radius:20px 20px 0 0;display:grid;place-items:center;background:linear-gradient(135deg,rgba(209,244,112,.5),rgba(26,58,42,.08)),#eef3ef}
-        .vl-live-streetview{position:relative;height:196px;margin:0 -20px 12px;border-radius:20px 20px 0 0;overflow:hidden;background:#eef3ef}
-        .vl-live-streetview-host{position:absolute;inset:0;opacity:0;pointer-events:none}
-        .vl-live-streetview.is-ready .vl-live-streetview-host{opacity:1}
-        .vl-live-streetview .vl-live-place-photo-fallback{position:absolute;inset:0;width:100%;height:100%;margin:0;border-radius:0}
-        .vl-live-media-tag{position:absolute;top:12px;left:12px;z-index:4;padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.94);font-size:10px;font-weight:700;color:var(--green);box-shadow:0 2px 8px rgba(26,58,42,.1)}
         .vl-live-place-photo-fallback span{width:26px;height:26px;border:7px solid var(--green);border-radius:50% 50% 50% 0;background:var(--lime);transform:rotate(-45deg)}
         .vl-live-photo-tabs{display:flex;gap:5px;margin:7px 0 13px;padding:0 1px;height:14px;align-items:center}
         .vl-live-photo-tab{position:relative;display:block;flex:1 1 0;height:14px;min-width:10px;cursor:pointer;outline:none}
@@ -2669,7 +2641,9 @@ const VayuLokLive: React.FC = () => {
         .vl-live-wa-subscribe:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
 
         @media(max-width:1023px){
-          .vl-live-map-preview{top:12px;right:12px;left:auto;bottom:auto;width:min(360px,calc(100% - 24px));padding:0 16px 16px}
+          .vl-live-map-search{top:12px;left:12px;width:min(330px,calc(100% - 24px))}
+          .vl-live-map-controls{top:76px;left:12px}
+          .vl-live-map-preview{top:76px;right:12px;left:auto;bottom:auto;width:min(360px,calc(100% - 24px));padding:0 16px 16px}
         }
         @media(max-width:767px){
           .vl-live{padding-bottom:48px}
@@ -2682,8 +2656,10 @@ const VayuLokLive: React.FC = () => {
           .vl-live-section{padding-top:0}
           .vl-live-block{padding-block:32px}
           .vl-live-left > .vl-live-section{margin-top:64px}
-          .vl-live-map-controls{top:12px;left:12px}
-          .vl-live-map-preview{width:calc(100% - 24px);max-width:360px}
+          .vl-live-map-search{top:12px;left:12px;right:12px;width:auto}
+          .vl-live-search{max-width:none}
+          .vl-live-map-controls{top:76px;left:12px}
+          .vl-live-map-preview{top:132px;width:calc(100% - 24px);max-width:360px}
           .vl-live-map-preview .vl-live-card-h{font-size:17px}
           .vl-live-plan-head{display:block}
           .vl-live-plan-range{margin-top:8px;text-align:left}
