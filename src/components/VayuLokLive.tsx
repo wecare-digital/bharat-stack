@@ -774,8 +774,10 @@ const VayuLokLive: React.FC = () => {
               if ( !url ) return;
               const attributions = ( Array.isArray( photo?.authorAttributions ) ? photo.authorAttributions : [] )
                 .map( ( a: any ) => ( { name: String( a?.displayName || 'Photo contributor' ), uri: a?.uri } ) );
-              if ( attributions.length > 0 ) return;
-              photos.push( { url, attributions: [] } );
+              // Keep attributed photos (do NOT drop them): the mosaic renders their
+              // attribution where present, so nearby photos populate the card instead
+              // of leaving it empty when every nearby image carries a contributor.
+              photos.push( { url, attributions } );
             } );
           } );
           if ( !cancelled && photos.length ) {
@@ -1492,8 +1494,16 @@ const VayuLokLive: React.FC = () => {
   const previewPlace = mapCandidate || place;
   const previewWeather = mapCandidate ? mapCandidateWeather : weather;
   const previewAir = mapCandidate ? mapCandidateAir : air;
-  const exactCleanPhotos = ( previewPlace.photos || [] ).filter( photo => photo.attributions.length === 0 );
-  const displayPhotos = exactCleanPhotos.length ? exactCleanPhotos : nearbyPhotos;
+  // Prefer attribution-free photos so the common case shows ZERO attribution. But
+  // Google attaches an authorAttribution to nearly every Place Photo, so filtering
+  // those out left the mosaic empty on most places. Fall back to the full photo set
+  // (which may carry attribution) rather than to nothing: a populated, ToS-compliant
+  // mosaic beats an empty card. Any photo that carries attribution renders it (small,
+  // in the figure corner) per Google Maps Platform ToS; clean photos show none.
+  const allPlacePhotos = previewPlace.photos || [];
+  const exactCleanPhotos = allPlacePhotos.filter( photo => photo.attributions.length === 0 );
+  const placePhotos = exactCleanPhotos.length ? exactCleanPhotos : allPlacePhotos;
+  const displayPhotos = placePhotos.length ? placePhotos : nearbyPhotos;
   const photoPages = Array.from( { length: Math.ceil( displayPhotos.length / 3 ) }, ( _, page ) =>
     displayPhotos.slice( page * 3, page * 3 + 3 ),
   );
@@ -2185,6 +2195,11 @@ const VayuLokLive: React.FC = () => {
                                       alt={ `${previewPlace.name} area ${pageIndex * 3 + i + 1}` }
                                       loading={ pageIndex === 0 && i === 0 ? 'eager' : 'lazy' }
                                     />
+                                    { photo.attributions.length > 0 && (
+                                      <figcaption className="vl-live-photo-attr">
+                                        { photo.attributions.map( a => a.name ).join( ', ' ) }
+                                      </figcaption>
+                                    ) }
                                   </figure>
                                 ) ) }
                               </div>
@@ -2482,6 +2497,10 @@ const VayuLokLive: React.FC = () => {
         .vl-live-place-photo.is-secondary{border-radius:0}
         .vl-live-place-photo.is-secondary:nth-child(2){border-radius:0 20px 0 0}
         .vl-live-place-photo img{display:block;width:100%;height:100%;object-fit:cover}
+        /* Required Google Maps Platform photo attribution: shown only when the photo
+           carries a contributor. Small and bottom-left, over a soft gradient so it
+           stays legible without dominating the image. Clean photos render no caption. */
+        .vl-live-photo-attr{position:absolute;left:0;right:0;bottom:0;z-index:2;margin:0;padding:10px 8px 4px;font-size:9px;line-height:1.2;color:#fff;background:linear-gradient(to top,rgba(0,0,0,.55),transparent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .vl-live-photo-count{position:absolute;top:12px;left:12px;z-index:4;display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:rgba(209,244,112,.96);color:var(--green);font-size:11px;font-weight:800;line-height:1;box-shadow:0 2px 8px rgba(26,58,42,.12)}
         .vl-live-place-photo-fallback{height:196px;margin:0;border-radius:20px 20px 0 0;display:grid;place-items:center;background:linear-gradient(135deg,rgba(209,244,112,.5),rgba(26,58,42,.08)),#eef3ef}
         .vl-live-streetview{position:relative;height:196px;margin:0 -20px 12px;border-radius:20px 20px 0 0;overflow:hidden;background:#eef3ef}
