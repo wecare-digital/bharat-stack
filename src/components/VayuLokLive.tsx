@@ -1460,7 +1460,9 @@ const VayuLokLive: React.FC = () => {
   const previewWeather = mapCandidate ? mapCandidateWeather : weather;
   const previewAir = mapCandidate ? mapCandidateAir : air;
   const exactPhotos = previewPlace.photos || [];
-  const displayPhotos = exactPhotos.length ? exactPhotos : nearbyPhotos;
+  const displayPhotos = Array.from(
+    new Map( [ ...exactPhotos, ...nearbyPhotos ].map( photo => [ photo.url, photo ] ) ).values(),
+  ).slice( 0, 8 );
   const photoPages = Array.from( { length: Math.ceil( displayPhotos.length / 3 ) }, ( _, page ) =>
     displayPhotos.slice( page * 3, page * 3 + 3 ),
   );
@@ -2353,7 +2355,7 @@ const VayuLokLive: React.FC = () => {
         .vl-live-map-fallback-status{margin:3px 0 0;font-size:13px;line-height:1.35;color:var(--ink-muted)}
         .vl-live-map-canvas{position:absolute;inset:0;z-index:2;opacity:0;pointer-events:none;border-radius:inherit;overflow:hidden;background:transparent}
 
-        .vl-live-map-retry{min-height:36px;margin-top:10px;padding:0 12px;border:1px solid var(--green);border-radius:999px;background:#fff;color:var(--green);font:inherit;font-size:12px;font-weight:700;cursor:pointer}        .vl-live-map-canvas.is-ready{opacity:1;pointer-events:auto}
+        .vl-live-map-retry{min-height:44px;margin-top:10px;padding:0 18px;border:2px solid #1a3a2a;border-radius:999px;background:#fff;color:#1a3a2a;font:inherit;font-size:14px;font-weight:600;cursor:pointer}        .vl-live-map-canvas.is-ready{opacity:1;pointer-events:auto}
 
         @media(min-width:1024px){
           /* Two equal columns with a fixed gap so they cannot overlap. The earlier
@@ -2380,8 +2382,8 @@ const VayuLokLive: React.FC = () => {
            (2px rgba(26,58,42,.22), 12px radius, 52px) that darkens its border and
            shows a lime ring on focus. The field owns the ONLY border and the ONLY
            focus ring; the input inside is fully neutralised below. */
-        .vl-live-search-field{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 18px;border:2px solid rgba(26,58,42,.34);border-radius:999px;background:rgba(255,255,255,.88);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 22px rgba(26,58,42,.10)}
-        .vl-live-search-field:focus-within{border-color:#1a3a2a;box-shadow:none;outline:3px solid #1a3a2a;outline-offset:3px}
+        .vl-live-search-field{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 18px;border:2px solid #1a3a2a;border-radius:999px;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:none}
+        .vl-live-search-field:focus-within{border-color:#1a3a2a;outline:3px solid rgba(209,244,112,.78);outline-offset:2px;box-shadow:0 4px 12px rgba(26,58,42,.10)}
         /* The input is neutralised against the site's GLOBAL input:focus rules
            (inner-pages.css / Dashboard.css), which were drawing a second rounded
            box (lime box-shadow + 8px radius + padding) INSIDE this field - the
@@ -2485,9 +2487,9 @@ const VayuLokLive: React.FC = () => {
         .vl-live-preview-insight span{display:block;margin-top:4px;font-size:12px;line-height:1.45;color:var(--ink-muted)}
         .vl-live-preview-scale{margin-top:15px;padding-top:13px;border-top:1px solid var(--hair)}
         .vl-live-preview-scale .vl-live-label{margin-bottom:7px}
-        .vl-live-view-details{display:inline-flex;align-items:center;gap:5px;min-height:38px;margin-top:16px;padding:0 15px;border:2px solid transparent;border-radius:999px;background:var(--lime);color:var(--green);font:inherit;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer;transition:background-color .18s ease,border-color .18s ease,transform .18s ease}
-        .vl-live-view-details:hover{border-color:var(--green);background:#fff;transform:translateY(-1px)}
-        .vl-live-view-details:focus-visible{outline:3px solid var(--green);outline-offset:2px}
+        .vl-live-view-details{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:52px;margin-top:16px;padding:0 24px;border:2px solid #1a3a2a;border-radius:999px;background:#d1f470;color:#1a3a2a;font:inherit;font-size:17px;font-weight:600;line-height:1.2;text-decoration:none;cursor:pointer;transition:background-color .2s ease,border-color .2s ease,transform .2s ease,box-shadow .2s ease}
+        .vl-live-view-details:hover{border-color:#1a3a2a;background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+        .vl-live-view-details:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
 
         /* Continuous weather workspace: typography + hairlines instead of repeated cards. */
         .vl-live-signal-stack{padding-top:0;padding-bottom:0}
@@ -2556,6 +2558,23 @@ const VayuLokLive: React.FC = () => {
         .vl-live-best-outside .vl-live-metric-lg,.vl-live-best-outside .vl-live-body{color:var(--ink-head)}
         .vl-live-best-outside .vl-live-small{color:var(--ink-muted)}
         .vl-live-hour-rail,.vl-live-day-rail{display:flex;gap:0;overflow-x:auto;scroll-snap-type:x proximity;padding:0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);scrollbar-width:thin}
+
+        .vl-live-hour-rail,.vl-live-day-rail,.vl-live-metric-rail{
+          scrollbar-color:#d1f470 #fafafa;
+          scrollbar-width:thin;
+        }
+        .vl-live-hour-rail::-webkit-scrollbar,
+        .vl-live-day-rail::-webkit-scrollbar,
+        .vl-live-metric-rail::-webkit-scrollbar{height:8px}
+        .vl-live-hour-rail::-webkit-scrollbar-track,
+        .vl-live-day-rail::-webkit-scrollbar-track,
+        .vl-live-metric-rail::-webkit-scrollbar-track{background:#fafafa;border-radius:999px}
+        .vl-live-hour-rail::-webkit-scrollbar-thumb,
+        .vl-live-day-rail::-webkit-scrollbar-thumb,
+        .vl-live-metric-rail::-webkit-scrollbar-thumb{background:#d1f470;border:2px solid #fafafa;border-radius:999px}
+        .vl-live-hour-rail::-webkit-scrollbar-thumb:hover,
+        .vl-live-day-rail::-webkit-scrollbar-thumb:hover,
+        .vl-live-metric-rail::-webkit-scrollbar-thumb:hover{background:#1a3a2a}
         .vl-live-hour-card{position:relative;flex:0 0 112px;min-height:144px;padding:14px 14px 14px 0;border:0;border-radius:0;background:transparent;scroll-snap-align:start}
         .vl-live-hour-card+.vl-live-hour-card{padding-left:14px;border-left:1px solid var(--hair)}
         .vl-live-hour-card time,.vl-live-hour-card span{display:block;font-size:12px;line-height:1.35;color:var(--ink-muted)}
@@ -2670,8 +2689,8 @@ const VayuLokLive: React.FC = () => {
         }
         @media(prefers-reduced-motion:reduce){
           .vl-live-data-skeleton i{animation:none}
-          .vl-live-layer,.vl-live-wa-subscribe{transition:none}
-          .vl-live-layer:hover,.vl-live-wa-subscribe:hover,.vl-live-wa-subscribe:focus-visible{transform:none;box-shadow:none}
+          .vl-live-layer,.vl-live-wa-subscribe,.vl-live-view-details,.vl-live-solar-load{transition:none}
+          .vl-live-layer:hover,.vl-live-wa-subscribe:hover,.vl-live-wa-subscribe:focus-visible,.vl-live-view-details:hover,.vl-live-solar-load:hover{transform:none;box-shadow:none}
         }
       `}</style>
     </section>
