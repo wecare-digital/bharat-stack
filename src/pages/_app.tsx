@@ -88,10 +88,10 @@ Amplify.configure( {
           // https://wecare.digital/ is registered on the stack-wecare-digital-web client
           // as both a callback and a logout URL, verified against the live pool.
           //
-          // This used to say stack.wecare.digital, on the reasoning that the apex was
+          // This used to say retired legacy frontend host, on the reasoning that the apex was
           // only the public marketing host while the app was served from the subdomain.
           // That distinction no longer exists: Amplify maps the apex to this same branch
-          // and 301s stack.wecare.digital to it, so the subdomain served nothing of its
+          // and 301s retired legacy frontend host to it, so the subdomain served nothing of its
           // own and has been retired. A redirecting host is a bad OAuth redirect URI in
           // any case - it works only as long as the 301 preserves the ?code=.
           redirectSignIn: [
