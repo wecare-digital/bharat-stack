@@ -13,6 +13,12 @@
 import next from 'eslint-config-next';
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 
+const nextConfigs = Array.isArray( next ) ? next : [ next ];
+const nextCoreConfigs = Array.isArray( nextCoreWebVitals ) ? nextCoreWebVitals : [ nextCoreWebVitals ];
+const reactHooksPlugin = [ ...nextConfigs, ...nextCoreConfigs ]
+  .map( config => config.plugins?.[ 'react-hooks' ] )
+  .find( Boolean );
+
 export default [
   {
     // Generated, vendored and non-source output. Linting these produces noise
@@ -57,8 +63,8 @@ export default [
       // invisible to security scanning.
     ],
   },
-  ...(Array.isArray(next) ? next : [next]),
-  ...(Array.isArray(nextCoreWebVitals) ? nextCoreWebVitals : [nextCoreWebVitals]),
+  ...nextConfigs,
+  ...nextCoreConfigs,
   {
     // ── The two React Compiler rules that are ADVISORY in this codebase ──────────────
     //
@@ -108,6 +114,10 @@ export default [
     // analysed those components. The five new reports are pre-existing code, newly
     // visible - not a regression introduced by the fix.
     name: 'wecare/react-compiler-advisory',
+    // Flat config does not inherit plugin registrations from earlier config objects.
+    // Reuse the exact plugin instance eslint-config-next already loaded, avoiding a
+    // duplicate dependency and keeping package-lock.json untouched.
+    plugins: reactHooksPlugin ? { 'react-hooks': reactHooksPlugin } : {},
     rules: {
       'react-hooks/set-state-in-effect': 'warn',
     },
